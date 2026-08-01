@@ -27,35 +27,6 @@
 
 ## スクリーンショット
 
-### ゲーム画面と戦闘支援
-
-画像をクリックすると原寸で表示できます。
-
-<p align="center">
-  <a href="docs/images/screenshots/battle.png">
-    <img src="docs/images/screenshots/battle.png" width="100%" alt="ゲーム画面とリアルタイム支援情報の並列表示">
-  </a>
-</p>
-
-<table>
-  <tr>
-    <td width="50%" align="center">
-      <a href="docs/images/screenshots/fleet.png">
-        <img src="docs/images/screenshots/fleet.png" alt="艦隊情報画面">
-      </a>
-    </td>
-    <td width="50%" align="center">
-      <a href="docs/images/screenshots/quests.png">
-        <img src="docs/images/screenshots/quests.png" alt="任務情報画面">
-      </a>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">艦隊情報</td>
-    <td align="center">任務情報</td>
-  </tr>
-</table>
-
 ### 端末ごとの表示
 
 <table>
@@ -84,6 +55,35 @@
 </table>
 
 ヤハギは、タブレットの横画面、折りたたみ端末、ゲーム画面と情報パネルを並べて使用する場面に合わせてレイアウトを最適化しています。現時点では、タブレットや折りたたみ端末での使用を特に推奨しています。一般的なスマートフォンでも動作しますが、画面サイズの制約により、ホーム画面に同時表示できる支援情報は大画面端末より少なくなります。
+
+### ゲーム画面と戦闘支援
+
+画像をクリックすると原寸で表示できます。
+
+<table>
+  <tr>
+    <td width="64%" rowspan="2" align="center" valign="middle">
+      <a href="docs/images/screenshots/battle.png">
+        <img src="docs/images/screenshots/battle.png" width="100%" alt="ゲーム画面とリアルタイム支援情報の並列表示">
+      </a>
+      <br><strong>ゲーム画面と戦闘支援</strong>
+    </td>
+    <td width="36%" align="center" valign="middle">
+      <a href="docs/images/screenshots/fleet.png">
+        <img src="docs/images/screenshots/fleet.png" width="100%" alt="艦隊情報画面">
+      </a>
+      <br>艦隊情報
+    </td>
+  </tr>
+  <tr>
+    <td width="36%" align="center" valign="middle">
+      <a href="docs/images/screenshots/quests.png">
+        <img src="docs/images/screenshots/quests.png" width="100%" alt="任務情報画面">
+      </a>
+      <br>任務情報
+    </td>
+  </tr>
+</table>
 
 ## 動作モード
 
