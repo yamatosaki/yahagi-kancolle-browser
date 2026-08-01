@@ -11,13 +11,14 @@ import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
   setUpAll(() async {
-    final fontBytes = await File(r'C:\Windows\Fonts\msyh.ttc').readAsBytes();
+    final separator = Platform.pathSeparator;
+    final fontBytes = await File(
+      'assets${separator}fonts${separator}HarmonyOS_Sans_SC.ttf',
+    ).readAsBytes();
     await (FontLoader(
       'PreviewCjk',
     )..addFont(Future<ByteData>.value(ByteData.sublistView(fontBytes)))).load();
-    final iconBytes = await File(
-      r'G:\DevTools\flutter\bin\cache\artifacts\material_fonts\MaterialIcons-Regular.otf',
-    ).readAsBytes();
+    final iconBytes = await _materialIconsFont().readAsBytes();
     await (FontLoader(
       'MaterialIcons',
     )..addFont(Future<ByteData>.value(ByteData.sublistView(iconBytes)))).load();
@@ -128,6 +129,22 @@ void main() {
       ),
     );
   });
+}
+
+File _materialIconsFont() {
+  final separator = Platform.pathSeparator;
+  var directory = File(Platform.resolvedExecutable).parent;
+  while (directory.parent.path != directory.path) {
+    final candidate = File(
+      '${directory.path}${separator}bin${separator}cache${separator}artifacts'
+      '${separator}material_fonts${separator}MaterialIcons-Regular.otf',
+    );
+    if (candidate.existsSync()) {
+      return candidate;
+    }
+    directory = directory.parent;
+  }
+  throw StateError('Unable to locate the Flutter Material Icons font.');
 }
 
 GameState _combinedFleetState() {

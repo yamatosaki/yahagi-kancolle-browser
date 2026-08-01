@@ -1,9 +1,9 @@
 <div align="center">
-  <img src="assets/app_icon.png" width="128" alt="Yahagi KanColle Browser 图标">
+  <img src="assets/app_icon.png" width="128" alt="ヤハギ应用图标">
 
-# Yahagi KanColle Browser
+# ヤハギ（Yahagi KanColle Browser）
 
-面向 Android 平板与手机的《舰队 Collection》非官方浏览器及本地信息辅助工具。
+面向 Android 平板、折叠屏与手机的《舰队 Collection》非官方浏览器及本地信息辅助工具。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Flutter](https://img.shields.io/badge/Flutter-3.44-02569B?logo=flutter)](https://flutter.dev/)
@@ -14,49 +14,112 @@
 
 ## 软件介绍
 
-Yahagi 将游戏浏览器与信息面板整合在同一个 Android 应用中。玩家可以在 WebView 中打开 DMM 与游戏页面，并在侧边信息中心查看舰队、资源、任务、远征、入渠、建造和战斗等数据。
+ヤハギ（Yahagi）是一款基于 Flutter 和 Android System WebView 开发的《舰队 Collection》移动端浏览器及本地信息辅助工具。游戏网页由 Android System WebView（Chromium）加载，浏览、登录、Cookie 和页面交互方式与同设备上的 Chrome 接近；受系统 WebView 与 Chrome 版本差异影响，具体行为可能略有不同。
 
-应用只读取游戏页面已经收到的 `/kcsapi/` 响应，用于生成本地辅助信息和日志。它不会自动填写账号、点击页面、编成舰队、补给、出击或领取任务，所有游戏操作仍由玩家本人完成。
+应用只读取游戏页面已经收到的 `/kcsapi/` 响应，用于在设备本地生成辅助信息和日志。它不会自动填写账号、点击页面、编成舰队、补给、出击或领取任务，所有游戏操作仍由玩家本人完成。
+
+## 软件展示
+
+### 游戏与战斗辅助
+
+点击图片可查看原图。
+
+<p align="center">
+  <a href="docs/images/screenshots/battle.png">
+    <img src="docs/images/screenshots/battle.png" width="100%" alt="战斗画面与实时辅助信息并排展示">
+  </a>
+</p>
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <a href="docs/images/screenshots/fleet.png">
+        <img src="docs/images/screenshots/fleet.png" alt="编队信息展示">
+      </a>
+    </td>
+    <td width="50%" align="center">
+      <a href="docs/images/screenshots/quests.png">
+        <img src="docs/images/screenshots/quests.png" alt="任务信息展示">
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">编队信息</td>
+    <td align="center">任务信息</td>
+  </tr>
+</table>
+
+### 设备适配
+
+<table>
+  <tr>
+    <td width="33%" align="center">
+      <a href="docs/images/screenshots/phone.png">
+        <img src="docs/images/screenshots/phone.png" alt="一般手机横屏展示">
+      </a>
+    </td>
+    <td width="33%" align="center">
+      <a href="docs/images/screenshots/tablet.png">
+        <img src="docs/images/screenshots/tablet.png" alt="平板横屏展示">
+      </a>
+    </td>
+    <td width="33%" align="center">
+      <a href="docs/images/screenshots/foldable.png">
+        <img src="docs/images/screenshots/foldable.png" alt="折叠屏展示">
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">一般手机</td>
+    <td align="center">平板</td>
+    <td align="center">折叠屏</td>
+  </tr>
+</table>
+
+ヤハギ针对平板横屏、折叠屏以及游戏画面与信息面板并排使用的场景优化了布局。目前更推荐在平板和折叠屏上使用。普通手机同样可以运行，但受屏幕尺寸限制，首页能够同时展示的辅助信息不如大屏设备完整。
+
+## 运行模式
+
+应用提供两种可以随时切换的运行模式：
+
+- **游戏信息模式：** 读取游戏页面已经收到的 `/kcsapi/` 响应，启用下方列出的本地辅助功能。
+- **纯浏览模式：** 关闭接口信息读取，仅使用 WebView 打开和操作游戏页面，适合只想在应用内游玩游戏的场景。
+
+无论使用哪种模式，应用都不会代替玩家执行游戏操作。
 
 ## 核心功能
 
 ### 游戏浏览
 
-- 在 Android System WebView 中加载 DMM 登录页和游戏页面。
+- 使用 Android System WebView 加载 DMM 登录页和游戏页面。
 - 提供返回、刷新、主页、静音和画面适配等常用控制。
-- 针对平板横屏和信息面板并排使用场景优化布局。
-- 提供“游戏信息模式”和“纯浏览模式”，可随时关闭接口信息读取。
+- 支持应用自动横屏，也可以在设置中改为跟随系统。
+- 支持简体中文、繁体中文和日语界面。
 
-### 舰队信息中心
+### 舰队与作业状态
 
-- 查看各舰队的舰娘、等级、耐久、疲劳度和装备。
-- 汇总制空、索敌、装备属性和联合舰队信息。
-- 识别先制对潜、对空 CI、对空喷进弹幕等战斗机制。
-- 提供出击前舰队状态检查，帮助快速发现需要留意的编成状态。
+- 查看舰队成员、等级、耐久、疲劳度、燃料、弹药和装备。
+- 汇总速度、火力、雷装、对空、对潜、制空和索敌等舰队信息。
+- 展示远征、入渠和建造状态及剩余时间。
+- 提供出击前状态检查，帮助发现需要留意的舰队状态。
 
-### 任务与作业状态
+### 任务信息
 
-- 展示进行中和已完成任务，并显示类型、周期与完成进度。
-- 支持任务筛选、排序和重点任务查看。
-- 集中展示远征、入渠和建造状态及剩余时间。
+- 展示已接受任务、完成状态、类型、周期和服务器可确认的进度区间。
+- 提供任务列表与详细说明，并展示基础奖励。
+- 在设备本地保留经过解析和脱敏的任务信息。
 
-### 战斗辅助
+### 战斗辅助与日志
 
-- 记录航海节点、敌我舰队和交战状态。
-- 根据已收到的战斗数据展示耐久变化与战斗过程。
-- 提供战果等级和 MVP 预测，并在官方结算返回后更新为正式结果。
-- 支持通常舰队与联合舰队战斗信息展示。
+- 记录航海节点、敌我舰队、交战状态和耐久变化。
+- 根据游戏页面已经收到的数据展示战斗过程、战果等级和 MVP 预测。
+- 在官方结算响应到达后，将预测更新为正式结果。
+- 支持通常舰队与联合舰队，并在设备本地保存战斗记录。
 
-### 日志与统计
-
-- 在设备本地保存战斗、资源和远征记录。
-- 提供历史记录查看，便于回顾资源变化与作战结果。
-- 数据保存在本地数据库中，不需要额外的云端账号。
-
-### 网络与界面
+### 网络与本地数据
 
 - 支持系统网络、HTTP 代理和 SOCKS5 代理。
-- 支持简体中文、繁体中文和日语界面。
+- 辅助数据保存在设备本地，不需要额外注册云端账号。
 - 支持应用内版本检查，并从 GitHub Releases 获取最新版本信息。
 
 ## 数据与安全边界
@@ -68,50 +131,33 @@ Yahagi 将游戏浏览器与信息面板整合在同一个 Android 应用中。�
 - 捕获逻辑不阻断、不重放、不修改游戏通信，也不会代替玩家操作游戏。
 - Android System WebView 仍可能按照系统默认行为保存登录 Cookie。
 
-## 获取与运行
+## 获取应用
 
-正式版本发布后，可前往 [GitHub Releases](https://github.com/yamatosaki/yahagi-kancolle-browser/releases) 获取安装包。
+请前往 [GitHub Releases](https://github.com/yamatosaki/yahagi-kancolle-browser/releases) 查看已发布版本和安装包。
 
-目前也可以从源码运行。开发环境需要 Flutter 3.44、Dart 3.12、JDK 17 和 Android SDK：
+## 未来开发计划
 
-```powershell
-git clone https://github.com/yamatosaki/yahagi-kancolle-browser.git
-Set-Location yahagi-kancolle-browser
-flutter pub get
-flutter run
-```
+目前作者预想的主要功能已经基本实现，但项目仍可能存在尚未发现或测试覆盖不足的 Bug。欢迎通过 Issue 分享使用反馈、兼容性问题和功能建议；作者会根据实际情况继续修改、优化和更新。
 
-构建本地测试用 debug APK：
+iOS 版本目前处于计划阶段。由于作者暂时没有 Mac 及其他 iOS 开发环境设备，相关开发和测试仍需要一段时间。
 
-```powershell
-flutter build apk --debug
-```
-
-APK 默认输出到 `build/app/outputs/flutter-apk/app-debug.apk`。
+HarmonyOS 版本也可能在未来进行可行性调研，但目前尚无明确的开发计划和时间表。
 
 ## 开源与贡献
 
-Yahagi 以开放源代码的方式开发。欢迎通过以下方式参与项目：
+ヤハギ以开放源代码的方式开发。欢迎通过以下方式参与项目：
 
 - 提交 Issue，报告错误或提出功能建议。
 - 提交 Pull Request，改进功能、兼容性、文档或本地化。
 - 在不同 Android 设备和 WebView 版本上测试，并反馈运行情况。
 
-参与开发前请阅读 [贡献指南](CONTRIBUTING.md) 和 [安全政策](SECURITY.md)。提交变更前建议运行：
-
-```powershell
-dart format --output=none --set-exit-if-changed lib test
-flutter analyze
-flutter test
-Set-Location android
-.\gradlew.bat :app:testDebugUnitTest --console=plain
-```
+参与开发前请阅读 [贡献指南](CONTRIBUTING.md) 和 [安全政策](SECURITY.md)。
 
 项目源代码使用 [MIT License](LICENSE)。第三方字体、依赖及其他资产的说明见 [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES)。
 
 ## 免责声明
 
-Yahagi 是由社区开发的非官方工具，与《舰队 Collection》运营方、开发方、DMM 及相关权利方不存在隶属、授权或合作关系。
+ヤハギ是由社区开发的非官方工具，与《舰队 Collection》运营方、开发方、DMM 及相关权利方不存在隶属、授权或合作关系。
 
 使用者应自行了解并遵守相关服务条款，并承担使用第三方工具可能产生的账号、网络和兼容性风险。游戏名称、商标及第三方素材的相关权利归各自权利人所有。
 
@@ -121,4 +167,4 @@ Yahagi 是由社区开发的非官方工具，与《舰队 Collection》运营�
 
 同时感谢 Flutter、WebView Flutter 及本项目所有依赖库的维护者，也感谢每一位参与测试、反馈问题和贡献代码的用户。
 
-Yahagi 是独立开发的项目，项目观点与实现不代表上述项目或社区的官方立场。
+ヤハギ是独立开发的项目，项目观点与实现不代表上述项目或社区的官方立场。
