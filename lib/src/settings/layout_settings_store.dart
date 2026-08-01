@@ -10,9 +10,6 @@ abstract class LayoutSettingsStore {
   Future<bool> loadAutoZoom();
   Future<void> saveAutoZoom(bool autoZoom);
 
-  Future<bool> loadAutoLandscape();
-  Future<void> saveAutoLandscape(bool autoLandscape);
-
   Future<List<String>> loadDashboardCardOrder();
   Future<void> saveDashboardCardOrder(List<String> order);
 
@@ -30,7 +27,6 @@ class SharedPreferencesLayoutSettingsStore implements LayoutSettingsStore {
   static const _keyGameAreaRatio = 'layout_game_area_ratio';
   static const _keyInformationPanelWidth = 'layout_information_panel_width';
   static const _keyAutoZoom = 'layout_auto_zoom';
-  static const _keyAutoLandscape = 'layout_auto_landscape';
 
   @override
   Future<double> loadGameAreaRatio() async {
@@ -66,18 +62,6 @@ class SharedPreferencesLayoutSettingsStore implements LayoutSettingsStore {
   Future<void> saveAutoZoom(bool autoZoom) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyAutoZoom, autoZoom);
-  }
-
-  @override
-  Future<bool> loadAutoLandscape() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_keyAutoLandscape) ?? true;
-  }
-
-  @override
-  Future<void> saveAutoLandscape(bool autoLandscape) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_keyAutoLandscape, autoLandscape);
   }
 
   static const _keyDashboardCardOrder = 'layout_dashboard_card_order';

@@ -1,7 +1,11 @@
 ﻿package app.yahagi.kancollebrowser
 
+import android.database.ContentObserver
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -17,8 +21,24 @@ import app.yahagi.kancollebrowser.capture.GameCaptureBridge
 import kotlin.math.abs
 
 class MainActivity : FlutterActivity() {
+    private val orientationSettingsObserver = object : ContentObserver(
+        Handler(Looper.getMainLooper()),
+    ) {
+        override fun onChange(selfChange: Boolean) {
+            applyOrientationPolicy()
+        }
+    }
+    private var orientationObserverRegistered = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        contentResolver.registerContentObserver(
+            Settings.System.getUriFor(Settings.System.ACCELEROMETER_ROTATION),
+            false,
+            orientationSettingsObserver,
+        )
+        orientationObserverRegistered = true
+        applyOrientationPolicy()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val attr = window.attributes
@@ -29,6 +49,11 @@ class MainActivity : FlutterActivity() {
             }
             window.attributes = attr
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyOrientationPolicy()
     }
 
     private companion object {
@@ -121,12 +146,28 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun onDestroy() {
+        if (orientationObserverRegistered) {
+            contentResolver.unregisterContentObserver(orientationSettingsObserver)
+            orientationObserverRegistered = false
+        }
         gameCaptureBridge?.dispose()
         gameCaptureBridge = null
         webViewProxyManager?.dispose()
         webViewProxyManager = null
         boundWebView = null
         super.onDestroy()
+    }
+
+    private fun applyOrientationPolicy() {
+        val autoRotateEnabled = Settings.System.getInt(
+            contentResolver,
+            Settings.System.ACCELEROMETER_ROTATION,
+            0,
+        ) == 1
+        val targetOrientation = OrientationPolicy.requestedOrientation(autoRotateEnabled)
+        if (requestedOrientation != targetOrientation) {
+            requestedOrientation = targetOrientation
+        }
     }
 
     private fun setGameWebViewMuted(

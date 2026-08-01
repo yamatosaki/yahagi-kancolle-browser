@@ -88,7 +88,6 @@ void main() {
     await tester.tap(find.byKey(const Key('workspace-nav-settings')));
     await tester.pumpAndSettle();
 
-    expect(find.text('应用自动横屏（推荐）'), findsOneWidget);
     expect(find.text('游戏模式（默认）'), findsOneWidget);
     expect(find.text('纯浏览模式'), findsOneWidget);
     expect(find.text('捕获已就绪', skipOffstage: false), findsOneWidget);
@@ -410,7 +409,6 @@ class _MemoryLayoutSettingsStore implements LayoutSettingsStore {
   double _ratio = 0.5;
   double _width = 300;
   bool _autoZoom = false;
-  bool _autoLandscape = true;
   List<String> _dashboardCardOrder = [
     'fleet',
     'expedition',
@@ -439,14 +437,6 @@ class _MemoryLayoutSettingsStore implements LayoutSettingsStore {
 
   @override
   Future<void> saveAutoZoom(bool autoZoom) async => _autoZoom = autoZoom;
-
-  @override
-  Future<bool> loadAutoLandscape() async => _autoLandscape;
-
-  @override
-  Future<void> saveAutoLandscape(bool value) async {
-    _autoLandscape = value;
-  }
 
   @override
   Future<List<String>> loadDashboardCardOrder() async {
