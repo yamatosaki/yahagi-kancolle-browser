@@ -27,35 +27,6 @@
 
 ## 軟體展示
 
-### 遊戲與戰鬥輔助
-
-點擊圖片可查看原圖。
-
-<p align="center">
-  <a href="docs/images/screenshots/battle.png">
-    <img src="docs/images/screenshots/battle.png" width="100%" alt="戰鬥畫面與即時輔助資訊並排顯示">
-  </a>
-</p>
-
-<table>
-  <tr>
-    <td width="50%" align="center">
-      <a href="docs/images/screenshots/fleet.png">
-        <img src="docs/images/screenshots/fleet.png" alt="編隊資訊展示">
-      </a>
-    </td>
-    <td width="50%" align="center">
-      <a href="docs/images/screenshots/quests.png">
-        <img src="docs/images/screenshots/quests.png" alt="任務資訊展示">
-      </a>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">編隊資訊</td>
-    <td align="center">任務資訊</td>
-  </tr>
-</table>
-
 ### 裝置適配
 
 <table>
@@ -84,6 +55,35 @@
 </table>
 
 ヤハギ針對平板橫向顯示、摺疊螢幕裝置，以及遊戲畫面與資訊面板並排使用的情境最佳化版面配置。目前更推薦在平板和摺疊螢幕裝置上使用。一般手機同樣可以執行，但受螢幕尺寸限制，首頁能夠同時顯示的輔助資訊不如大螢幕裝置完整。
+
+### 遊戲與戰鬥輔助
+
+點擊圖片可查看原圖。
+
+<table>
+  <tr>
+    <td width="64%" rowspan="2" align="center" valign="middle">
+      <a href="docs/images/screenshots/battle.png">
+        <img src="docs/images/screenshots/battle.png" width="100%" alt="戰鬥畫面與即時輔助資訊並排顯示">
+      </a>
+      <br><strong>遊戲與戰鬥輔助</strong>
+    </td>
+    <td width="36%" align="center" valign="middle">
+      <a href="docs/images/screenshots/fleet.png">
+        <img src="docs/images/screenshots/fleet.png" width="100%" alt="編隊資訊展示">
+      </a>
+      <br>編隊資訊
+    </td>
+  </tr>
+  <tr>
+    <td width="36%" align="center" valign="middle">
+      <a href="docs/images/screenshots/quests.png">
+        <img src="docs/images/screenshots/quests.png" width="100%" alt="任務資訊展示">
+      </a>
+      <br>任務資訊
+    </td>
+  </tr>
+</table>
 
 ## 執行模式
 
