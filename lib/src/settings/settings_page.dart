@@ -118,18 +118,6 @@ class SettingsPage extends StatelessWidget {
                       const Divider(color: Color(0xff294052), height: 1),
                       _buildSwitchTile(
                         title:
-                            AppLocalizations.of(context)?.autoLandscape ??
-                            '应用自动横屏（推荐）',
-                        subtitle:
-                            AppLocalizations.of(context)?.autoLandscapeDesc ??
-                            '开启时自动使用横屏；关闭后跟随系统的屏幕旋转设置。',
-                        value: layoutSettingsController.autoLandscape,
-                        onChanged: (v) =>
-                            layoutSettingsController.setAutoLandscape(v),
-                      ),
-                      const Divider(color: Color(0xff294052), height: 1),
-                      _buildSwitchTile(
-                        title:
                             AppLocalizations.of(context)?.autoZoom ??
                             '自动适应游戏缩放',
                         value: layoutSettingsController.autoZoom,

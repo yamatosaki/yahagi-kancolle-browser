@@ -183,18 +183,6 @@ abstract class AppLocalizations {
   /// **'自动缩放游戏画面 (推荐)'**
   String get autoZoom;
 
-  /// No description provided for @autoLandscape.
-  ///
-  /// In zh, this message translates to:
-  /// **'应用自动横屏（推荐）'**
-  String get autoLandscape;
-
-  /// No description provided for @autoLandscapeDesc.
-  ///
-  /// In zh, this message translates to:
-  /// **'开启时自动使用横屏；关闭后跟随系统的屏幕旋转设置。'**
-  String get autoLandscapeDesc;
-
   /// No description provided for @language.
   ///
   /// In zh, this message translates to:

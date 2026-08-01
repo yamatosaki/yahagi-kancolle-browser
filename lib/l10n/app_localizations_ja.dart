@@ -51,12 +51,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get autoZoom => '自動ズーム (推奨)';
 
   @override
-  String get autoLandscape => 'アプリで自動横向き（推奨）';
-
-  @override
-  String get autoLandscapeDesc => 'オンにすると自動で横向きになります。オフにするとシステムの画面回転設定に従います。';
-
-  @override
   String get language => '言語 (Language)';
 
   @override

@@ -3,7 +3,14 @@
 
 # ヤハギ（Yahagi KanColle Browser）
 
-面向 Android 平板、折叠屏与手机的《舰队 Collection》非官方浏览器及本地信息辅助工具。
+面向移动端的《舰队 Collection》非官方浏览器及本地信息辅助工具。
+
+<p>
+  <strong>🌐 其他语言 / Other Languages:</strong><br>
+  <strong>简体中文</strong> ｜
+  <a href="README.zh-Hant.md">繁體中文</a> ｜
+  <a href="README.ja.md">日本語</a>
+</p>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Flutter](https://img.shields.io/badge/Flutter-3.44-02569B?logo=flutter)](https://flutter.dev/)
@@ -93,7 +100,7 @@
 
 - 使用 Android System WebView 加载 DMM 登录页和游戏页面。
 - 提供返回、刷新、主页、静音和画面适配等常用控制。
-- 支持应用自动横屏，也可以在设置中改为跟随系统。
+- 系统自动旋转关闭时默认保持横屏；开启后随设备方向在横屏和竖屏之间切换。
 - 支持简体中文、繁体中文和日语界面。
 
 ### 舰队与作业状态
