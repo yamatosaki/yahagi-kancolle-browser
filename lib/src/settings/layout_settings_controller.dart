@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'layout_settings_store.dart';
+import 'screen_orientation.dart';
 
 class LayoutSettingsController extends ChangeNotifier {
   LayoutSettingsController._(
@@ -8,31 +9,38 @@ class LayoutSettingsController extends ChangeNotifier {
     this._gameAreaRatio,
     this._informationPanelWidth,
     this._autoZoom,
+    this._autoLandscape,
     this._dashboardCardOrder,
     this._dashboardCardCollapsed,
     this._fontFamily,
     this._localeCode,
+    this._orientationApplier,
   );
 
   static Future<LayoutSettingsController> load(
-    LayoutSettingsStore store,
-  ) async {
+    LayoutSettingsStore store, {
+    ScreenOrientationApplier? orientationApplier,
+  }) async {
     final ratio = await store.loadGameAreaRatio();
     final width = await store.loadInformationPanelWidth();
     final autoZoom = await store.loadAutoZoom();
+    final autoLandscape = await store.loadAutoLandscape();
     final dashboardCardOrder = await store.loadDashboardCardOrder();
     final dashboardCardCollapsed = await store.loadDashboardCardCollapsed();
     final fontFamily = await store.loadFontFamily();
     final localeCode = await store.loadLocaleCode();
+    await orientationApplier?.apply(autoLandscape: autoLandscape);
     return LayoutSettingsController._(
       store,
       ratio,
       width,
       autoZoom,
+      autoLandscape,
       dashboardCardOrder,
       dashboardCardCollapsed,
       fontFamily,
       localeCode,
+      orientationApplier,
     );
   }
 
@@ -41,14 +49,17 @@ class LayoutSettingsController extends ChangeNotifier {
   double _gameAreaRatio;
   double _informationPanelWidth;
   bool _autoZoom;
+  bool _autoLandscape;
   List<String> _dashboardCardOrder;
   List<String> _dashboardCardCollapsed;
   String? _fontFamily;
   String? _localeCode;
+  final ScreenOrientationApplier? _orientationApplier;
 
   double get gameAreaRatio => _gameAreaRatio;
   double get informationPanelWidth => _informationPanelWidth;
   bool get autoZoom => _autoZoom;
+  bool get autoLandscape => _autoLandscape;
   List<String> get dashboardCardOrder => _dashboardCardOrder;
   List<String> get dashboardCardCollapsed => _dashboardCardCollapsed;
   String? get fontFamily => _fontFamily;
@@ -79,6 +90,16 @@ class LayoutSettingsController extends ChangeNotifier {
     _autoZoom = autoZoom;
     notifyListeners();
     await _store.saveAutoZoom(autoZoom);
+  }
+
+  Future<void> setAutoLandscape(bool autoLandscape) async {
+    if (_autoLandscape == autoLandscape) {
+      return;
+    }
+    _autoLandscape = autoLandscape;
+    notifyListeners();
+    await _orientationApplier?.apply(autoLandscape: autoLandscape);
+    await _store.saveAutoLandscape(autoLandscape);
   }
 
   Future<void> setDashboardCardOrder(List<String> order) async {

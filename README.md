@@ -1,54 +1,87 @@
+<div align="center">
+  <img src="assets/app_icon.png" width="128" alt="Yahagi KanColle Browser 图标">
+
 # Yahagi KanColle Browser
 
-Yahagi 是一个基于 Flutter 和 Android System WebView 的非官方移动端浏览器工具，为《舰队 Collection》提供舰队、任务、战斗和航海日志等本地辅助信息。
+面向 Android 平板与手机的《舰队 Collection》非官方浏览器及本地信息辅助工具。
 
-本项目不会自动填写登录信息、点击页面或代替玩家操作。使用真实游戏页面及只读接口捕获功能前，请自行评估账号、网络和服务条款风险。
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Flutter](https://img.shields.io/badge/Flutter-3.44-02569B?logo=flutter)](https://flutter.dev/)
+[![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android)](https://www.android.com/)
+[![CI](https://github.com/yamatosaki/yahagi-kancolle-browser/actions/workflows/ci.yml/badge.svg)](https://github.com/yamatosaki/yahagi-kancolle-browser/actions/workflows/ci.yml)
 
-## 主要功能
+</div>
 
-- 在 Android WebView 中加载 DMM 与游戏页面。
-- 只读观察 `fetch` 和 `XMLHttpRequest` 的 `/kcsapi/` 响应。
-- 对页面来源、接口路径、消息格式和消息大小进行原生端二次校验。
-- 在页面端、Android 端和 Dart 端清理 `api_token`、`api_starttime`。
-- 展示舰队、装备、资源、任务、远征、入渠、建造与战斗信息。
-- 在本地数据库保存战斗、资源和远征记录。
-- 支持简体中文、繁体中文和日语界面。
+## 软件介绍
+
+Yahagi 将游戏浏览器与信息面板整合在同一个 Android 应用中。玩家可以在 WebView 中打开 DMM 与游戏页面，并在侧边信息中心查看舰队、资源、任务、远征、入渠、建造和战斗等数据。
+
+应用只读取游戏页面已经收到的 `/kcsapi/` 响应，用于生成本地辅助信息和日志。它不会自动填写账号、点击页面、编成舰队、补给、出击或领取任务，所有游戏操作仍由玩家本人完成。
+
+## 核心功能
+
+### 游戏浏览
+
+- 在 Android System WebView 中加载 DMM 登录页和游戏页面。
+- 提供返回、刷新、主页、静音和画面适配等常用控制。
+- 针对平板横屏和信息面板并排使用场景优化布局。
+- 提供“游戏信息模式”和“纯浏览模式”，可随时关闭接口信息读取。
+
+### 舰队信息中心
+
+- 查看各舰队的舰娘、等级、耐久、疲劳度和装备。
+- 汇总制空、索敌、装备属性和联合舰队信息。
+- 识别先制对潜、对空 CI、对空喷进弹幕等战斗机制。
+- 提供出击前舰队状态检查，帮助快速发现需要留意的编成状态。
+
+### 任务与作业状态
+
+- 展示进行中和已完成任务，并显示类型、周期与完成进度。
+- 支持任务筛选、排序和重点任务查看。
+- 集中展示远征、入渠和建造状态及剩余时间。
+
+### 战斗辅助
+
+- 记录航海节点、敌我舰队和交战状态。
+- 根据已收到的战斗数据展示耐久变化与战斗过程。
+- 提供战果等级和 MVP 预测，并在官方结算返回后更新为正式结果。
+- 支持通常舰队与联合舰队战斗信息展示。
+
+### 日志与统计
+
+- 在设备本地保存战斗、资源和远征记录。
+- 提供历史记录查看，便于回顾资源变化与作战结果。
+- 数据保存在本地数据库中，不需要额外的云端账号。
+
+### 网络与界面
+
 - 支持系统网络、HTTP 代理和 SOCKS5 代理。
-- 提供纯浏览模式；该模式不会安装游戏接口捕获脚本。
+- 支持简体中文、繁体中文和日语界面。
+- 支持应用内版本检查，并从 GitHub Releases 获取最新版本信息。
 
-## 安全边界
+## 数据与安全边界
 
-- 真实网页导航仅允许 DMM 和舰队服务器的 HTTPS 来源。
+- 真实网页导航仅允许 DMM 与舰队服务器的 HTTPS 来源。
 - 原生捕获桥只接受白名单来源和 `/kcsapi/` 路径。
-- 应用代码不读取或导出 Cookie、登录表单和完整请求头。
-- 页面地址展示会移除查询参数、片段及 DMM 路径参数。
-- 捕获逻辑不阻断、不重放且不篡改请求，也不会执行游戏操作。
-- Android System WebView 仍可能按系统默认行为保存登录 Cookie。
+- 页面端、Android 端和 Dart 端会清理 `api_token`、`api_starttime` 等敏感参数。
+- 应用不会读取或导出 Cookie、登录表单和完整请求头。
+- 捕获逻辑不阻断、不重放、不修改游戏通信，也不会代替玩家操作游戏。
+- Android System WebView 仍可能按照系统默认行为保存登录 Cookie。
 
-## 环境要求
+## 获取与运行
 
-- Flutter 3.44 或兼容的稳定版本
-- Dart 3.12 或兼容版本
-- JDK 17
-- Android SDK（版本由当前 Flutter SDK 决定）
+正式版本发布后，可前往 [GitHub Releases](https://github.com/yamatosaki/yahagi-kancolle-browser/releases) 获取安装包。
 
-## 开始开发
-
-克隆仓库并安装依赖：
+目前也可以从源码运行。开发环境需要 Flutter 3.44、Dart 3.12、JDK 17 和 Android SDK：
 
 ```powershell
 git clone https://github.com/yamatosaki/yahagi-kancolle-browser.git
 Set-Location yahagi-kancolle-browser
 flutter pub get
-```
-
-运行应用：
-
-```powershell
 flutter run
 ```
 
-构建用于本地测试的 debug APK：
+构建本地测试用 debug APK：
 
 ```powershell
 flutter build apk --debug
@@ -56,9 +89,15 @@ flutter build apk --debug
 
 APK 默认输出到 `build/app/outputs/flutter-apk/app-debug.apk`。
 
-## 验证
+## 开源与贡献
 
-提交变更前依次运行：
+Yahagi 以开放源代码的方式开发。欢迎通过以下方式参与项目：
+
+- 提交 Issue，报告错误或提出功能建议。
+- 提交 Pull Request，改进功能、兼容性、文档或本地化。
+- 在不同 Android 设备和 WebView 版本上测试，并反馈运行情况。
+
+参与开发前请阅读 [贡献指南](CONTRIBUTING.md) 和 [安全政策](SECURITY.md)。提交变更前建议运行：
 
 ```powershell
 dart format --output=none --set-exit-if-changed lib test
@@ -66,35 +105,20 @@ flutter analyze
 flutter test
 Set-Location android
 .\gradlew.bat :app:testDebugUnitTest --console=plain
-Set-Location ..
-flutter build apk --debug
 ```
 
-真机或虚拟机测试建议覆盖：
+项目源代码使用 [MIT License](LICENSE)。第三方字体、依赖及其他资产的说明见 [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES)。
 
-1. DMM 登录和游戏页面加载。
-2. 工具栏地址不显示查询参数或片段。
-3. 返回、刷新、主页、静音和画面适配。
-4. 游戏模式能够更新母港、舰队、任务和战斗信息。
-5. 纯浏览模式下信息停止更新。
-6. HTTP／SOCKS5 代理的应用、切换和清除。
-7. 后台恢复、横竖屏和不同窗口尺寸。
-8. 日志中不包含 Cookie、`api_token`、接口正文或完整登录 URL。
+## 免责声明
 
-## 发布说明
+Yahagi 是由社区开发的非官方工具，与《舰队 Collection》运营方、开发方、DMM 及相关权利方不存在隶属、授权或合作关系。
 
-仓库不包含正式 APK 的签名凭据。发布者需要在私有环境或 CI Secret 中配置 release keystore，不应把密钥、密码或 `key.properties` 提交到仓库。
+使用者应自行了解并遵守相关服务条款，并承担使用第三方工具可能产生的账号、网络和兼容性风险。游戏名称、商标及第三方素材的相关权利归各自权利人所有。
 
-版本发布使用语义化标签，例如 `v1.0.0`。应用内更新检查读取 GitHub Releases 的最新版本。
+## 致谢
 
-## 已知限制
+特别感谢 [POI 浏览器](https://github.com/poooi/poi) 项目及其开源社区。POI 长期以来通过开放源代码推动《舰队 Collection》社区工具的发展，在数据组织、功能设计和社区协作等方面为本项目提供了宝贵的参考与启发。
 
-- 当前仅实现 Android 捕获；iOS 只保留跨平台接口。
-- 游戏服务器域名变化后需要更新来源白名单。
-- Android System WebView 的音频、Canvas/WebGL 和长时间运行表现依赖设备及 WebView 版本。
-- 页面内包装 XHR／Fetch 可能被网页脚本感知，无法承诺零账号风险。
-- 正式发布前仍需在目标设备上完成登录、母港、出击和代理人工验收。
+同时感谢 Flutter、WebView Flutter 及本项目所有依赖库的维护者，也感谢每一位参与测试、反馈问题和贡献代码的用户。
 
-## 许可证
-
-项目源代码使用 [MIT License](LICENSE)。第三方字体、依赖及其他资产的说明见 [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES)。项目名称、游戏名称、商标及第三方素材的相关权利归各自权利人所有。
+Yahagi 是独立开发的项目，项目观点与实现不代表上述项目或社区的官方立场。

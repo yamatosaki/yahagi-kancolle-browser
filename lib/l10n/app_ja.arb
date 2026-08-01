@@ -14,6 +14,8 @@
   "gameAreaRatio": "ゲーム画面の比率",
   "infoPanelWidth": "情報パネルの幅",
   "autoZoom": "自動ズーム (推奨)",
+  "autoLandscape": "アプリで自動横向き（推奨）",
+  "autoLandscapeDesc": "オンにすると自動で横向きになります。オフにするとシステムの画面回転設定に従います。",
   "language": "言語 (Language)",
   "networkSettings": "ネットワーク設定",
   "networkStatus": "ネットワーク状態",

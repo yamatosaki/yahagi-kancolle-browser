@@ -51,6 +51,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autoZoom => '自动缩放游戏画面 (推荐)';
 
   @override
+  String get autoLandscape => '应用自动横屏（推荐）';
+
+  @override
+  String get autoLandscapeDesc => '开启时自动使用横屏；关闭后跟随系统的屏幕旋转设置。';
+
+  @override
   String get language => '语言 (Language)';
 
   @override
@@ -652,6 +658,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get autoZoom => '自動縮放遊戲畫面 (推薦)';
+
+  @override
+  String get autoLandscape => '應用程式自動橫屏（推薦）';
+
+  @override
+  String get autoLandscapeDesc => '開啟時自動使用橫屏；關閉後跟隨系統的螢幕旋轉設定。';
 
   @override
   String get language => '語言 (Language)';
