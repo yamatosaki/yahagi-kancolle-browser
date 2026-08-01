@@ -1,8 +1,31 @@
-﻿plugins {
+﻿import java.io.FileInputStream
+import java.util.Properties
+
+plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val releaseSigningPropertiesFile = file(
+    System.getenv("YAHAGI_SIGNING_PROPERTIES")
+        ?: "${System.getProperty("user.home")}/.yahagi-release/release-signing.properties",
+)
+val releaseSigningProperties = Properties()
+val releaseSigningAvailable = releaseSigningPropertiesFile.isFile
+if (releaseSigningAvailable) {
+    FileInputStream(releaseSigningPropertiesFile).use(
+        releaseSigningProperties::load,
+    )
+}
+val releaseTaskRequested = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
+if (releaseTaskRequested && !releaseSigningAvailable) {
+    throw GradleException(
+        "Release signing properties not found at $releaseSigningPropertiesFile",
+    )
 }
 
 dependencies {
@@ -31,10 +54,22 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (releaseSigningAvailable) {
+            create("release") {
+                keyAlias = releaseSigningProperties.getProperty("keyAlias")
+                keyPassword = releaseSigningProperties.getProperty("keyPassword")
+                storeFile = file(releaseSigningProperties.getProperty("storeFile"))
+                storePassword = releaseSigningProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Release signing is intentionally not stored in source control.
-            // Configure a private signingConfig in the release pipeline.
+            if (releaseSigningAvailable) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 }
