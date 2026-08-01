@@ -1,0 +1,710 @@
+﻿import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/src/fleet/fleet_information_center.dart';
+import 'package:yahagi_kancolle_browser/src/fleet/operation_status_views.dart';
+import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
+import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
+
+import 'fixtures/kcsapi_fixtures.dart';
+
+void main() {
+  testWidgets('fixed status pages do not render the old secondary tabs', (
+    tester,
+  ) async {
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1180,
+            height: 720,
+            child: FleetInformationCenter(
+              controller: controller,
+              page: FleetInformationPage.expedition,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('远征'), findsOneWidget);
+    expect(find.byKey(const Key('fleet-center-fleet-tab')), findsNothing);
+    expect(find.byKey(const Key('fleet-center-expedition-tab')), findsNothing);
+    expect(find.byKey(const Key('fleet-center-repair-tab')), findsNothing);
+    expect(
+      find.byKey(const Key('fleet-center-construction-tab')),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+    'completed construction shows full progress and completion text',
+    (tester) async {
+      final state = GameState(
+        masterShips: const <int, MasterShip>{
+          101: MasterShip(id: 101, name: '多摩', shipTypeId: 2),
+        },
+        constructionDocks: <ConstructionDock>[
+          ConstructionDock(
+            id: 1,
+            state: 3,
+            createdShipMasterId: 101,
+            fuel: 30,
+            ammunition: 30,
+            steel: 30,
+            bauxite: 30,
+            developmentMaterial: 1,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 1180,
+              height: 720,
+              child: ConstructionDockStatusView(state: state),
+            ),
+          ),
+        ),
+      );
+
+      final progress = find.byKey(const Key('construction-progress-1'));
+      expect(
+        tester
+            .widget<LinearProgressIndicator>(
+              find.descendant(
+                of: progress,
+                matching: find.byType(LinearProgressIndicator),
+              ),
+            )
+            .value,
+        1,
+      );
+      expect(find.text('100%'), findsOneWidget);
+      expect(find.text('建造完成'), findsOneWidget);
+      expect(find.text('进度未知'), findsNothing);
+    },
+  );
+
+  testWidgets('shows a real fleet and expands equipment details', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1180, 720);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1180,
+            height: 720,
+            child: FleetInformationCenter(controller: controller),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('舰队'), findsOneWidget);
+    expect(find.text('第一舰队'), findsOneWidget);
+    expect(find.text('第二舰队'), findsOneWidget);
+    expect(find.text('夕張'), findsOneWidget);
+    expect(find.text('Lv. 50'), findsOneWidget);
+    expect(find.text('12.7cm 连装炮'), findsNothing);
+    expect(find.text('血量'), findsNothing);
+    expect(find.text('燃料'), findsNothing);
+    expect(find.text('弹药'), findsNothing);
+    expect(find.text('活力 49'), findsNothing);
+    expect(find.text('士气 49'), findsNothing);
+    expect(find.text('疲劳 49'), findsOneWidget);
+    expect(find.text('-25.63'), findsOneWidget);
+    expect(find.text('40'), findsNothing);
+    expect(find.byKey(const Key('ship-status-hp-icon-9001')), findsOneWidget);
+    final hpIcon = tester.widget<Icon>(
+      find.byKey(const Key('ship-status-hp-icon-9001')),
+    );
+    expect(hpIcon.icon, Icons.favorite_rounded);
+    for (final type in <String>['fuel', 'ammo']) {
+      final image = tester.widget<Image>(
+        find.byKey(Key('ship-status-$type-icon-9001')),
+      );
+      final asset = image.image as AssetImage;
+      expect(
+        asset.assetName,
+        type == 'fuel'
+            ? 'assets/images/material/01.png'
+            : 'assets/images/material/02.png',
+      );
+    }
+    final portraitSize = tester.getSize(
+      find.byKey(const Key('ship-portrait-9001')),
+    );
+    expect(portraitSize.width, inInclusiveRange(100, 155));
+    expect(portraitSize.height, 54);
+    expect(
+      tester.getSize(find.byKey(const Key('ship-row-9001'))).height,
+      lessThanOrEqualTo(76),
+    );
+    final hpPosition = tester.getTopLeft(
+      find.byKey(const Key('ship-status-hp-9001')),
+    );
+    final fuelPosition = tester.getTopLeft(
+      find.byKey(const Key('ship-status-fuel-9001')),
+    );
+    final ammoPosition = tester.getTopLeft(
+      find.byKey(const Key('ship-status-ammo-9001')),
+    );
+    final identityTopCenter = tester.getCenter(
+      find.byKey(const Key('ship-identity-top-9001')),
+    );
+    final fatigueCenter = tester.getCenter(
+      find.byKey(const Key('ship-fatigue-9001')),
+    );
+    final supplyWarningCenter = tester.getCenter(
+      find.byKey(const Key('ship-supply-warning-9001')),
+    );
+    final fuelCenter = tester.getCenter(
+      find.byKey(const Key('ship-status-fuel-9001')),
+    );
+    final hpCenter = tester.getCenter(
+      find.byKey(const Key('ship-status-hp-9001')),
+    );
+    final ammoCenter = tester.getCenter(
+      find.byKey(const Key('ship-status-ammo-9001')),
+    );
+    expect(hpPosition.dx, lessThan(fuelPosition.dx));
+    expect(fuelPosition.dx, ammoPosition.dx);
+    expect(fuelPosition.dy, lessThan(ammoPosition.dy));
+    expect((identityTopCenter.dy - fuelCenter.dy).abs(), lessThanOrEqualTo(2));
+    expect((fatigueCenter.dy - fuelCenter.dy).abs(), lessThanOrEqualTo(2));
+    expect(
+      (supplyWarningCenter.dy - fuelCenter.dy).abs(),
+      lessThanOrEqualTo(2),
+    );
+    expect((hpCenter.dy - ammoCenter.dy).abs(), lessThanOrEqualTo(2));
+    final hpSize = tester.getSize(find.byKey(const Key('ship-status-hp-9001')));
+    final statusColumnGap = ammoPosition.dx - (hpPosition.dx + hpSize.width);
+    expect(statusColumnGap, inInclusiveRange(30, 40));
+
+    await tester.tap(find.byKey(const Key('fleet-los-metric')));
+    await tester.pumpAndSettle();
+    expect(find.text('总索敌'), findsOneWidget);
+    expect(find.text('40'), findsOneWidget);
+    expect(find.text('× 1'), findsOneWidget);
+    expect(find.text('-25.63'), findsNWidgets(2));
+    expect(find.text('× 2'), findsOneWidget);
+    expect(find.text('-19.63'), findsOneWidget);
+    expect(find.text('× 3'), findsOneWidget);
+    expect(find.text('-13.63'), findsOneWidget);
+    expect(find.text('× 4'), findsOneWidget);
+    expect(find.text('-7.63'), findsOneWidget);
+    await tester.tap(find.text('关闭'));
+    await tester.pumpAndSettle();
+
+    final shipName = tester.widget<Text>(find.text('夕張'));
+    final shipLevel = tester.widget<Text>(find.text('Lv. 50'));
+    final shipType = tester.widget<Text>(find.text('軽巡洋艦'));
+    final identityTop = find.byKey(const Key('ship-identity-top-9001'));
+    final shipSpeed = tester.widget<Text>(
+      find.descendant(of: identityTop, matching: find.text('高速')),
+    );
+    final openingAsw = tester.widget<Text>(find.text('先制对潜'));
+    final fatigue = tester.widget<Text>(find.text('疲劳 49'));
+    expect(
+      tester.getSize(find.byKey(const Key('ship-identity-9001'))).width,
+      inInclusiveRange(108, 130),
+    );
+    expect(shipName.style?.fontSize, greaterThanOrEqualTo(18));
+    for (final text in <Text>[shipLevel, shipType, shipSpeed, openingAsw]) {
+      expect(text.style?.fontSize, 13);
+      expect(
+        text.style?.fontWeight?.value,
+        greaterThanOrEqualTo(FontWeight.w600.value),
+      );
+    }
+    expect(fatigue.style?.fontSize, 13);
+    expect(
+      fatigue.style?.fontWeight?.value,
+      greaterThanOrEqualTo(FontWeight.w700.value),
+    );
+    final hpValue = tester.widget<Text>(
+      find.byKey(const Key('ship-status-hp-value-9001')),
+    );
+    expect(hpValue.style?.fontSize, 14);
+    expect(
+      hpValue.style?.fontWeight?.value,
+      greaterThanOrEqualTo(FontWeight.w700.value),
+    );
+    for (final text in <Text>[shipName, shipLevel, shipType]) {
+      expect(text.maxLines, 1);
+      expect(text.softWrap, isFalse);
+      expect(text.overflow, TextOverflow.ellipsis);
+    }
+    final identityName = find.byKey(const Key('ship-identity-name-9001'));
+    final identityNext = find.byKey(const Key('ship-identity-next-9001'));
+    expect(
+      find.descendant(of: identityTop, matching: find.text('高速')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: identityTop, matching: find.text('先制对潜')),
+      findsOneWidget,
+    );
+    final levelPosition = tester.getTopLeft(
+      find.descendant(of: identityTop, matching: find.text('Lv. 50')),
+    );
+    final typePosition = tester.getTopLeft(
+      find.descendant(of: identityTop, matching: find.text('軽巡洋艦')),
+    );
+    final speedPosition = tester.getTopLeft(
+      find.descendant(of: identityTop, matching: find.text('高速')),
+    );
+    final openingAswPosition = tester.getTopLeft(
+      find.descendant(of: identityTop, matching: find.text('先制对潜')),
+    );
+    expect(levelPosition.dx, lessThan(typePosition.dx));
+    expect(typePosition.dx, lessThan(speedPosition.dx));
+    expect(speedPosition.dx, lessThan(openingAswPosition.dx));
+    expect(
+      tester.getTopLeft(identityTop).dy,
+      lessThan(tester.getTopLeft(identityName).dy),
+    );
+    expect(
+      tester.getTopLeft(identityName).dy,
+      lessThan(tester.getTopLeft(identityNext).dy),
+    );
+    final healthArea = find.byKey(const Key('ship-health-area-9001'));
+    final topStatusLine = find.byKey(const Key('ship-status-top-line-9001'));
+    final bottomStatusLine = find.byKey(
+      const Key('ship-status-bottom-line-9001'),
+    );
+    expect(
+      find.descendant(of: topStatusLine, matching: find.text('疲劳 49')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: identityTop, matching: find.text('疲劳 49')),
+      findsNothing,
+    );
+    final supplyWarning = find.byKey(const Key('ship-supply-warning-9001'));
+    expect(
+      find.descendant(of: topStatusLine, matching: supplyWarning),
+      findsOneWidget,
+    );
+    expect(
+      tester.getTopLeft(supplyWarning).dx,
+      lessThan(tester.getTopLeft(find.text('疲劳 49')).dx),
+    );
+    expect(
+      tester.getTopLeft(find.text('疲劳 49')).dy,
+      lessThan(
+        tester.getTopLeft(find.byKey(const Key('ship-status-hp-9001'))).dy,
+      ),
+    );
+    expect(
+      find.descendant(
+        of: bottomStatusLine,
+        matching: find.byKey(const Key('ship-status-hp-9001')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: topStatusLine,
+        matching: find.byKey(const Key('ship-status-fuel-9001')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: bottomStatusLine,
+        matching: find.byKey(const Key('ship-status-ammo-9001')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: healthArea,
+        matching: find.byKey(const Key('ship-status-hp-9001')),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('夕張'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('12.7cm 连装炮'), findsOneWidget);
+    expect(find.byKey(const Key('equipment-card-9001-0')), findsOneWidget);
+    expect(find.byKey(const Key('equipment-card-9001-1')), findsOneWidget);
+    expect(find.byKey(const Key('equipment-card-9001-2')), findsOneWidget);
+    expect(find.text('火力 +3'), findsOneWidget);
+    expect(find.text('对空 +2'), findsOneWidget);
+    expect(find.text('命中 +1'), findsOneWidget);
+    expect(find.text('射程 短'), findsOneWidget);
+    expect(find.text('改修 +4'), findsNothing);
+    final improvement = find.byKey(const Key('equipment-improvement-9001-0'));
+    expect(improvement, findsOneWidget);
+    expect(
+      find.descendant(
+        of: improvement,
+        matching: find.byIcon(Icons.star_rounded),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: improvement, matching: find.text('4')),
+      findsOneWidget,
+    );
+    final gunName = find.text('12.7cm 连装炮');
+    expect(tester.getSize(gunName).width, lessThan(180));
+    expect(
+      tester.getTopLeft(improvement).dx - tester.getTopRight(gunName).dx,
+      lessThanOrEqualTo(6),
+    );
+    expect(find.text('搭载 0'), findsNothing);
+    expect(find.text('搭载'), findsNothing);
+
+    final gunIcon = tester.widget<Image>(
+      find.byKey(const Key('equipment-icon-9001-0')),
+    );
+    expect(
+      (gunIcon.image as AssetImage).assetName,
+      'assets/images/slotitem/1.png',
+    );
+
+    final aircraftIcon = tester.widget<Image>(
+      find.byKey(const Key('equipment-icon-9001-1')),
+    );
+    expect(
+      (aircraftIcon.image as AssetImage).assetName,
+      'assets/images/slotitem/10.png',
+    );
+    final proficiency = find.byKey(const Key('equipment-proficiency-9001-1'));
+    expect(proficiency, findsOneWidget);
+    expect(
+      (tester.widget<Image>(proficiency).image as AssetImage).assetName,
+      'assets/images/airplane/alv6.png',
+    );
+
+    final aircraftOnSlot = find.byKey(const Key('equipment-onslot-9001-1'));
+    expect(tester.getSize(aircraftOnSlot), const Size(30, 30));
+    expect(
+      find.descendant(of: aircraftOnSlot, matching: find.text('2')),
+      findsOneWidget,
+    );
+    final aircraftSlotPosition = tester.getTopLeft(
+      find.descendant(of: aircraftOnSlot, matching: find.text('2')),
+    );
+    final aircraftIconPosition = tester.getTopLeft(
+      find.byKey(const Key('equipment-icon-9001-1')),
+    );
+    expect(aircraftSlotPosition.dx, lessThan(aircraftIconPosition.dx + 10));
+    expect(aircraftSlotPosition.dy, lessThan(aircraftIconPosition.dy + 10));
+    expect(find.byKey(const Key('equipment-onslot-9001-0')), findsNothing);
+    final equipmentName = tester.widget<Text>(find.text('12.7cm 连装炮'));
+    expect(equipmentName.maxLines, 1);
+    expect(equipmentName.softWrap, isFalse);
+    expect(equipmentName.overflow, TextOverflow.ellipsis);
+
+    final firstCard = find.byKey(const Key('equipment-card-9001-0'));
+    final secondCard = find.byKey(const Key('equipment-card-9001-1'));
+    expect(tester.getTopLeft(firstCard).dy, tester.getTopLeft(secondCard).dy);
+    expect(
+      tester.getTopLeft(firstCard).dx,
+      lessThan(tester.getTopLeft(secondCard).dx),
+    );
+
+    expect(find.byKey(const Key('equipment-mechanisms-9001')), findsNothing);
+    expect(find.textContaining('可发动'), findsNothing);
+
+    await tester.tap(
+      find.descendant(of: identityTop, matching: find.text('先制对潜')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('先制对潜'), findsNWidgets(2));
+    expect(find.textContaining('开幕雷击前'), findsOneWidget);
+  });
+
+  testWidgets('uses one equipment-card column on a narrow layout', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(820, 720);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 820,
+            height: 720,
+            child: FleetInformationCenter(controller: controller),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('夕張'));
+    await tester.pumpAndSettle();
+
+    final firstCard = find.byKey(const Key('equipment-card-9001-0'));
+    final secondCard = find.byKey(const Key('equipment-card-9001-1'));
+    expect(tester.getTopLeft(firstCard).dx, tester.getTopLeft(secondCard).dx);
+    expect(
+      tester.getTopLeft(firstCard).dy,
+      lessThan(tester.getTopLeft(secondCard).dy),
+    );
+  });
+
+  testWidgets(
+    'shows expedition repair and construction pages from real state',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1180, 720);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final readyController = GameStateController();
+      final emptyController = GameStateController();
+      addTearDown(readyController.dispose);
+      addTearDown(emptyController.dispose);
+      readyController
+        ..accept(start2Event)
+        ..accept(portEvent);
+      await readyController.idle;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 1180,
+              height: 720,
+              child: FleetInformationCenter(controller: readyController),
+            ),
+          ),
+        ),
+      );
+
+      final fleetPortraitWidth = tester
+          .getSize(find.byKey(const Key('ship-portrait-9001')))
+          .width;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 1180,
+              height: 720,
+              child: FleetInformationCenter(
+                controller: readyController,
+                page: FleetInformationPage.expedition,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byKey(const Key('expedition-row-2')), findsOneWidget);
+      expect(find.byKey(const Key('expedition-portrait-2')), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(const Key('expedition-portrait-2'))).width,
+        fleetPortraitWidth,
+      );
+      expect(find.text('海上護衛任務'), findsOneWidget);
+      expect(find.textContaining('%'), findsWidgets);
+      expect(find.text('预计'), findsNothing);
+      expect(find.textContaining('资料待更新'), findsNothing);
+      expect(find.text('6 艘'), findsNothing);
+      expect(find.textContaining('旗舰：'), findsNothing);
+      for (final type in <String>['fuel', 'ammo', 'steel', 'bauxite']) {
+        expect(find.byKey(Key('expedition-resource-2-$type')), findsNothing);
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 1180,
+              height: 720,
+              child: FleetInformationCenter(
+                controller: readyController,
+                page: FleetInformationPage.repair,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      for (var id = 1; id <= 4; id++) {
+        expect(find.byKey(Key('repair-dock-row-$id')), findsOneWidget);
+      }
+      expect(find.text('未入渠'), findsOneWidget);
+      expect(find.text('未解锁'), findsOneWidget);
+      expect(find.text('吹雪'), findsOneWidget);
+      expect(find.textContaining('修理进度'), findsWidgets);
+      expect(find.byKey(const Key('repair-progress-1')), findsOneWidget);
+      expect(find.byKey(const Key('repair-hp-1')), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(const Key('repair-portrait-1'))).width,
+        fleetPortraitWidth,
+      );
+      final repairHp = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(const Key('repair-hp-1')),
+          matching: find.byType(Text),
+        ),
+      );
+      expect(repairHp.style?.fontSize, greaterThanOrEqualTo(16));
+      final fuelCost = tester.widget<Image>(
+        find.byKey(const Key('repair-resource-1-fuel')),
+      );
+      final steelCost = tester.widget<Image>(
+        find.byKey(const Key('repair-resource-1-steel')),
+      );
+      expect(
+        (fuelCost.image as AssetImage).assetName,
+        'assets/images/material/01.png',
+      );
+      expect(
+        (steelCost.image as AssetImage).assetName,
+        'assets/images/material/03.png',
+      );
+      final hpRight = tester.getTopRight(find.byKey(const Key('repair-hp-1')));
+      final progressLeft = tester.getTopLeft(
+        find.byKey(const Key('repair-progress-1')),
+      );
+      expect(progressLeft.dx - hpRight.dx, greaterThanOrEqualTo(16));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 1180,
+              height: 720,
+              child: FleetInformationCenter(
+                controller: readyController,
+                page: FleetInformationPage.construction,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      for (var id = 1; id <= 4; id++) {
+        expect(find.byKey(Key('construction-dock-row-$id')), findsOneWidget);
+      }
+      expect(find.text('未建造'), findsOneWidget);
+      expect(find.text('未解锁'), findsOneWidget);
+      expect(find.text('夕張'), findsOneWidget);
+      expect(find.text('常规建造'), findsOneWidget);
+      expect(find.text('大型建造'), findsOneWidget);
+      expect(find.text('结果已知'), findsNothing);
+      expect(find.text('高速建造可完成'), findsNothing);
+      expect(find.textContaining('第1建造'), findsNothing);
+      final constructionProgress = find.byKey(
+        const Key('construction-progress-1'),
+      );
+      expect(constructionProgress, findsOneWidget);
+      expect(
+        tester
+            .widget<LinearProgressIndicator>(
+              find.descendant(
+                of: constructionProgress,
+                matching: find.byType(LinearProgressIndicator),
+              ),
+            )
+            .value,
+        isNotNull,
+      );
+      expect(
+        find.descendant(
+          of: constructionProgress,
+          matching: find.textContaining('%'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.getSize(find.byKey(const Key('construction-portrait-1'))).width,
+        fleetPortraitWidth,
+      );
+      for (final type in <String>[
+        'fuel',
+        'ammo',
+        'steel',
+        'bauxite',
+        'development',
+      ]) {
+        final image = tester.widget<Image>(
+          find.byKey(Key('construction-resource-1-$type')),
+        );
+        expect(image.image, isA<AssetImage>());
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(home: FleetInformationCenter(controller: emptyController)),
+      );
+
+      expect(find.text('等待母港数据'), findsOneWidget);
+    },
+  );
+
+  testWidgets('keeps operation cards usable on a narrow landscape layout', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(700, 720);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: FleetInformationCenter(controller: controller)),
+      ),
+    );
+
+    for (final page in <FleetInformationPage>[
+      FleetInformationPage.expedition,
+      FleetInformationPage.repair,
+      FleetInformationPage.construction,
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FleetInformationCenter(controller: controller, page: page),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+    }
+  });
+}

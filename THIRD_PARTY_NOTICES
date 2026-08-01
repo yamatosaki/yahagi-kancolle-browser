@@ -1,0 +1,32 @@
+Third-Party Notices
+===================
+
+The MIT License in LICENSE applies to the Yahagi source code unless a file or
+asset states otherwise. It does not replace licenses, copyrights, trademarks,
+or other rights that apply to third-party components and assets.
+
+HarmonyOS Sans
+--------------
+
+This repository bundles HarmonyOS Sans font files under `assets/fonts/`.
+HarmonyOS Sans is provided by Huawei and is governed by the HarmonyOS Sans
+Fonts License Agreement rather than the project's MIT License.
+
+License reference:
+https://gitee.com/openharmony/global_system_resources/blob/master/LICENSE_Fonts
+
+Flutter and Dart dependencies
+-----------------------------
+
+The application uses Flutter, Dart, AndroidX, and the packages listed in
+`pubspec.yaml` and `pubspec.lock`. Those components remain subject to their
+respective upstream licenses. Flutter-generated license information is
+available at runtime through Flutter's license registry.
+
+Project image assets
+--------------------
+
+Image assets under `assets/` are distributed as application resources. The
+project's MIT License does not grant rights in third-party names, trademarks,
+characters, artwork, or other third-party material that may appear in those
+assets. All such rights remain with their respective owners.
