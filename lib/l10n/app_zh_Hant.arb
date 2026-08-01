@@ -14,6 +14,8 @@
   "gameAreaRatio": "遊戲區域佔比",
   "infoPanelWidth": "情報面板寬度",
   "autoZoom": "自動縮放遊戲畫面 (推薦)",
+  "autoLandscape": "應用程式自動橫屏（推薦）",
+  "autoLandscapeDesc": "開啟時自動使用橫屏；關閉後跟隨系統的螢幕旋轉設定。",
   "language": "語言 (Language)",
   "networkSettings": "網路設定",
   "networkStatus": "網路狀態",

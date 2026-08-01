@@ -38,6 +38,7 @@ import 'src/settings/network_settings_controller.dart';
 import 'src/settings/network_settings_store.dart';
 import 'src/settings/safety_settings_controller.dart';
 import 'src/settings/safety_settings_store.dart';
+import 'src/settings/screen_orientation.dart';
 import 'src/settings/settings_page.dart';
 
 Future<void> main() async {
@@ -46,6 +47,7 @@ Future<void> main() async {
 
   final layoutSettingsController = await LayoutSettingsController.load(
     SharedPreferencesLayoutSettingsStore(),
+    orientationApplier: ScreenOrientationApplier(),
   );
   final networkSettingsController = NetworkSettingsController(
     store: SharedPreferencesNetworkSettingsStore(),
