@@ -656,6 +656,8 @@ class _InformationPanel extends StatefulWidget {
 }
 
 class _InformationPanelState extends State<_InformationPanel> {
+  bool _isEditing = false;
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -679,7 +681,9 @@ class _InformationPanelState extends State<_InformationPanel> {
 
           final collapsedIds =
               widget.layoutSettingsController.dashboardCardCollapsed;
+          final hiddenIds = widget.layoutSettingsController.dashboardCardHidden;
           final cardOrder = widget.layoutSettingsController.dashboardCardOrder;
+          final visibleOrder = cardOrder.where((id) => !hiddenIds.contains(id)).toList();
           final cardIndexes = <String, int>{
             for (var i = 0; i < cardOrder.length; i++) cardOrder[i]: i,
           };
@@ -733,51 +737,134 @@ class _InformationPanelState extends State<_InformationPanel> {
               _ => const SizedBox.shrink(),
             };
 
-            return Padding(
-              key: ValueKey(id),
+            Widget finalChild = Padding(
               padding: const EdgeInsets.only(bottom: 6),
               child: child,
+            );
+
+            if (_isEditing) {
+              final isHidden = hiddenIds.contains(id);
+              finalChild = Opacity(
+                opacity: isHidden ? 0.5 : 1.0,
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Checkbox(
+                        value: !isHidden,
+                        activeColor: const Color(0xffd4a85f),
+                        checkColor: Colors.black,
+                        side: const BorderSide(color: Color(0xff8fa8b6), width: 2),
+                        onChanged: (val) {
+                          widget.layoutSettingsController.toggleDashboardCardHidden(id);
+                        },
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: ReorderableDelayedDragStartListener(
+                          index: cardIndexes[id] ?? 0,
+                          child: Container(
+                            color: Colors.transparent,
+                            child: Row(
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  child: Icon(Icons.drag_handle, color: Color(0xff8fa8b6)),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: IgnorePointer(
+                                    child: child,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            return KeyedSubtree(
+              key: ValueKey(id),
+              child: finalChild,
             );
           }
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: ReorderableListView(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  buildDefaultDragHandles: false,
-                  onReorderItem: (oldIndex, newIndex) {
-                    final order = List<String>.from(
-                      widget.layoutSettingsController.dashboardCardOrder,
-                    );
-                    final item = order.removeAt(oldIndex);
-                    order.insert(newIndex, item);
-                    widget.layoutSettingsController.setDashboardCardOrder(
-                      order,
-                    );
-                  },
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                child: Row(
                   children: [
-                    for (final id in cardOrder)
-                      ReorderableDelayedDragStartListener(
-                        key: ValueKey('drag-$id'),
-                        index: cardIndexes[id] ?? 0,
-                        child: buildCard(id),
+                    const Text('功能面板', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xffd4a85f))),
+                    const Spacer(),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: _isEditing ? const Color(0xff000000) : const Color(0xffd4a85f),
+                        backgroundColor: _isEditing ? const Color(0xffd4a85f) : Colors.transparent,
+                        side: const BorderSide(color: Color(0xffd4a85f)),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                       ),
-                    if (hasError)
-                      Padding(
-                        key: const ValueKey('error_card'),
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: _InfoCard(
-                          title: '游戏状态异常',
-                          subtitle:
-                              widget.gameCaptureController.errorMessage ??
-                              widget.browserController.errorMessage ??
-                              '网页或捕获状态异常，请在设置中查看诊断信息。',
-                          warning: true,
-                        ),
-                      ),
+                      onPressed: () {
+                        setState(() => _isEditing = !_isEditing);
+                      },
+                      child: Text(_isEditing ? '完成编辑' : '编辑顺序', style: const TextStyle(fontSize: 12)),
+                    ),
                   ],
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onLongPress: () {
+                    if (!_isEditing) {
+                      setState(() => _isEditing = true);
+                    }
+                  },
+                  child: _isEditing
+                      ? ReorderableListView(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          buildDefaultDragHandles: false,
+                          onReorderItem: (oldIndex, newIndex) {
+                            final order = List<String>.from(
+                              widget.layoutSettingsController.dashboardCardOrder,
+                            );
+                            final item = order.removeAt(oldIndex);
+                            order.insert(newIndex, item);
+                            widget.layoutSettingsController.setDashboardCardOrder(
+                              order,
+                            );
+                          },
+                          children: [
+                            for (final id in cardOrder)
+                              buildCard(id),
+                          ],
+                        )
+                      : ListView(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          children: [
+                            for (final id in visibleOrder)
+                              buildCard(id),
+                            if (hasError)
+                              Padding(
+                                key: const ValueKey('error_card'),
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: _InfoCard(
+                                  title: '游戏状态异常',
+                                  subtitle:
+                                      widget.gameCaptureController.errorMessage ??
+                                      widget.browserController.errorMessage ??
+                                      '网页或捕获状态异常，请在设置中查看诊断信息。',
+                                  warning: true,
+                                ),
+                              ),
+                          ],
+                        ),
                 ),
               ),
             ],

@@ -10,6 +10,7 @@ class LayoutSettingsController extends ChangeNotifier {
     this._autoZoom,
     this._dashboardCardOrder,
     this._dashboardCardCollapsed,
+    this._dashboardCardHidden,
     this._fontFamily,
     this._localeCode,
   );
@@ -22,6 +23,7 @@ class LayoutSettingsController extends ChangeNotifier {
     final autoZoom = await store.loadAutoZoom();
     final dashboardCardOrder = await store.loadDashboardCardOrder();
     final dashboardCardCollapsed = await store.loadDashboardCardCollapsed();
+    final dashboardCardHidden = await store.loadDashboardCardHidden();
     final fontFamily = await store.loadFontFamily();
     final localeCode = await store.loadLocaleCode();
     return LayoutSettingsController._(
@@ -31,6 +33,7 @@ class LayoutSettingsController extends ChangeNotifier {
       autoZoom,
       dashboardCardOrder,
       dashboardCardCollapsed,
+      dashboardCardHidden,
       fontFamily,
       localeCode,
     );
@@ -43,6 +46,7 @@ class LayoutSettingsController extends ChangeNotifier {
   bool _autoZoom;
   List<String> _dashboardCardOrder;
   List<String> _dashboardCardCollapsed;
+  List<String> _dashboardCardHidden;
   String? _fontFamily;
   String? _localeCode;
 
@@ -51,6 +55,7 @@ class LayoutSettingsController extends ChangeNotifier {
   bool get autoZoom => _autoZoom;
   List<String> get dashboardCardOrder => _dashboardCardOrder;
   List<String> get dashboardCardCollapsed => _dashboardCardCollapsed;
+  List<String> get dashboardCardHidden => _dashboardCardHidden;
   String? get fontFamily => _fontFamily;
   String? get localeCode => _localeCode;
 
@@ -97,6 +102,18 @@ class LayoutSettingsController extends ChangeNotifier {
     _dashboardCardCollapsed = collapsed;
     notifyListeners();
     await _store.saveDashboardCardCollapsed(collapsed);
+  }
+
+  Future<void> toggleDashboardCardHidden(String id) async {
+    final hidden = List<String>.from(_dashboardCardHidden);
+    if (hidden.contains(id)) {
+      hidden.remove(id);
+    } else {
+      hidden.add(id);
+    }
+    _dashboardCardHidden = hidden;
+    notifyListeners();
+    await _store.saveDashboardCardHidden(hidden);
   }
 
   Future<void> setFontFamily(String? fontFamily) async {
