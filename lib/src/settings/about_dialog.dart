@@ -9,8 +9,8 @@ import 'release_version.dart';
 class AboutDialogWidget extends StatelessWidget {
   const AboutDialogWidget({super.key});
 
-  static const String currentVersion = '1.0.0';
-  static const String currentVersionTag = 'v1.0.0';
+  static const String currentVersion = '1.0.1';
+  static const String currentVersionTag = 'v1.0.1';
   static const String repoOwner = 'yamatosaki';
   static const String repoName = 'yahagi-kancolle-browser';
   static const String githubUrl = 'https://github.com/$repoOwner/$repoName';

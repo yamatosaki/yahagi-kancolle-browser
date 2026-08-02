@@ -12,6 +12,7 @@ class DashboardCard extends StatelessWidget {
     this.trailing,
     this.padding,
     this.borderColor,
+    this.collapseButtonKey,
   });
 
   final String title;
@@ -23,6 +24,7 @@ class DashboardCard extends StatelessWidget {
   final Widget? trailing;
   final EdgeInsetsGeometry? padding;
   final Color? borderColor;
+  final Key? collapseButtonKey;
 
   @override
   Widget build(BuildContext context) {
@@ -79,6 +81,7 @@ class DashboardCard extends StatelessWidget {
                   const SizedBox(width: 3),
                 ],
                 IconButton(
+                  key: collapseButtonKey,
                   tooltip: collapsed ? '展开$title' : '折叠$title',
                   visualDensity: VisualDensity.compact,
                   constraints: const BoxConstraints(

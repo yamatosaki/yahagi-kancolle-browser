@@ -195,4 +195,86 @@ void main() {
     expect(result.enemyEscort.single.currentHp, 20);
     expect(result.friendEscort.single.damageDealt, 6);
   });
+
+  test('infers attack sides when combined shelling omits api_at_eflag', () {
+    final friendMain = <BattleShipSnapshot>[
+      for (var index = 0; index < 6; index++)
+        snapshot(side: BattleSide.friend, position: index, hp: 30),
+    ];
+    final enemyMain = <BattleShipSnapshot>[
+      for (var index = 0; index < 6; index++)
+        snapshot(side: BattleSide.enemy, position: index, hp: 30),
+    ];
+
+    final result = BattleDamageParser().apply(
+      data: <String, Object?>{
+        'api_hougeki1': <String, Object?>{
+          'api_at_list': <int>[-1, 1, 8],
+          'api_df_list': <Object?>[
+            -1,
+            <int>[11],
+            <int>[5],
+          ],
+          'api_damage': <Object?>[
+            -1,
+            <num>[20],
+            <num>[7],
+          ],
+        },
+      },
+      friendMain: friendMain,
+      enemyMain: enemyMain,
+      path: '/kcsapi/api_req_combined_battle/battle',
+    );
+
+    expect(result.friendMain[5].currentHp, 23);
+    expect(result.enemyMain[5].currentHp, 10);
+    expect(result.friendMain[1].damageDealt, 20);
+  });
+
+  test('applies shelling support damage to the enemy fleet', () {
+    final result = BattleDamageParser().apply(
+      data: <String, Object?>{
+        'api_support_flag': 2,
+        'api_support_info': <String, Object?>{
+          'api_support_hourai': <String, Object?>{
+            'api_damage': <num>[10, 0],
+            'api_cl_list': <int>[1, 0],
+          },
+        },
+      },
+      friendMain: <BattleShipSnapshot>[
+        snapshot(side: BattleSide.friend, position: 0, hp: 30),
+      ],
+      enemyMain: <BattleShipSnapshot>[
+        snapshot(side: BattleSide.enemy, position: 0, hp: 20),
+        snapshot(side: BattleSide.enemy, position: 1, hp: 20),
+      ],
+    );
+
+    expect(result.enemyMain.map((ship) => ship.currentHp), <int>[10, 20]);
+  });
+
+  test('applies aerial support damage exactly once', () {
+    final result = BattleDamageParser().apply(
+      data: <String, Object?>{
+        'api_support_flag': 1,
+        'api_support_info': <String, Object?>{
+          'api_support_airatack': <String, Object?>{
+            'api_stage3': <String, Object?>{
+              'api_edam': <num>[10],
+            },
+          },
+        },
+      },
+      friendMain: <BattleShipSnapshot>[
+        snapshot(side: BattleSide.friend, position: 0, hp: 30),
+      ],
+      enemyMain: <BattleShipSnapshot>[
+        snapshot(side: BattleSide.enemy, position: 0, hp: 20),
+      ],
+    );
+
+    expect(result.enemyMain.single.currentHp, 10);
+  });
 }
