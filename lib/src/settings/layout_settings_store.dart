@@ -16,6 +16,9 @@ abstract class LayoutSettingsStore {
   Future<List<String>> loadDashboardCardCollapsed();
   Future<void> saveDashboardCardCollapsed(List<String> collapsedIds);
 
+  Future<List<String>> loadDashboardCardHidden();
+  Future<void> saveDashboardCardHidden(List<String> hiddenIds);
+
   Future<String?> loadFontFamily();
   Future<void> saveFontFamily(String? fontFamily);
 
@@ -108,6 +111,20 @@ class SharedPreferencesLayoutSettingsStore implements LayoutSettingsStore {
   Future<void> saveDashboardCardCollapsed(List<String> collapsedIds) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_keyDashboardCardCollapsed, collapsedIds);
+  }
+
+  static const _keyDashboardCardHidden = 'layout_dashboard_card_hidden';
+
+  @override
+  Future<List<String>> loadDashboardCardHidden() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_keyDashboardCardHidden) ?? <String>[];
+  }
+
+  @override
+  Future<void> saveDashboardCardHidden(List<String> hiddenIds) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_keyDashboardCardHidden, hiddenIds);
   }
 
   static const _keyFontFamily = 'layout_font_family';
