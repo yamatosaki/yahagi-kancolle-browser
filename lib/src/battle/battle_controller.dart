@@ -52,6 +52,13 @@ final class BattleController extends ChangeNotifier {
     '/kcsapi/api_req_practice/battle_result',
   };
 
+  static const Set<String> _airRaidPaths = <String>{
+    '/kcsapi/api_req_sortie/ld_airbattle',
+    '/kcsapi/api_req_sortie/ld_shooting',
+    '/kcsapi/api_req_combined_battle/ld_airbattle',
+    '/kcsapi/api_req_combined_battle/ld_shooting',
+  };
+
   final GameState Function() gameState;
   final BattleDamageParser _damageParser;
   final int maxRecords;
@@ -240,6 +247,7 @@ final class BattleController extends ChangeNotifier {
       rank: estimateBattleRank(
         friendShips: friendShips,
         enemyShips: enemyShips,
+        airRaid: _airRaidPaths.contains(event.path),
       ),
       displayStage: BattleDisplayStage.battle,
       phaseLabel: _phaseLabel(event.path),

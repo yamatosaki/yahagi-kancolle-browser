@@ -30,6 +30,16 @@ class BattleDamageParser {
       enemyEscort: List<BattleShipSnapshot>.from(enemyEscort),
     );
     final activeDeck = _list(data['api_active_deck']);
+    _applySupport(
+      data['api_support_info'],
+      flag: _int(data['api_support_flag']),
+      battle: mutable,
+    );
+    _applySupport(
+      data['api_n_support_info'],
+      flag: _int(data['api_n_support_flag']),
+      battle: mutable,
+    );
     _walk(
       data,
       mutable,
@@ -71,6 +81,10 @@ class BattleDamageParser {
         );
       }
       for (final entry in map.entries) {
+        if (entry.key == 'api_support_info' ||
+            entry.key == 'api_n_support_info') {
+          continue;
+        }
         _walk(
           entry.value,
           battle,
@@ -102,16 +116,20 @@ class BattleDamageParser {
     final attackers = _list(map['api_at_list']);
     final defenders = _list(map['api_df_list']);
     final damageRows = _list(map['api_damage']);
-    final count = <int>[
-      flags.length,
-      defenders.length,
-      damageRows.length,
-    ].reduce((a, b) => a < b ? a : b);
+    final count = defenders.length < damageRows.length
+        ? defenders.length
+        : damageRows.length;
 
     for (var attackIndex = 0; attackIndex < count; attackIndex++) {
-      final attackerIsEnemy = _int(flags[attackIndex]) != 0;
       final targets = _list(defenders[attackIndex]);
       final damages = _list(damageRows[attackIndex]);
+      if (targets.isEmpty || damages.isEmpty) {
+        continue;
+      }
+      final hasAttackerFlag = attackIndex < flags.length;
+      final attackerIsEnemy = hasAttackerFlag
+          ? _int(flags[attackIndex]) != 0
+          : _int(targets.first) < 6;
       final hitCount = targets.length < damages.length
           ? targets.length
           : damages.length;
@@ -122,12 +140,20 @@ class BattleDamageParser {
           continue;
         }
         dealt += damage;
+        var targetPosition = _int(targets[hit]);
+        var targetRole = attackerIsEnemy ? friendActiveRole : enemyActiveRole;
+        if (!hasAttackerFlag) {
+          if (!attackerIsEnemy && targetPosition >= 6) {
+            targetPosition -= 6;
+          }
+          targetRole = BattleFleetRole.main;
+        }
         _damagePosition(
           battle,
           side: attackerIsEnemy ? BattleSide.friend : BattleSide.enemy,
-          absolutePosition: _int(targets[hit]),
+          absolutePosition: targetPosition,
           damage: damage,
-          roleHint: attackerIsEnemy ? friendActiveRole : enemyActiveRole,
+          roleHint: targetRole,
         );
       }
       if (!attackerIsEnemy && attackIndex < attackers.length && dealt > 0) {
@@ -137,6 +163,55 @@ class BattleDamageParser {
           damage: dealt,
           roleHint: friendActiveRole,
         );
+      }
+    }
+  }
+
+  void _applySupport(
+    Object? value, {
+    required int flag,
+    required _MutableBattle battle,
+  }) {
+    if (value is! Map || flag <= 0) {
+      return;
+    }
+    final support = value.map((key, child) => MapEntry(key.toString(), child));
+    if (flag == 1 || flag == 4) {
+      final airAttack = support['api_support_airatack'];
+      if (airAttack is! Map) {
+        return;
+      }
+      final airMap = airAttack.map(
+        (key, child) => MapEntry(key.toString(), child),
+      );
+      final stage3 = airMap['api_stage3'];
+      if (stage3 is! Map) {
+        return;
+      }
+      final stage3Map = stage3.map(
+        (key, child) => MapEntry(key.toString(), child),
+      );
+      final damages = _list(stage3Map['api_edam']);
+      if (_damageValues(damages).length > 6) {
+        _applySplitDamageArray(battle.enemyMain, battle.enemyEscort, damages);
+      } else {
+        _applyDamageArray(battle.enemyMain, damages);
+      }
+      return;
+    }
+    if (flag == 2 || flag == 3) {
+      final hourai = support['api_support_hourai'];
+      if (hourai is! Map) {
+        return;
+      }
+      final houraiMap = hourai.map(
+        (key, child) => MapEntry(key.toString(), child),
+      );
+      final damages = _list(houraiMap['api_damage']);
+      if (_damageValues(damages).length > 6) {
+        _applySplitDamageArray(battle.enemyMain, battle.enemyEscort, damages);
+      } else {
+        _applyDamageArray(battle.enemyMain, damages);
       }
     }
   }

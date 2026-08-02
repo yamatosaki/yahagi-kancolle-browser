@@ -41,6 +41,7 @@ final CapturedApiEvent start2Event = kcsapiEvent(
         'api_leng': 2,
         'api_fuel_max': 25,
         'api_bull_max': 40,
+        'api_slot_num': 4,
         'api_buildtime': 60,
       },
       <String, Object?>{
@@ -56,7 +57,15 @@ final CapturedApiEvent start2Event = kcsapiEvent(
       },
     ],
     'api_mst_mission': <Object?>[
-      <String, Object?>{'api_id': 5, 'api_name': '海上護衛任務', 'api_time': 90},
+      <String, Object?>{
+        'api_id': 5,
+        'api_name': '海上護衛任務',
+        'api_time': 90,
+        'api_disp_no': '05',
+        'api_maparea_id': 1,
+        'api_use_fuel': 0.5,
+        'api_use_bull': 0.0,
+      },
       <String, Object?>{'api_id': 21, 'api_name': '北方鼠輸送作戦', 'api_time': 140},
     ],
     'api_mst_slotitem': <Object?>[

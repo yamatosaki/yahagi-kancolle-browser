@@ -136,4 +136,31 @@ void main() {
 
     expect(rank, BattleRank.e);
   });
+
+  test('returns SS for an air raid when the friend fleet is untouched', () {
+    final rank = estimateBattleRank(
+      friendShips: <BattleShipSnapshot>[
+        ship(side: BattleSide.friend, initialHp: 100, currentHp: 100),
+      ],
+      enemyShips: <BattleShipSnapshot>[
+        ship(side: BattleSide.enemy, initialHp: 100, currentHp: 100),
+      ],
+      airRaid: true,
+    );
+
+    expect(rank, BattleRank.ss);
+  });
+
+  test('keeps ordinary battle rules when both fleets are untouched', () {
+    final rank = estimateBattleRank(
+      friendShips: <BattleShipSnapshot>[
+        ship(side: BattleSide.friend, initialHp: 100, currentHp: 100),
+      ],
+      enemyShips: <BattleShipSnapshot>[
+        ship(side: BattleSide.enemy, initialHp: 100, currentHp: 100),
+      ],
+    );
+
+    expect(rank, BattleRank.d);
+  });
 }

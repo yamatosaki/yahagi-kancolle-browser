@@ -220,4 +220,41 @@ void main() {
 
     expect(controller.current!.mvpPositions, <int>[0, 6]);
   });
+
+  test('uses air-raid rank rules only for long-distance air battles', () async {
+    final reducer = GameStateReducer();
+    var state = reducer.reduce(GameState.empty, start2Event);
+    state = reducer.reduce(state, portEvent);
+    final controller = BattleController(gameState: () => state);
+    addTearDown(controller.dispose);
+
+    Map<String, Object?> untouchedBattle() => <String, Object?>{
+      'api_deck_id': 1,
+      'api_f_nowhps': <int>[-1, 30, 15],
+      'api_f_maxhps': <int>[-1, 30, 15],
+      'api_e_nowhps': <int>[-1, 20, 10],
+      'api_e_maxhps': <int>[-1, 20, 10],
+      'api_ship_ke': <int>[-1, 501, 502],
+    };
+
+    controller.accept(
+      kcsapiEvent(
+        '/kcsapi/api_req_sortie/ld_airbattle',
+        untouchedBattle(),
+        sequence: 33,
+      ),
+    );
+    await controller.idle;
+    expect(controller.current!.rank, BattleRank.ss);
+
+    controller.accept(
+      kcsapiEvent(
+        '/kcsapi/api_req_sortie/airbattle',
+        untouchedBattle(),
+        sequence: 34,
+      ),
+    );
+    await controller.idle;
+    expect(controller.current!.rank, BattleRank.d);
+  });
 }

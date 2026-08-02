@@ -70,6 +70,7 @@ class SharedPreferencesLayoutSettingsStore implements LayoutSettingsStore {
   static const _defaultDashboardCardOrder = <String>[
     'fleet',
     'expedition',
+    'expedition_check',
     'repair',
     'construction',
     'quests',

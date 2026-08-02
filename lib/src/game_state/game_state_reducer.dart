@@ -252,6 +252,7 @@ class GameStateReducer {
         range: _asInt(item['api_leng']),
         maxFuel: _asInt(item['api_fuel_max']),
         maxAmmo: _asInt(item['api_bull_max']),
+        slotCount: _asInt(item['api_slot_num']),
         buildTimeMinutes: _asInt(item['api_buildtime']),
         portraitFileName: portrait?.fileName,
         portraitVersion: portrait?.version,
@@ -473,6 +474,12 @@ class GameStateReducer {
         id: id,
         name: name,
         duration: Duration(minutes: durationMinutes),
+        displayNumber: _asString(item['api_disp_no']),
+        mapAreaId: _asInt(item['api_maparea_id']),
+        fuelConsumptionRate: _asDouble(item['api_use_fuel']),
+        ammunitionConsumptionRate: _asDouble(item['api_use_bull']),
+        winItem1: _intList(item['api_win_item1'], includeNonPositive: true),
+        winItem2: _intList(item['api_win_item2'], includeNonPositive: true),
       );
     }
     return result;
@@ -651,6 +658,14 @@ class GameStateReducer {
       int number => number,
       num number => number.toInt(),
       String text => int.tryParse(text) ?? fallback,
+      _ => fallback,
+    };
+  }
+
+  static double _asDouble(Object? value, [double fallback = 0]) {
+    return switch (value) {
+      num number => number.toDouble(),
+      String text => double.tryParse(text) ?? fallback,
       _ => fallback,
     };
   }

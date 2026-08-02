@@ -35,8 +35,12 @@ void main() {
       expect(state.masterShips[101]?.portraitVersion, '7');
       expect(state.masterShips[101]?.classTypeId, 34);
       expect(state.masterShips[101]?.buildTimeMinutes, 60);
+      expect(state.masterShips[101]?.slotCount, 4);
       expect(state.masterMissions[5]?.name, '海上護衛任務');
       expect(state.masterMissions[5]?.duration, const Duration(minutes: 90));
+      expect(state.masterMissions[5]?.displayNumber, '05');
+      expect(state.masterMissions[5]?.fuelConsumptionPercent, 50);
+      expect(state.masterMissions[5]?.ammunitionConsumptionPercent, 0);
       expect(state.ships[9002]?.repairDurationMilliseconds, 5400000);
       expect(state.repairDocks.first.fuelCost, 24);
       expect(state.repairDocks.first.steelCost, 46);

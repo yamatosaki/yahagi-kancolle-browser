@@ -5,9 +5,30 @@ const List<int> _halfSunkNumber = <int>[0, 1, 1, 2, 2, 3, 4, 4, 5, 6, 7, 7, 8];
 BattleRank estimateBattleRank({
   required List<BattleShipSnapshot> friendShips,
   required List<BattleShipSnapshot> enemyShips,
+  bool airRaid = false,
 }) {
-  if (friendShips.isEmpty || enemyShips.isEmpty) {
+  if (friendShips.isEmpty || (!airRaid && enemyShips.isEmpty)) {
     return BattleRank.unknown;
+  }
+  if (airRaid) {
+    final initialHp = friendShips.fold<int>(
+      0,
+      (sum, ship) => sum + ship.initialHp,
+    );
+    final currentHp = friendShips.fold<int>(
+      0,
+      (sum, ship) => sum + ship.currentHp.clamp(0, ship.initialHp),
+    );
+    if (initialHp <= 0) {
+      return BattleRank.unknown;
+    }
+    final damageRate = (initialHp - currentHp) / initialHp * 100;
+    if (damageRate <= 0) return BattleRank.ss;
+    if (damageRate < 10) return BattleRank.a;
+    if (damageRate < 20) return BattleRank.b;
+    if (damageRate < 50) return BattleRank.c;
+    if (damageRate < 80) return BattleRank.d;
+    return BattleRank.e;
   }
   final ours = _status(friendShips);
   final enemy = _status(enemyShips);

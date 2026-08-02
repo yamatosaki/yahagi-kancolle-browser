@@ -24,6 +24,8 @@ import 'src/fleet/repair_summary_card.dart';
 import 'src/fleet/construction_summary_card.dart';
 import 'src/fleet/pre_sortie_check_summary.dart';
 import 'src/fleet/resource_grid.dart';
+import 'src/expedition/expedition_check_card.dart';
+import 'src/expedition/expedition_check_page.dart';
 
 import 'src/game_webview.dart';
 import 'src/game_state/game_state_controller.dart';
@@ -353,6 +355,9 @@ class _YahagiShellState extends State<YahagiShell> {
                                     widget.gameCaptureController,
                                 gameStateController: widget.gameStateController,
                                 battleController: widget.battleController,
+                                onOpenExpeditionCheck: () {
+                                  setState(() => _workspaceIndex = 8);
+                                },
                               );
 
                               return isLandscape
@@ -466,6 +471,13 @@ class _YahagiShellState extends State<YahagiShell> {
                             gameStateController: widget.gameStateController,
                             safetySettingsController:
                                 widget.safetySettingsController,
+                          ),
+                        if (_workspaceIndex == 8)
+                          ExpeditionCheckPage(
+                            controller: widget.gameStateController,
+                            onBack: () {
+                              setState(() => _workspaceIndex = 0);
+                            },
                           ),
                       ],
                     ),
@@ -627,6 +639,7 @@ class _InformationPanel extends StatefulWidget {
     required this.gameCaptureController,
     required this.gameStateController,
     required this.battleController,
+    required this.onOpenExpeditionCheck,
   });
 
   final LayoutSettingsController layoutSettingsController;
@@ -636,6 +649,7 @@ class _InformationPanel extends StatefulWidget {
   final GameCaptureController gameCaptureController;
   final GameStateController gameStateController;
   final BattleController battleController;
+  final VoidCallback onOpenExpeditionCheck;
 
   @override
   State<_InformationPanel> createState() => _InformationPanelState();
@@ -684,6 +698,12 @@ class _InformationPanelState extends State<_InformationPanel> {
                 controller: widget.gameStateController,
                 collapsed: isCollapsed,
                 onToggleCollapse: toggle,
+              ),
+              'expedition_check' => ExpeditionCheckCard(
+                controller: widget.gameStateController,
+                collapsed: isCollapsed,
+                onToggleCollapse: toggle,
+                onOpenDetails: widget.onOpenExpeditionCheck,
               ),
               'repair' => RepairSummaryCard(
                 controller: widget.gameStateController,

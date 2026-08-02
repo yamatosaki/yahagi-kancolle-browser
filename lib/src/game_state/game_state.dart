@@ -44,6 +44,7 @@ class MasterShip {
     this.range = 0,
     this.maxFuel = 0,
     this.maxAmmo = 0,
+    this.slotCount = 0,
     this.buildTimeMinutes = 0,
     this.portraitFileName,
     this.portraitVersion,
@@ -57,6 +58,7 @@ class MasterShip {
   final int range;
   final int maxFuel;
   final int maxAmmo;
+  final int slotCount;
   final int buildTimeMinutes;
   final String? portraitFileName;
   final String? portraitVersion;
@@ -71,6 +73,7 @@ class MasterShip {
       range: range,
       maxFuel: maxFuel,
       maxAmmo: maxAmmo,
+      slotCount: slotCount,
       buildTimeMinutes: buildTimeMinutes,
       portraitFileName: portraitFileName ?? this.portraitFileName,
       portraitVersion: portraitVersion ?? this.portraitVersion,
@@ -115,11 +118,27 @@ class MasterMission {
     required this.id,
     required this.name,
     required this.duration,
+    this.displayNumber = '',
+    this.mapAreaId = 0,
+    this.fuelConsumptionRate = 0,
+    this.ammunitionConsumptionRate = 0,
+    this.winItem1 = const [],
+    this.winItem2 = const [],
   });
 
   final int id;
   final String name;
   final Duration duration;
+  final String displayNumber;
+  final int mapAreaId;
+  final double fuelConsumptionRate;
+  final double ammunitionConsumptionRate;
+  final List<int> winItem1;
+  final List<int> winItem2;
+
+  int get fuelConsumptionPercent => (fuelConsumptionRate * 100).round();
+  int get ammunitionConsumptionPercent =>
+      (ammunitionConsumptionRate * 100).round();
 
   DateTime? startedAt(DateTime? completionTime) {
     return completionTime?.subtract(duration);
