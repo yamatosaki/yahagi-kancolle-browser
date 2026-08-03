@@ -54,6 +54,9 @@ void main() {
     expect(result.friendMain.map((ship) => ship.currentHp), <int>[18, 15]);
     expect(result.enemyMain.map((ship) => ship.currentHp), <int>[0, 5]);
     expect(result.friendMain.first.damageDealt, 20);
+    expect(result.friendMain.first.damageReceived, 12);
+    expect(result.enemyMain[0].damageReceived, 20);
+    expect(result.enemyMain[1].damageReceived, 5);
   });
 
   test('maps combined damage arrays to escort fleets', () {

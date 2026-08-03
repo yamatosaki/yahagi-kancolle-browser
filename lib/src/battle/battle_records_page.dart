@@ -157,6 +157,7 @@ class _RecordCard extends StatelessWidget {
               .gameStateSnapshot
               .masterShips[battle.dropShipMasterId]
               ?.name;
+    final dropItemName = battle.dropItemName?.trim();
     final friendAlive = battle.friendShips.where((ship) => !ship.isSunk).length;
     final enemyAlive = battle.enemyShips.where((ship) => !ship.isSunk).length;
     return Material(
@@ -201,6 +202,10 @@ class _RecordCard extends StatelessWidget {
                 '敌方 $enemyAlive/${battle.enemyShips.length}',
               ),
               if (dropName != null) Text('掉落：$dropName'),
+              if ((battle.dropItemId ?? 0) > 0)
+                Text(
+                  '掉落：${dropItemName?.isNotEmpty == true ? dropItemName : '道具'}',
+                ),
             ],
           ),
         ),

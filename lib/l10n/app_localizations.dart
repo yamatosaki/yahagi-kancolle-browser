@@ -846,7 +846,7 @@ abstract class AppLocalizations {
   /// No description provided for @avgCondition.
   ///
   /// In zh, this message translates to:
-  /// **'平均活力'**
+  /// **'平均疲劳'**
   String get avgCondition;
 
   /// No description provided for @losDetail.
@@ -1131,6 +1131,108 @@ abstract class AppLocalizations {
   /// **'辅助资源'**
   String get resourceTrendAuxGroup;
 
+  /// No description provided for @gadgetBypass.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏客户端绕行'**
+  String get gadgetBypass;
+
+  /// No description provided for @gadgetBypassDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'仅影响游戏客户端文件加载，不影响游戏数据接口'**
+  String get gadgetBypassDesc;
+
+  /// No description provided for @gadgetBypassEnable.
+  ///
+  /// In zh, this message translates to:
+  /// **'开启绕行'**
+  String get gadgetBypassEnable;
+
+  /// No description provided for @gadgetBypassEndpoint.
+  ///
+  /// In zh, this message translates to:
+  /// **'镜像端点'**
+  String get gadgetBypassEndpoint;
+
+  /// No description provided for @endpointCustom.
+  ///
+  /// In zh, this message translates to:
+  /// **'自定义'**
+  String get endpointCustom;
+
+  /// No description provided for @gadgetBypassStatusOn.
+  ///
+  /// In zh, this message translates to:
+  /// **'已启用'**
+  String get gadgetBypassStatusOn;
+
+  /// No description provided for @gadgetBypassStatusOff.
+  ///
+  /// In zh, this message translates to:
+  /// **'未启用'**
+  String get gadgetBypassStatusOff;
+
+  /// No description provided for @gadgetBypassUnsupported.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前设备不支持（需要 Android 8.0+）'**
+  String get gadgetBypassUnsupported;
+
+  /// No description provided for @gadgetBypassClearCache.
+  ///
+  /// In zh, this message translates to:
+  /// **'清空缓存'**
+  String get gadgetBypassClearCache;
+
+  /// No description provided for @gadgetBypassError.
+  ///
+  /// In zh, this message translates to:
+  /// **'绕行配置失败'**
+  String get gadgetBypassError;
+
+  /// No description provided for @gadgetBypassDiagnose.
+  ///
+  /// In zh, this message translates to:
+  /// **'运行连通性诊断'**
+  String get gadgetBypassDiagnose;
+
+  /// No description provided for @gadgetBypassDiagnosing.
+  ///
+  /// In zh, this message translates to:
+  /// **'诊断中...'**
+  String get gadgetBypassDiagnosing;
+
+  /// No description provided for @gadgetBypassW00g.
+  ///
+  /// In zh, this message translates to:
+  /// **'客户端服务器 (w00g)'**
+  String get gadgetBypassW00g;
+
+  /// No description provided for @gadgetBypassEndpointProbe.
+  ///
+  /// In zh, this message translates to:
+  /// **'镜像端点'**
+  String get gadgetBypassEndpointProbe;
+
+  /// No description provided for @gadgetBypassKcsapi.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏数据接口 (kcsapi)'**
+  String get gadgetBypassKcsapi;
+
+  /// No description provided for @gadgetBypassReachable.
+  ///
+  /// In zh, this message translates to:
+  /// **'通畅'**
+  String get gadgetBypassReachable;
+
+  /// No description provided for @gadgetBypassUnreachable.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法连接'**
+  String get gadgetBypassUnreachable;
+
   /// No description provided for @resourceTrendChart.
   ///
   /// In zh, this message translates to:
@@ -1260,7 +1362,7 @@ abstract class AppLocalizations {
   /// No description provided for @averageCondition.
   ///
   /// In zh, this message translates to:
-  /// **'平均活力'**
+  /// **'平均疲劳'**
   String get averageCondition;
 
   /// No description provided for @losDetails.

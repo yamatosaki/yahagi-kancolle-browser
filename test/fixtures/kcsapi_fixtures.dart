@@ -358,7 +358,10 @@ final CapturedApiEvent battleResultEvent = kcsapiEvent(
     'api_quest_name': 'Test Sea',
     'api_enemy_info': <String, Object?>{'api_deck_name': 'Test Enemy Fleet'},
     'api_get_ship': <String, Object?>{'api_ship_id': 102},
-    'api_get_useitem': <String, Object?>{'api_useitem_id': 44},
+    'api_get_useitem': <String, Object?>{
+      'api_useitem_id': 44,
+      'api_useitem_name': '家具コイン',
+    },
   },
   sequence: 22,
 );

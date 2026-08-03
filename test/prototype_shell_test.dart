@@ -6,10 +6,15 @@ import 'package:yahagi_kancolle_browser/main.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_controller.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_controller.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_store.dart';
+import 'package:yahagi_kancolle_browser/src/browser/gadget_bypass_channel.dart';
+import 'package:yahagi_kancolle_browser/src/browser/gadget_bypass_controller.dart';
+import 'package:yahagi_kancolle_browser/src/browser/gadget_bypass_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/network_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/network_settings_store.dart';
+import 'package:yahagi_kancolle_browser/src/settings/display_mode_controller.dart';
+import 'package:yahagi_kancolle_browser/src/settings/display_mode_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_browser_controller.dart';
@@ -27,6 +32,10 @@ void main() {
   testWidgets('shows the game surface, information panel, and capture modes', (
     tester,
   ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1024, 1024);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
     final captureModeController = await CaptureModeController.load(
       _MemoryModeStore(),
     );
@@ -38,6 +47,9 @@ void main() {
     );
     final safetySettingsController = await SafetySettingsController.load(
       MemorySafetySettingsStore(),
+    );
+    final displayModeController = await DisplayModeController.load(
+      MemoryDisplayModeStore(),
     );
     final browserController = GameBrowserController(port: _NoopBrowserPort());
     final audioController = await GameAudioController.load(_MemoryAudioStore());
@@ -56,7 +68,12 @@ void main() {
         networkSettingsController: NetworkSettingsController(
           store: _MemoryNetworkSettingsStore(),
         ),
+        gadgetBypassController: GadgetBypassController(
+          store: _MemoryGadgetBypassStore(),
+          port: _FakeGadgetBypassPort(),
+        ),
         safetySettingsController: safetySettingsController,
+        displayModeController: displayModeController,
         controller: controller,
         browserController: browserController,
         captureModeController: captureModeController,
@@ -73,8 +90,22 @@ void main() {
     );
 
     expect(find.byKey(const Key('fake-game-surface')), findsOneWidget);
+    final gameSize = tester.getSize(find.byKey(const Key('fake-game-surface')));
+    expect(gameSize.width / gameSize.height, closeTo(1200 / 720, 0.001));
     final panel = find.byKey(const Key('information-panel'));
     expect(panel, findsOneWidget);
+    expect(find.text('功能面板'), findsNothing);
+    expect(find.text('编辑顺序'), findsNothing);
+    await tester.longPress(find.byKey(const ValueKey('fleet')));
+    await tester.pumpAndSettle();
+    expect(find.byType(Checkbox), findsWidgets);
+    expect(find.byType(ReorderableDelayedDragStartListener), findsWidgets);
+    final dragRegion = find.byKey(const Key('dashboard-drag-region-fleet'));
+    expect(dragRegion, findsOneWidget);
+    expect(tester.getSize(dragRegion).width, greaterThan(200));
+    await tester.tap(find.byKey(const Key('dashboard-edit-done')));
+    await tester.pumpAndSettle();
+    expect(find.byType(Checkbox), findsNothing);
     await tester.scrollUntilVisible(
       find.byKey(const Key('live-battle-card')),
       200,
@@ -139,8 +170,15 @@ void main() {
         networkSettingsController: NetworkSettingsController(
           store: _MemoryNetworkSettingsStore(),
         ),
+        gadgetBypassController: GadgetBypassController(
+          store: _MemoryGadgetBypassStore(),
+          port: _FakeGadgetBypassPort(),
+        ),
         safetySettingsController: await SafetySettingsController.load(
           MemorySafetySettingsStore(),
+        ),
+        displayModeController: await DisplayModeController.load(
+          MemoryDisplayModeStore(),
         ),
         controller: controller,
         browserController: GameBrowserController(port: _NoopBrowserPort()),
@@ -196,8 +234,15 @@ void main() {
         networkSettingsController: NetworkSettingsController(
           store: _MemoryNetworkSettingsStore(),
         ),
+        gadgetBypassController: GadgetBypassController(
+          store: _MemoryGadgetBypassStore(),
+          port: _FakeGadgetBypassPort(),
+        ),
         safetySettingsController: await SafetySettingsController.load(
           MemorySafetySettingsStore(),
+        ),
+        displayModeController: await DisplayModeController.load(
+          MemoryDisplayModeStore(),
         ),
         controller: PrototypeStatusController(),
         browserController: GameBrowserController(port: _NoopBrowserPort()),
@@ -251,8 +296,15 @@ void main() {
         networkSettingsController: NetworkSettingsController(
           store: _MemoryNetworkSettingsStore(),
         ),
+        gadgetBypassController: GadgetBypassController(
+          store: _MemoryGadgetBypassStore(),
+          port: _FakeGadgetBypassPort(),
+        ),
         safetySettingsController: await SafetySettingsController.load(
           MemorySafetySettingsStore(),
+        ),
+        displayModeController: await DisplayModeController.load(
+          MemoryDisplayModeStore(),
         ),
         controller: PrototypeStatusController(),
         browserController: GameBrowserController(port: _NoopBrowserPort()),
@@ -307,8 +359,15 @@ void main() {
         networkSettingsController: NetworkSettingsController(
           store: _MemoryNetworkSettingsStore(),
         ),
+        gadgetBypassController: GadgetBypassController(
+          store: _MemoryGadgetBypassStore(),
+          port: _FakeGadgetBypassPort(),
+        ),
         safetySettingsController: await SafetySettingsController.load(
           MemorySafetySettingsStore(),
+        ),
+        displayModeController: await DisplayModeController.load(
+          MemoryDisplayModeStore(),
         ),
         controller: PrototypeStatusController(),
         browserController: GameBrowserController(port: _NoopBrowserPort()),
@@ -533,6 +592,44 @@ final class _MemoryModeStore implements CaptureModeStore {
   @override
   Future<void> write(CaptureMode mode) async {
     savedMode = mode;
+  }
+}
+
+class _MemoryGadgetBypassStore implements GadgetBypassStore {
+  GadgetBypassSettings settings = const GadgetBypassSettings();
+
+  @override
+  Future<GadgetBypassSettings> load() async => settings;
+
+  @override
+  Future<void> save(GadgetBypassSettings settings) async {
+    this.settings = settings;
+  }
+}
+
+class _FakeGadgetBypassPort implements GadgetBypassPort {
+  @override
+  Future<bool> configure({
+    required bool enabled,
+    required String endpoint,
+  }) async {
+    return true;
+  }
+
+  @override
+  Future<GadgetBypassStatus> status() async =>
+      const GadgetBypassStatus(enabled: false, endpoint: '', supported: true);
+
+  @override
+  Future<bool> clearCache() async => true;
+
+  @override
+  Future<GadgetBypassDiagnoseResult> diagnose() async {
+    return const GadgetBypassDiagnoseResult(
+      w00g: GadgetBypassProbe(reachable: true, elapsedMs: 1),
+      endpoint: GadgetBypassProbe(reachable: true, elapsedMs: 1),
+      kcsapi: GadgetBypassProbe(reachable: true, elapsedMs: 1),
+    );
   }
 }
 

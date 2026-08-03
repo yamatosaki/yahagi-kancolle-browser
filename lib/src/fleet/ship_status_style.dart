@@ -1,11 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 const yahagiStatusRed = Color(0xffd33d17);
 const yahagiStatusOrange = Color(0xfff57c00);
 const yahagiStatusYellow = Color(0xffffc940);
 const yahagiStatusGreen = Color(0xff29a634);
 
-Color shipHpColor(double ratio) {
+Color _fourBandColor(double ratio, Color healthyColor) {
   if (ratio <= 0.25) {
     return yahagiStatusRed;
   }
@@ -15,20 +15,20 @@ Color shipHpColor(double ratio) {
   if (ratio <= 0.75) {
     return yahagiStatusYellow;
   }
-  return yahagiStatusGreen;
+  return healthyColor;
 }
 
-Color shipSupplyColor(double ratio) {
-  if (ratio <= 0.50) {
-    return yahagiStatusRed;
-  }
-  if (ratio <= 0.75) {
-    return yahagiStatusOrange;
-  }
-  if (ratio < 1) {
-    return yahagiStatusYellow;
-  }
-  return yahagiStatusGreen;
+Color shipHpBarColor(double ratio) => _fourBandColor(ratio, yahagiStatusGreen);
+
+Color shipHpValueColor(double ratio) => _fourBandColor(ratio, Colors.white);
+
+Color shipSupplyBarColor(double ratio) =>
+    _fourBandColor(ratio, yahagiStatusGreen);
+
+Color shipSupplyValueColor(double ratio) => _fourBandColor(ratio, Colors.white);
+
+bool isShipHeavilyDamaged({required int currentHp, required int maxHp}) {
+  return currentHp > 0 && maxHp > 0 && currentHp * 4 <= maxHp;
 }
 
 Color shipFatigueColor(int fatigue) {

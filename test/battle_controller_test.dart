@@ -60,6 +60,7 @@ void main() {
     expect(controller.records.single.enemyFleetName, 'Test Enemy Fleet');
     expect(controller.records.single.dropShipMasterId, 102);
     expect(controller.records.single.battle.dropItemId, 44);
+    expect(controller.records.single.battle.dropItemName, '家具コイン');
     expect(controller.records.single.battle.mvpPositions, <int>[0]);
   });
 

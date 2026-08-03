@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/fleet_information_center.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/operation_status_views.dart';
@@ -156,7 +156,7 @@ void main() {
     final portraitSize = tester.getSize(
       find.byKey(const Key('ship-portrait-9001')),
     );
-    expect(portraitSize.width, inInclusiveRange(100, 155));
+    expect(portraitSize.width, inInclusiveRange(100, 180));
     expect(portraitSize.height, 54);
     expect(
       tester.getSize(find.byKey(const Key('ship-row-9001'))).height,
@@ -206,6 +206,7 @@ void main() {
     await tester.tap(find.byKey(const Key('fleet-los-metric')));
     await tester.pumpAndSettle();
     expect(find.text('总索敌'), findsOneWidget);
+    expect(find.text('33式'), findsOneWidget);
     expect(find.text('40'), findsOneWidget);
     expect(find.text('× 1'), findsOneWidget);
     expect(find.text('-25.63'), findsNWidgets(2));
@@ -446,7 +447,7 @@ void main() {
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(820, 720);
+    tester.view.physicalSize = const Size(340, 720);
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
     final controller = GameStateController();
@@ -509,9 +510,14 @@ void main() {
         ),
       );
 
-      final fleetPortraitWidth = tester
-          .getSize(find.byKey(const Key('ship-portrait-9001')))
-          .width;
+      final fleetPortraitSize = tester.getSize(
+        find.byKey(const Key('ship-portrait-9001')),
+      );
+      final fleetCapsuleHeight = tester
+          .getSize(find.byKey(const Key('ship-row-9001')))
+          .height;
+      expect(fleetPortraitSize, const Size(180, 54));
+      expect(fleetCapsuleHeight, 76);
 
       await tester.pumpWidget(
         MaterialApp(
@@ -531,8 +537,12 @@ void main() {
       expect(find.byKey(const Key('expedition-row-2')), findsOneWidget);
       expect(find.byKey(const Key('expedition-portrait-2')), findsOneWidget);
       expect(
-        tester.getSize(find.byKey(const Key('expedition-portrait-2'))).width,
-        fleetPortraitWidth,
+        tester.getSize(find.byKey(const Key('expedition-portrait-2'))),
+        fleetPortraitSize,
+      );
+      expect(
+        tester.getSize(find.byKey(const Key('expedition-row-2'))).height,
+        fleetCapsuleHeight,
       );
       expect(find.text('海上護衛任務'), findsOneWidget);
       expect(find.textContaining('%'), findsWidgets);
@@ -569,8 +579,12 @@ void main() {
       expect(find.byKey(const Key('repair-progress-1')), findsOneWidget);
       expect(find.byKey(const Key('repair-hp-1')), findsOneWidget);
       expect(
-        tester.getSize(find.byKey(const Key('repair-portrait-1'))).width,
-        fleetPortraitWidth,
+        tester.getSize(find.byKey(const Key('repair-portrait-1'))),
+        fleetPortraitSize,
+      );
+      expect(
+        tester.getSize(find.byKey(const Key('repair-dock-row-1'))).height,
+        fleetCapsuleHeight,
       );
       final repairHp = tester.widget<Text>(
         find.descendant(
@@ -648,8 +662,12 @@ void main() {
         findsOneWidget,
       );
       expect(
-        tester.getSize(find.byKey(const Key('construction-portrait-1'))).width,
-        fleetPortraitWidth,
+        tester.getSize(find.byKey(const Key('construction-portrait-1'))),
+        fleetPortraitSize,
+      );
+      expect(
+        tester.getSize(find.byKey(const Key('construction-dock-row-1'))).height,
+        fleetCapsuleHeight,
       );
       for (final type in <String>[
         'fuel',
@@ -706,5 +724,325 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     }
+  });
+
+  testWidgets('横屏左右摄像头位置不会改变舰娘头像的卡片内起点', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(900, 400);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    Future<double> portraitInset(EdgeInsets padding) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: const Size(900, 400),
+              padding: padding,
+              viewPadding: padding,
+            ),
+            child: Scaffold(
+              body: FleetInformationCenter(controller: controller),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final rowLeft = tester
+          .getTopLeft(find.byKey(const Key('ship-row-9001')))
+          .dx;
+      final portraitLeft = tester
+          .getTopLeft(find.byKey(const Key('ship-portrait-9001')))
+          .dx;
+      return portraitLeft - rowLeft;
+    }
+
+    final leftCameraInset = await portraitInset(
+      const EdgeInsets.only(left: 48),
+    );
+    final rightCameraInset = await portraitInset(
+      const EdgeInsets.only(right: 48),
+    );
+
+    expect(leftCameraInset, closeTo(rightCameraInset, 0.01));
+    expect(
+      tester.getSize(find.byKey(const Key('ship-portrait-9001'))).width,
+      144,
+    );
+  });
+
+  testWidgets('正方形折叠屏复用手机舰娘卡且忽略列表顶部安全区', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1024, 1024);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(1024, 1024),
+            padding: EdgeInsets.only(top: 48),
+            viewPadding: EdgeInsets.only(top: 48),
+          ),
+          child: Scaffold(body: FleetInformationCenter(controller: controller)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('ship-identity-top-9001')), findsOneWidget);
+    final metricsBottom = tester
+        .getBottomRight(find.byKey(const Key('fleet-los-metric')))
+        .dy;
+    final firstShipTop = tester
+        .getTopLeft(find.byKey(const Key('ship-row-9001')))
+        .dy;
+    expect(firstShipTop - metricsBottom, closeTo(10, 1));
+    expect(find.text('平均疲劳'), findsOneWidget);
+
+    final firstFleet = find.byKey(const Key('fleet-button-1'));
+    final firstNameCell = find.descendant(
+      of: firstFleet,
+      matching: find.byKey(const Key('fleet-name-cell-1')),
+    );
+    final firstStatusCell = find.descendant(
+      of: firstFleet,
+      matching: find.byKey(const Key('fleet-status-cell-1')),
+    );
+    expect(
+      tester.getSize(firstNameCell).width,
+      closeTo(tester.getSize(firstStatusCell).width, 1),
+    );
+    expect(
+      tester
+          .getCenter(
+            find.descendant(of: firstNameCell, matching: find.byType(Text)),
+          )
+          .dx,
+      closeTo(tester.getCenter(firstNameCell).dx, 1),
+    );
+    final standby = tester.widget<Text>(
+      find.descendant(of: firstStatusCell, matching: find.text('母港待命')),
+    );
+    final returned = tester.widget<Text>(find.text('已返母港'));
+    expect(standby.style?.color, Colors.white);
+    expect(returned.style?.color, Colors.white);
+    final standbyDot = find.byKey(const Key('fleet-selector-status-dot-1'));
+    expect(tester.getSize(standbyDot), const Size.square(7));
+    expect(
+      (tester.widget<Container>(standbyDot).decoration as BoxDecoration?)
+          ?.color,
+      const Color(0xff29a634),
+    );
+    expect(find.textContaining('·'), findsNothing);
+    expect(find.textContaining('艘'), findsNothing);
+  });
+
+  testWidgets('平板竖屏复用方形折叠屏舰娘卡并以两列显示装备', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(800, 1280);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: FleetInformationCenter(controller: controller)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('ship-identity-9001')), findsNothing);
+    final shipRow = tester.getRect(find.byKey(const Key('ship-row-9001')));
+    for (final type in <String>['fuel', 'ammo']) {
+      final bar = tester.getRect(find.byKey(Key('ship-status-$type-9001')));
+      expect(bar.right, lessThanOrEqualTo(shipRow.right));
+      expect(bar.width, greaterThan(8));
+    }
+
+    await tester.tap(find.text('夕張'));
+    await tester.pumpAndSettle();
+
+    final firstCard = find.byKey(const Key('equipment-card-9001-0'));
+    final secondCard = find.byKey(const Key('equipment-card-9001-1'));
+    expect(tester.getTopLeft(firstCard).dy, tester.getTopLeft(secondCard).dy);
+    expect(
+      tester.getTopLeft(firstCard).dx,
+      lessThan(tester.getTopLeft(secondCard).dx),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('opens fleet center with the requested fleet selected', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1180, 720);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1180,
+            height: 720,
+            child: FleetInformationCenter(
+              controller: controller,
+              initialFleetId: 2,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Material selectedMaterial(Key key) => tester.widget<Material>(
+      find
+          .descendant(of: find.byKey(key), matching: find.byType(Material))
+          .first,
+    );
+    expect(
+      selectedMaterial(const Key('fleet-button-2')).color,
+      const Color(0xff3a3020),
+    );
+    expect(
+      selectedMaterial(const Key('fleet-button-1')).color,
+      const Color(0xff102331),
+    );
+  });
+
+  testWidgets('手机竖屏下舰队、入渠、建造页面无溢出', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(412, 915);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    for (final page in <FleetInformationPage>[
+      FleetInformationPage.fleet,
+      FleetInformationPage.repair,
+      FleetInformationPage.construction,
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 412,
+              height: 915,
+              child: FleetInformationCenter(controller: controller, page: page),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('手机竖屏舰娘卡 HP、燃料、弹药三条完整可见', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(412, 915);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 412,
+            height: 915,
+            child: FleetInformationCenter(controller: controller),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (final keyName in <String>['hp', 'fuel', 'ammo']) {
+      final bar = find.byKey(Key('ship-status-$keyName-9001'));
+      expect(bar, findsOneWidget);
+      final rect = tester.getRect(bar);
+      expect(rect.left, greaterThanOrEqualTo(0));
+      expect(rect.right, lessThanOrEqualTo(412));
+      expect(rect.width, greaterThan(8));
+    }
+    final hpWidth = tester
+        .getSize(find.byKey(const Key('ship-status-hp-9001')))
+        .width;
+    final fuelWidth = tester
+        .getSize(find.byKey(const Key('ship-status-fuel-9001')))
+        .width;
+    expect(hpWidth / fuelWidth, closeTo(1.3, 0.08));
+    final nameRight = tester
+        .getTopRight(find.byKey(const Key('ship-identity-name-9001')))
+        .dx;
+    final lvLeft = tester.getTopLeft(find.text('Lv. 50')).dx;
+    expect(lvLeft - nameRight, greaterThanOrEqualTo(30));
+
+    final statusValues = <Finder>[
+      find.text('Lv. 50'),
+      find.byKey(const Key('ship-status-hp-value-9001')),
+      find.byKey(const Key('ship-status-fuel-value-9001')),
+      find.byKey(const Key('ship-status-ammo-value-9001')),
+    ];
+    for (final value in statusValues) {
+      final text = tester.widget<Text>(value);
+      expect(text.style?.fontSize, 10);
+      expect(text.style?.fontWeight, FontWeight.w700);
+      expect(
+        find.ancestor(of: value, matching: find.byType(FittedBox)),
+        findsNothing,
+      );
+    }
+    final hpText = tester.widget<Text>(
+      find.byKey(const Key('ship-status-hp-value-9001')),
+    );
+    expect(hpText.style?.color, Colors.white);
+    final hpBar = tester.widget<LinearProgressIndicator>(
+      find.byKey(const Key('ship-status-hp-9001')),
+    );
+    expect(hpBar.color, const Color(0xff29a634));
+    expect(tester.takeException(), isNull);
   });
 }

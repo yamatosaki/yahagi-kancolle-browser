@@ -3,7 +3,10 @@ import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import 'battle_controller.dart';
 import 'battle_models.dart';
+import 'battle_pills.dart';
 import '../fleet/dashboard_card.dart';
+import '../fleet/ship_status_style.dart';
+import '../fleet/status_density.dart';
 import '../game_state/game_state.dart';
 import 'detailed_battle_panel.dart';
 
@@ -183,28 +186,36 @@ class _CompactBattlePanel extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '${battle.context.mapLabel} · ${battle.context.nodeLabel}',
+                battle.context.nodeLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
-            Text(
-              battle.context.nodeTypeLabel,
-              style: const TextStyle(
-                color: Color(0xffd4a85f),
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            const SizedBox(width: 8),
+            NodeTypePill(label: battle.context.nodeTypeLabel),
           ],
         ),
       );
     }
-    final dropShipName =
-        battle.dropShipMasterId != null && battle.dropShipMasterId! > 0
-        ? (gameState.masterShips[battle.dropShipMasterId]?.name ?? '未知')
-        : '未知';
+    final dropShipId = battle.dropShipMasterId ?? 0;
+    final hasDrop = dropShipId > 0;
+    final dropShipName = hasDrop
+        ? (gameState.masterShips[dropShipId]?.name ?? '舰娘 $dropShipId')
+        : '';
+    final dropEntries = <String>[
+      if (hasDrop) '掉落：$dropShipName',
+      if ((battle.dropItemId ?? 0) > 0)
+        '掉落：${battle.dropItemName?.trim().isNotEmpty == true ? battle.dropItemName!.trim() : '道具'}',
+    ];
+    final rawEnemyName = battle.enemyFleetName.isNotEmpty
+        ? battle.enemyFleetName
+        : '敌方舰队';
+    final enemyName = battleEnemyFleetDisplayName(rawEnemyName);
+    final enemyCombined =
+        battle.enemyEscort.isNotEmpty || rawEnemyName.contains('联合舰队');
+    final phone = isPhoneDensity(context);
+    final metaChips = _compactMetaChips(battle);
 
     return Column(
       key: const Key('compact-battle-panel'),
@@ -219,84 +230,348 @@ class _CompactBattlePanel extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Expanded(
-                        child: Text(
-                          '${battle.context.mapLabel} · ${battle.context.nodeLabel}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                      Text(
+                        battle.context.nodeLabel,
+                        style: const TextStyle(
+                          color: Color(0xffffd65c),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                      if (battle.airSuperiority != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xff294052),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            '制空: ${battle.airSuperiority}',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: Color(0xff9db2bf),
-                            ),
-                          ),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          enemyName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ).copyWith(
+                                color: enemyCombined
+                                    ? const Color(0xffff8c78)
+                                    : null,
+                              ),
                         ),
+                      ),
+                      if (!phone) ...<Widget>[
+                        const SizedBox(width: 8),
+                        NodeTypePill(label: battle.context.nodeTypeLabel),
+                        if (battle.airSuperiority != null) ...<Widget>[
+                          const SizedBox(width: 8),
+                          AirSuperiorityPill(label: battle.airSuperiority!),
+                        ],
+                      ],
                     ],
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    battle.enemyFleetName.isNotEmpty
-                        ? battle.enemyFleetName
-                        : '敌方舰队',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xffd4a85f),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                  if (phone) ...<Widget>[
+                    const SizedBox(height: 5),
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: <Widget>[
+                        NodeTypePill(label: battle.context.nodeTypeLabel),
+                        if (battle.airSuperiority != null)
+                          AirSuperiorityPill(label: battle.airSuperiority!),
+                        for (final chip in metaChips)
+                          MetaChip(label: chip.$1, color: chip.$2),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    battle.status == LiveBattleStatus.forecast
-                        ? '掉落预测: $dropShipName'
-                        : '掉落: $dropShipName',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xff8197a5),
-                      fontSize: 11,
+                  ] else if (metaChips.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 5),
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: <Widget>[
+                        for (final chip in metaChips)
+                          MetaChip(label: chip.$1, color: chip.$2),
+                      ],
                     ),
-                  ),
+                  ],
+                  if (dropEntries.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: <Widget>[
+                        for (final entry in dropEntries) DropPill(text: entry),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 9),
+        const SizedBox(height: 8),
+        _CompactFleetGrid(battle: battle),
+      ],
+    );
+  }
+}
+
+class _CompactFleetGrid extends StatelessWidget {
+  const _CompactFleetGrid({required this.battle});
+
+  final LiveBattle battle;
+
+  @override
+  Widget build(BuildContext context) {
+    final friendCombined = battle.friendEscort.isNotEmpty;
+    final enemyCombined = battle.enemyEscort.isNotEmpty;
+    final mvpPositions = battle.mvpPositions;
+    final friendFormation = battle.friendFormation > 0
+        ? '（${formationLabel(battle.friendFormation)}）'
+        : '';
+    final enemyFormation = battle.enemyFormation > 0
+        ? '（${formationLabel(battle.enemyFormation)}）'
+        : '';
+    final friendColumns = <Widget>[];
+    final enemyColumns = <Widget>[];
+    if (friendCombined) {
+      friendColumns.add(
+        _CompactFleetColumn(
+          keyName: 'friend-main',
+          ships: battle.friendMain,
+          mvpPositions: mvpPositions,
+        ),
+      );
+      friendColumns.add(
+        _CompactFleetColumn(
+          keyName: 'friend-escort',
+          ships: battle.friendEscort,
+          mvpPositions: mvpPositions,
+          positionOffset: 6,
+        ),
+      );
+    } else {
+      friendColumns.add(
+        _CompactFleetColumn(
+          keyName: 'friend',
+          ships: battle.friendMain,
+          mvpPositions: mvpPositions,
+        ),
+      );
+    }
+    if (enemyCombined) {
+      enemyColumns.add(
+        _CompactFleetColumn(
+          keyName: 'enemy-escort',
+          ships: battle.enemyEscort,
+          mvpPositions: const <int>[],
+          positionOffset: 6,
+        ),
+      );
+      enemyColumns.add(
+        _CompactFleetColumn(
+          keyName: 'enemy-main',
+          ships: battle.enemyMain,
+          mvpPositions: const <int>[],
+        ),
+      );
+    } else {
+      enemyColumns.add(
+        _CompactFleetColumn(
+          keyName: 'enemy',
+          ships: battle.enemyMain,
+          mvpPositions: const <int>[],
+        ),
+      );
+    }
+    final columns = <Widget>[...friendColumns, ...enemyColumns];
+    return Column(
+      key: const Key('compact-fleet-grid'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
         Row(
-          children: [
-            _FleetSummary(
-              label: '我方',
-              ships: battle.friendShips,
-              color: const Color(0xff70c7bc),
+          children: <Widget>[
+            Expanded(
+              flex: friendColumns.length,
+              child: _CompactFleetSideTitle(
+                keyName: 'friend',
+                title: '我方舰队$friendFormation',
+                color: const Color(0xff70c7bc),
+              ),
             ),
-            const SizedBox(width: 8),
-            _FleetSummary(
-              label: '敌方',
-              ships: battle.enemyShips,
-              color: const Color(0xffff8c78),
+            const SizedBox(width: 7),
+            Expanded(
+              flex: enemyColumns.length,
+              child: _CompactFleetSideTitle(
+                keyName: 'enemy',
+                title: '敌方舰队$enemyFormation',
+                color: const Color(0xffff8c78),
+              ),
             ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            for (var index = 0; index < columns.length; index++) ...<Widget>[
+              if (index > 0) const SizedBox(width: 7),
+              Expanded(child: columns[index]),
+            ],
           ],
         ),
       ],
     );
   }
+}
+
+class _CompactFleetSideTitle extends StatelessWidget {
+  const _CompactFleetSideTitle({
+    required this.keyName,
+    required this.title,
+    required this.color,
+  });
+
+  final String keyName;
+  final String title;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      key: Key('compact-fleet-side-title-$keyName'),
+      height: 14,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          title,
+          maxLines: 1,
+          softWrap: false,
+          style: TextStyle(
+            color: color,
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactFleetColumn extends StatelessWidget {
+  const _CompactFleetColumn({
+    required this.keyName,
+    required this.ships,
+    required this.mvpPositions,
+    this.positionOffset = 0,
+  });
+
+  final String keyName;
+  final List<BattleShipSnapshot> ships;
+  final List<int> mvpPositions;
+  final int positionOffset;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: Key('compact-fleet-col-$keyName'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        for (var index = 0; index < ships.length; index++)
+          _CompactBarRow(
+            ship: ships[index],
+            keyName: keyName,
+            index: index,
+            isMvp: mvpPositions.contains(index + positionOffset),
+          ),
+      ],
+    );
+  }
+}
+
+class _CompactBarRow extends StatelessWidget {
+  const _CompactBarRow({
+    required this.ship,
+    required this.keyName,
+    required this.index,
+    required this.isMvp,
+  });
+
+  final BattleShipSnapshot ship;
+  final String keyName;
+  final int index;
+  final bool isMvp;
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = ship.maxHp <= 0
+        ? 0.0
+        : (ship.currentHp / ship.maxHp).clamp(0.0, 1.0);
+    final hpValueColor = ship.currentHp <= 0
+        ? const Color(0xff71818b)
+        : shipHpValueColor(ratio);
+    final hpBarColor = ship.currentHp <= 0
+        ? const Color(0xff71818b)
+        : shipHpBarColor(ratio);
+    final hpText = ship.damageReceived > 0
+        ? '${ship.currentHp} / ${ship.maxHp} (-${ship.damageReceived})'
+        : '${ship.currentHp} / ${ship.maxHp}';
+    return Padding(
+      key: Key('compact-bar-$keyName-$index'),
+      padding: const EdgeInsets.fromLTRB(6, 3, 6, 3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  hpText,
+                  style: TextStyle(
+                    color: hpValueColor,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (isMvp) ...<Widget>[
+                  const SizedBox(width: 2),
+                  Icon(
+                    Icons.emoji_events_rounded,
+                    key: Key('compact-mvp-$keyName-$index'),
+                    size: 9,
+                    color: const Color(0xffffd65c),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 2),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              minHeight: 6,
+              value: ratio,
+              color: hpBarColor,
+              backgroundColor: const Color(0xff263e4d),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+List<(String, Color)> _compactMetaChips(LiveBattle battle) {
+  return <(String, Color)>[
+    if (battle.context.combinedFleetType != CombinedFleetType.none)
+      (battle.context.combinedFleetType.label, const Color(0xff70c7bc)),
+    (battle.phaseLabel, const Color(0xff9db2bf)),
+    if (battle.engagement > 0)
+      (
+        engagementLabel(battle.engagement),
+        engagementChipColor(battle.engagement),
+      ),
+  ];
 }
 
 class _IdleBadge extends StatelessWidget {
@@ -420,47 +695,6 @@ class _RankBadge extends StatelessWidget {
           color: Color(0xffffd65c),
           fontSize: 21,
           fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
-  }
-}
-
-class _FleetSummary extends StatelessWidget {
-  const _FleetSummary({
-    required this.label,
-    required this.ships,
-    required this.color,
-  });
-
-  final String label;
-  final List<BattleShipSnapshot> ships;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final alive = ships.where((ship) => !ship.isSunk).length;
-    final critical = ships.where((ship) => ship.isHeavilyDamaged).length;
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          color: const Color(0xff10212e),
-          borderRadius: BorderRadius.circular(7),
-        ),
-        child: Row(
-          children: [
-            Text(
-              '$label $alive/${ships.length}',
-              style: TextStyle(color: color, fontWeight: FontWeight.w700),
-            ),
-            const Spacer(),
-            if (critical > 0)
-              Text(
-                '大破 $critical',
-                style: const TextStyle(color: Color(0xffff8c78), fontSize: 11),
-              ),
-          ],
         ),
       ),
     );

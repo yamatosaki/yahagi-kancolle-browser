@@ -6,10 +6,11 @@ import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
 import 'combat_mechanism.dart';
 import 'equipment_display.dart';
-import 'operation_progress.dart';
+import 'fleet_status_visual.dart';
 import 'operation_status_views.dart';
 import 'ship_portrait.dart';
 import 'ship_status_style.dart';
+import 'status_density.dart';
 
 enum FleetInformationPage { fleet, expedition, repair, construction }
 
@@ -18,17 +19,28 @@ class FleetInformationCenter extends StatefulWidget {
     super.key,
     required this.controller,
     this.page = FleetInformationPage.fleet,
+    this.initialFleetId,
   });
 
   final GameStateController controller;
   final FleetInformationPage page;
+  final int? initialFleetId;
 
   @override
   State<FleetInformationCenter> createState() => _FleetInformationCenterState();
 }
 
 class _FleetInformationCenterState extends State<FleetInformationCenter> {
-  int _selectedFleetId = 1;
+  late int _selectedFleetId = widget.initialFleetId ?? 1;
+
+  @override
+  void didUpdateWidget(FleetInformationCenter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = widget.initialFleetId;
+    if (next != null && next != oldWidget.initialFleetId) {
+      _selectedFleetId = next;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +106,7 @@ class _PageHeader extends StatelessWidget {
         AppLocalizations.of(context)?.construction ?? '建造',
     };
     return Container(
-      height: 58,
+      height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 18),
       decoration: const BoxDecoration(
         color: Color(0xff0d1a26),
@@ -199,7 +211,7 @@ class _FleetViewState extends State<_FleetView> {
     }
     final fleetButtons = _cachedFleetButtons!;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      padding: const EdgeInsets.fromLTRB(8, 12, 14, 14),
       child: Column(
         children: [
           Row(
@@ -207,6 +219,7 @@ class _FleetViewState extends State<_FleetView> {
               for (final item in fleetButtons) ...[
                 Expanded(
                   child: _FleetButton(
+                    key: Key('fleet-button-${item.id}'),
                     fleet: item,
                     selected: item.id == fleet.id,
                     onTap: () => widget.onFleetSelected(item.id),
@@ -228,6 +241,7 @@ class _FleetViewState extends State<_FleetView> {
                     ),
                   )
                 : ListView.separated(
+                    padding: EdgeInsets.zero,
                     itemCount: ships.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 6),
                     itemBuilder: (context, index) => _ShipRow(
@@ -254,6 +268,7 @@ class _FleetViewState extends State<_FleetView> {
 
 class _FleetButton extends StatelessWidget {
   const _FleetButton({
+    super.key,
     required this.fleet,
     required this.selected,
     required this.onTap,
@@ -265,6 +280,8 @@ class _FleetButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final phone = usesCompactFleetLayout(context);
+    final status = fleetStatusVisual(fleet);
     return Material(
       color: selected ? const Color(0xff3a3020) : const Color(0xff102331),
       borderRadius: BorderRadius.circular(9),
@@ -272,8 +289,11 @@ class _FleetButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(9),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 56),
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          constraints: BoxConstraints(minHeight: phone ? 34 : 56),
+          padding: EdgeInsets.symmetric(
+            horizontal: phone ? 4 : 11,
+            vertical: phone ? 3 : 7,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(9),
             border: Border.all(
@@ -285,36 +305,61 @@ class _FleetButton extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Text(
-                  fleet.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: selected
-                        ? const Color(0xfff0c675)
-                        : const Color(0xffe1e9ed),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 15,
+                child: Container(
+                  key: Key('fleet-name-cell-${fleet.id}'),
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        fleet.name,
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: selected
+                              ? const Color(0xfff0c675)
+                              : const Color(0xffe1e9ed),
+                          fontWeight: FontWeight.w700,
+                          fontSize: phone ? 12 : 15,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 7),
-              if (fleet.mission.isActive)
-                _CountdownText(
-                  prefix: AppLocalizations.of(context)?.expedition ?? '远征',
-                  completionTime: fleet.mission.completionTime,
-                )
-              else
-                Text(
-                  fleet.shipIds.isEmpty
-                      ? AppLocalizations.of(context)?.fleetNotFormed ?? '未编成'
-                      : '${AppLocalizations.of(context)?.fleetStandby ?? '母港待命'} · ${fleet.shipIds.length} ${AppLocalizations.of(context)?.shipsCount ?? '舰'}',
-                  maxLines: 1,
-                  style: const TextStyle(
-                    color: Color(0xff8197a5),
-                    fontSize: 11,
+              Expanded(
+                child: Container(
+                  key: Key('fleet-status-cell-${fleet.id}'),
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            key: Key('fleet-selector-status-dot-${fleet.id}'),
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: status.color,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          SizedBox(width: phone ? 4 : 6),
+                          Text(
+                            status.label,
+                            maxLines: 1,
+                            softWrap: false,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: phone ? 9 : 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
+              ),
             ],
           ),
         ),
@@ -351,57 +396,85 @@ class _MetricsBar extends StatelessWidget {
         formula33.isEmpty ? noValue : formula33.first.total.toStringAsFixed(2),
       ),
       (
-        AppLocalizations.of(context)?.averageCondition ?? '平均活力',
+        AppLocalizations.of(context)?.averageCondition ?? '平均疲劳',
         '${metrics.averageCondition}',
       ),
     ];
+    final phone = usesCompactFleetLayout(context);
     return Row(
       children: [
         for (var index = 0; index < values.length; index++) ...[
           Expanded(
-            child: Material(
+            child: _metricCell(
+              context,
+              label: values[index].$1,
+              value: values[index].$2,
               key: index == 7 ? const Key('fleet-los-metric') : null,
-              color: const Color(0xff102331),
-              borderRadius: BorderRadius.circular(8),
-              child: InkWell(
-                onTap: index == 7 && formula33.isNotEmpty
-                    ? () => _showLineOfSightDetails(context)
-                    : null,
-                child: SizedBox(
-                  height: 50,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        values[index].$1,
-                        style: const TextStyle(
-                          color: Color(0xff8197a5),
-                          fontSize: 11,
-                          height: 1,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        values[index].$2,
-                        style: const TextStyle(
-                          color: Color(0xffdce6eb),
-                          fontSize: 14,
-                          height: 1,
-                          fontWeight: FontWeight.w800,
-                          fontFeatures: <FontFeature>[
-                            FontFeature.tabularFigures(),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              onTap: index == 7 && formula33.isNotEmpty
+                  ? () => _showLineOfSightDetails(context)
+                  : null,
+              compact: phone,
             ),
           ),
           if (index != values.length - 1) const SizedBox(width: 5),
         ],
       ],
+    );
+  }
+
+  Widget _metricCell(
+    BuildContext context, {
+    required String label,
+    required String value,
+    Key? key,
+    VoidCallback? onTap,
+    bool compact = false,
+  }) {
+    return Material(
+      key: key,
+      color: const Color(0xff102331),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(
+          height: compact ? 34 : 50,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: const Color(0xff8197a5),
+                    fontSize: compact ? 9 : 11,
+                    height: 1,
+                  ),
+                ),
+              ),
+              SizedBox(height: compact ? 3 : 5),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: const Color(0xffdce6eb),
+                    fontSize: compact ? 12 : 14,
+                    height: 1,
+                    fontWeight: FontWeight.w800,
+                    fontFeatures: const <FontFeature>[
+                      FontFeature.tabularFigures(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -422,6 +495,19 @@ class _MetricsBar extends StatelessWidget {
               value: '${metrics.lineOfSight}',
             ),
             const Divider(color: Color(0xff294052)),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.only(bottom: 3),
+                child: Text(
+                  '33式',
+                  style: TextStyle(
+                    color: Color(0xffdce6eb),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
             for (final result in metrics.formula33)
               _Formula33DetailRow(
                 label: '× ${result.mapModifier.toInt()}',
@@ -475,6 +561,12 @@ class _Formula33DetailRow extends StatelessWidget {
 class _ShipRow extends StatelessWidget {
   const _ShipRow({required this.state, required this.ship, this.specialAttack});
 
+  static const _phoneStatusValueStyle = TextStyle(
+    fontSize: 10,
+    fontWeight: FontWeight.w700,
+    fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+  );
+
   final GameState state;
   final OwnedShip ship;
   final EquipmentMechanismDisplay? specialAttack;
@@ -508,6 +600,338 @@ class _ShipRow extends StatelessWidget {
     final columnGap = isCompact ? 8.0 : 12.0;
     final statusColumnGap = columnGap + 24;
 
+    if (usesCompactFleetLayout(context) ||
+        MediaQuery.sizeOf(context).shortestSide < 700) {
+      return Material(
+        key: Key('ship-row-${ship.id}'),
+        color: const Color(0xff142735),
+        borderRadius: BorderRadius.circular(10),
+        clipBehavior: Clip.antiAlias,
+        child: MediaQuery.removePadding(
+          context: context,
+          removeLeft: true,
+          removeRight: true,
+          child: ExpansionTile(
+            tilePadding: const EdgeInsets.fromLTRB(0, 2, 10, 2),
+            childrenPadding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+            collapsedIconColor: const Color(0xff8197a5),
+            iconColor: const Color(0xffd4a85f),
+            trailing: const SizedBox(
+              width: 18,
+              child: Icon(
+                Icons.expand_more,
+                size: 16,
+                color: Color(0xff8197a5),
+              ),
+            ),
+            title: LayoutBuilder(
+              builder: (context, constraints) {
+                final available = constraints.maxWidth;
+                final maxCompactPortraitWidth = (available * 0.30).clamp(
+                  56.0,
+                  180.0,
+                );
+                final compactPortraitWidth = portraitWidth
+                    .clamp(56.0, maxCompactPortraitWidth)
+                    .toDouble();
+                final nameWidth = (available * 0.17).clamp(40.0, 60.0);
+                final resourceWidth =
+                    ((available - compactPortraitWidth - nameWidth - 27) / 2.3)
+                        .clamp(48.0, 200.0);
+                final gap = 4.0;
+                final identityStatusGap = viewportWidth < 400 ? 8.0 : 30.0;
+                final showMechanisms = constraints.maxWidth >= 420;
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    ShipPortrait(
+                      key: Key('ship-portrait-${ship.id}'),
+                      ship: master,
+                      serverOrigin: state.serverOrigin,
+                      width: compactPortraitWidth,
+                      height: shipCardPortraitHeight,
+                    ),
+                    SizedBox(width: gap),
+                    SizedBox(
+                      width: nameWidth,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              master?.name ??
+                                  (AppLocalizations.of(context)?.unknownShip ??
+                                      '未知舰娘'),
+                              key: Key('ship-identity-name-${ship.id}'),
+                              maxLines: 1,
+                              softWrap: false,
+                              style: const TextStyle(
+                                fontSize: 17,
+                                height: 1.1,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Next ${ship.nextExperience}',
+                              key: Key('ship-identity-next-${ship.id}'),
+                              maxLines: 1,
+                              softWrap: false,
+                              style: const TextStyle(
+                                color: Color(0xff8197a5),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                fontFeatures: <FontFeature>[
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: identityStatusGap),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          SizedBox(
+                            height: 20,
+                            child: Row(
+                              key: Key('ship-identity-top-${ship.id}'),
+                              children: [
+                                Text(
+                                  'Lv. ${ship.level}',
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  style: _phoneStatusValueStyle.copyWith(
+                                    color: const Color(0xffa9bac4),
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Flexible(
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 5,
+                                            vertical: 1,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: (master?.speed ?? 0) >= 10
+                                                ? const Color(0xff164c48)
+                                                : const Color(0xff3b4650),
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            (master?.speed ?? 0) >= 10
+                                                ? (AppLocalizations.of(
+                                                        context,
+                                                      )?.highSpeed ??
+                                                      '高速')
+                                                : (AppLocalizations.of(
+                                                        context,
+                                                      )?.lowSpeed ??
+                                                      '低速'),
+                                            maxLines: 1,
+                                            softWrap: false,
+                                            style: TextStyle(
+                                              color: (master?.speed ?? 0) >= 10
+                                                  ? const Color(0xff7ed8cf)
+                                                  : const Color(0xffc1ccd2),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                        if (showMechanisms) ...[
+                                          for (final mechanism
+                                              in mechanisms) ...[
+                                            const SizedBox(width: 5),
+                                            _phoneMechanismChip(
+                                              mechanism: mechanism,
+                                            ),
+                                          ],
+                                          if (specialMechanism != null) ...[
+                                            const SizedBox(width: 5),
+                                            _phoneMechanismChip(
+                                              mechanism: specialMechanism,
+                                              special: true,
+                                            ),
+                                          ],
+                                        ],
+                                        const SizedBox(width: 5),
+                                        Container(
+                                          key: Key('ship-fatigue-${ship.id}'),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 5,
+                                            vertical: 1,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: shipFatigueColor(
+                                              ship.condition,
+                                            ).withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            '疲劳 ${ship.condition}',
+                                            maxLines: 1,
+                                            softWrap: false,
+                                            style: TextStyle(
+                                              color: shipFatigueColor(
+                                                ship.condition,
+                                              ),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          SizedBox(
+                            height: 20,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.favorite_rounded,
+                                  key: Key('ship-status-hp-icon-${ship.id}'),
+                                  color: const Color(0xffdd514c),
+                                  size: 12,
+                                ),
+                                const SizedBox(width: 2),
+                                SizedBox(
+                                  width: 32,
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      '${ship.currentHp}/${ship.maxHp}',
+                                      key: Key(
+                                        'ship-status-hp-value-${ship.id}',
+                                      ),
+                                      maxLines: 1,
+                                      softWrap: false,
+                                      overflow: TextOverflow.clip,
+                                      style: _phoneStatusValueStyle.copyWith(
+                                        color: shipHpValueColor(hpRatio),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 2),
+                                Expanded(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(3),
+                                    child: LinearProgressIndicator(
+                                      key: Key('ship-status-hp-${ship.id}'),
+                                      minHeight: 5,
+                                      value: hpRatio,
+                                      color: shipHpBarColor(hpRatio),
+                                      backgroundColor: const Color(0xff263e4d),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    SizedBox(
+                      width: resourceWidth,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            height: 20,
+                            child: _phoneResourceBar(
+                              icon: Image.asset(
+                                'assets/images/material/01.png',
+                                key: Key('ship-status-fuel-icon-${ship.id}'),
+                                width: 12,
+                                height: 12,
+                                filterQuality: FilterQuality.medium,
+                              ),
+                              valueKey: Key(
+                                'ship-status-fuel-value-${ship.id}',
+                              ),
+                              barKey: Key('ship-status-fuel-${ship.id}'),
+                              value:
+                                  '${ship.currentFuel}/${master?.maxFuel ?? 0}',
+                              ratio: fuelRatio,
+                              valueColor: shipSupplyValueColor(fuelRatio),
+                              barColor: shipSupplyBarColor(fuelRatio),
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          SizedBox(
+                            height: 20,
+                            child: _phoneResourceBar(
+                              icon: Image.asset(
+                                'assets/images/material/02.png',
+                                key: Key('ship-status-ammo-icon-${ship.id}'),
+                                width: 12,
+                                height: 12,
+                                filterQuality: FilterQuality.medium,
+                              ),
+                              valueKey: Key(
+                                'ship-status-ammo-value-${ship.id}',
+                              ),
+                              barKey: Key('ship-status-ammo-${ship.id}'),
+                              value:
+                                  '${ship.currentAmmo}/${master?.maxAmmo ?? 0}',
+                              ratio: ammoRatio,
+                              valueColor: shipSupplyValueColor(ammoRatio),
+                              barColor: shipSupplyBarColor(ammoRatio),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+            children: [
+              if (equipment.isEmpty)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    AppLocalizations.of(context)?.equipmentDataWaiting ??
+                        '装备数据等待更新',
+                    style: const TextStyle(color: Color(0xff8197a5)),
+                  ),
+                )
+              else
+                _EquipmentDetails(ship: ship, equipment: equipment),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Material(
       key: Key('ship-row-${ship.id}'),
       color: const Color(0xff142735),
@@ -530,12 +954,12 @@ class _ShipRow extends StatelessWidget {
               ship: master,
               serverOrigin: state.serverOrigin,
               width: portraitWidth,
-              height: 54,
+              height: shipCardPortraitHeight,
             ),
             SizedBox(width: columnGap),
             Expanded(
               child: SizedBox(
-                height: 54,
+                height: shipCardPortraitHeight,
                 child: Stack(
                   children: [
                     Positioned(
@@ -706,7 +1130,8 @@ class _ShipRow extends StatelessWidget {
                                     value:
                                         '${ship.currentFuel}/${master?.maxFuel ?? 0}',
                                     ratio: fuelRatio,
-                                    color: shipSupplyColor(fuelRatio),
+                                    valueColor: shipSupplyValueColor(fuelRatio),
+                                    barColor: shipSupplyBarColor(fuelRatio),
                                   ),
                                 ),
                               ],
@@ -739,7 +1164,8 @@ class _ShipRow extends StatelessWidget {
                                     ),
                                     value: '${ship.currentHp}/${ship.maxHp}',
                                     ratio: hpRatio,
-                                    color: shipHpColor(hpRatio),
+                                    valueColor: shipHpValueColor(hpRatio),
+                                    barColor: shipHpBarColor(hpRatio),
                                   ),
                                 ),
                                 const Spacer(),
@@ -766,7 +1192,8 @@ class _ShipRow extends StatelessWidget {
                                     value:
                                         '${ship.currentAmmo}/${master?.maxAmmo ?? 0}',
                                     ratio: ammoRatio,
-                                    color: shipSupplyColor(ammoRatio),
+                                    valueColor: shipSupplyValueColor(ammoRatio),
+                                    barColor: shipSupplyBarColor(ammoRatio),
                                   ),
                                 ),
                               ],
@@ -795,6 +1222,92 @@ class _ShipRow extends StatelessWidget {
             _EquipmentDetails(ship: ship, equipment: equipment),
         ],
       ),
+    );
+  }
+
+  Widget _phoneMechanismChip({
+    required EquipmentMechanismDisplay mechanism,
+    bool special = false,
+  }) {
+    final Color backgroundColor;
+    final Color foregroundColor;
+    if (special) {
+      backgroundColor = const Color(0xff5a2528);
+      foregroundColor = const Color(0xffff8b88);
+    } else {
+      backgroundColor = switch (mechanism.tone) {
+        MechanismTone.antiAir => const Color(0xff4b3a1d),
+        MechanismTone.specialAttack => const Color(0xff5a2528),
+        MechanismTone.neutral ||
+        MechanismTone.antiSubmarine => const Color(0xff29445a),
+      };
+      foregroundColor = switch (mechanism.tone) {
+        MechanismTone.antiAir => const Color(0xffffc861),
+        MechanismTone.specialAttack => const Color(0xffff8b88),
+        MechanismTone.neutral ||
+        MechanismTone.antiSubmarine => const Color(0xff8ec6e8),
+      };
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        mechanism.label,
+        maxLines: 1,
+        softWrap: false,
+        style: TextStyle(
+          color: foregroundColor,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _phoneResourceBar({
+    required Widget icon,
+    required Key valueKey,
+    required Key barKey,
+    required String value,
+    required double ratio,
+    required Color valueColor,
+    required Color barColor,
+  }) {
+    return Row(
+      children: [
+        icon,
+        const SizedBox(width: 2),
+        SizedBox(
+          width: 32,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              key: valueKey,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.clip,
+              style: _phoneStatusValueStyle.copyWith(color: valueColor),
+            ),
+          ),
+        ),
+        const SizedBox(width: 2),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              key: barKey,
+              minHeight: 5,
+              value: ratio,
+              color: barColor,
+              backgroundColor: const Color(0xff263e4d),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -863,9 +1376,12 @@ class _EquipmentDetails extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         const spacing = 8.0;
-        final useTwoColumns =
-            MediaQuery.sizeOf(context).width >= 1000 &&
-            constraints.maxWidth >= 500;
+        final phoneLike =
+            isPhoneDensity(context) ||
+            MediaQuery.sizeOf(context).shortestSide < 700;
+        final useTwoColumns = phoneLike
+            ? constraints.maxWidth >= 300
+            : constraints.maxWidth >= 500;
         final cardWidth = useTwoColumns
             ? (constraints.maxWidth - spacing - 0.1) / 2
             : constraints.maxWidth;
@@ -1208,7 +1724,8 @@ class _ShipStatusBar extends StatelessWidget {
     required this.valueKey,
     required this.value,
     required this.ratio,
-    required this.color,
+    required this.valueColor,
+    required this.barColor,
   });
 
   final String semanticLabel;
@@ -1216,7 +1733,8 @@ class _ShipStatusBar extends StatelessWidget {
   final Key valueKey;
   final String value;
   final double ratio;
-  final Color color;
+  final Color valueColor;
+  final Color barColor;
 
   @override
   Widget build(BuildContext context) {
@@ -1236,7 +1754,7 @@ class _ShipStatusBar extends StatelessWidget {
               maxLines: 1,
               textAlign: TextAlign.right,
               style: TextStyle(
-                color: color,
+                color: valueColor,
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
                 fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
@@ -1249,40 +1767,12 @@ class _ShipStatusBar extends StatelessWidget {
               value: ratio.clamp(0, 1),
               minHeight: 6,
               borderRadius: BorderRadius.circular(4),
-              color: color,
+              color: barColor,
               backgroundColor: const Color(0xff263f4d),
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _CountdownText extends StatelessWidget {
-  const _CountdownText({required this.prefix, required this.completionTime});
-
-  final String prefix;
-  final DateTime? completionTime;
-
-  @override
-  Widget build(BuildContext context) {
-    final textStyle = const TextStyle(
-      color: Color(0xff5daea6),
-      fontSize: 11,
-      fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-    );
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(' ·', style: textStyle),
-        const SizedBox(width: 4),
-        OperationCountdownText(
-          completionTime: completionTime,
-          completedText: AppLocalizations.of(context)?.completed ?? '已完成',
-          style: textStyle,
-        ),
-      ],
     );
   }
 }

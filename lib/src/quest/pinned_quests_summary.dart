@@ -11,11 +11,13 @@ class PinnedQuestsSummary extends StatelessWidget {
     required this.controller,
     required this.collapsed,
     required this.onToggleCollapse,
+    required this.onOpenQuest,
   });
 
   final GameStateController controller;
   final bool collapsed;
   final VoidCallback onToggleCollapse;
+  final ValueChanged<int> onOpenQuest;
 
   @override
   Widget build(BuildContext context) {
@@ -45,55 +47,62 @@ class PinnedQuestsSummary extends StatelessWidget {
                 )
               else
                 ...pinnedQuests.map(
-                  (q) => Container(
-                    margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xff0d1a26),
+                  (q) => Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => onOpenQuest(q.id),
                       borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: q.categoryColor.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            q.categoryLabel,
-                            style: TextStyle(
-                              color: q.categoryColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xff0d1a26),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: q.categoryColor.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                q.categoryLabel,
+                                style: TextStyle(
+                                  color: q.categoryColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                q.title,
+                                style: const TextStyle(fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _getProgressText(q),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: _getProgressColor(q),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            q.title,
-                            style: const TextStyle(fontSize: 12),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _getProgressText(q),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: _getProgressColor(q),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),

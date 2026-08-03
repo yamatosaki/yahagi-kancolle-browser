@@ -277,6 +277,7 @@ class BattleDamageParser {
       if (damage > 0) {
         fleet[index] = fleet[index].copyWith(
           currentHp: (fleet[index].currentHp - damage).clamp(0, 9999),
+          damageReceived: fleet[index].damageReceived + damage,
         );
       }
     }
@@ -303,6 +304,7 @@ class BattleDamageParser {
     }
     fleet[index] = fleet[index].copyWith(
       currentHp: (fleet[index].currentHp - damage).clamp(0, 9999),
+      damageReceived: fleet[index].damageReceived + damage,
     );
   }
 

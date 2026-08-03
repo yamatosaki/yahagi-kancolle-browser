@@ -13,6 +13,10 @@ const _borderColor = Color(0xff294052);
 const _mutedColor = Color(0xff8197a5);
 const _progressColor = Color(0xff6fc9c1);
 
+double _operationPortraitWidth(BuildContext context) {
+  return shipCardPortraitWidth(context);
+}
+
 class ExpeditionStatusView extends StatelessWidget {
   const ExpeditionStatusView({super.key, required this.state});
 
@@ -20,7 +24,7 @@ class ExpeditionStatusView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final portraitWidth = shipCardPortraitWidth(context);
+    final portraitWidth = _operationPortraitWidth(context);
     final fleets = state.fleets
         .where((fleet) => fleet.mission.isActive)
         .toList(growable: false);
@@ -48,7 +52,7 @@ class ExpeditionStatusView extends StatelessWidget {
             ship: flagshipMaster,
             serverOrigin: state.serverOrigin,
             width: portraitWidth,
-            height: 54,
+            height: shipCardPortraitHeight,
           ),
           identity: _OperationIdentity(
             eyebrow:
@@ -126,9 +130,9 @@ class _RepairDockCard extends StatelessWidget {
       );
     }
     final master = state.masterForShip(ship);
-    final portraitWidth = shipCardPortraitWidth(context);
+    final portraitWidth = _operationPortraitWidth(context);
     final hpRatio = ship.maxHp <= 0 ? 0.0 : ship.currentHp / ship.maxHp;
-    final hpColor = shipHpColor(hpRatio);
+    final hpColor = shipHpValueColor(hpRatio);
     final start =
         dock.completionTime == null || ship.repairDurationMilliseconds <= 0
         ? null
@@ -141,7 +145,7 @@ class _RepairDockCard extends StatelessWidget {
         ship: master,
         serverOrigin: state.serverOrigin,
         width: portraitWidth,
-        height: 54,
+        height: shipCardPortraitHeight,
       ),
       identity: _OperationIdentity(
         eyebrow: 'Lv. ${ship.level}',
@@ -258,7 +262,7 @@ class _ConstructionDockCard extends StatelessWidget {
       );
     }
     final master = state.masterShips[dock.createdShipMasterId];
-    final portraitWidth = shipCardPortraitWidth(context);
+    final portraitWidth = _operationPortraitWidth(context);
     final completed = dock.isCompletedAt(DateTime.now().toUtc());
     final calculatedStart =
         dock.completionTime != null && (master?.buildTimeMinutes ?? 0) > 0
@@ -273,7 +277,7 @@ class _ConstructionDockCard extends StatelessWidget {
         ship: master,
         serverOrigin: state.serverOrigin,
         width: portraitWidth,
-        height: 54,
+        height: shipCardPortraitHeight,
       ),
       identity: _OperationIdentity(
         eyebrow: dock.isLargeConstruction
@@ -367,26 +371,46 @@ class _OperationCard extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 900;
+        final phone = constraints.maxWidth < 420;
         final gap = compact ? 10.0 : 18.0;
         return Container(
-          constraints: const BoxConstraints(minHeight: 86),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          constraints: const BoxConstraints(
+            minHeight: shipCardCapsuleMinHeight,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           decoration: BoxDecoration(
             color: _cardColor,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: _borderColor),
           ),
-          child: Row(
-            children: [
-              portrait,
-              SizedBox(width: compact ? 10 : 14),
-              SizedBox(width: compact ? 145 : 210, child: identity),
-              SizedBox(width: gap),
-              Expanded(child: body),
-              SizedBox(width: gap),
-              SizedBox(width: compact ? 82 : 100, child: trailing),
-            ],
-          ),
+          child: phone
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        portrait,
+                        const SizedBox(width: 10),
+                        SizedBox(width: 118, child: identity),
+                        const Spacer(),
+                        SizedBox(width: 74, child: trailing),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    body,
+                  ],
+                )
+              : Row(
+                  children: [
+                    portrait,
+                    SizedBox(width: compact ? 10 : 14),
+                    SizedBox(width: compact ? 145 : 210, child: identity),
+                    SizedBox(width: gap),
+                    Expanded(child: body),
+                    SizedBox(width: gap),
+                    SizedBox(width: compact ? 82 : 100, child: trailing),
+                  ],
+                ),
         );
       },
     );
@@ -698,7 +722,7 @@ class _UnavailableCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 86),
+      constraints: const BoxConstraints(minHeight: shipCardCapsuleMinHeight),
       alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       decoration: BoxDecoration(

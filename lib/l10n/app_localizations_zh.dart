@@ -388,7 +388,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get los => '索敌';
 
   @override
-  String get avgCondition => '平均活力';
+  String get avgCondition => '平均疲劳';
 
   @override
   String get losDetail => '索敌详情';
@@ -532,6 +532,57 @@ class AppLocalizationsZh extends AppLocalizations {
   String get resourceTrendAuxGroup => '辅助资源';
 
   @override
+  String get gadgetBypass => '游戏客户端绕行';
+
+  @override
+  String get gadgetBypassDesc => '仅影响游戏客户端文件加载，不影响游戏数据接口';
+
+  @override
+  String get gadgetBypassEnable => '开启绕行';
+
+  @override
+  String get gadgetBypassEndpoint => '镜像端点';
+
+  @override
+  String get endpointCustom => '自定义';
+
+  @override
+  String get gadgetBypassStatusOn => '已启用';
+
+  @override
+  String get gadgetBypassStatusOff => '未启用';
+
+  @override
+  String get gadgetBypassUnsupported => '当前设备不支持（需要 Android 8.0+）';
+
+  @override
+  String get gadgetBypassClearCache => '清空缓存';
+
+  @override
+  String get gadgetBypassError => '绕行配置失败';
+
+  @override
+  String get gadgetBypassDiagnose => '运行连通性诊断';
+
+  @override
+  String get gadgetBypassDiagnosing => '诊断中...';
+
+  @override
+  String get gadgetBypassW00g => '客户端服务器 (w00g)';
+
+  @override
+  String get gadgetBypassEndpointProbe => '镜像端点';
+
+  @override
+  String get gadgetBypassKcsapi => '游戏数据接口 (kcsapi)';
+
+  @override
+  String get gadgetBypassReachable => '通畅';
+
+  @override
+  String get gadgetBypassUnreachable => '无法连接';
+
+  @override
   String get resourceTrendChart => '资源趋势变化 (最近 100 次记录)';
 
   @override
@@ -595,7 +646,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lineOfSight => '索敌';
 
   @override
-  String get averageCondition => '平均活力';
+  String get averageCondition => '平均疲劳';
 
   @override
   String get losDetails => '索敌详情';
@@ -1009,7 +1060,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get los => '索敵';
 
   @override
-  String get avgCondition => '平均活力';
+  String get avgCondition => '平均疲勞';
 
   @override
   String get losDetail => '索敵詳情';
@@ -1153,6 +1204,57 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get resourceTrendAuxGroup => '輔助資源';
 
   @override
+  String get gadgetBypass => '遊戲客戶端繞行';
+
+  @override
+  String get gadgetBypassDesc => '僅影響遊戲客戶端檔案載入，不影響遊戲資料介面';
+
+  @override
+  String get gadgetBypassEnable => '開啟繞行';
+
+  @override
+  String get gadgetBypassEndpoint => '鏡像端點';
+
+  @override
+  String get endpointCustom => '自訂';
+
+  @override
+  String get gadgetBypassStatusOn => '已啟用';
+
+  @override
+  String get gadgetBypassStatusOff => '未啟用';
+
+  @override
+  String get gadgetBypassUnsupported => '目前裝置不支援（需要 Android 8.0+）';
+
+  @override
+  String get gadgetBypassClearCache => '清空快取';
+
+  @override
+  String get gadgetBypassError => '繞行配置失敗';
+
+  @override
+  String get gadgetBypassDiagnose => '執行連通性診斷';
+
+  @override
+  String get gadgetBypassDiagnosing => '診斷中...';
+
+  @override
+  String get gadgetBypassW00g => '用戶端伺服器 (w00g)';
+
+  @override
+  String get gadgetBypassEndpointProbe => '鏡像端點';
+
+  @override
+  String get gadgetBypassKcsapi => '遊戲資料介面 (kcsapi)';
+
+  @override
+  String get gadgetBypassReachable => '暢通';
+
+  @override
+  String get gadgetBypassUnreachable => '無法連接';
+
+  @override
   String get resourceTrendChart => '資源趨勢變化 (最近 100 次記錄)';
 
   @override
@@ -1216,7 +1318,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get lineOfSight => '索敵';
 
   @override
-  String get averageCondition => '平均活力';
+  String get averageCondition => '平均疲勞';
 
   @override
   String get losDetails => '索敵詳情';

@@ -68,8 +68,8 @@ void main() {
     expect(find.byKey(const Key('detailed-battle-panel')), findsOneWidget);
     expect(find.text('我方主力'), findsOneWidget);
     expect(find.text('敌方主力'), findsOneWidget);
-    expect(find.text('18 / 30'), findsOneWidget);
-    expect(find.text('伤害 20'), findsOneWidget);
+    expect(find.text('18 / 30 (-12)'), findsOneWidget);
+    expect(find.text('18 / 30 (-12)'), findsOneWidget);
     expect(find.byKey(const Key('battle-mvp-friend-0')), findsOneWidget);
 
     final friendTitle = tester.getTopLeft(find.text('我方主力'));
@@ -99,7 +99,7 @@ void main() {
     );
 
     expect(find.text('航向'), findsWidgets);
-    expect(find.text('1-1 · A点'), findsOneWidget);
+    expect(find.text('A点'), findsOneWidget);
     expect(find.text('普通战斗'), findsOneWidget);
     expect(find.text('我方舰队'), findsOneWidget);
     expect(find.text('夕張'), findsOneWidget);
@@ -134,6 +134,10 @@ void main() {
     expect(find.text('空母机动部队'), findsOneWidget);
     expect(find.text('我方主力'), findsOneWidget);
     expect(find.text('我方随伴'), findsOneWidget);
+    final mainTitle = tester.getTopLeft(find.text('我方主力'));
+    final escortTitle = tester.getTopLeft(find.text('我方随伴'));
+    expect(mainTitle.dx, lessThan(escortTitle.dx));
+    expect((mainTitle.dy - escortTitle.dy).abs(), lessThan(2));
   });
 
   testWidgets(
@@ -171,6 +175,7 @@ void main() {
       expect(friendTitle.dx, lessThan(enemyTitle.dx));
       expect((friendTitle.dy - enemyTitle.dy).abs(), lessThan(2));
       expect(tester.takeException(), isNull);
+      expect(find.byKey(const Key('battle-mvp-friend-0')), findsOneWidget);
     },
   );
 
@@ -201,8 +206,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('compact-battle-panel')), findsOneWidget);
-    expect(find.text('我方 2/2'), findsOneWidget);
-    expect(find.text('敌方 1/2'), findsOneWidget);
+    expect(find.byKey(const Key('compact-fleet-grid')), findsOneWidget);
+    expect(find.text('我方 2/2'), findsNothing);
+    expect(find.text('敌方 1/2'), findsNothing);
 
     await tester.tap(find.byKey(const Key('battle-mode-detailed')));
     await tester.pumpAndSettle();
@@ -261,7 +267,8 @@ void main() {
     expect(find.text('已确认'), findsOneWidget);
     expect(find.text('Test Enemy Fleet'), findsOneWidget);
     expect(find.text('掉落：吹雪'), findsOneWidget);
-    expect(find.text('道具 44'), findsOneWidget);
+    expect(find.text('掉落：家具コイン'), findsOneWidget);
+    expect(find.textContaining('44'), findsNothing);
     expect(find.byKey(const Key('battle-mvp-friend-0')), findsOneWidget);
   });
 

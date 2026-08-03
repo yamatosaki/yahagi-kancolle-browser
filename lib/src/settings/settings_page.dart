@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import '../audio/game_audio_controller.dart';
+import '../browser/gadget_bypass_controller.dart';
 import '../browser/game_browser_controller.dart';
 import '../capture/capture_mode_controller.dart';
 import '../capture/capture_mode_selector.dart';
@@ -10,12 +11,15 @@ import '../prototype_status_controller.dart';
 import '../game_state/game_state_controller.dart';
 import 'diagnostics_section.dart';
 import 'layout_settings_controller.dart';
+import 'display_mode_controller.dart';
+import 'display_mode_section.dart';
 import 'safety_settings_controller.dart';
 import 'safety_settings_store.dart';
 import '../logbook/logbook_database.dart';
 import 'about_dialog.dart';
 import 'network_settings_controller.dart';
 import 'network_settings_section.dart';
+import 'gadget_bypass_section.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({
@@ -29,10 +33,14 @@ class SettingsPage extends StatelessWidget {
     required this.gameStateController,
     required this.safetySettingsController,
     required this.networkSettingsController,
+    required this.gadgetBypassController,
+    required this.displayModeController,
   });
 
   final LayoutSettingsController layoutSettingsController;
   final NetworkSettingsController networkSettingsController;
+  final GadgetBypassController gadgetBypassController;
+  final DisplayModeController displayModeController;
   final GameAudioController audioController;
   final CaptureModeController captureModeController;
   final GameBrowserController browserController;
@@ -66,7 +74,10 @@ class SettingsPage extends StatelessWidget {
               ),
               _buildCard(
                 child: AnimatedBuilder(
-                  animation: layoutSettingsController,
+                  animation: Listenable.merge([
+                    layoutSettingsController,
+                    displayModeController,
+                  ]),
                   builder: (context, _) => Column(
                     children: [
                       Padding(
@@ -135,6 +146,8 @@ class SettingsPage extends StatelessWidget {
                         onChanged: (v) =>
                             layoutSettingsController.setGameAreaRatio(1.0 - v),
                       ),
+                      const Divider(color: Color(0xff294052), height: 1),
+                      DisplayModeSection(controller: displayModeController),
                     ],
                   ),
                 ),
@@ -247,6 +260,13 @@ class SettingsPage extends StatelessWidget {
                     browserController.reload();
                   },
                 ),
+              ),
+              const SizedBox(height: 24),
+              _buildSectionTitle(
+                AppLocalizations.of(context)?.gadgetBypass ?? '游戏客户端绕行',
+              ),
+              _buildCard(
+                child: GadgetBypassSection(controller: gadgetBypassController),
               ),
               const SizedBox(height: 24),
               _buildSectionTitle(

@@ -46,6 +46,7 @@ app.*.map.json
 /android/app/release
 
 # Local development scratch files
+.scratch-resource-trend/
 .superpowers/
 docs/superpowers/
 temp_fonts/

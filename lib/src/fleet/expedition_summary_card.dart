@@ -5,17 +5,24 @@ import 'operation_progress.dart';
 
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
+const _expeditionSummaryTextStyle = TextStyle(
+  fontSize: 10,
+  fontWeight: FontWeight.w700,
+);
+
 class ExpeditionSummaryCard extends StatelessWidget {
   const ExpeditionSummaryCard({
     super.key,
     required this.controller,
     required this.collapsed,
     required this.onToggleCollapse,
+    required this.onOpenExpedition,
   });
 
   final GameStateController controller;
   final bool collapsed;
   final VoidCallback onToggleCollapse;
+  final VoidCallback onOpenExpedition;
 
   @override
   Widget build(BuildContext context) {
@@ -36,12 +43,14 @@ class ExpeditionSummaryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (activeFleets.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 4),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Center(
                     child: Text(
                       '没有正在进行的远征',
-                      style: TextStyle(color: Color(0xff8197a5), fontSize: 13),
+                      style: _expeditionSummaryTextStyle.copyWith(
+                        color: const Color(0xff8197a5),
+                      ),
                     ),
                   ),
                 )
@@ -56,11 +65,8 @@ class ExpeditionSummaryCard extends StatelessWidget {
                       missionName,
                       OperationCountdownText(
                         completionTime: fleet.mission.completionTime,
-                        completedText: '已归还',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontFamily: 'monospace',
-                        ),
+                        completedText: '已返母港',
+                        style: _expeditionSummaryTextStyle,
                         countingColor: const Color(0xffd4a85f),
                       ),
                     ),
@@ -75,29 +81,40 @@ class ExpeditionSummaryCard extends StatelessWidget {
   }
 
   Widget _buildExpeditionItem(String fleet, String mission, Widget time) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xff0d1a26),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onOpenExpedition,
         borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: const Color(0xff03a9f4).withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              fleet,
-              style: const TextStyle(fontSize: 10, color: Color(0xff03a9f4)),
-            ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xff0d1a26),
+            borderRadius: BorderRadius.circular(6),
           ),
-          const SizedBox(width: 8),
-          Expanded(child: Text(mission, style: const TextStyle(fontSize: 12))),
-          time,
-        ],
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xff03a9f4).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  fleet,
+                  style: _expeditionSummaryTextStyle.copyWith(
+                    color: const Color(0xff03a9f4),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(mission, style: _expeditionSummaryTextStyle),
+              ),
+              time,
+            ],
+          ),
+        ),
       ),
     );
   }
