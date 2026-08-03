@@ -13,11 +13,13 @@ class RepairSummaryCard extends StatelessWidget {
     required this.controller,
     required this.collapsed,
     required this.onToggleCollapse,
+    required this.onOpenRepair,
   });
 
   final GameStateController controller;
   final bool collapsed;
   final VoidCallback onToggleCollapse;
+  final VoidCallback onOpenRepair;
 
   @override
   Widget build(BuildContext context) {
@@ -80,103 +82,131 @@ class RepairSummaryCard extends StatelessWidget {
     }
 
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-        decoration: BoxDecoration(
-          color: const Color(0xff0d1a26),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Row(
-          children: [
-            if (master != null) ...[
-              ShipPortrait(
-                ship: master,
-                serverOrigin: state.serverOrigin,
-                width: 96,
-                height: 32,
-              ),
-              const SizedBox(width: 6),
-            ] else ...[
-              Container(
-                width: 32,
-                height: 32,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final available = constraints.maxWidth - 18;
+          final portraitWidth = available >= 138
+              ? 96.0
+              : (available - 42).clamp(32.0, 96.0).toDouble();
+          final iconWidth = portraitWidth < 32 ? portraitWidth : 32.0;
+          final completed =
+              active &&
+              dock != null &&
+              dock.completionTime != null &&
+              !DateTime.now().toUtc().isBefore(dock.completionTime!);
+          final statusDotColor = completed
+              ? const Color(0xff4caf50)
+              : const Color(0xffffc940);
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onOpenRepair,
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xff142735),
-                  borderRadius: BorderRadius.circular(4),
+                  color: const Color(0xff0d1a26),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: Center(
-                  child: Icon(
-                    Icons.build_rounded,
-                    size: 16,
-                    color: disabled
-                        ? const Color(0xff4a5c68)
-                        : const Color(0xff8197a5),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-            ],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          name,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                child: Row(
+                  children: [
+                    if (master != null) ...[
+                      ShipPortrait(
+                        ship: master,
+                        serverOrigin: state.serverOrigin,
+                        width: portraitWidth,
+                        height: 32,
+                      ),
+                      const SizedBox(width: 6),
+                    ] else ...[
+                      Container(
+                        width: iconWidth,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: const Color(0xff142735),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Center(
+                          child: Icon(
+                            Icons.build_rounded,
+                            size: 16,
                             color: disabled
                                 ? const Color(0xff4a5c68)
-                                : Colors.white,
+                                : const Color(0xff8197a5),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (active)
-                        Container(
-                          width: 6,
-                          height: 6,
-                          margin: const EdgeInsets.only(left: 4),
-                          decoration: const BoxDecoration(
-                            color: Color(0xff4caf50),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
+                      const SizedBox(width: 6),
                     ],
-                  ),
-                  if (active && dock != null)
-                    OperationCountdownText(
-                      completionTime: dock.completionTime,
-                      completedText: '已完成',
-                      completedColor: const Color(0xff4caf50),
-                      countingColor: const Color(0xffd4a85f),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontFamily: 'monospace',
-                      ),
-                    )
-                  else ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      disabled ? '锁' : '闲置',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: disabled
-                            ? const Color(0xff4a5c68)
-                            : const Color(0xff8197a5),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  name,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: disabled
+                                        ? const Color(0xff4a5c68)
+                                        : Colors.white,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (active)
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  margin: const EdgeInsets.only(left: 4),
+                                  decoration: BoxDecoration(
+                                    color: statusDotColor,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          if (active && dock != null)
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: OperationCountdownText(
+                                completionTime: dock.completionTime,
+                                completedText: '已完成',
+                                completedColor: const Color(0xff4caf50),
+                                countingColor: const Color(0xffd4a85f),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                            )
+                          else ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              disabled ? '锁' : '闲置',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: disabled
+                                    ? const Color(0xff4a5c68)
+                                    : const Color(0xff8197a5),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
-                ],
+                ),
               ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

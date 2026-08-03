@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -122,12 +122,183 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(
+      tester.widget<Text>(find.text('水上打击部队')).style?.color,
+      const Color(0xff70c7bc),
+    );
+
     await expectLater(
       find.byKey(const Key('live-battle-card')),
       matchesGoldenFile(
         '../docs/previews/combined-fleet-prophet-sidebar-preview.png',
       ),
     );
+  });
+
+  testWidgets('compact combined battle shows four bar columns', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(600, 880);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final state = _combinedFleetState();
+    final controller = BattleController(gameState: () => state);
+    addTearDown(controller.dispose);
+    controller
+      ..accept(
+        kcsapiEvent(
+          '/kcsapi/api_req_map/start',
+          <String, Object?>{
+            'api_maparea_id': 46,
+            'api_mapinfo_no': 1,
+            'api_no': 3,
+            'api_bosscell_no': 5,
+            'api_event_id': 4,
+            'api_event_kind': 1,
+          },
+          sequence: 501,
+          requestParams: const <String, Object?>{'api_deck_id': '1'},
+        ),
+      )
+      ..accept(
+        kcsapiEvent(
+          '/kcsapi/api_req_combined_battle/each_battle',
+          <String, Object?>{
+            'api_deck_id': 1,
+            'api_formation': <int>[4, 3, 1],
+            'api_f_nowhps': <int>[-1, 96, 82, 58, 44, 61, 36],
+            'api_f_maxhps': <int>[-1, 96, 82, 58, 44, 61, 36],
+            'api_f_nowhps_combined': <int>[-1, 48, 43, 37, 32, 31, 29],
+            'api_f_maxhps_combined': <int>[-1, 48, 43, 37, 32, 31, 29],
+            'api_e_nowhps': <int>[-1, 60, 60, 60, 60, 60, 60],
+            'api_e_maxhps': <int>[-1, 60, 60, 60, 60, 60, 60],
+            'api_e_nowhps_combined': <int>[-1, 40, 40, 40, 40, 40, 40],
+            'api_e_maxhps_combined': <int>[-1, 40, 40, 40, 40, 40, 40],
+            'api_ship_ke': <int>[-1, 301, 302, 303, 304, 305, 306],
+            'api_ship_ke_combined': <int>[-1, 307, 308, 309, 310, 311, 312],
+          },
+          sequence: 502,
+        ),
+      )
+      ..accept(
+        kcsapiEvent(
+          '/kcsapi/api_req_combined_battle/battleresult',
+          <String, Object?>{
+            'api_win_rank': 'S',
+            'api_mvp': 1,
+            'api_mvp_combined': 1,
+          },
+          sequence: 503,
+        ),
+      );
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          brightness: Brightness.dark,
+          fontFamily: 'PreviewCjk',
+          scaffoldBackgroundColor: const Color(0xff081521),
+        ),
+        home: Scaffold(
+          body: Center(
+            child: LiveBattleCard(
+              controller: controller,
+              collapsed: false,
+              onToggleCollapse: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('battle-mode-compact')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('compact-fleet-grid')), findsOneWidget);
+    expect(
+      find.byKey(const Key('compact-fleet-col-friend-main')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('compact-fleet-col-friend-escort')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('compact-fleet-col-enemy-main')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('compact-fleet-col-enemy-escort')),
+      findsOneWidget,
+    );
+    final columnKeys = <Key>[
+      const Key('compact-fleet-col-friend-main'),
+      const Key('compact-fleet-col-friend-escort'),
+      const Key('compact-fleet-col-enemy-escort'),
+      const Key('compact-fleet-col-enemy-main'),
+    ];
+    final columnLefts = <double>[
+      for (final key in columnKeys) tester.getTopLeft(find.byKey(key)).dx,
+    ];
+    expect(columnLefts, orderedEquals(columnLefts.toList()..sort()));
+    expect(find.text('我方舰队（梯形阵）'), findsOneWidget);
+    expect(find.text('敌方舰队（轮形阵）'), findsOneWidget);
+    expect(find.text('我方主力\n（梯形阵）'), findsNothing);
+    expect(find.text('我方随伴'), findsNothing);
+    expect(find.text('敌方护卫'), findsNothing);
+    expect(find.text('敌方主力\n（轮形阵）'), findsNothing);
+    expect(
+      tester.widget<Text>(find.text('我方舰队（梯形阵）')).style?.color,
+      const Color(0xff70c7bc),
+    );
+    expect(
+      tester.widget<Text>(find.text('敌方舰队（轮形阵）')).style?.color,
+      const Color(0xffff8c78),
+    );
+    final friendHeading = find.byKey(
+      const Key('compact-fleet-side-title-friend'),
+    );
+    final enemyHeading = find.byKey(
+      const Key('compact-fleet-side-title-enemy'),
+    );
+    final friendLeft = tester
+        .getTopLeft(find.byKey(const Key('compact-fleet-col-friend-main')))
+        .dx;
+    final friendRight = tester
+        .getTopRight(find.byKey(const Key('compact-fleet-col-friend-escort')))
+        .dx;
+    final enemyLeft = tester
+        .getTopLeft(find.byKey(const Key('compact-fleet-col-enemy-escort')))
+        .dx;
+    final enemyRight = tester
+        .getTopRight(find.byKey(const Key('compact-fleet-col-enemy-main')))
+        .dx;
+    expect(
+      tester.getCenter(friendHeading).dx,
+      closeTo((friendLeft + friendRight) / 2, 1),
+    );
+    expect(
+      tester.getCenter(enemyHeading).dx,
+      closeTo((enemyLeft + enemyRight) / 2, 1),
+    );
+    expect(find.byKey(const Key('compact-mvp-friend-main-0')), findsOneWidget);
+    expect(
+      find.byKey(const Key('compact-mvp-friend-escort-0')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('compact-mvp-enemy-main-0')), findsNothing);
+    final mainCrown = tester.widget<Icon>(
+      find.byKey(const Key('compact-mvp-friend-main-0')),
+    );
+    final escortCrown = tester.widget<Icon>(
+      find.byKey(const Key('compact-mvp-friend-escort-0')),
+    );
+    expect(mainCrown.size, 9);
+    expect(escortCrown.size, 9);
+    expect(tester.takeException(), isNull);
   });
 }
 

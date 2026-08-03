@@ -9,6 +9,8 @@ import 'src/battle/live_battle_card.dart';
 import 'src/audio/game_audio_controller.dart';
 import 'src/audio/game_audio_store.dart';
 import 'src/browser/game_browser_controller.dart';
+import 'src/browser/gadget_bypass_controller.dart';
+import 'src/browser/gadget_bypass_store.dart';
 import 'src/browser/game_browser_overlay.dart';
 import 'src/browser/game_browser_toolbar.dart';
 import 'src/browser/game_toolbar_controller.dart';
@@ -30,6 +32,7 @@ import 'src/expedition/expedition_check_page.dart';
 import 'src/game_webview.dart';
 import 'src/game_state/game_state_controller.dart';
 import 'src/game_state/game_state_store.dart';
+import 'src/layout/adaptive_layout.dart';
 import 'src/prototype_status_controller.dart';
 import 'src/quest/pinned_quests_summary.dart';
 import 'src/quest/quest_center_page.dart';
@@ -38,6 +41,9 @@ import 'src/settings/layout_settings_controller.dart';
 import 'src/settings/layout_settings_store.dart';
 import 'src/settings/network_settings_controller.dart';
 import 'src/settings/network_settings_store.dart';
+import 'src/settings/display_mode_controller.dart';
+import 'src/settings/display_mode_store.dart';
+import 'src/settings/orientation_policy.dart';
 import 'src/settings/safety_settings_controller.dart';
 import 'src/settings/safety_settings_store.dart';
 import 'src/settings/settings_page.dart';
@@ -53,8 +59,18 @@ Future<void> main() async {
     store: SharedPreferencesNetworkSettingsStore(),
   );
   await networkSettingsController.initialize();
+  final gadgetBypassController = await GadgetBypassController.load(
+    SharedPreferencesGadgetBypassStore(),
+  );
   final safetySettingsController = await SafetySettingsController.load(
     SharedPreferencesSafetySettingsStore(),
+  );
+  final displayModeController = await DisplayModeController.load(
+    SharedPreferencesDisplayModeStore(),
+  );
+  applyOrientationPolicy(
+    currentWindowSize(),
+    displayModeController.displayMode,
   );
   final captureModeController = await CaptureModeController.load(
     SharedPreferencesCaptureModeStore(),
@@ -86,7 +102,9 @@ Future<void> main() async {
     YahagiApp(
       layoutSettingsController: layoutSettingsController,
       networkSettingsController: networkSettingsController,
+      gadgetBypassController: gadgetBypassController,
       safetySettingsController: safetySettingsController,
+      displayModeController: displayModeController,
       controller: controller,
       browserController: browserController,
       captureModeController: captureModeController,
@@ -104,7 +122,9 @@ class YahagiApp extends StatelessWidget {
     super.key,
     required this.layoutSettingsController,
     required this.networkSettingsController,
+    required this.gadgetBypassController,
     required this.safetySettingsController,
+    required this.displayModeController,
     required this.controller,
     required this.browserController,
     required this.captureModeController,
@@ -118,7 +138,9 @@ class YahagiApp extends StatelessWidget {
 
   final LayoutSettingsController layoutSettingsController;
   final NetworkSettingsController networkSettingsController;
+  final GadgetBypassController gadgetBypassController;
   final SafetySettingsController safetySettingsController;
+  final DisplayModeController displayModeController;
   final PrototypeStatusController controller;
   final GameBrowserController browserController;
   final CaptureModeController captureModeController;
@@ -165,7 +187,9 @@ class YahagiApp extends StatelessWidget {
           home: YahagiShell(
             layoutSettingsController: layoutSettingsController,
             networkSettingsController: networkSettingsController,
+            gadgetBypassController: gadgetBypassController,
             safetySettingsController: safetySettingsController,
+            displayModeController: displayModeController,
             controller: controller,
             browserController: browserController,
             captureModeController: captureModeController,
@@ -204,7 +228,9 @@ class YahagiShell extends StatefulWidget {
     super.key,
     required this.layoutSettingsController,
     required this.networkSettingsController,
+    required this.gadgetBypassController,
     required this.safetySettingsController,
+    required this.displayModeController,
     required this.controller,
     required this.browserController,
     required this.captureModeController,
@@ -218,7 +244,9 @@ class YahagiShell extends StatefulWidget {
 
   final LayoutSettingsController layoutSettingsController;
   final NetworkSettingsController networkSettingsController;
+  final GadgetBypassController gadgetBypassController;
   final SafetySettingsController safetySettingsController;
+  final DisplayModeController displayModeController;
   final PrototypeStatusController controller;
   final GameBrowserController browserController;
   final CaptureModeController captureModeController;
@@ -233,8 +261,42 @@ class YahagiShell extends StatefulWidget {
   State<YahagiShell> createState() => _YahagiShellState();
 }
 
-class _YahagiShellState extends State<YahagiShell> {
+class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   int _workspaceIndex = 0;
+  int? _fleetCenterInitialFleetId;
+  int? _questCenterInitialQuestId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    widget.displayModeController.addListener(_applyOrientationPolicy);
+    _applyOrientationPolicy();
+  }
+
+  @override
+  void dispose() {
+    widget.displayModeController.removeListener(_applyOrientationPolicy);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    _applyOrientationPolicy();
+    widget.browserController
+        .runJavaScript(
+          'if(window.__yahagiMobileAlignGame) window.__yahagiMobileAlignGame();',
+        )
+        .catchError((Object _) {});
+  }
+
+  void _applyOrientationPolicy() {
+    applyOrientationPolicy(
+      currentWindowSize(),
+      widget.displayModeController.displayMode,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -296,9 +358,12 @@ class _YahagiShellState extends State<YahagiShell> {
                           child: LayoutBuilder(
                             key: const Key('game-workspace'),
                             builder: (context, constraints) {
-                              final isLandscape =
-                                  constraints.maxWidth >
-                                  constraints.maxHeight * 1.35;
+                              final isLandscape = !usesVerticalWorkspace(
+                                Size(
+                                  constraints.maxWidth,
+                                  constraints.maxHeight,
+                                ),
+                              );
                               final gameWidget = GameBrowserOverlay(
                                 controller: widget.toolbarController,
                                 gameSurface: isLandscape
@@ -355,6 +420,27 @@ class _YahagiShellState extends State<YahagiShell> {
                                     widget.gameCaptureController,
                                 gameStateController: widget.gameStateController,
                                 battleController: widget.battleController,
+                                onOpenFleet: (fleetId) {
+                                  setState(() {
+                                    _fleetCenterInitialFleetId = fleetId;
+                                    _workspaceIndex = 1;
+                                  });
+                                },
+                                onOpenRepair: () {
+                                  setState(() => _workspaceIndex = 3);
+                                },
+                                onOpenConstruction: () {
+                                  setState(() => _workspaceIndex = 4);
+                                },
+                                onOpenExpedition: () {
+                                  setState(() => _workspaceIndex = 2);
+                                },
+                                onOpenQuest: (questId) {
+                                  setState(() {
+                                    _questCenterInitialQuestId = questId;
+                                    _workspaceIndex = 5;
+                                  });
+                                },
                                 onOpenExpeditionCheck: () {
                                   setState(() => _workspaceIndex = 8);
                                 },
@@ -417,6 +503,7 @@ class _YahagiShellState extends State<YahagiShell> {
                                           color: Color(0xff294052),
                                         ),
                                         Expanded(
+                                          flex: 2,
                                           child: Padding(
                                             padding: const EdgeInsets.only(
                                               top: 4,
@@ -433,6 +520,7 @@ class _YahagiShellState extends State<YahagiShell> {
                           FleetInformationCenter(
                             controller: widget.gameStateController,
                             page: FleetInformationPage.fleet,
+                            initialFleetId: _fleetCenterInitialFleetId,
                           ),
                         if (_workspaceIndex == 2)
                           FleetInformationCenter(
@@ -452,6 +540,7 @@ class _YahagiShellState extends State<YahagiShell> {
                         if (_workspaceIndex == 5)
                           QuestCenterPage(
                             controller: widget.gameStateController,
+                            initialQuestId: _questCenterInitialQuestId,
                           ),
                         if (_workspaceIndex == 6)
                           LogbookPage(
@@ -463,6 +552,8 @@ class _YahagiShellState extends State<YahagiShell> {
                                 widget.layoutSettingsController,
                             networkSettingsController:
                                 widget.networkSettingsController,
+                            gadgetBypassController:
+                                widget.gadgetBypassController,
                             audioController: widget.audioController,
                             captureModeController: widget.captureModeController,
                             browserController: widget.browserController,
@@ -471,6 +562,7 @@ class _YahagiShellState extends State<YahagiShell> {
                             gameStateController: widget.gameStateController,
                             safetySettingsController:
                                 widget.safetySettingsController,
+                            displayModeController: widget.displayModeController,
                           ),
                         if (_workspaceIndex == 8)
                           ExpeditionCheckPage(
@@ -639,6 +731,11 @@ class _InformationPanel extends StatefulWidget {
     required this.gameCaptureController,
     required this.gameStateController,
     required this.battleController,
+    required this.onOpenFleet,
+    required this.onOpenRepair,
+    required this.onOpenConstruction,
+    required this.onOpenExpedition,
+    required this.onOpenQuest,
     required this.onOpenExpeditionCheck,
   });
 
@@ -649,6 +746,11 @@ class _InformationPanel extends StatefulWidget {
   final GameCaptureController gameCaptureController;
   final GameStateController gameStateController;
   final BattleController battleController;
+  final ValueChanged<int> onOpenFleet;
+  final VoidCallback onOpenRepair;
+  final VoidCallback onOpenConstruction;
+  final VoidCallback onOpenExpedition;
+  final ValueChanged<int> onOpenQuest;
   final VoidCallback onOpenExpeditionCheck;
 
   @override
@@ -683,11 +785,13 @@ class _InformationPanelState extends State<_InformationPanel> {
               widget.layoutSettingsController.dashboardCardCollapsed;
           final hiddenIds = widget.layoutSettingsController.dashboardCardHidden;
           final cardOrder = widget.layoutSettingsController.dashboardCardOrder;
-          final visibleOrder = cardOrder.where((id) => !hiddenIds.contains(id)).toList();
+          final visibleOrder = cardOrder
+              .where((id) => !hiddenIds.contains(id))
+              .toList();
           final cardIndexes = <String, int>{
-            for (var i = 0; i < cardOrder.length; i++) cardOrder[i]: i,
+            for (var index = 0; index < cardOrder.length; index++)
+              cardOrder[index]: index,
           };
-
           Widget buildCard(String id) {
             final isCollapsed = collapsedIds.contains(id);
             void toggle() => widget.layoutSettingsController
@@ -697,11 +801,13 @@ class _InformationPanelState extends State<_InformationPanel> {
                 controller: widget.gameStateController,
                 collapsed: isCollapsed,
                 onToggleCollapse: toggle,
+                onOpenFleet: widget.onOpenFleet,
               ),
               'expedition' => ExpeditionSummaryCard(
                 controller: widget.gameStateController,
                 collapsed: isCollapsed,
                 onToggleCollapse: toggle,
+                onOpenExpedition: widget.onOpenExpedition,
               ),
               'expedition_check' => ExpeditionCheckCard(
                 controller: widget.gameStateController,
@@ -713,16 +819,19 @@ class _InformationPanelState extends State<_InformationPanel> {
                 controller: widget.gameStateController,
                 collapsed: isCollapsed,
                 onToggleCollapse: toggle,
+                onOpenRepair: widget.onOpenRepair,
               ),
               'construction' => ConstructionSummaryCard(
                 controller: widget.gameStateController,
                 collapsed: isCollapsed,
                 onToggleCollapse: toggle,
+                onOpenConstruction: widget.onOpenConstruction,
               ),
               'quests' => PinnedQuestsSummary(
                 controller: widget.gameStateController,
                 collapsed: isCollapsed,
                 onToggleCollapse: toggle,
+                onOpenQuest: widget.onOpenQuest,
               ),
               'battle' => LiveBattleCard(
                 controller: widget.battleController,
@@ -745,7 +854,7 @@ class _InformationPanelState extends State<_InformationPanel> {
             if (_isEditing) {
               final isHidden = hiddenIds.contains(id);
               finalChild = Opacity(
-                opacity: isHidden ? 0.5 : 1.0,
+                opacity: isHidden ? 0.5 : 1,
                 child: Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Row(
@@ -754,29 +863,31 @@ class _InformationPanelState extends State<_InformationPanel> {
                         value: !isHidden,
                         activeColor: const Color(0xffd4a85f),
                         checkColor: Colors.black,
-                        side: const BorderSide(color: Color(0xff8fa8b6), width: 2),
-                        onChanged: (val) {
-                          widget.layoutSettingsController.toggleDashboardCardHidden(id);
-                        },
+                        side: const BorderSide(
+                          color: Color(0xff8fa8b6),
+                          width: 2,
+                        ),
+                        onChanged: (_) => widget.layoutSettingsController
+                            .toggleDashboardCardHidden(id),
                       ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: ReorderableDelayedDragStartListener(
                           index: cardIndexes[id] ?? 0,
                           child: Container(
+                            key: Key('dashboard-drag-region-$id'),
                             color: Colors.transparent,
                             child: Row(
                               children: [
                                 const Padding(
                                   padding: EdgeInsets.symmetric(vertical: 12),
-                                  child: Icon(Icons.drag_handle, color: Color(0xff8fa8b6)),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: IgnorePointer(
-                                    child: child,
+                                  child: Icon(
+                                    Icons.drag_handle,
+                                    color: Color(0xff8fa8b6),
                                   ),
                                 ),
+                                const SizedBox(width: 12),
+                                Expanded(child: IgnorePointer(child: child)),
                               ],
                             ),
                           ),
@@ -788,86 +899,61 @@ class _InformationPanelState extends State<_InformationPanel> {
               );
             }
 
-            return KeyedSubtree(
-              key: ValueKey(id),
-              child: finalChild,
-            );
+            return KeyedSubtree(key: ValueKey(id), child: finalChild);
           }
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                child: Row(
-                  children: [
-                    const Text('功能面板', style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xffd4a85f))),
-                    const Spacer(),
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        foregroundColor: _isEditing ? const Color(0xff000000) : const Color(0xffd4a85f),
-                        backgroundColor: _isEditing ? const Color(0xffd4a85f) : Colors.transparent,
-                        side: const BorderSide(color: Color(0xffd4a85f)),
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
+          return GestureDetector(
+            onLongPress: _isEditing
+                ? null
+                : () => setState(() => _isEditing = true),
+            child: _isEditing
+                ? Column(
+                    children: [
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: IconButton(
+                          key: const Key('dashboard-edit-done'),
+                          tooltip: '完成编辑',
+                          onPressed: () => setState(() => _isEditing = false),
+                          icon: const Icon(Icons.check_rounded),
+                          color: const Color(0xffd4a85f),
+                        ),
                       ),
-                      onPressed: () {
-                        setState(() => _isEditing = !_isEditing);
-                      },
-                      child: Text(_isEditing ? '完成编辑' : '编辑顺序', style: const TextStyle(fontSize: 12)),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: GestureDetector(
-                  onLongPress: () {
-                    if (!_isEditing) {
-                      setState(() => _isEditing = true);
-                    }
-                  },
-                  child: _isEditing
-                      ? ReorderableListView(
+                      Expanded(
+                        child: ReorderableListView(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           buildDefaultDragHandles: false,
                           onReorderItem: (oldIndex, newIndex) {
-                            final order = List<String>.from(
-                              widget.layoutSettingsController.dashboardCardOrder,
-                            );
+                            final order = List<String>.from(cardOrder);
                             final item = order.removeAt(oldIndex);
                             order.insert(newIndex, item);
-                            widget.layoutSettingsController.setDashboardCardOrder(
-                              order,
-                            );
+                            widget.layoutSettingsController
+                                .setDashboardCardOrder(order);
                           },
-                          children: [
-                            for (final id in cardOrder)
-                              buildCard(id),
-                          ],
-                        )
-                      : ListView(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          children: [
-                            for (final id in visibleOrder)
-                              buildCard(id),
-                            if (hasError)
-                              Padding(
-                                key: const ValueKey('error_card'),
-                                padding: const EdgeInsets.only(bottom: 6),
-                                child: _InfoCard(
-                                  title: '游戏状态异常',
-                                  subtitle:
-                                      widget.gameCaptureController.errorMessage ??
-                                      widget.browserController.errorMessage ??
-                                      '网页或捕获状态异常，请在设置中查看诊断信息。',
-                                  warning: true,
-                                ),
-                              ),
-                          ],
+                          children: [for (final id in cardOrder) buildCard(id)],
                         ),
-                ),
-              ),
-            ],
+                      ),
+                    ],
+                  )
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                    children: [
+                      for (final id in visibleOrder) buildCard(id),
+                      if (hasError)
+                        Padding(
+                          key: const ValueKey('error_card'),
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: _InfoCard(
+                            title: '游戏状态异常',
+                            subtitle:
+                                widget.gameCaptureController.errorMessage ??
+                                widget.browserController.errorMessage ??
+                                '网页或捕获状态异常，请在设置中查看诊断信息。',
+                            warning: true,
+                          ),
+                        ),
+                    ],
+                  ),
           );
         },
       ),

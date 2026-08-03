@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../fleet/status_density.dart';
 import '../fleet/dashboard_card.dart';
 import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
@@ -36,6 +37,7 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
   @override
   Widget build(BuildContext context) {
     final strings = ExpeditionStrings.of(context);
+    final phone = isPhoneDensity(context);
     return AnimatedBuilder(
       animation: widget.controller,
       builder: (context, _) => DashboardCard(
@@ -45,7 +47,7 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
         onToggleCollapse: widget.onToggleCollapse,
         borderColor: const Color(0xffb98a28),
         collapseButtonKey: const Key('expedition-check-collapse'),
-        trailing: null,
+        trailing: phone ? _detailsPageButton(strings) : null,
         child: _buildContent(context, widget.controller.state, strings),
       ),
     );
@@ -144,121 +146,194 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
     );
   }
 
-  Widget _controls(ExpeditionStrings strings) => Row(
-    children: [
-      _toggle(
-        strings.compact,
-        !_detailed,
-        () => setState(() => _detailed = false),
-      ),
-      _toggle(
-        strings.detailed,
-        _detailed,
-        () => setState(() => _detailed = true),
-      ),
-      const SizedBox(width: 8),
-      _toggle(
-        strings.success,
-        !_greatSuccess,
-        () => setState(() => _greatSuccess = false),
-      ),
-      _toggle(
-        strings.greatSuccess,
-        _greatSuccess,
-        () => setState(() => _greatSuccess = true),
-      ),
-      if (_greatSuccess) ...[
-        const SizedBox(width: 8),
-        PopupMenuButton<int>(
-          initialValue: _target,
-          onSelected: (value) => setState(() => _target = value),
-          color: const Color(0xff1b263b),
-          shape: RoundedRectangleBorder(
-            side: const BorderSide(color: Color(0xff415a77)),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-            decoration: BoxDecoration(
-              color: const Color(0xff294052),
-              borderRadius: BorderRadius.circular(6),
+  Widget _controls(ExpeditionStrings strings) => LayoutBuilder(
+    builder: (context, constraints) {
+      final showDetailsInControls = !isPhoneDensity(context);
+      final controlGroups = <Widget>[
+        _segmentGroup(
+          key: const Key('expedition-mode-segments'),
+          children: [
+            _segmentButton(
+              label: strings.compact,
+              selected: !_detailed,
+              onTap: () => setState(() => _detailed = false),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '$_target%',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xffdce6eb),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(Icons.arrow_drop_down, size: 16, color: Color(0xffdce6eb)),
-              ],
+            _segmentButton(
+              label: strings.detailed,
+              selected: _detailed,
+              onTap: () => setState(() => _detailed = true),
             ),
-          ),
-          itemBuilder: (context) => [
-            for (final value in const [80, 85, 90, 95, 100])
-              PopupMenuItem(
-                value: value,
-                height: 32,
-                child: Text(
-                  '$value%',
-                  style: const TextStyle(fontSize: 13, color: Color(0xffdce6eb)),
-                ),
-              ),
           ],
         ),
-      ],
-      const Spacer(),
-      OutlinedButton(
-        onPressed: widget.onOpenDetails,
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          minimumSize: const Size(0, 32),
-          visualDensity: VisualDensity.compact,
+        _segmentGroup(
+          key: const Key('expedition-success-segments'),
+          children: [
+            _segmentButton(
+              label: strings.success,
+              selected: !_greatSuccess,
+              onTap: () => setState(() => _greatSuccess = false),
+            ),
+            _segmentButton(
+              label: strings.greatSuccess,
+              selected: _greatSuccess,
+              onTap: () => setState(() => _greatSuccess = true),
+            ),
+          ],
         ),
-        child: Text(strings.detailsPage),
+        if (_greatSuccess) _targetMenu(),
+      ];
+      final detailsButton = showDetailsInControls
+          ? _detailsPageButton(strings)
+          : null;
+      if (constraints.maxWidth >= 440) {
+        return Row(
+          children: [
+            for (var index = 0; index < controlGroups.length; index++) ...[
+              if (index > 0) const SizedBox(width: 8),
+              controlGroups[index],
+            ],
+            const Spacer(),
+            ?detailsButton,
+          ],
+        );
+      }
+      return Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [...controlGroups, ?detailsButton],
+      );
+    },
+  );
+
+  Widget _detailsPageButton(ExpeditionStrings strings) => _segmentGroup(
+    key: const Key('expedition-details-segment'),
+    children: [
+      _segmentButton(
+        label: strings.detailsPage,
+        selected: false,
+        command: true,
+        onTap: widget.onOpenDetails,
       ),
     ],
   );
 
-  Widget _toggle(String label, bool selected, VoidCallback onTap) => InkWell(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-      decoration: BoxDecoration(
-        color: selected ? const Color(0xff403923) : const Color(0xff0d202d),
-        border: Border.all(
-          color: selected ? const Color(0xffb98a28) : const Color(0xff294052),
-        ),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          color: selected ? const Color(0xffffc857) : const Color(0xff9eb2bd),
-          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+  Widget _segmentGroup({
+    Key? key,
+    required List<Widget> children,
+    bool expandChildren = false,
+  }) => Container(
+    key: key,
+    height: 26,
+    padding: const EdgeInsets.all(2),
+    decoration: BoxDecoration(
+      color: const Color(0xff10212e),
+      borderRadius: BorderRadius.circular(7),
+      border: Border.all(color: const Color(0xff294052)),
+    ),
+    child: Row(
+      mainAxisSize: expandChildren ? MainAxisSize.max : MainAxisSize.min,
+      children: [
+        for (final child in children)
+          if (expandChildren) Expanded(child: child) else child,
+      ],
+    ),
+  );
+
+  Widget _segmentButton({
+    Key? key,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    bool command = false,
+  }) => Material(
+    key: key,
+    color: selected ? const Color(0xff5b4829) : Colors.transparent,
+    borderRadius: BorderRadius.circular(5),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(5),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        child: Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              maxLines: 1,
+              softWrap: false,
+              style: TextStyle(
+                color: selected
+                    ? const Color(0xffffcf67)
+                    : command
+                    ? const Color(0xffd4a85f)
+                    : const Color(0xff8197a5),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ),
       ),
     ),
   );
 
-  Widget _fleetSelector(List<Fleet> fleets) => Row(
+  Widget _targetMenu() => PopupMenuButton<int>(
+    initialValue: _target,
+    onSelected: (value) => setState(() => _target = value),
+    color: const Color(0xff1b263b),
+    shape: RoundedRectangleBorder(
+      side: const BorderSide(color: Color(0xff415a77)),
+      borderRadius: BorderRadius.circular(4),
+    ),
+    child: _segmentGroup(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$_target%',
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: Color(0xffdce6eb),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Icon(
+                Icons.arrow_drop_down,
+                size: 14,
+                color: Color(0xffdce6eb),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+    itemBuilder: (context) => [
+      for (final value in const [80, 85, 90, 95, 100])
+        PopupMenuItem(
+          value: value,
+          height: 32,
+          child: Text(
+            '$value%',
+            style: const TextStyle(fontSize: 13, color: Color(0xffdce6eb)),
+          ),
+        ),
+    ],
+  );
+
+  Widget _fleetSelector(List<Fleet> fleets) => _segmentGroup(
+    key: const Key('expedition-fleet-segments'),
+    expandChildren: true,
     children: [
       for (final fleet in fleets.take(4))
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(right: 5),
-            child: _toggle(
-              fleet.name,
-              _fleetId == fleet.id,
-              () => setState(() => _fleetId = fleet.id),
-            ),
-          ),
+        _segmentButton(
+          key: Key('expedition-fleet-${fleet.id}'),
+          label: fleet.name,
+          selected: _fleetId == fleet.id,
+          onTap: () => setState(() => _fleetId = fleet.id),
         ),
     ],
   );
@@ -398,18 +473,43 @@ Widget _itemTile(ExpeditionRewardItem item) {
   String assetId;
   String? label;
   switch (item.id) {
-    case 1: assetId = '06'; break; // Bucket
-    case 2: assetId = '05'; break; // Flamethrower
-    case 3: assetId = '07'; break; // Dev mat
-    case 4: assetId = '08'; break; // Screw
-    case 10: assetId = '10'; label = '家具箱(小)'; break;
-    case 11: assetId = '11'; label = '家具箱(中)'; break;
-    case 12: assetId = '12'; label = '家具箱(大)'; break;
-    case 59: assetId = '59'; label = '礼物箱'; break;
-    default: assetId = 'unknown'; label = '道具 ${item.id}'; break;
+    case 1:
+      assetId = '06';
+      break; // Bucket
+    case 2:
+      assetId = '05';
+      break; // Flamethrower
+    case 3:
+      assetId = '07';
+      break; // Dev mat
+    case 4:
+      assetId = '08';
+      break; // Screw
+    case 10:
+      assetId = '10';
+      label = '家具箱(小)';
+      break;
+    case 11:
+      assetId = '11';
+      label = '家具箱(中)';
+      break;
+    case 12:
+      assetId = '12';
+      label = '家具箱(大)';
+      break;
+    case 59:
+      assetId = '59';
+      label = '礼物箱';
+      break;
+    default:
+      assetId = 'unknown';
+      label = '道具 ${item.id}';
+      break;
   }
 
-  String kindText = item.kind == ExpeditionRewardKind.greatSuccess ? '(大成功获得)' : '(有几率获得)';
+  String kindText = item.kind == ExpeditionRewardKind.greatSuccess
+      ? '(大成功获得)'
+      : '(有几率获得)';
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
     decoration: BoxDecoration(
@@ -426,11 +526,20 @@ Widget _itemTile(ExpeditionRewardItem item) {
             filterQuality: FilterQuality.medium,
           )
         else
-          Text(label ?? '道具', style: const TextStyle(color: Color(0xffa8bbc5), fontSize: 12)),
+          Text(
+            label ?? '道具',
+            style: const TextStyle(color: Color(0xffa8bbc5), fontSize: 12),
+          ),
         const SizedBox(width: 4),
-        Text(kindText, style: const TextStyle(color: Color(0xff7792a3), fontSize: 11)),
+        Text(
+          kindText,
+          style: const TextStyle(color: Color(0xff7792a3), fontSize: 11),
+        ),
         const Spacer(),
-        Text('${item.count}', style: const TextStyle(fontWeight: FontWeight.w800)),
+        Text(
+          '${item.count}',
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
       ],
     ),
   );

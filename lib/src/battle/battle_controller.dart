@@ -281,6 +281,7 @@ final class BattleController extends ChangeNotifier {
       ],
       dropShipMasterId: _positive(getShip?['api_ship_id'], 0),
       dropItemId: _positive(getItem?['api_useitem_id'], 0),
+      dropItemName: _string(getItem?['api_useitem_name']),
     );
     _current = confirmed;
     final record = BattleRecord(
@@ -334,6 +335,9 @@ final class BattleController extends ChangeNotifier {
           damageDealt: index < (previous?.length ?? 0)
               ? previous![index].damageDealt
               : 0,
+          damageReceived: index < (previous?.length ?? 0)
+              ? previous![index].damageReceived
+              : 0,
           condition: ownedShips[index].condition,
         ),
     ];
@@ -367,6 +371,9 @@ final class BattleController extends ChangeNotifier {
           initialHp: hp,
           maxHp: _atPositive(maxHp, index, hp),
           currentHp: hp,
+          damageReceived: index < (previous?.length ?? 0)
+              ? previous![index].damageReceived
+              : 0,
         ),
       );
     }

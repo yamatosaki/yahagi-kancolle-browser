@@ -5,18 +5,32 @@ import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
 
 class QuestCenterPage extends StatefulWidget {
-  const QuestCenterPage({super.key, required this.controller});
+  const QuestCenterPage({
+    super.key,
+    required this.controller,
+    this.initialQuestId,
+  });
 
   final GameStateController controller;
+  final int? initialQuestId;
 
   @override
   State<QuestCenterPage> createState() => _QuestCenterPageState();
 }
 
 class _QuestCenterPageState extends State<QuestCenterPage> {
-  int? _selectedQuestId;
+  late int? _selectedQuestId = widget.initialQuestId;
   GameState? _lastQuestState;
   List<GameQuest>? _cachedSortedQuests;
+
+  @override
+  void didUpdateWidget(QuestCenterPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = widget.initialQuestId;
+    if (next != null && next != oldWidget.initialQuestId) {
+      _selectedQuestId = next;
+    }
+  }
 
   List<GameQuest> get _sortedQuests {
     final state = widget.controller.state;

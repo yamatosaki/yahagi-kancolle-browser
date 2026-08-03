@@ -6,6 +6,11 @@ enum BattleFleetRole { main, escort }
 
 enum LiveBattleStatus { forecast, confirmed }
 
+String battleEnemyFleetDisplayName(String name) {
+  final trimmed = name.trim();
+  return trimmed.startsWith('敌 ') ? trimmed.substring(2).trimLeft() : name;
+}
+
 enum BattleDisplayStage { navigation, battle, result }
 
 enum BattleRank {
@@ -154,6 +159,7 @@ class BattleShipSnapshot {
     required this.currentHp,
     this.ownedShipId,
     this.damageDealt = 0,
+    this.damageReceived = 0,
     this.condition = 49,
   });
 
@@ -167,6 +173,7 @@ class BattleShipSnapshot {
   final int maxHp;
   final int currentHp;
   final int damageDealt;
+  final int damageReceived;
   final int condition;
 
   bool get isSunk => currentHp <= 0;
@@ -177,6 +184,7 @@ class BattleShipSnapshot {
     int? maxHp,
     int? currentHp,
     int? damageDealt,
+    int? damageReceived,
     int? condition,
   }) {
     return BattleShipSnapshot(
@@ -190,6 +198,7 @@ class BattleShipSnapshot {
       maxHp: maxHp ?? this.maxHp,
       currentHp: currentHp ?? this.currentHp,
       damageDealt: damageDealt ?? this.damageDealt,
+      damageReceived: damageReceived ?? this.damageReceived,
       condition: condition ?? this.condition,
     );
   }
@@ -213,6 +222,7 @@ class LiveBattle {
     this.mvpPositions = const <int>[],
     this.dropShipMasterId,
     this.dropItemId,
+    this.dropItemName,
     this.airSuperiority,
   });
 
@@ -232,6 +242,7 @@ class LiveBattle {
   final List<int> mvpPositions;
   final int? dropShipMasterId;
   final int? dropItemId;
+  final String? dropItemName;
   final String? airSuperiority;
 
   List<BattleShipSnapshot> get friendShips =>
@@ -267,6 +278,7 @@ class LiveBattle {
     List<int>? mvpPositions,
     int? dropShipMasterId,
     int? dropItemId,
+    String? dropItemName,
     String? airSuperiority,
   }) {
     return LiveBattle(
@@ -286,6 +298,7 @@ class LiveBattle {
       mvpPositions: mvpPositions ?? this.mvpPositions,
       dropShipMasterId: dropShipMasterId ?? this.dropShipMasterId,
       dropItemId: dropItemId ?? this.dropItemId,
+      dropItemName: dropItemName ?? this.dropItemName,
       airSuperiority: airSuperiority ?? this.airSuperiority,
     );
   }

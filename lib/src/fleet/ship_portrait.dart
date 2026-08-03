@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../game_state/game_state.dart';
 
+const shipCardPortraitHeight = 54.0;
+const shipCardCapsuleMinHeight = 76.0;
+
 double shipCardPortraitWidth(BuildContext context) {
-  return (MediaQuery.sizeOf(context).width * 0.14).clamp(100.0, 155.0);
+  return (MediaQuery.sizeOf(context).width * 0.16).clamp(100.0, 180.0);
 }
 
 abstract final class ShipPortraitUriBuilder {

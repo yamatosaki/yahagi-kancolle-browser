@@ -534,6 +534,57 @@ class AppLocalizationsJa extends AppLocalizations {
   String get resourceTrendAuxGroup => '補助資源';
 
   @override
+  String get gadgetBypass => 'ゲームクライアント迂回';
+
+  @override
+  String get gadgetBypassDesc => 'ゲームクライアントの読み込みのみに影響し、データAPIには影響しません';
+
+  @override
+  String get gadgetBypassEnable => '迂回を有効にする';
+
+  @override
+  String get gadgetBypassEndpoint => 'ミラーエンドポイント';
+
+  @override
+  String get endpointCustom => 'カスタム';
+
+  @override
+  String get gadgetBypassStatusOn => '有効';
+
+  @override
+  String get gadgetBypassStatusOff => '無効';
+
+  @override
+  String get gadgetBypassUnsupported => 'この端末では非対応（Android 8.0+ が必要）';
+
+  @override
+  String get gadgetBypassClearCache => 'キャッシュをクリア';
+
+  @override
+  String get gadgetBypassError => '迂回設定に失敗しました';
+
+  @override
+  String get gadgetBypassDiagnose => '接続診断を実行';
+
+  @override
+  String get gadgetBypassDiagnosing => '診断中...';
+
+  @override
+  String get gadgetBypassW00g => 'クライアントサーバー (w00g)';
+
+  @override
+  String get gadgetBypassEndpointProbe => 'ミラーエンドポイント';
+
+  @override
+  String get gadgetBypassKcsapi => 'ゲームデータAPI (kcsapi)';
+
+  @override
+  String get gadgetBypassReachable => '接続OK';
+
+  @override
+  String get gadgetBypassUnreachable => '接続不可';
+
+  @override
   String get resourceTrendChart => '資源推移 (直近 100 件)';
 
   @override

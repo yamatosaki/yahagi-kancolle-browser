@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dashboard_card.dart';
+import 'ship_status_style.dart';
 
 import '../game_state/game_state_controller.dart';
 import '../game_state/game_state.dart';
@@ -108,7 +109,10 @@ class PreSortieCheckSummary extends StatelessWidget {
         final ship = state.ships[shipId];
         if (ship == null) continue;
 
-        if (ship.currentHp > 0 && ship.currentHp / ship.maxHp <= 0.25) {
+        if (isShipHeavilyDamaged(
+          currentHp: ship.currentHp,
+          maxHp: ship.maxHp,
+        )) {
           hasTaiha = true;
           final masterShip = state.masterShips[ship.masterId];
           taihaNames.add(masterShip?.name ?? '期舰');

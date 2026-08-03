@@ -1,13 +1,11 @@
 ﻿package app.yahagi.kancollebrowser
 
-import android.database.ContentObserver
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.provider.Settings
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.view.WindowManager
 import android.webkit.WebView
 import androidx.core.view.WindowCompat
@@ -17,28 +15,14 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import app.yahagi.kancollebrowser.browser.WebViewProxyManager
+import app.yahagi.kancollebrowser.browser.GadgetBypassManager
+import app.yahagi.kancollebrowser.browser.GadgetBypassWebViewClient
 import app.yahagi.kancollebrowser.capture.GameCaptureBridge
 import kotlin.math.abs
 
-class MainActivity : FlutterActivity() {
-    private val orientationSettingsObserver = object : ContentObserver(
-        Handler(Looper.getMainLooper()),
-    ) {
-        override fun onChange(selfChange: Boolean) {
-            applyOrientationPolicy()
-        }
-    }
-    private var orientationObserverRegistered = false
-
+class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        contentResolver.registerContentObserver(
-            Settings.System.getUriFor(Settings.System.ACCELEROMETER_ROTATION),
-            false,
-            orientationSettingsObserver,
-        )
-        orientationObserverRegistered = true
-        applyOrientationPolicy()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val attr = window.attributes
@@ -51,20 +35,18 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        applyOrientationPolicy()
-    }
-
     private companion object {
         const val GAME_AUDIO_CHANNEL = "app.yahagi.kancollebrowser/game_audio"
         const val GAME_CAPTURE_CHANNEL = "app.yahagi.kancollebrowser/game_capture"
         const val SCALE_CHANNEL = "app.webview/fixed_canvas_scaling"
         const val PROXY_CHANNEL = "app.yahagi.kancollebrowser/network_proxy"
+        const val GADGET_BYPASS_CHANNEL = "app.yahagi.kancollebrowser/gadget_bypass"
     }
 
     private var gameCaptureBridge: GameCaptureBridge? = null
     private var webViewProxyManager: WebViewProxyManager? = null
+    private var gadgetBypassManager: GadgetBypassManager? = null
+    private var gadgetBypassLayoutListener: ViewTreeObserver.OnGlobalLayoutListener? = null
     
     private var boundWebView: WebView? = null
     private var previousFitScale: Float = 0f
@@ -143,31 +125,86 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        val bypassManager = GadgetBypassManager(context, this)
+        gadgetBypassManager = bypassManager
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            GADGET_BYPASS_CHANNEL,
+        ).setMethodCallHandler(bypassManager)
     }
 
     override fun onDestroy() {
-        if (orientationObserverRegistered) {
-            contentResolver.unregisterContentObserver(orientationSettingsObserver)
-            orientationObserverRegistered = false
-        }
+        removeGadgetBypassLayoutListener()
         gameCaptureBridge?.dispose()
         gameCaptureBridge = null
         webViewProxyManager?.dispose()
         webViewProxyManager = null
+        gadgetBypassManager = null
         boundWebView = null
         super.onDestroy()
     }
 
-    private fun applyOrientationPolicy() {
-        val autoRotateEnabled = Settings.System.getInt(
-            contentResolver,
-            Settings.System.ACCELEROMETER_ROTATION,
-            0,
-        ) == 1
-        val targetOrientation = OrientationPolicy.requestedOrientation(autoRotateEnabled)
-        if (requestedOrientation != targetOrientation) {
-            requestedOrientation = targetOrientation
+    override fun onBypassEnabledChanged(enabled: Boolean) {
+        if (enabled) {
+            installGadgetBypassLayoutListener()
+            ensureGadgetBypassWrap()
+        } else {
+            restoreGadgetBypassClient()
+            removeGadgetBypassLayoutListener()
         }
+    }
+
+    private fun ensureGadgetBypassWrap() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = gadgetBypassManager ?: return
+        if (!manager.enabled) return
+
+        val webViews = mutableListOf<WebView>()
+        collectWebViews(window.decorView, webViews)
+        if (webViews.size != 1) return
+        val webView = webViews.single()
+
+        val current = webView.webViewClient ?: return
+        if (current is GadgetBypassWebViewClient) return
+
+        Log.d("GadgetBypass", "wrapping WebViewClient")
+        webView.setWebViewClient(
+            GadgetBypassWebViewClient(
+                original = current,
+                engine = manager.engine,
+                isEnabled = { manager.enabled },
+                endpoint = { manager.endpoint },
+            ),
+        )
+    }
+
+    private fun restoreGadgetBypassClient() {
+        val webViews = mutableListOf<WebView>()
+        collectWebViews(window.decorView, webViews)
+        for (webView in webViews) {
+            val current = webView.webViewClient
+            if (current is GadgetBypassWebViewClient) {
+                Log.d("GadgetBypass", "restoring original WebViewClient")
+                webView.setWebViewClient(current.originalClient)
+            }
+        }
+    }
+
+    private fun installGadgetBypassLayoutListener() {
+        if (gadgetBypassLayoutListener != null) return
+        val listener = ViewTreeObserver.OnGlobalLayoutListener {
+            ensureGadgetBypassWrap()
+        }
+        window.decorView.viewTreeObserver.addOnGlobalLayoutListener(listener)
+        gadgetBypassLayoutListener = listener
+    }
+
+    private fun removeGadgetBypassLayoutListener() {
+        gadgetBypassLayoutListener?.let { listener ->
+            window.decorView.viewTreeObserver.removeOnGlobalLayoutListener(listener)
+        }
+        gadgetBypassLayoutListener = null
     }
 
     private fun setGameWebViewMuted(

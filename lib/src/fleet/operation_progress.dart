@@ -15,6 +15,13 @@ double operationProgress({
   return (elapsedMilliseconds / totalMilliseconds).clamp(0, 1);
 }
 
+bool operationIsCompleted(DateTime? completionTime, {DateTime? now}) {
+  if (completionTime == null) {
+    return false;
+  }
+  return !(now ?? DateTime.now().toUtc()).isBefore(completionTime);
+}
+
 String formatOperationDuration(Duration duration) {
   final hours = duration.inHours;
   final minutes = duration.inMinutes.remainder(60);
@@ -82,10 +89,7 @@ class _OperationCountdownTextState extends State<OperationCountdownText> {
       if (!mounted) {
         return;
       }
-      final completed =
-          widget.completionTime != null &&
-          widget.completionTime!.difference(DateTime.now().toUtc()) <=
-              Duration.zero;
+      final completed = operationIsCompleted(widget.completionTime);
       if (completed) {
         _timer?.cancel();
         _timer = null;
@@ -107,7 +111,7 @@ class _OperationCountdownTextState extends State<OperationCountdownText> {
       return const SizedBox.shrink();
     }
     final remaining = completionTime.difference(DateTime.now().toUtc());
-    final isCompleted = remaining <= Duration.zero;
+    final isCompleted = operationIsCompleted(completionTime);
     final baseStyle =
         widget.style ??
         const TextStyle(
