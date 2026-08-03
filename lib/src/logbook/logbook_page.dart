@@ -5,6 +5,7 @@ import '../battle/battle_records_page.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'logbook_database.dart';
 import '../../l10n/app_localizations.dart';
+import '../fleet/resource_trend_page.dart';
 
 class LogbookPage extends StatefulWidget {
   const LogbookPage({super.key, required this.battleController});
@@ -48,7 +49,7 @@ class _LogbookPageState extends State<LogbookPage>
                 // 2. Battle History Stats
                 _BattleStatsTab(controller: widget.battleController),
                 // 3. Resource Trends
-                const _ResourceTrendsTab(),
+                const ResourceTrendPage(),
                 // 4. Expedition Income
                 const _ExpeditionStatsTab(),
               ],
@@ -212,173 +213,7 @@ class _BattleStatsTab extends StatelessWidget {
   }
 }
 
-class _ResourceTrendsTab extends StatelessWidget {
-  const _ResourceTrendsTab();
 
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: LogbookDatabase.instance.getResourceTrendLogs(limit: 100),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final data = snapshot.data!;
-        if (data.isEmpty) {
-          return Center(
-            child: Text(
-              AppLocalizations.of(context)?.noResourceRecords ?? '暂无资源记录',
-              style: const TextStyle(color: Color(0xff8197a5)),
-            ),
-          );
-        }
-
-        final spotsFuel = <FlSpot>[];
-        final spotsAmmo = <FlSpot>[];
-        final spotsSteel = <FlSpot>[];
-        final spotsBauxite = <FlSpot>[];
-
-        double minVal = double.infinity;
-        double maxVal = 0;
-
-        for (var i = 0; i < data.length; i++) {
-          final row = data[i];
-          final f = (row['fuel'] as num).toDouble();
-          final a = (row['ammo'] as num).toDouble();
-          final s = (row['steel'] as num).toDouble();
-          final b = (row['bauxite'] as num).toDouble();
-
-          spotsFuel.add(FlSpot(i.toDouble(), f));
-          spotsAmmo.add(FlSpot(i.toDouble(), a));
-          spotsSteel.add(FlSpot(i.toDouble(), s));
-          spotsBauxite.add(FlSpot(i.toDouble(), b));
-
-          for (final v in [f, a, s, b]) {
-            if (v < minVal) minVal = v;
-            if (v > maxVal) maxVal = v;
-          }
-        }
-
-        return Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                AppLocalizations.of(context)?.resourceTrendChart ??
-                    '资源趋势变化 (最近 100 次记录)',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xffd4a85f),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _Indicator(
-                    color: const Color(0xff4B9FD5),
-                    text: AppLocalizations.of(context)?.fuel ?? '燃料',
-                  ),
-                  const SizedBox(width: 12),
-                  _Indicator(
-                    color: const Color(0xffE58C4F),
-                    text: AppLocalizations.of(context)?.ammo ?? '弹药',
-                  ),
-                  const SizedBox(width: 12),
-                  _Indicator(
-                    color: const Color(0xff8197a5),
-                    text: AppLocalizations.of(context)?.steel ?? '钢材',
-                  ),
-                  const SizedBox(width: 12),
-                  _Indicator(
-                    color: const Color(0xffE0C345),
-                    text: AppLocalizations.of(context)?.bauxite ?? '铝土',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Expanded(
-                child: LineChart(
-                  LineChartData(
-                    lineTouchData: LineTouchData(enabled: false),
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: false,
-                      getDrawingHorizontalLine: (value) => FlLine(
-                        color: const Color(0xff294052),
-                        strokeWidth: 1,
-                      ),
-                    ),
-                    titlesData: FlTitlesData(
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 40,
-                          getTitlesWidget: (val, _) => Text(
-                            val.toInt().toString(),
-                            style: const TextStyle(
-                              color: Color(0xff8197a5),
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
-                      ),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                      rightTitles: AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                      topTitles: AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                    ),
-                    borderData: FlBorderData(show: false),
-                    minY: (minVal == double.infinity ? 0 : minVal - 500)
-                        .clamp(0, double.infinity)
-                        .toDouble(),
-                    maxY: (maxVal == 0 ? 1000 : maxVal + 500).toDouble(),
-                    lineBarsData: [
-                      LineChartBarData(
-                        spots: spotsFuel,
-                        isCurved: data.length > 2,
-                        color: const Color(0xff4B9FD5),
-                        barWidth: 2,
-                        dotData: FlDotData(show: true),
-                      ),
-                      LineChartBarData(
-                        spots: spotsAmmo,
-                        isCurved: data.length > 2,
-                        color: const Color(0xffE58C4F),
-                        barWidth: 2,
-                        dotData: FlDotData(show: true),
-                      ),
-                      LineChartBarData(
-                        spots: spotsSteel,
-                        isCurved: data.length > 2,
-                        color: const Color(0xff8197a5),
-                        barWidth: 2,
-                        dotData: FlDotData(show: true),
-                      ),
-                      LineChartBarData(
-                        spots: spotsBauxite,
-                        isCurved: data.length > 2,
-                        color: const Color(0xffE0C345),
-                        barWidth: 2,
-                        dotData: FlDotData(show: true),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
 
 class _ExpeditionStatsTab extends StatelessWidget {
   const _ExpeditionStatsTab();

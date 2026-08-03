@@ -1095,6 +1095,30 @@ abstract class AppLocalizations {
   /// **'暂无资源记录'**
   String get noResourceRecords;
 
+  /// No description provided for @resourceTrend24h.
+  ///
+  /// In zh, this message translates to:
+  /// **'24小时'**
+  String get resourceTrend24h;
+
+  /// No description provided for @resourceTrend7d.
+  ///
+  /// In zh, this message translates to:
+  /// **'7天'**
+  String get resourceTrend7d;
+
+  /// No description provided for @resourceTrend30d.
+  ///
+  /// In zh, this message translates to:
+  /// **'30天'**
+  String get resourceTrend30d;
+
+  /// No description provided for @resourceTrendAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部记录'**
+  String get resourceTrendAll;
+
   /// No description provided for @resourceTrendChart.
   ///
   /// In zh, this message translates to:
