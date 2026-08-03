@@ -170,6 +170,8 @@
   "resourceTrend7d": "7日",
   "resourceTrend30d": "30日",
   "resourceTrendAll": "すべての記録",
+  "resourceTrendMainGroup": "主要資源",
+  "resourceTrendAuxGroup": "補助資源",
   "resourceTrendChart": "資源推移 (直近 100 件)",
   "steel": "鋼材",
   "bauxite": "ボーキ",

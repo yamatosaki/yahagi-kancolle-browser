@@ -79,7 +79,7 @@ void main() {
   testWidgets('tapping a stat card hides its line series', (tester) async {
     final now = DateTime.now();
     await _seed(<Map<String, dynamic>>[
-      for (var i = 12; i >= 0; i--)
+      for (var i = 11; i >= 0; i--)
         _row(now.subtract(Duration(hours: i * 2)), fuel: 1000 + i * 10),
     ]);
 
@@ -91,6 +91,54 @@ void main() {
     expect(mainChart().data.lineBarsData.length, 4);
 
     await tester.tap(find.byKey(const Key('resource-trend-card-fuel')));
+    await tester.pumpAndSettle();
+
+    expect(mainChart().data.lineBarsData.length, 3);
+    expect(tester.takeException(), isNull);
+
+    final deltaText = tester.widget<Text>(find.text('▼-110'));
+    expect(deltaText.style?.fontSize, 16);
+  });
+
+  testWidgets('legend lists all eight series and toggles visibility', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    await _seed(<Map<String, dynamic>>[
+      for (var i = 12; i >= 0; i--)
+        _row(now.subtract(Duration(hours: i * 2)), fuel: 1000 + i * 10),
+    ]);
+
+    await tester.pumpWidget(_wrap());
+    await tester.pumpAndSettle();
+
+    for (final key in <String>[
+      'fuel',
+      'ammo',
+      'steel',
+      'bauxite',
+      'bucket',
+      'devmat',
+      'blowtorch',
+      'screw',
+    ]) {
+      expect(find.byKey(Key('resource-trend-legend-$key')), findsOneWidget);
+    }
+    final fuelLegendText = tester.widget<Text>(
+      find.descendant(
+        of: find.byKey(const Key('resource-trend-legend-fuel')),
+        matching: find.byType(Text),
+      ),
+    );
+    expect(fuelLegendText.style?.fontSize, 13);
+    expect(find.text('四项资源'), findsOneWidget);
+    expect(find.text('辅助资源'), findsOneWidget);
+
+    LineChart mainChart() =>
+        tester.widget<LineChart>(find.byType(LineChart).first);
+    expect(mainChart().data.lineBarsData.length, 4);
+
+    await tester.tap(find.byKey(const Key('resource-trend-legend-fuel')));
     await tester.pumpAndSettle();
 
     expect(mainChart().data.lineBarsData.length, 3);
@@ -114,5 +162,25 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(LineChart), findsNWidgets(2));
     }
+  });
+
+  testWidgets('24-hour axis labels snap to whole hours', (tester) async {
+    final now = DateTime.now();
+    await _seed(<Map<String, dynamic>>[
+      for (var i = 24; i >= 0; i--)
+        _row(now.subtract(Duration(minutes: i * 30)), fuel: 1000 + i * 10),
+    ]);
+
+    await tester.pumpWidget(_wrap());
+    await tester.pumpAndSettle();
+
+    final hourLabels = tester.widgetList<Text>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Text && RegExp(r'^\d{2}:00$').hasMatch(widget.data ?? ''),
+      ),
+    );
+    expect(hourLabels, isNotEmpty);
+    expect(tester.takeException(), isNull);
   });
 }

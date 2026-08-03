@@ -526,6 +526,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get resourceTrendAll => '全部记录';
 
   @override
+  String get resourceTrendMainGroup => '四项资源';
+
+  @override
+  String get resourceTrendAuxGroup => '辅助资源';
+
+  @override
   String get resourceTrendChart => '资源趋势变化 (最近 100 次记录)';
 
   @override
@@ -1139,6 +1145,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get resourceTrendAll => '全部記錄';
+
+  @override
+  String get resourceTrendMainGroup => '四項資源';
+
+  @override
+  String get resourceTrendAuxGroup => '輔助資源';
 
   @override
   String get resourceTrendChart => '資源趨勢變化 (最近 100 次記錄)';

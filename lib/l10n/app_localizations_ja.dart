@@ -528,6 +528,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get resourceTrendAll => 'すべての記録';
 
   @override
+  String get resourceTrendMainGroup => '主要資源';
+
+  @override
+  String get resourceTrendAuxGroup => '補助資源';
+
+  @override
   String get resourceTrendChart => '資源推移 (直近 100 件)';
 
   @override

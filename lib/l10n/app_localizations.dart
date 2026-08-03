@@ -1119,6 +1119,18 @@ abstract class AppLocalizations {
   /// **'全部记录'**
   String get resourceTrendAll;
 
+  /// No description provided for @resourceTrendMainGroup.
+  ///
+  /// In zh, this message translates to:
+  /// **'四项资源'**
+  String get resourceTrendMainGroup;
+
+  /// No description provided for @resourceTrendAuxGroup.
+  ///
+  /// In zh, this message translates to:
+  /// **'辅助资源'**
+  String get resourceTrendAuxGroup;
+
   /// No description provided for @resourceTrendChart.
   ///
   /// In zh, this message translates to:

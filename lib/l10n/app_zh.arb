@@ -170,6 +170,8 @@
   "resourceTrend7d": "7天",
   "resourceTrend30d": "30天",
   "resourceTrendAll": "全部记录",
+  "resourceTrendMainGroup": "四项资源",
+  "resourceTrendAuxGroup": "辅助资源",
   "resourceTrendChart": "资源趋势变化 (最近 100 次记录)",
   "steel": "钢材",
   "bauxite": "铝土",
