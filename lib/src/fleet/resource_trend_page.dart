@@ -187,7 +187,7 @@ class _ResourceTrendPageState extends State<ResourceTrendPage> {
         children: <Widget>[
           Container(
             color: const Color(0xff142735),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
             alignment: Alignment.centerRight,
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -212,9 +212,10 @@ class _ResourceTrendPageState extends State<ResourceTrendPage> {
                 : Column(
                     children: <Widget>[
                       _buildStatsGrid(),
+                      _buildLegend(),
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
                           child: RepaintBoundary(
                             key: const Key('resource-trend-chart'),
                             child: Stack(
@@ -222,6 +223,7 @@ class _ResourceTrendPageState extends State<ResourceTrendPage> {
                               children: <Widget>[
                                 _buildMainChart(),
                                 _buildAuxChart(),
+                                _axisGroupLabels(l10n),
                               ],
                             ),
                           ),
@@ -238,18 +240,30 @@ class _ResourceTrendPageState extends State<ResourceTrendPage> {
   Widget _buildFilterButton(String label, int days) {
     final isActive = _selectedDays == days;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
-      child: TextButton(
-        onPressed: () => _onFilterChanged(days),
-        style: TextButton.styleFrom(
-          backgroundColor: isActive
-              ? const Color(0xff294052)
-              : Colors.transparent,
-          foregroundColor: isActive ? Colors.white : const Color(0xff8fa8b6),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 3),
+      child: InkWell(
+        onTap: () => _onFilterChanged(days),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: isActive ? const Color(0xff403923) : Colors.transparent,
+            border: Border.all(
+              color: isActive ? const Color(0xffb98a28) : Colors.transparent,
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: isActive
+                  ? const Color(0xffffc857)
+                  : const Color(0xff9eb2bd),
+              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
         ),
-        child: Text(label),
       ),
     );
   }
@@ -259,16 +273,16 @@ class _ResourceTrendPageState extends State<ResourceTrendPage> {
     final startRecord = _data.first;
     final endRecord = _data.last;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final crossAxisCount = constraints.maxWidth > 800 ? 4 : 2;
           return GridView.builder(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: crossAxisCount,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
-              mainAxisExtent: 48,
+              mainAxisSpacing: 6,
+              crossAxisSpacing: 6,
+              mainAxisExtent: 40,
             ),
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -321,10 +335,10 @@ class _ResourceTrendPageState extends State<ResourceTrendPage> {
                 width: 3,
                 color: isVisible ? spec.color : Colors.transparent,
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Container(
-                width: 32,
-                height: 32,
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
                   color: isVisible
                       ? spec.color.withAlpha(38)
@@ -342,45 +356,165 @@ class _ResourceTrendPageState extends State<ResourceTrendPage> {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        NumberFormat.decimalPattern().format(endVal),
-                        maxLines: 1,
-                        style: TextStyle(
-                          color: isVisible ? Colors.white : Colors.white54,
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                    ),
-                    if (delta != 0)
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          trendText,
-                          maxLines: 1,
-                          style: TextStyle(
-                            color: isVisible ? trendColor : Colors.grey,
-                            fontSize: 11,
+                child: LayoutBuilder(
+                  builder: (context, constraints) => Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            NumberFormat.decimalPattern().format(endVal),
+                            maxLines: 1,
+                            style: TextStyle(
+                              color: isVisible ? Colors.white : Colors.white54,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'monospace',
+                            ),
                           ),
                         ),
                       ),
-                  ],
+                      if (delta != 0) ...<Widget>[
+                        const SizedBox(width: 8),
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: constraints.maxWidth * 0.42,
+                          ),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              trendText,
+                              maxLines: 1,
+                              style: TextStyle(
+                                color: isVisible ? trendColor : Colors.grey,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ),
+                        ),
+                        // Keep a comfortable margin from the card's right edge
+                        // (about one icon width) so the delta is not cramped.
+                        const SizedBox(width: 30),
+                      ],
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLegend() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 2),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 2,
+              children: <Widget>[
+                for (final spec in _mainSeries) _legendItem(spec),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 2,
+              alignment: WrapAlignment.end,
+              children: <Widget>[
+                for (final spec in _auxSeries) _legendItem(spec),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _legendItem(_SeriesSpec spec) {
+    final isVisible = _visibleSeries[spec.key] ?? true;
+    final color = isVisible ? spec.color : const Color(0xff5c7482);
+    return InkWell(
+      key: Key('resource-trend-legend-${spec.key}'),
+      onTap: () => _toggleSeries(spec.key),
+      borderRadius: BorderRadius.circular(8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          _legendLine(spec, color),
+          const SizedBox(width: 5),
+          Text(
+            _seriesLabel(spec.key),
+            style: TextStyle(
+              fontSize: 13,
+              color: isVisible
+                  ? const Color(0xff9eb2bd)
+                  : const Color(0xff5c7482),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _legendLine(_SeriesSpec spec, Color color) {
+    // Main resources use solid line markers, auxiliary resources use dashed
+    // ones, matching the chart so users can tell the two groups apart.
+    if (_mainSeries.contains(spec)) {
+      return Container(width: 20, height: 4, color: color);
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Container(width: 5, height: 4, color: color),
+        const SizedBox(width: 2),
+        Container(width: 5, height: 4, color: color),
+        const SizedBox(width: 2),
+        Container(width: 5, height: 4, color: color),
+      ],
+    );
+  }
+
+  Widget _axisGroupLabels(AppLocalizations? l10n) {
+    const style = TextStyle(
+      color: Colors.white,
+      fontSize: 20,
+      fontWeight: FontWeight.w700,
+      height: 1.2,
+    );
+    return Positioned(
+      top: 0,
+      left: 44,
+      right: 40,
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              l10n?.resourceTrendMainGroup ?? '四项资源',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: style,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            l10n?.resourceTrendAuxGroup ?? '辅助资源',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          ),
+        ],
       ),
     );
   }
@@ -409,9 +543,7 @@ class _ResourceTrendPageState extends State<ResourceTrendPage> {
         titlesData: FlTitlesData(
           leftTitles: _leftTitles(),
           rightTitles: _reservedTitles(40),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
+          topTitles: _reservedTitles(26),
           bottomTitles: _bottomTitles(),
         ),
         borderData: FlBorderData(show: false),
@@ -441,9 +573,7 @@ class _ResourceTrendPageState extends State<ResourceTrendPage> {
           // rectangles overlap exactly; hidden titles still reserve space.
           leftTitles: _reservedTitles(44),
           rightTitles: _rightTitles(),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
+          topTitles: _reservedTitles(26),
           bottomTitles: _reservedTitles(28),
         ),
         borderData: FlBorderData(show: false),
@@ -557,7 +687,10 @@ class _ResourceTrendPageState extends State<ResourceTrendPage> {
           final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
           final String text;
           if (_selectedDays == 1) {
-            text = DateFormat('HH:mm').format(date);
+            // Snap to the nearest whole hour so the 24-hour axis reads as
+            // integer hours (e.g. 06:00, 09:00) instead of raw timestamps.
+            final rounded = date.add(const Duration(minutes: 30));
+            text = '${rounded.hour.toString().padLeft(2, '0')}:00';
           } else if (_selectedDays == 7 || _selectedDays == 30) {
             text = DateFormat('MM-dd').format(date);
           } else {
@@ -578,6 +711,16 @@ class _ResourceTrendPageState extends State<ResourceTrendPage> {
   double _xInterval() {
     final n = _data.length;
     if (n <= 1) return 1;
+    if (_selectedDays == 1) {
+      final start = _data.first['timestamp'] as num;
+      final end = _data.last['timestamp'] as num;
+      final hours = (end - start) / 3600000;
+      if (hours <= 0) return 1;
+      final width = MediaQuery.of(context).size.width;
+      final maxTicks = width < 600 ? 5 : 8;
+      final ticks = (hours / 3).round().clamp(2, maxTicks);
+      return (n - 1) / ticks;
+    }
     final width = MediaQuery.of(context).size.width;
     final labelCount = width < 600 ? 3 : 5;
     final raw = (n - 1) / labelCount;
