@@ -3,9 +3,15 @@ import 'package:yahagi_kancolle_browser/src/expedition/expedition_income_calcula
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 
 void main() {
+  const mission14 = MasterMission(
+    id: 14,
+    name: '第十四号远征',
+    duration: Duration(hours: 6),
+  );
+
   test('远征 14 普通成功返回基础资源', () {
     final income = ExpeditionIncomeCalculator.forMission(
-      missionId: 14,
+      mission: mission14,
       greatSuccess: false,
     );
 
@@ -17,7 +23,7 @@ void main() {
 
   test('大成功按 1.5 倍向下取整', () {
     final income = ExpeditionIncomeCalculator.forMission(
-      missionId: 14,
+      mission: mission14,
       greatSuccess: true,
     );
 
@@ -40,7 +46,7 @@ void main() {
       fleet,
     );
     final income = ExpeditionIncomeCalculator.forMission(
-      missionId: 14,
+      mission: mission14,
       greatSuccess: false,
       daihatsuBonus: bonus,
     );

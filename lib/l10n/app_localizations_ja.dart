@@ -516,6 +516,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get noResourceRecords => '資源記録がありません';
 
   @override
+  String get resourceTrend24h => '24時間';
+
+  @override
+  String get resourceTrend7d => '7日';
+
+  @override
+  String get resourceTrend30d => '30日';
+
+  @override
+  String get resourceTrendAll => 'すべての記録';
+
+  @override
   String get resourceTrendChart => '資源推移 (直近 100 件)';
 
   @override

@@ -43,7 +43,12 @@ class LogbookDatabase {
       path = p.join(dbPath.path, filePath);
     }
 
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDB,
+      onUpgrade: _onUpgrade,
+    );
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -95,6 +100,20 @@ class LogbookDatabase {
         yield_bucket INTEGER
       )
     ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_resource_logs_timestamp
+      ON resource_logs(timestamp)
+    ''');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE INDEX IF NOT EXISTS idx_resource_logs_timestamp
+        ON resource_logs(timestamp)
+      ''');
+    }
   }
 
   /// Add a battle record to the log
@@ -187,6 +206,28 @@ class LogbookDatabase {
     );
     // Reverse so the oldest is first for the chart (left to right)
     return results.reversed.toList();
+  }
+
+  /// Get resource logs within a specific time range
+  Future<List<Map<String, dynamic>>> getResourceLogsByTimeRange(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final db = await instance.database;
+    final results = await db.query(
+      'resource_logs',
+      where: 'timestamp >= ? AND timestamp <= ?',
+      whereArgs: [start.millisecondsSinceEpoch, end.millisecondsSinceEpoch],
+      orderBy: 'timestamp ASC',
+    );
+    return results;
+  }
+
+  /// Get all resource logs
+  Future<List<Map<String, dynamic>>> getAllResourceLogs() async {
+    final db = await instance.database;
+    final results = await db.query('resource_logs', orderBy: 'timestamp ASC');
+    return results;
   }
 
   /// Get aggregated expedition yields per day

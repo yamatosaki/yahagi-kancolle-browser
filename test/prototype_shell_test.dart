@@ -75,9 +75,12 @@ void main() {
     expect(find.byKey(const Key('fake-game-surface')), findsOneWidget);
     final panel = find.byKey(const Key('information-panel'));
     expect(panel, findsOneWidget);
-    await tester.drag(
-      find.descendant(of: panel, matching: find.byType(ReorderableListView)),
-      const Offset(0, -1000),
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('live-battle-card')),
+      200,
+      scrollable: find
+          .descendant(of: panel, matching: find.byType(Scrollable))
+          .first,
     );
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('live-battle-card')), findsOneWidget);
@@ -419,6 +422,7 @@ class _MemoryLayoutSettingsStore implements LayoutSettingsStore {
     'pre_sortie',
   ];
   List<String> _dashboardCardCollapsed = [];
+  List<String> _dashboardCardHidden = [];
 
   @override
   Future<double> loadGameAreaRatio() async => _ratio;
@@ -456,6 +460,16 @@ class _MemoryLayoutSettingsStore implements LayoutSettingsStore {
   @override
   Future<void> saveDashboardCardCollapsed(List<String> collapsedIds) async {
     _dashboardCardCollapsed = List<String>.from(collapsedIds);
+  }
+
+  @override
+  Future<List<String>> loadDashboardCardHidden() async {
+    return _dashboardCardHidden;
+  }
+
+  @override
+  Future<void> saveDashboardCardHidden(List<String> hiddenIds) async {
+    _dashboardCardHidden = List<String>.from(hiddenIds);
   }
 
   Future<bool> loadAutoZoomEnabled() async => false;

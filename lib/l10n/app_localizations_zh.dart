@@ -514,6 +514,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noResourceRecords => '暂无资源记录';
 
   @override
+  String get resourceTrend24h => '24小时';
+
+  @override
+  String get resourceTrend7d => '7天';
+
+  @override
+  String get resourceTrend30d => '30天';
+
+  @override
+  String get resourceTrendAll => '全部记录';
+
+  @override
   String get resourceTrendChart => '资源趋势变化 (最近 100 次记录)';
 
   @override
@@ -1115,6 +1127,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get noResourceRecords => '暫無資源記錄';
+
+  @override
+  String get resourceTrend24h => '24小時';
+
+  @override
+  String get resourceTrend7d => '7天';
+
+  @override
+  String get resourceTrend30d => '30天';
+
+  @override
+  String get resourceTrendAll => '全部記錄';
 
   @override
   String get resourceTrendChart => '資源趨勢變化 (最近 100 次記錄)';
