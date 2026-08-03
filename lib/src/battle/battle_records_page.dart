@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../fleet/ship_status_style.dart';
 import 'battle_controller.dart';
 import 'battle_models.dart';
 
@@ -300,34 +301,47 @@ class _FleetResult extends StatelessWidget {
         ),
         const SizedBox(height: 7),
         for (final ship in ships) ...[
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  ship.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Text(
-                '${ship.currentHp}/${ship.maxHp}',
-                style: TextStyle(
-                  color: ship.isSunk
-                      ? const Color(0xffff746d)
-                      : const Color(0xffa9bdc8),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
+          Builder(
+            builder: (context) {
+              final ratio = ship.maxHp <= 0
+                  ? 0.0
+                  : (ship.currentHp / ship.maxHp).clamp(0.0, 1.0);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          ship.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        '${ship.currentHp}/${ship.maxHp}',
+                        style: TextStyle(
+                          color: shipHpValueColor(
+                            ratio,
+                            isZeroHp: ship.currentHp <= 0,
+                          ),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  LinearProgressIndicator(
+                    value: ratio,
+                    minHeight: 4,
+                    backgroundColor: const Color(0xff243b49),
+                    color: shipHpBarColor(ratio, isZeroHp: ship.currentHp <= 0),
+                  ),
+                  const SizedBox(height: 7),
+                ],
+              );
+            },
           ),
-          const SizedBox(height: 4),
-          LinearProgressIndicator(
-            value: ship.maxHp <= 0 ? 0 : ship.currentHp / ship.maxHp,
-            minHeight: 4,
-            backgroundColor: const Color(0xff243b49),
-            color: ship.isSunk ? const Color(0xffff746d) : color,
-          ),
-          const SizedBox(height: 7),
         ],
       ],
     );

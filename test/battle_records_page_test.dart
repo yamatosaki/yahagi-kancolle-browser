@@ -66,14 +66,14 @@ void main() {
     expect(find.text('预判'), findsOneWidget);
     expect(find.text('A'), findsOneWidget);
     expect(find.byKey(const Key('detailed-battle-panel')), findsOneWidget);
-    expect(find.text('我方主力'), findsOneWidget);
-    expect(find.text('敌方主力'), findsOneWidget);
+    expect(find.text('我方主力（单纵阵）'), findsOneWidget);
+    expect(find.text('敌方主力（单纵阵）'), findsOneWidget);
     expect(find.text('18 / 30 (-12)'), findsOneWidget);
     expect(find.text('18 / 30 (-12)'), findsOneWidget);
     expect(find.byKey(const Key('battle-mvp-friend-0')), findsOneWidget);
 
-    final friendTitle = tester.getTopLeft(find.text('我方主力'));
-    final enemyTitle = tester.getTopLeft(find.text('敌方主力'));
+    final friendTitle = tester.getTopLeft(find.text('我方主力（单纵阵）'));
+    final enemyTitle = tester.getTopLeft(find.text('敌方主力（单纵阵）'));
     expect(friendTitle.dx, lessThan(enemyTitle.dx));
     expect((friendTitle.dy - enemyTitle.dy).abs(), lessThan(2));
   });
@@ -170,8 +170,8 @@ void main() {
         find.byKey(const Key('battle-side-by-side-fleets')),
         findsOneWidget,
       );
-      final friendTitle = tester.getTopLeft(find.text('我方主力'));
-      final enemyTitle = tester.getTopLeft(find.text('敌方主力'));
+      final friendTitle = tester.getTopLeft(find.text('我方主力（单纵阵）'));
+      final enemyTitle = tester.getTopLeft(find.text('敌方主力（单纵阵）'));
       expect(friendTitle.dx, lessThan(enemyTitle.dx));
       expect((friendTitle.dy - enemyTitle.dy).abs(), lessThan(2));
       expect(tester.takeException(), isNull);
@@ -304,6 +304,19 @@ void main() {
 
     final friendName = controller.gameStateSnapshot.masterShips[101]!.name;
     expect(find.text(friendName), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text('18/30')).style?.color,
+      const Color(0xffffc940),
+    );
+    final hpBarColors = tester
+        .widgetList<LinearProgressIndicator>(
+          find.byType(LinearProgressIndicator),
+        )
+        .map((bar) => bar.color)
+        .toSet();
+    expect(hpBarColors, contains(const Color(0xffffc940)));
+    expect(hpBarColors, contains(const Color(0xff29a634)));
+    expect(hpBarColors, contains(const Color(0xff71818b)));
     expect(find.text('敌舰 501'), findsOneWidget);
   });
 }

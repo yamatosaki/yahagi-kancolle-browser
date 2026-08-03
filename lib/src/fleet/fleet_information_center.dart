@@ -834,7 +834,10 @@ class _ShipRow extends StatelessWidget {
                                       softWrap: false,
                                       overflow: TextOverflow.clip,
                                       style: _phoneStatusValueStyle.copyWith(
-                                        color: shipHpValueColor(hpRatio),
+                                        color: shipHpValueColor(
+                                          hpRatio,
+                                          isZeroHp: ship.currentHp <= 0,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -847,7 +850,10 @@ class _ShipRow extends StatelessWidget {
                                       key: Key('ship-status-hp-${ship.id}'),
                                       minHeight: 5,
                                       value: hpRatio,
-                                      color: shipHpBarColor(hpRatio),
+                                      color: shipHpBarColor(
+                                        hpRatio,
+                                        isZeroHp: ship.currentHp <= 0,
+                                      ),
                                       backgroundColor: const Color(0xff263e4d),
                                     ),
                                   ),
@@ -1164,8 +1170,14 @@ class _ShipRow extends StatelessWidget {
                                     ),
                                     value: '${ship.currentHp}/${ship.maxHp}',
                                     ratio: hpRatio,
-                                    valueColor: shipHpValueColor(hpRatio),
-                                    barColor: shipHpBarColor(hpRatio),
+                                    valueColor: shipHpValueColor(
+                                      hpRatio,
+                                      isZeroHp: ship.currentHp <= 0,
+                                    ),
+                                    barColor: shipHpBarColor(
+                                      hpRatio,
+                                      isZeroHp: ship.currentHp <= 0,
+                                    ),
                                   ),
                                 ),
                                 const Spacer(),

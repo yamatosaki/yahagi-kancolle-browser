@@ -4,6 +4,7 @@ const yahagiStatusRed = Color(0xffd33d17);
 const yahagiStatusOrange = Color(0xfff57c00);
 const yahagiStatusYellow = Color(0xffffc940);
 const yahagiStatusGreen = Color(0xff29a634);
+const yahagiStatusZeroHp = Color(0xff71818b);
 
 Color _fourBandColor(double ratio, Color healthyColor) {
   if (ratio <= 0.25) {
@@ -18,9 +19,11 @@ Color _fourBandColor(double ratio, Color healthyColor) {
   return healthyColor;
 }
 
-Color shipHpBarColor(double ratio) => _fourBandColor(ratio, yahagiStatusGreen);
+Color shipHpBarColor(double ratio, {bool isZeroHp = false}) =>
+    isZeroHp ? yahagiStatusZeroHp : _fourBandColor(ratio, yahagiStatusGreen);
 
-Color shipHpValueColor(double ratio) => _fourBandColor(ratio, Colors.white);
+Color shipHpValueColor(double ratio, {bool isZeroHp = false}) =>
+    isZeroHp ? yahagiStatusZeroHp : _fourBandColor(ratio, Colors.white);
 
 Color shipSupplyBarColor(double ratio) =>
     _fourBandColor(ratio, yahagiStatusGreen);

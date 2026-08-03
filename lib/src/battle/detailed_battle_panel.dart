@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../fleet/ship_status_style.dart';
 import '../fleet/status_density.dart';
 import '../game_state/game_state.dart';
 import 'battle_models.dart';
@@ -413,10 +414,12 @@ class _BattleShipRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final side = ship.side == BattleSide.friend ? 'friend' : 'enemy';
-    final hpColor = _hpColor(ship);
     final ratio = ship.maxHp <= 0
         ? 0.0
         : (ship.currentHp / ship.maxHp).clamp(0.0, 1.0);
+    final isZeroHp = ship.currentHp <= 0;
+    final hpValueColor = shipHpValueColor(ratio, isZeroHp: isZeroHp);
+    final hpBarColor = shipHpBarColor(ratio, isZeroHp: isZeroHp);
     return Padding(
       key: Key('battle-ship-$side-$absolutePosition'),
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
@@ -468,7 +471,7 @@ class _BattleShipRow extends StatelessWidget {
                         ? '${ship.currentHp} / ${ship.maxHp} (-${ship.damageReceived})'
                         : '${ship.currentHp} / ${ship.maxHp}',
                     style: TextStyle(
-                      color: hpColor,
+                      color: hpValueColor,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -480,7 +483,7 @@ class _BattleShipRow extends StatelessWidget {
                   child: LinearProgressIndicator(
                     minHeight: 6,
                     value: ratio,
-                    color: hpColor,
+                    color: hpBarColor,
                     backgroundColor: const Color(0xff263e4d),
                   ),
                 ),
@@ -491,19 +494,6 @@ class _BattleShipRow extends StatelessWidget {
       ),
     );
   }
-}
-
-Color _hpColor(BattleShipSnapshot ship) {
-  if (ship.currentHp <= 0) {
-    return const Color(0xff71818b);
-  }
-  if (ship.currentHp * 4 <= ship.maxHp) {
-    return const Color(0xffff6f68);
-  }
-  if (ship.currentHp * 2 <= ship.maxHp) {
-    return const Color(0xffffc95c);
-  }
-  return const Color(0xff6fd3a9);
 }
 
 /// Engagement colors: T-advantage green, T-disadvantage red, others neutral.
