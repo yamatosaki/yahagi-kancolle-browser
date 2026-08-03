@@ -132,7 +132,7 @@ class _RepairDockCard extends StatelessWidget {
     final master = state.masterForShip(ship);
     final portraitWidth = _operationPortraitWidth(context);
     final hpRatio = ship.maxHp <= 0 ? 0.0 : ship.currentHp / ship.maxHp;
-    final hpColor = shipHpValueColor(hpRatio);
+    final hpColor = shipHpValueColor(hpRatio, isZeroHp: ship.currentHp <= 0);
     final start =
         dock.completionTime == null || ship.repairDurationMilliseconds <= 0
         ? null

@@ -504,12 +504,9 @@ class _CompactBarRow extends StatelessWidget {
     final ratio = ship.maxHp <= 0
         ? 0.0
         : (ship.currentHp / ship.maxHp).clamp(0.0, 1.0);
-    final hpValueColor = ship.currentHp <= 0
-        ? const Color(0xff71818b)
-        : shipHpValueColor(ratio);
-    final hpBarColor = ship.currentHp <= 0
-        ? const Color(0xff71818b)
-        : shipHpBarColor(ratio);
+    final isZeroHp = ship.currentHp <= 0;
+    final hpValueColor = shipHpValueColor(ratio, isZeroHp: isZeroHp);
+    final hpBarColor = shipHpBarColor(ratio, isZeroHp: isZeroHp);
     final hpText = ship.damageReceived > 0
         ? '${ship.currentHp} / ${ship.maxHp} (-${ship.damageReceived})'
         : '${ship.currentHp} / ${ship.maxHp}';

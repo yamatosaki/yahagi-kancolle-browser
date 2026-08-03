@@ -1,9 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/ship_status_style.dart';
 
 void main() {
   test('uses damage colors for HP bars and white healthy values', () {
+    expect(shipHpBarColor(0, isZeroHp: true), const Color(0xff71818b));
+    expect(shipHpValueColor(0, isZeroHp: true), const Color(0xff71818b));
     expect(shipHpBarColor(0.25), const Color(0xffd33d17));
     expect(shipHpValueColor(0.25), const Color(0xffd33d17));
     expect(shipHpBarColor(0.2501), const Color(0xfff57c00));
