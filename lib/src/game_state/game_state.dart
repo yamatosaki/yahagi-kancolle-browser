@@ -161,10 +161,15 @@ class OwnedShip {
     this.antiAir = 0,
     this.antiSub = 0,
     this.lineOfSight = 0,
+    this.armor = 0,
+    this.evasion = 0,
+    this.luck = 0,
     this.slotIds = const <int>[],
     this.onSlot = const <int>[],
     this.extraSlotId = -1,
     this.repairDurationMilliseconds = 0,
+    this.repairFuelCost = 0,
+    this.repairSteelCost = 0,
   });
 
   final int id;
@@ -181,10 +186,15 @@ class OwnedShip {
   final int antiAir;
   final int antiSub;
   final int lineOfSight;
+  final int armor;
+  final int evasion;
+  final int luck;
   final List<int> slotIds;
   final List<int> onSlot;
   final int extraSlotId;
   final int repairDurationMilliseconds;
+  final int repairFuelCost;
+  final int repairSteelCost;
 }
 
 class OwnedSlotItem {

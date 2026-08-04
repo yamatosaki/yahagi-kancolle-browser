@@ -35,6 +35,7 @@ class SettingsPage extends StatelessWidget {
     required this.networkSettingsController,
     required this.gadgetBypassController,
     required this.displayModeController,
+    this.showTitle = true,
   });
 
   final LayoutSettingsController layoutSettingsController;
@@ -48,20 +49,23 @@ class SettingsPage extends StatelessWidget {
   final PrototypeStatusController prototypeStatusController;
   final GameStateController gameStateController;
   final SafetySettingsController safetySettingsController;
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text(
-          AppLocalizations.of(context)?.settingsTitle ?? '设置',
-          style: const TextStyle(fontSize: 16),
-        ),
-        backgroundColor: const Color(0xff0d1a26),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-      ),
+      appBar: showTitle
+          ? AppBar(
+              title: Text(
+                AppLocalizations.of(context)?.settingsTitle ?? '设置',
+                style: const TextStyle(fontSize: 16),
+              ),
+              backgroundColor: const Color(0xff0d1a26),
+              elevation: 0,
+              scrolledUnderElevation: 0,
+            )
+          : null,
       body: Container(
         color: const Color(0xff0d1a26),
         child: SingleChildScrollView(
@@ -519,7 +523,7 @@ class SettingsPage extends StatelessWidget {
                   ),
                   subtitle: Text(
                     AppLocalizations.of(context)?.aboutSubtitle ??
-                        '版本 学习版 1.0 · 免责声明 · 检查更新',
+                        '版本 学习版 1.0.1 · 免责声明 · 检查更新',
                     style: const TextStyle(color: Color(0xff8197a5)),
                   ),
                   trailing: const Icon(

@@ -56,3 +56,6 @@ zh_strings.txt
 test/failures/
 assets/temp_cropped.jpg
 assets/empty.png
+
+# Wiki bonus dataset build cache (raw HTML, master data dumps)
+tool/wiki_bonus/cache/

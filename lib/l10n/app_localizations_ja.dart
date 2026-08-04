@@ -235,10 +235,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get aboutApp => 'ヤハギ について';
 
   @override
-  String get aboutSubtitle => 'バージョン 學習版 1.0 · 免責事項 · 更新の確認';
+  String get aboutSubtitle => 'バージョン 學習版 1.0.1 · 免責事項 · 更新の確認';
 
   @override
-  String get version => 'バージョン 學習版 1.0';
+  String get version => 'バージョン 學習版 1.0.1';
 
   @override
   String get disclaimerTitle => '免責事項 (DISCLAIMER)';
