@@ -49,6 +49,10 @@ app.*.map.json
 .scratch-resource-trend/
 .superpowers/
 docs/superpowers/
+docs/internal/
+docs/previews/
+docs/TECHNICAL_REPORT.md
+docs/项目交接与下一步路线-2026-07-31.md
 temp_fonts/
 find_zh.py
 fix.py
