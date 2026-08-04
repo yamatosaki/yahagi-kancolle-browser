@@ -532,10 +532,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get resourceTrendAuxGroup => '辅助资源';
 
   @override
-  String get gadgetBypass => '游戏客户端绕行';
+  String get gadgetBypass => '游戏客户端资源绕行（实验性）';
 
   @override
-  String get gadgetBypassDesc => '仅影响游戏客户端文件加载，不影响游戏数据接口';
+  String get gadgetBypassDesc =>
+      '仅在客户端静态资源服务器受限时改用镜像；不修改 DMM 登录、Cookie 或游戏数据接口。关闭时完全旁路。';
 
   @override
   String get gadgetBypassEnable => '开启绕行';
@@ -562,7 +563,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gadgetBypassError => '绕行配置失败';
 
   @override
-  String get gadgetBypassDiagnose => '运行连通性诊断';
+  String get gadgetBypassDiagnose => '检查 403 与镜像连通性';
 
   @override
   String get gadgetBypassDiagnosing => '诊断中...';
@@ -1204,10 +1205,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get resourceTrendAuxGroup => '輔助資源';
 
   @override
-  String get gadgetBypass => '遊戲客戶端繞行';
+  String get gadgetBypass => '遊戲客戶端資源繞行（實驗性）';
 
   @override
-  String get gadgetBypassDesc => '僅影響遊戲客戶端檔案載入，不影響遊戲資料介面';
+  String get gadgetBypassDesc =>
+      '僅在客戶端靜態資源伺服器受限時改用鏡像；不修改 DMM 登入、Cookie 或遊戲資料介面。關閉時完全旁路。';
 
   @override
   String get gadgetBypassEnable => '開啟繞行';
@@ -1234,7 +1236,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get gadgetBypassError => '繞行配置失敗';
 
   @override
-  String get gadgetBypassDiagnose => '執行連通性診斷';
+  String get gadgetBypassDiagnose => '檢查 403 與鏡像連通性';
 
   @override
   String get gadgetBypassDiagnosing => '診斷中...';

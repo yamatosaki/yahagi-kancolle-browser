@@ -1134,13 +1134,13 @@ abstract class AppLocalizations {
   /// No description provided for @gadgetBypass.
   ///
   /// In zh, this message translates to:
-  /// **'游戏客户端绕行'**
+  /// **'游戏客户端资源绕行（实验性）'**
   String get gadgetBypass;
 
   /// No description provided for @gadgetBypassDesc.
   ///
   /// In zh, this message translates to:
-  /// **'仅影响游戏客户端文件加载，不影响游戏数据接口'**
+  /// **'仅在客户端静态资源服务器受限时改用镜像；不修改 DMM 登录、Cookie 或游戏数据接口。关闭时完全旁路。'**
   String get gadgetBypassDesc;
 
   /// No description provided for @gadgetBypassEnable.
@@ -1194,7 +1194,7 @@ abstract class AppLocalizations {
   /// No description provided for @gadgetBypassDiagnose.
   ///
   /// In zh, this message translates to:
-  /// **'运行连通性诊断'**
+  /// **'检查 403 与镜像连通性'**
   String get gadgetBypassDiagnose;
 
   /// No description provided for @gadgetBypassDiagnosing.

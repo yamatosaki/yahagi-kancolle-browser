@@ -534,10 +534,11 @@ class AppLocalizationsJa extends AppLocalizations {
   String get resourceTrendAuxGroup => '補助資源';
 
   @override
-  String get gadgetBypass => 'ゲームクライアント迂回';
+  String get gadgetBypass => 'ゲームクライアント資源迂回（実験的）';
 
   @override
-  String get gadgetBypassDesc => 'ゲームクライアントの読み込みのみに影響し、データAPIには影響しません';
+  String get gadgetBypassDesc =>
+      '静的クライアント資源サーバーが制限された場合のみミラーを使用します。DMMログイン、Cookie、ゲームデータAPIは変更せず、無効時は完全に迂回します。';
 
   @override
   String get gadgetBypassEnable => '迂回を有効にする';
@@ -564,7 +565,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get gadgetBypassError => '迂回設定に失敗しました';
 
   @override
-  String get gadgetBypassDiagnose => '接続診断を実行';
+  String get gadgetBypassDiagnose => '403 とミラー接続を確認';
 
   @override
   String get gadgetBypassDiagnosing => '診断中...';
