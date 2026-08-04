@@ -25,7 +25,6 @@ import 'src/fleet/expedition_summary_card.dart';
 import 'src/fleet/repair_summary_card.dart';
 import 'src/fleet/construction_summary_card.dart';
 import 'src/fleet/pre_sortie_check_summary.dart';
-import 'src/fleet/resource_grid.dart';
 import 'src/expedition/expedition_check_card.dart';
 import 'src/expedition/expedition_check_page.dart';
 
@@ -33,6 +32,7 @@ import 'src/game_webview.dart';
 import 'src/game_state/game_state_controller.dart';
 import 'src/game_state/game_state_store.dart';
 import 'src/layout/adaptive_layout.dart';
+import 'src/layout/workspace_context_header.dart';
 import 'src/prototype_status_controller.dart';
 import 'src/quest/pinned_quests_summary.dart';
 import 'src/quest/quest_center_page.dart';
@@ -332,8 +332,15 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                   Expanded(
                     child: AnimatedBuilder(
                       animation: widget.gameStateController,
-                      builder: (context, _) => CompactResourceBar(
+                      builder: (context, _) => WorkspaceContextHeader(
+                        workspaceIndex: _workspaceIndex,
                         state: widget.gameStateController.state,
+                        selectedFleetId: _fleetCenterInitialFleetId ?? 1,
+                        onFleetSelected: (fleetId) {
+                          setState(() {
+                            _fleetCenterInitialFleetId = fleetId;
+                          });
+                        },
                       ),
                     ),
                   ),
@@ -521,26 +528,31 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                             controller: widget.gameStateController,
                             page: FleetInformationPage.fleet,
                             initialFleetId: _fleetCenterInitialFleetId,
+                            showContextHeader: false,
                           ),
                         if (_workspaceIndex == 2)
                           FleetInformationCenter(
                             controller: widget.gameStateController,
                             page: FleetInformationPage.expedition,
+                            showContextHeader: false,
                           ),
                         if (_workspaceIndex == 3)
                           FleetInformationCenter(
                             controller: widget.gameStateController,
                             page: FleetInformationPage.repair,
+                            showContextHeader: false,
                           ),
                         if (_workspaceIndex == 4)
                           FleetInformationCenter(
                             controller: widget.gameStateController,
                             page: FleetInformationPage.construction,
+                            showContextHeader: false,
                           ),
                         if (_workspaceIndex == 5)
                           QuestCenterPage(
                             controller: widget.gameStateController,
                             initialQuestId: _questCenterInitialQuestId,
+                            showTitle: false,
                           ),
                         if (_workspaceIndex == 6)
                           LogbookPage(
@@ -563,6 +575,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                             safetySettingsController:
                                 widget.safetySettingsController,
                             displayModeController: widget.displayModeController,
+                            showTitle: false,
                           ),
                         if (_workspaceIndex == 8)
                           ExpeditionCheckPage(

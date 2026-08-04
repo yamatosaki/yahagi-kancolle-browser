@@ -234,10 +234,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutApp => '关于 ヤハギ';
 
   @override
-  String get aboutSubtitle => '版本 学习版 1.0 · 免责声明 · 检查更新';
+  String get aboutSubtitle => '版本 学习版 1.0.1 · 免责声明 · 检查更新';
 
   @override
-  String get version => '版本 学习版 1.0';
+  String get version => '版本 学习版 1.0.1';
 
   @override
   String get disclaimerTitle => '免责声明 (DISCLAIMER)';
@@ -907,10 +907,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get aboutApp => '關於 ヤハギ';
 
   @override
-  String get aboutSubtitle => '版本 學習版 1.0 · 免責聲明 · 檢查更新';
+  String get aboutSubtitle => '版本 學習版 1.0.1 · 免責聲明 · 檢查更新';
 
   @override
-  String get version => '版本 學習版 1.0';
+  String get version => '版本 學習版 1.0.1';
 
   @override
   String get disclaimerTitle => '免責聲明 (DISCLAIMER)';

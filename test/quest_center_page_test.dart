@@ -50,6 +50,15 @@ void main() {
     expect(find.text('任务'), findsOneWidget);
     expect(find.text('已接受 2'), findsOneWidget);
     expect(find.text('已完成 1'), findsOneWidget);
+    expect(find.textContaining('更新于'), findsNothing);
+    expect(find.byKey(const Key('quest-count-segmented')), findsOneWidget);
+    final accepted = tester.getRect(
+      find.byKey(const Key('quest-count-accepted')),
+    );
+    final completed = tester.getRect(
+      find.byKey(const Key('quest-count-completed')),
+    );
+    expect(accepted.right, completed.left);
     expect(find.byKey(const Key('quest-card-201')), findsOneWidget);
     expect(find.byKey(const Key('quest-card-402')), findsOneWidget);
     expect(find.text('50%+'), findsWidgets);
@@ -95,6 +104,22 @@ void main() {
     );
 
     expect(find.text('等待任务数据'), findsOneWidget);
+    controller.dispose();
+  });
+
+  testWidgets('does not duplicate the quest header inside the workspace', (
+    tester,
+  ) async {
+    final controller = GameStateController();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: QuestCenterPage(controller: controller, showTitle: false),
+      ),
+    );
+
+    expect(find.byKey(const Key('quest-count-segmented')), findsNothing);
+    expect(find.textContaining('更新于'), findsNothing);
     controller.dispose();
   });
 }

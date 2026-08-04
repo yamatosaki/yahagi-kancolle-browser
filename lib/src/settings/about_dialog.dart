@@ -194,7 +194,10 @@ class AboutDialogWidget extends StatelessWidget {
         side: const BorderSide(color: Color(0xff294052)),
       ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 450),
+        constraints: BoxConstraints(
+          maxWidth: 450,
+          maxHeight: MediaQuery.sizeOf(context).height - 32,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -251,7 +254,10 @@ class AboutDialogWidget extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      l10n?.version ?? '版本 学习版 1.0',
+                      (l10n?.version ?? '版本 学习版 $currentVersion').replaceFirst(
+                        RegExp(r'\d+(?:\.\d+){1,2}'),
+                        currentVersion,
+                      ),
                       style: const TextStyle(
                         fontSize: 14,
                         color: Color(0xffd4a85f),
@@ -306,43 +312,48 @@ class AboutDialogWidget extends StatelessWidget {
             ),
 
             // Disclaimer
-            Container(
-              padding: const EdgeInsets.all(20),
-              color: const Color(0xff0a131c),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            Expanded(
+              child: SingleChildScrollView(
+                key: const Key('about-disclaimer-scroll'),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  color: const Color(0xff0a131c),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
-                        Icons.warning_amber_rounded,
-                        size: 16,
-                        color: Color(0xff8197a5),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.warning_amber_rounded,
+                            size: 16,
+                            color: Color(0xff8197a5),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            l10n?.disclaimerTitle ?? '免责声明 (DISCLAIMER)',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xff8197a5),
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(height: 12),
                       Text(
-                        l10n?.disclaimerTitle ?? '免责声明 (DISCLAIMER)',
+                        '${l10n?.disclaimerP1 ?? "本项目仅供编程技术交流与学习目的使用，是一款完全非盈利且非官方的第三方通用浏览器工具。本项目与 Kantai Collection (KanColle) 官方及任何相关权利方无任何关联。"}\n\n'
+                        '${l10n?.disclaimerP2 ?? "本软件不参与、不阻断、不重放且不篡改游戏服务器的通信数据，也不会代替玩家执行游戏操作。原作者不对软件的质量做任何明示或暗示的保证（包括但不限于对软件完全无 Bug、适用性或系统稳定性的保证）。"}\n\n'
+                        '${l10n?.disclaimerP3 ?? "在任何情况下，因使用或无法使用本软件而导致的任何移动设备损坏、数据丢失、游戏账号封禁风险或其他任何形式的直接或间接利益损失，原作者均不承担任何法律与连带责任。如果您在\"技术学习\"之外的场景使用本软件，所产生的一切版权争议、服务条款违规及其他风险，均将由使用者自行承担。"}',
                         style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xff8197a5),
-                          letterSpacing: 1,
+                          fontSize: 13,
+                          height: 1.6,
+                          color: Color(0xffa0b6c4),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    '${l10n?.disclaimerP1 ?? "本项目仅供编程技术交流与学习目的使用，是一款完全非盈利且非官方的第三方通用浏览器工具。本项目与 Kantai Collection (KanColle) 官方及任何相关权利方无任何关联。"}\n\n'
-                    '${l10n?.disclaimerP2 ?? "本软件不参与、不阻断、不重放且不篡改游戏服务器的通信数据，也不会代替玩家执行游戏操作。原作者不对软件的质量做任何明示或暗示的保证（包括但不限于对软件完全无 Bug、适用性或系统稳定性的保证）。"}\n\n'
-                    '${l10n?.disclaimerP3 ?? "在任何情况下，因使用或无法使用本软件而导致的任何移动设备损坏、数据丢失、游戏账号封禁风险或其他任何形式的直接或间接利益损失，原作者均不承担任何法律与连带责任。如果您在\"技术学习\"之外的场景使用本软件，所产生的一切版权争议、服务条款违规及其他风险，均将由使用者自行承担。"}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      height: 1.6,
-                      color: Color(0xffa0b6c4),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
 

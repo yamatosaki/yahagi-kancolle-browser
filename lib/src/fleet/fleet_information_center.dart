@@ -20,11 +20,13 @@ class FleetInformationCenter extends StatefulWidget {
     required this.controller,
     this.page = FleetInformationPage.fleet,
     this.initialFleetId,
+    this.showContextHeader = true,
   });
 
   final GameStateController controller;
   final FleetInformationPage page;
   final int? initialFleetId;
+  final bool showContextHeader;
 
   @override
   State<FleetInformationCenter> createState() => _FleetInformationCenterState();
@@ -53,7 +55,10 @@ class _FleetInformationCenterState extends State<FleetInformationCenter> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _PageHeader(updatedAt: state.updatedAt, page: widget.page),
+              if (widget.showContextHeader &&
+                  (widget.page != FleetInformationPage.fleet ||
+                      !state.hasPortData))
+                _PageHeader(page: widget.page),
               if (!state.hasPortData)
                 const Expanded(child: _WaitingState())
               else
@@ -65,6 +70,7 @@ class _FleetInformationCenterState extends State<FleetInformationCenter> {
                       onFleetSelected: (id) {
                         setState(() => _selectedFleetId = id);
                       },
+                      showContextHeader: widget.showContextHeader,
                     ),
                     FleetInformationPage.expedition => ExpeditionStatusView(
                       state: state,
@@ -85,17 +91,12 @@ class _FleetInformationCenterState extends State<FleetInformationCenter> {
 }
 
 class _PageHeader extends StatelessWidget {
-  const _PageHeader({required this.updatedAt, required this.page});
+  const _PageHeader({required this.page});
 
-  final DateTime? updatedAt;
   final FleetInformationPage page;
 
   @override
   Widget build(BuildContext context) {
-    final localTime = updatedAt?.toLocal();
-    final timeLabel = localTime == null
-        ? AppLocalizations.of(context)?.waitingForData ?? '等待数据'
-        : '${AppLocalizations.of(context)?.updatedAt ?? '更新'} ${_two(localTime.hour)}:${_two(localTime.minute)}:${_two(localTime.second)}';
     final title = switch (page) {
       FleetInformationPage.fleet => AppLocalizations.of(context)?.fleet ?? '舰队',
       FleetInformationPage.expedition =>
@@ -122,17 +123,10 @@ class _PageHeader extends StatelessWidget {
               fontSize: 17,
             ),
           ),
-          const Spacer(),
-          Text(
-            timeLabel,
-            style: const TextStyle(color: Color(0xff8197a5), fontSize: 12),
-          ),
         ],
       ),
     );
   }
-
-  static String _two(int value) => value.toString().padLeft(2, '0');
 }
 
 class _WaitingState extends StatelessWidget {
@@ -167,11 +161,13 @@ class _FleetView extends StatefulWidget {
     required this.state,
     required this.selectedFleetId,
     required this.onFleetSelected,
+    required this.showContextHeader,
   });
 
   final GameState state;
   final int selectedFleetId;
   final ValueChanged<int> onFleetSelected;
+  final bool showContextHeader;
 
   @override
   State<_FleetView> createState() => _FleetViewState();
@@ -183,6 +179,8 @@ class _FleetViewState extends State<_FleetView> {
   int _lastFleetId = 0;
   FleetMetrics? _cachedMetrics;
   List<Fleet>? _cachedFleetButtons;
+  int? _selectedShipId;
+  int? _selectedEquipmentIndex;
 
   FleetMetrics _metricsFor(GameState state, Fleet fleet) {
     if (_cachedMetrics == null ||
@@ -210,26 +208,33 @@ class _FleetViewState extends State<_FleetView> {
       _cachedFleetButtons = state.fleets.take(4).toList();
     }
     final fleetButtons = _cachedFleetButtons!;
+    final selectedShip = ships.isEmpty
+        ? null
+        : ships.firstWhere(
+            (ship) => ship.id == _selectedShipId,
+            orElse: () => ships.first,
+          );
+    final selectedEquipment = selectedShip == null
+        ? const <ShipEquipment>[]
+        : state.equipmentForShip(selectedShip);
+    final selectedEquipmentIndex =
+        _selectedEquipmentIndex != null &&
+            _selectedEquipmentIndex! >= 0 &&
+            _selectedEquipmentIndex! < selectedEquipment.length
+        ? _selectedEquipmentIndex
+        : null;
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 12, 14, 14),
       child: Column(
         children: [
-          Row(
-            children: [
-              for (final item in fleetButtons) ...[
-                Expanded(
-                  child: _FleetButton(
-                    key: Key('fleet-button-${item.id}'),
-                    fleet: item,
-                    selected: item.id == fleet.id,
-                    onTap: () => widget.onFleetSelected(item.id),
-                  ),
-                ),
-                if (item != fleetButtons.last) const SizedBox(width: 8),
-              ],
-            ],
-          ),
-          const SizedBox(height: 10),
+          if (widget.showContextHeader) ...[
+            FleetSwitcherBar(
+              fleets: fleetButtons,
+              selectedFleetId: fleet.id,
+              onFleetSelected: widget.onFleetSelected,
+            ),
+            const SizedBox(height: 10),
+          ],
           _MetricsBar(metrics: metrics),
           const SizedBox(height: 10),
           Expanded(
@@ -240,15 +245,84 @@ class _FleetViewState extends State<_FleetView> {
                       style: const TextStyle(color: Color(0xff8197a5)),
                     ),
                   )
-                : ListView.separated(
-                    padding: EdgeInsets.zero,
-                    itemCount: ships.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 6),
-                    itemBuilder: (context, index) => _ShipRow(
-                      state: state,
-                      ship: ships[index],
-                      specialAttack: index == 0 ? specialAttack : null,
-                    ),
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      Widget workspace(double width) {
+                        final compact = width < 900;
+                        final gap = compact ? 5.0 : 9.0;
+                        final rosterWidth = compact
+                            ? width * 0.16
+                            : width * 0.17;
+                        final detailWidth = compact
+                            ? width * 0.26
+                            : width * 0.265;
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SizedBox(
+                              width: rosterWidth,
+                              child: _FleetRosterPanel(
+                                key: const Key('fleet-roster-panel'),
+                                state: state,
+                                ships: ships,
+                                selectedShipId: selectedShip!.id,
+                                onSelected: (shipId) {
+                                  setState(() {
+                                    _selectedShipId = shipId;
+                                    _selectedEquipmentIndex = null;
+                                  });
+                                },
+                              ),
+                            ),
+                            SizedBox(width: gap),
+                            Expanded(
+                              child: _FleetFocusPanel(
+                                key: const Key('fleet-focus-panel'),
+                                state: state,
+                                ship: selectedShip,
+                                specialAttack: selectedShip.id == ships.first.id
+                                    ? specialAttack
+                                    : null,
+                                selectedEquipmentIndex: selectedEquipmentIndex,
+                                onShipDetails: () => setState(
+                                  () => _selectedEquipmentIndex = null,
+                                ),
+                                onEquipmentSelected: (index) => setState(
+                                  () => _selectedEquipmentIndex = index,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: gap),
+                            SizedBox(
+                              width: detailWidth,
+                              child: _FleetDetailPanel(
+                                key: const Key('fleet-detail-panel'),
+                                state: state,
+                                ship: selectedShip,
+                                equipmentIndex: selectedEquipmentIndex,
+                              ),
+                            ),
+                          ],
+                        );
+                      }
+
+                      if (constraints.maxWidth < 600) {
+                        const designWidth = 740.0;
+                        final scale = constraints.maxWidth / designWidth;
+                        return SizedBox.expand(
+                          child: FittedBox(
+                            fit: BoxFit.contain,
+                            alignment: Alignment.topLeft,
+                            child: SizedBox(
+                              width: designWidth,
+                              height: constraints.maxHeight / scale,
+                              child: workspace(designWidth),
+                            ),
+                          ),
+                        );
+                      }
+                      return workspace(constraints.maxWidth);
+                    },
                   ),
           ),
         ],
@@ -263,6 +337,979 @@ class _FleetViewState extends State<_FleetView> {
       }
     }
     return fleets.firstOrNull;
+  }
+}
+
+class _FleetWorkspacePanel extends StatelessWidget {
+  const _FleetWorkspacePanel({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xff0d202d),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xff294052)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: child,
+    );
+  }
+}
+
+class _FleetRosterPanel extends StatelessWidget {
+  const _FleetRosterPanel({
+    super.key,
+    required this.state,
+    required this.ships,
+    required this.selectedShipId,
+    required this.onSelected,
+  });
+
+  final GameState state;
+  final List<OwnedShip> ships;
+  final int selectedShipId;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return _FleetWorkspacePanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.all(8),
+              itemCount: ships.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 7),
+              itemBuilder: (context, index) {
+                final ship = ships[index];
+                final ratio = ship.maxHp <= 0
+                    ? 0.0
+                    : ship.currentHp / ship.maxHp;
+                final borderColor = shipHpBarColor(
+                  ratio,
+                  isZeroHp: ship.currentHp <= 0,
+                );
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => onSelected(ship.id),
+                        borderRadius: BorderRadius.circular(10),
+                        child: AspectRatio(
+                          aspectRatio: 3,
+                          child: Container(
+                            key: Key('fleet-roster-ship-${ship.id}'),
+                            decoration: BoxDecoration(
+                              color: const Color(0xff142735),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: borderColor, width: 4),
+                              boxShadow: ship.id == selectedShipId
+                                  ? <BoxShadow>[
+                                      BoxShadow(
+                                        color: const Color(
+                                          0xffd4a85f,
+                                        ).withValues(alpha: 0.42),
+                                        blurRadius: 8,
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                ShipPortrait(
+                                  ship: state.masterForShip(ship),
+                                  serverOrigin: state.serverOrigin,
+                                  width: constraints.maxWidth,
+                                  height: constraints.maxWidth / 3,
+                                ),
+                                _StaticMoraleMark(
+                                  key: Key('fleet-morale-mark-${ship.id}'),
+                                  value: ship.condition,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StaticMoraleMark extends StatelessWidget {
+  const _StaticMoraleMark({super.key, required this.value});
+
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    if (value >= 50) {
+      return IgnorePointer(
+        child: Stack(
+          key: Key('fleet-morale-stars-$value'),
+          children: const [
+            Positioned(right: 8, top: 7, child: _StaticStar(size: 15)),
+            Positioned(right: 23, top: 5, child: _StaticStar(size: 8)),
+            Positioned(right: 17, top: 23, child: _StaticStar(size: 6)),
+            Positioned(right: 6, top: 29, child: _StaticStar(size: 5)),
+          ],
+        ),
+      );
+    }
+    if (value > 29) {
+      return const SizedBox.shrink();
+    }
+    final danger = value <= 19;
+    final color = danger ? const Color(0xffef5a5a) : const Color(0xffe7ad45);
+    return Align(
+      alignment: Alignment.topRight,
+      child: Container(
+        key: Key('fleet-fatigue-face-$value'),
+        width: 24,
+        height: 24,
+        margin: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(color: const Color(0xfff6ead1), width: 1.5),
+          boxShadow: [
+            BoxShadow(color: color.withValues(alpha: 0.45), blurRadius: 5),
+          ],
+        ),
+        child: Icon(
+          danger
+              ? Icons.sentiment_very_dissatisfied_rounded
+              : Icons.sentiment_dissatisfied_rounded,
+          color: const Color(0xff3a2a20),
+          size: 19,
+        ),
+      ),
+    );
+  }
+}
+
+class _StaticStar extends StatelessWidget {
+  const _StaticStar({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Icon(
+      Icons.auto_awesome_rounded,
+      size: size,
+      color: const Color(0xffffe58a),
+      shadows: const [Shadow(color: Color(0xffffcf55), blurRadius: 6)],
+    );
+  }
+}
+
+class _FleetFocusPanel extends StatelessWidget {
+  const _FleetFocusPanel({
+    super.key,
+    required this.state,
+    required this.ship,
+    required this.specialAttack,
+    required this.selectedEquipmentIndex,
+    required this.onShipDetails,
+    required this.onEquipmentSelected,
+  });
+
+  final GameState state;
+  final OwnedShip ship;
+  final EquipmentMechanismDisplay? specialAttack;
+  final int? selectedEquipmentIndex;
+  final VoidCallback onShipDetails;
+  final ValueChanged<int> onEquipmentSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final master = state.masterForShip(ship);
+    final type = state.typeForShip(ship);
+    final equipment = state.equipmentForShip(ship);
+    final hpRatio = _ShipRow._ratio(ship.currentHp, ship.maxHp);
+    final fuelRatio = _ShipRow._ratio(ship.currentFuel, master?.maxFuel ?? 0);
+    final ammoRatio = _ShipRow._ratio(ship.currentAmmo, master?.maxAmmo ?? 0);
+    final mechanisms = detectShipCombatMechanisms(state, ship);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 520;
+        final narrow = constraints.maxWidth < 430;
+        final portraitSize = narrow
+            ? const Size(60, 28)
+            : compact
+            ? const Size(68, 32)
+            : const Size(96, 42);
+        final sectionGap = narrow ? 4.0 : (compact ? 6.0 : 10.0);
+        final headerHeight = narrow ? 52.0 : (compact ? 58.0 : 66.0);
+        final meterHeight = narrow ? 15.0 : 16.0;
+        final metaHeight = narrow ? 14.0 : 18.0;
+        return _FleetWorkspacePanel(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Material(
+                color: const Color(0xff142735),
+                child: InkWell(
+                  onTap: onShipDetails,
+                  child: Container(
+                    key: Key('fleet-focus-ship-${ship.id}'),
+                    height: headerHeight,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: narrow ? 4 : (compact ? 6 : 8),
+                      vertical: 2,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Expanded(
+                                child: LayoutBuilder(
+                                  builder: (context, identityConstraints) {
+                                    final portraitWidth =
+                                        (identityConstraints.maxWidth * 0.35)
+                                            .clamp(0.0, portraitSize.width)
+                                            .toDouble();
+                                    final portraitHeight =
+                                        portraitSize.height *
+                                        portraitWidth /
+                                        portraitSize.width;
+                                    return Row(
+                                      children: [
+                                        SizedBox(
+                                          key: Key(
+                                            'fleet-focus-portrait-${ship.id}',
+                                          ),
+                                          width: portraitWidth,
+                                          height: portraitHeight,
+                                          child: ShipPortrait(
+                                            ship: master,
+                                            serverOrigin: state.serverOrigin,
+                                            width: portraitWidth,
+                                            height: portraitHeight,
+                                          ),
+                                        ),
+                                        SizedBox(width: sectionGap),
+                                        Expanded(
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                master?.name ?? '未知舰娘',
+                                                maxLines: 1,
+                                                softWrap: false,
+                                                style: TextStyle(
+                                                  fontSize: narrow
+                                                      ? 11
+                                                      : (compact ? 14 : 17),
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 3),
+                                              Text(
+                                                'Next ${ship.nextExperience}',
+                                                maxLines: 1,
+                                                softWrap: false,
+                                                style: TextStyle(
+                                                  color: const Color(
+                                                    0xff8197a5,
+                                                  ),
+                                                  fontSize: narrow
+                                                      ? 7
+                                                      : (compact ? 9 : 10),
+                                                  fontFeatures: const [
+                                                    FontFeature.tabularFigures(),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ),
+                              _CompactStatusMeter(
+                                height: meterHeight,
+                                icon: Image.asset(
+                                  'assets/images/material/01.png',
+                                  width: 14,
+                                  height: 14,
+                                ),
+                                value:
+                                    '${ship.currentFuel}/${master?.maxFuel ?? 0}',
+                                ratio: fuelRatio,
+                                valueColor: shipSupplyValueColor(fuelRatio),
+                                barColor: shipSupplyBarColor(fuelRatio),
+                                valueKey: Key(
+                                  'fleet-focus-fuel-value-${ship.id}',
+                                ),
+                                trackKey: Key(
+                                  'fleet-focus-fuel-track-${ship.id}',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(width: sectionGap),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SizedBox(
+                                key: Key('fleet-focus-meta-${ship.id}'),
+                                height: metaHeight,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(left: 2),
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Row(
+                                      key: Key(
+                                        'fleet-focus-meta-content-${ship.id}',
+                                      ),
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Lv. ${ship.level}',
+                                          style: const TextStyle(
+                                            color: Color(0xffa9bac4),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          type?.name ?? '未知舰种',
+                                          maxLines: 1,
+                                          style: const TextStyle(
+                                            color: Color(0xffa9bac4),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        _MiniBadge(
+                                          text: (master?.speed ?? 0) >= 10
+                                              ? '高速'
+                                              : '低速',
+                                          color: const Color(0xff6dd1c5),
+                                        ),
+                                        for (final mechanism in mechanisms.take(
+                                          1,
+                                        )) ...[
+                                          const SizedBox(width: 4),
+                                          _MiniBadge(
+                                            text: mechanism.label,
+                                            color:
+                                                mechanism.tone ==
+                                                    MechanismTone.antiAir
+                                                ? const Color(0xffffc861)
+                                                : const Color(0xff8ec6e8),
+                                          ),
+                                        ],
+                                        if (specialAttack != null) ...[
+                                          const SizedBox(width: 4),
+                                          const _MiniBadge(
+                                            text: '特殊攻击',
+                                            color: Color(0xffff8b88),
+                                          ),
+                                        ],
+                                        const SizedBox(width: 4),
+                                        _MiniBadge(
+                                          text: '疲劳 ${ship.condition}',
+                                          color: shipFatigueColor(
+                                            ship.condition,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              _CompactStatusMeter(
+                                height: meterHeight,
+                                icon: Icon(
+                                  Icons.favorite_rounded,
+                                  key: Key('fleet-focus-hp-icon-${ship.id}'),
+                                  color: const Color(0xffef5a5a),
+                                  size: 14,
+                                ),
+                                value: '${ship.currentHp}/${ship.maxHp}',
+                                ratio: hpRatio,
+                                valueColor: shipHpValueColor(
+                                  hpRatio,
+                                  isZeroHp: ship.currentHp <= 0,
+                                ),
+                                barColor: shipHpBarColor(
+                                  hpRatio,
+                                  isZeroHp: ship.currentHp <= 0,
+                                ),
+                                valueKey: Key(
+                                  'fleet-focus-hp-value-${ship.id}',
+                                ),
+                                trackKey: Key(
+                                  'fleet-focus-hp-track-${ship.id}',
+                                ),
+                              ),
+                              _CompactStatusMeter(
+                                height: meterHeight,
+                                icon: Image.asset(
+                                  'assets/images/material/02.png',
+                                  width: 14,
+                                  height: 14,
+                                ),
+                                value:
+                                    '${ship.currentAmmo}/${master?.maxAmmo ?? 0}',
+                                ratio: ammoRatio,
+                                valueColor: shipSupplyValueColor(ammoRatio),
+                                barColor: shipSupplyBarColor(ammoRatio),
+                                valueKey: Key(
+                                  'fleet-focus-ammo-value-${ship.id}',
+                                ),
+                                trackKey: Key(
+                                  'fleet-focus-ammo-track-${ship.id}',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const Divider(height: 1, color: Color(0xff294052)),
+              Expanded(
+                key: const Key('fleet-equipment-list'),
+                child: equipment.isEmpty
+                    ? const Center(
+                        child: Text(
+                          '装备数据等待更新',
+                          style: TextStyle(color: Color(0xff8197a5)),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.all(8),
+                        itemCount: equipment.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 5),
+                        itemBuilder: (context, index) => _CompactEquipmentRow(
+                          ship: ship,
+                          equipment: equipment[index],
+                          index: index,
+                          selected: selectedEquipmentIndex == index,
+                          onTap: () => onEquipmentSelected(index),
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MiniBadge extends StatelessWidget {
+  const _MiniBadge({required this.text, required this.color});
+
+  final String text;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        style: TextStyle(
+          color: color,
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactStatusMeter extends StatelessWidget {
+  const _CompactStatusMeter({
+    this.height = 18,
+    required this.icon,
+    required this.value,
+    required this.ratio,
+    required this.valueColor,
+    required this.barColor,
+    required this.valueKey,
+    required this.trackKey,
+  });
+
+  final double height;
+  final Widget icon;
+  final String value;
+  final double ratio;
+  final Color valueColor;
+  final Color barColor;
+  final Key valueKey;
+  final Key trackKey;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      child: Row(
+        children: [
+          SizedBox(width: 18, child: Center(child: icon)),
+          const SizedBox(width: 3),
+          SizedBox(
+            width: 50,
+            child: Text(
+              value,
+              key: valueKey,
+              maxLines: 1,
+              softWrap: false,
+              style: TextStyle(
+                color: valueColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: ClipRRect(
+              key: trackKey,
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                minHeight: 6,
+                value: ratio.clamp(0, 1),
+                color: barColor,
+                backgroundColor: const Color(0xff263f4d),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactEquipmentRow extends StatelessWidget {
+  const _CompactEquipmentRow({
+    required this.ship,
+    required this.equipment,
+    required this.index,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final OwnedShip ship;
+  final ShipEquipment equipment;
+  final int index;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final master = equipment.master;
+    final isAircraft = _ShipRow._isAircraft(master);
+    final onSlot = isAircraft && index < ship.onSlot.length
+        ? ship.onSlot[index]
+        : null;
+    return Material(
+      color: selected ? const Color(0xff1a303d) : const Color(0xff102331),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          key: Key('fleet-equipment-row-${ship.id}-$index'),
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: selected
+                  ? const Color(0xff8d7040)
+                  : const Color(0xff294052),
+            ),
+          ),
+          child: Row(
+            children: [
+              _EquipmentTypeIcon(
+                imageKey: Key('fleet-equipment-icon-${ship.id}-$index'),
+                slotKey: onSlot == null
+                    ? null
+                    : Key('fleet-equipment-slot-${ship.id}-$index'),
+                iconId: _ShipRow._equipmentIconId(master),
+                onSlot: onSlot,
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        master?.name ?? '未知装备',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xffe1e9ed),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (equipment.owned.level > 0) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        '★${equipment.owned.level}',
+                        style: const TextStyle(
+                          color: Color(0xff5daea6),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                    if (isAircraft && equipment.owned.proficiency > 0) ...[
+                      const SizedBox(width: 4),
+                      Image.asset(
+                        'assets/images/airplane/alv${equipment.owned.proficiency.clamp(1, 7)}.png',
+                        width: 18,
+                        height: 16,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: Color(0xffd4a85f),
+                size: 18,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FleetDetailPanel extends StatelessWidget {
+  const _FleetDetailPanel({
+    super.key,
+    required this.state,
+    required this.ship,
+    required this.equipmentIndex,
+  });
+
+  final GameState state;
+  final OwnedShip ship;
+  final int? equipmentIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final equipment = state.equipmentForShip(ship);
+    final selected =
+        equipmentIndex != null && equipmentIndex! < equipment.length
+        ? equipment[equipmentIndex!]
+        : null;
+    return _FleetWorkspacePanel(
+      child: selected == null
+          ? _ShipParameterDetails(state: state, ship: ship)
+          : _SelectedEquipmentDetails(
+              state: state,
+              ship: ship,
+              equipment: selected,
+              index: equipmentIndex!,
+            ),
+    );
+  }
+}
+
+class _ShipParameterDetails extends StatelessWidget {
+  const _ShipParameterDetails({required this.state, required this.ship});
+
+  final GameState state;
+  final OwnedShip ship;
+
+  @override
+  Widget build(BuildContext context) {
+    final master = state.masterForShip(ship);
+    final stats = <(String, String)>[
+      ('耐久', '${ship.maxHp}'),
+      ('火力', '${ship.firepower}'),
+      ('装甲', '${ship.armor}'),
+      ('雷装', '${ship.torpedo}'),
+      ('回避', '${ship.evasion}'),
+      ('对空', '${ship.antiAir}'),
+      ('搭载', '${ship.onSlot.fold<int>(0, (sum, value) => sum + value)}'),
+      ('对潜', '${ship.antiSub}'),
+      ('速力', (master?.speed ?? 0) >= 10 ? '高速' : '低速'),
+      ('索敌', '${ship.lineOfSight}'),
+      ('射程', _rangeText(master?.range ?? 0)),
+      ('运', '${ship.luck}'),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.all(10),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 2.6,
+              crossAxisSpacing: 6,
+              mainAxisSpacing: 6,
+            ),
+            itemCount: stats.length,
+            itemBuilder: (context, index) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xff102331),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      stats[index].$1,
+                      style: const TextStyle(
+                        color: Color(0xff8197a5),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    stats[index].$2,
+                    style: const TextStyle(
+                      color: Color(0xffe1e9ed),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _rangeText(int range) => switch (range) {
+    1 => '短',
+    2 => '中',
+    3 => '长',
+    4 => '超长',
+    _ => '—',
+  };
+}
+
+class _SelectedEquipmentDetails extends StatelessWidget {
+  const _SelectedEquipmentDetails({
+    required this.state,
+    required this.ship,
+    required this.equipment,
+    required this.index,
+  });
+
+  final GameState state;
+  final OwnedShip ship;
+  final ShipEquipment equipment;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final master = equipment.master;
+    final bonuses = master == null
+        ? const <String, int>{}
+        : equipmentVisibleBonuses(
+            item: master,
+            shipName: state.masterForShip(ship)?.name ?? '',
+          );
+    final stats = master == null
+        ? const <EquipmentStatDisplay>[]
+        : equipmentStatDisplays(master, bonuses: bonuses);
+    final aircraft = _ShipRow._isAircraft(master);
+    final onSlot = aircraft && index < ship.onSlot.length
+        ? ship.onSlot[index]
+        : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              _EquipmentTypeIcon(
+                imageKey: Key('fleet-detail-equipment-icon-${ship.id}-$index'),
+                iconId: _ShipRow._equipmentIconId(master),
+                onSlot: onSlot,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 5,
+                  runSpacing: 3,
+                  children: [
+                    Text(
+                      master?.name ?? '未知装备',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (equipment.owned.level > 0)
+                      Text(
+                        '★${equipment.owned.level}',
+                        style: const TextStyle(
+                          color: Color(0xff5daea6),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    if (aircraft && equipment.owned.proficiency > 0)
+                      Image.asset(
+                        'assets/images/airplane/alv${equipment.owned.proficiency.clamp(1, 7)}.png',
+                        width: 20,
+                        height: 18,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 2.4,
+              crossAxisSpacing: 6,
+              mainAxisSpacing: 6,
+            ),
+            itemCount: stats.length,
+            itemBuilder: (context, index) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xff102331),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      stats[index].label,
+                      style: const TextStyle(
+                        color: Color(0xff8197a5),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  if (stats[index].value.isNotEmpty)
+                    Text(
+                      stats[index].value,
+                      style: const TextStyle(
+                        color: Color(0xffe1e9ed),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  if (kShowEquipmentVisibleBonuses &&
+                      stats[index].bonus != 0) ...[
+                    const SizedBox(width: 3),
+                    Text(
+                      '↑+${stats[index].bonus}',
+                      key: Key('fleet-equipment-bonus-$index'),
+                      style: const TextStyle(
+                        color: Color(0xff63b8ff),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class FleetSwitcherBar extends StatelessWidget {
+  const FleetSwitcherBar({
+    super.key,
+    required this.fleets,
+    required this.selectedFleetId,
+    this.onFleetSelected,
+  });
+
+  final List<Fleet> fleets;
+  final int selectedFleetId;
+  final ValueChanged<int>? onFleetSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleFleets = fleets.take(4).toList(growable: false);
+    return Row(
+      children: [
+        const SizedBox(
+          key: Key('workspace-title-fleet'),
+          width: 72,
+          child: Text(
+            '舰队',
+            style: TextStyle(
+              color: Color(0xffe0b25c),
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        for (final item in visibleFleets) ...[
+          Expanded(
+            child: _FleetButton(
+              key: Key('fleet-button-${item.id}'),
+              fleet: item,
+              selected: item.id == selectedFleetId,
+              onTap: () => onFleetSelected?.call(item.id),
+            ),
+          ),
+          if (item != visibleFleets.last) const SizedBox(width: 8),
+        ],
+      ],
+    );
   }
 }
 
@@ -289,10 +1336,10 @@ class _FleetButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(9),
         child: Container(
-          constraints: BoxConstraints(minHeight: phone ? 34 : 56),
+          height: phone ? 30 : 32,
           padding: EdgeInsets.symmetric(
             horizontal: phone ? 4 : 11,
-            vertical: phone ? 3 : 7,
+            vertical: 2,
           ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(9),
@@ -438,7 +1485,7 @@ class _MetricsBar extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: SizedBox(
-          height: compact ? 34 : 50,
+          height: compact ? 34 : 48,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -559,7 +1606,11 @@ class _Formula33DetailRow extends StatelessWidget {
 }
 
 class _ShipRow extends StatelessWidget {
-  const _ShipRow({required this.state, required this.ship, this.specialAttack});
+  const _ShipRow({
+    required this.state,
+    required this.ship,
+    required this.specialAttack,
+  });
 
   static const _phoneStatusValueStyle = TextStyle(
     fontSize: 10,

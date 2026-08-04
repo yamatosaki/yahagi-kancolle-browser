@@ -546,13 +546,13 @@ abstract class AppLocalizations {
   /// No description provided for @aboutSubtitle.
   ///
   /// In zh, this message translates to:
-  /// **'版本 学习版 1.0 · 免责声明 · 检查更新'**
+  /// **'版本 学习版 1.0.1 · 免责声明 · 检查更新'**
   String get aboutSubtitle;
 
   /// No description provided for @version.
   ///
   /// In zh, this message translates to:
-  /// **'版本 学习版 1.0'**
+  /// **'版本 学习版 1.0.1'**
   String get version;
 
   /// No description provided for @disclaimerTitle.
