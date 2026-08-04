@@ -32,6 +32,9 @@ dependencies {
     implementation("androidx.webkit:webkit:1.16.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")
+    androidTestImplementation("androidx.test:core:1.7.0")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test:runner:1.7.0")
 }
 
 android {
@@ -52,6 +55,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {

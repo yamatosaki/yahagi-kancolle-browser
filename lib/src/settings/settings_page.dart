@@ -266,7 +266,10 @@ class SettingsPage extends StatelessWidget {
                 AppLocalizations.of(context)?.gadgetBypass ?? '游戏客户端绕行',
               ),
               _buildCard(
-                child: GadgetBypassSection(controller: gadgetBypassController),
+                child: GadgetBypassSection(
+                  controller: gadgetBypassController,
+                  onReloadRequired: browserController.reload,
+                ),
               ),
               const SizedBox(height: 24),
               _buildSectionTitle(
