@@ -12,14 +12,31 @@ class ExpeditionIncomeCalculator {
     if (mission == null) return const ExpeditionIncome();
     final base = _baseResources[mission.id] ?? const <int>[0, 0, 0, 0];
     final multiplier = (greatSuccess ? 1.5 : 1.0) * (1 + daihatsuBonus);
-    
+
     final items = <ExpeditionRewardItem>[];
     // winItem1: [id, count]
-    if (mission.winItem1.length >= 2 && mission.winItem1[0] > 0 && mission.winItem1[1] > 0) {
-      items.add(ExpeditionRewardItem(id: mission.winItem1[0], count: mission.winItem1[1], kind: ExpeditionRewardKind.normal));
+    if (mission.winItem1.length >= 2 &&
+        mission.winItem1[0] > 0 &&
+        mission.winItem1[1] > 0) {
+      items.add(
+        ExpeditionRewardItem(
+          id: mission.winItem1[0],
+          count: mission.winItem1[1],
+          kind: ExpeditionRewardKind.normal,
+        ),
+      );
     }
-    if (greatSuccess && mission.winItem2.length >= 2 && mission.winItem2[0] > 0 && mission.winItem2[1] > 0) {
-      items.add(ExpeditionRewardItem(id: mission.winItem2[0], count: mission.winItem2[1], kind: ExpeditionRewardKind.greatSuccess));
+    if (greatSuccess &&
+        mission.winItem2.length >= 2 &&
+        mission.winItem2[0] > 0 &&
+        mission.winItem2[1] > 0) {
+      items.add(
+        ExpeditionRewardItem(
+          id: mission.winItem2[0],
+          count: mission.winItem2[1],
+          kind: ExpeditionRewardKind.greatSuccess,
+        ),
+      );
     }
 
     return ExpeditionIncome(

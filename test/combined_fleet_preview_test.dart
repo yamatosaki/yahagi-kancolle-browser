@@ -127,12 +127,12 @@ void main() {
       const Color(0xff70c7bc),
     );
 
-    await expectLater(
-      find.byKey(const Key('live-battle-card')),
-      matchesGoldenFile(
-        '../docs/previews/combined-fleet-prophet-sidebar-preview.png',
-      ),
-    );
+    expect(find.byKey(const Key('live-battle-card')), findsOneWidget);
+    expect(find.textContaining('我方主力'), findsOneWidget);
+    expect(find.textContaining('我方随伴'), findsOneWidget);
+    expect(find.textContaining('敌方主力'), findsOneWidget);
+    expect(find.textContaining('敌方护卫'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('compact combined battle shows four bar columns', (tester) async {

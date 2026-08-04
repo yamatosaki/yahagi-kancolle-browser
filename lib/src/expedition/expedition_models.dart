@@ -78,10 +78,7 @@ class ExpeditionIncome {
   List<int> get values => <int>[fuel, ammunition, steel, bauxite];
 }
 
-enum ExpeditionRewardKind {
-  normal,
-  greatSuccess,
-}
+enum ExpeditionRewardKind { normal, greatSuccess }
 
 class ExpeditionRewardItem {
   const ExpeditionRewardItem({
