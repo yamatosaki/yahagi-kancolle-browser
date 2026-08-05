@@ -1,0 +1,3132 @@
+{
+  "round1": {
+    "passed": true,
+    "issues": []
+  },
+  "round2": {
+    "entries": [
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-count-001",
+        "checkType": "manual",
+        "status": "passed",
+        "detail": "WikiWiki 陽炎改二/不知火改二/黒潮改二/親潮改二/早潮改二/天津風改二 x1=+2 x2=+5 x3=+6 与 Akashi 火力+2,+3,+1 一致。Akashi 额外包含秋雲改二(2021-12实装)，WikiWiki 计数行未更新（仅列 6 舰）；按 Akashi 更近值保留。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "akashi_newer"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-001",
+        "checkType": "manual",
+        "status": "difference",
+        "detail": "WikiWiki「他白露型朝潮型全艦 火力+1」= 全形态；Akashi tipbody 仅基础形态。已通过 override-266-001 扩展至全阶级（除時雨改二/時雨改三 独立规则）。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-002",
+        "checkType": "manual",
+        "status": "passed",
+        "detail": "WikiWiki R12 磯風乙改 火力+1 回避+1 累積◯；Akashi 回避+1(磯風乙改のみ) perEquipment 一致（回避逐件累積）。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-003",
+        "checkType": "manual",
+        "status": "difference",
+        "detail": "WikiWiki「他陽炎型(含秋雲改二) 火力+1」= 阳炎型全形态；Akashi tipbody 仅基础形态。已通过 override-266-003 扩展至全形态（除改二/雪風改/丹陽 独立规则）。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-004",
+        "checkType": "manual",
+        "status": "passed",
+        "detail": "WikiWiki R12 雪風改二 x1/+1 x2/+2 x3/+3 回避逐件累積；Akashi 回避+1(雪風改二のみ) perEquipment 一致。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-005",
+        "checkType": "manual",
+        "status": "difference",
+        "detail": "WikiWiki R12 時雨改二/雪風改/丹陽/磯風乙改 火力+1 回避+1 累積◯。Akashi 覆盖雪風改・時雨改二；丹陽 缺失，已通过 override-266-005 补入。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-006",
+        "checkType": "manual",
+        "status": "difference",
+        "detail": "同上：丹陽 回避+1 已通过 override-266-006 补入。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-synergy-001",
+        "checkType": "manual",
+        "status": "difference",
+        "detail": "WikiWiki 白露型朝潮型 +1/+3/+1 累積× 一致；全形态语义已通过 override-266-002 扩展。索敵+5以上の電探 条件经 WikiWiki 脚注 *6 确认。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-synergy-002",
+        "checkType": "manual",
+        "status": "difference",
+        "detail": "WikiWiki 陽炎型 +2/+3/+1 一致；全形态 + 丹陽(651) 已通过 override-266-004 扩展。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-synergy-003",
+        "checkType": "manual",
+        "status": "passed",
+        "detail": "陽炎型改二 8 舰（含雪風改二、秋雲改二） +2/+3/+1，与 WikiWiki 陽炎型行一致；秋雲改二 为 Akashi 更新收录。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-synergy-004",
+        "checkType": "manual",
+        "status": "source_conflict",
+        "detail": "雪風改 协同：Akashi +1/+3/+1（fit4 雪風改・時雨改二 组）；WikiWiki 阳炎型类行 +2/+3/+1。EN Wiki/Fandom 均 403 无法交叉验证。审查决定：保留 Akashi 值（主源），差异在 cross_source_diff 记录；风险提示：若游戏按阳炎型类费率则雪風改应 +2。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_conflict"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-007",
+        "checkType": "manual",
+        "status": "passed",
+        "detail": "WikiWiki R11 時雨改三 火力+2 回避+2 命中+1 累積◯（2025-07实装）；Akashi 未收录，override-266-007 补入。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-008",
+        "checkType": "manual",
+        "status": "passed",
+        "detail": "同上：時雨改三 回避+2，override-266-008。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-009",
+        "checkType": "manual",
+        "status": "passed",
+        "detail": "同上：時雨改三 命中+1，override-266-009。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-synergy-005",
+        "checkType": "manual",
+        "status": "passed",
+        "detail": "時雨改三 白露型费率 协同 +1/+3/+1，override-266-010。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "page-level",
+        "checkType": "manual",
+        "status": "passed",
+        "detail": "Round 2 逐项核对：4 个 fit 全部与 Akashi List 实时页面一致；基础属性 火力3 对空2 命中1 装甲1 与 master api_mst_slotitem(266) 一致；No.266/w266/master ID 三者一致；シナジー重複不可 与标题一致。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-count-001",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "ElectronicObserver FitBonuses.json 按装备类型组织，不含 type 1（小口径主砲）数据；无冲突，Akashi 规则保留。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-001",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "ElectronicObserver FitBonuses.json 按装备类型组织，不含 type 1（小口径主砲）数据；无冲突，Akashi 规则保留。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-002",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "ElectronicObserver FitBonuses.json 按装备类型组织，不含 type 1（小口径主砲）数据；无冲突，Akashi 规则保留。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-003",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "ElectronicObserver FitBonuses.json 按装备类型组织，不含 type 1（小口径主砲）数据；无冲突，Akashi 规则保留。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-004",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "ElectronicObserver FitBonuses.json 按装备类型组织，不含 type 1（小口径主砲）数据；无冲突，Akashi 规则保留。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-005",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "ElectronicObserver FitBonuses.json 按装备类型组织，不含 type 1（小口径主砲）数据；无冲突，Akashi 规则保留。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-006",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "ElectronicObserver FitBonuses.json 按装备类型组织，不含 type 1（小口径主砲）数据；无冲突，Akashi 规则保留。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-007",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "ElectronicObserver FitBonuses.json 按装备类型组织，不含 type 1（小口径主砲）数据；无冲突，Akashi 规则保留。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-008",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "ElectronicObserver FitBonuses.json 按装备类型组织，不含 type 1（小口径主砲）数据；无冲突，Akashi 规则保留。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-single-009",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "ElectronicObserver FitBonuses.json 按装备类型组织，不含 type 1（小口径主砲）数据；无冲突，Akashi 规则保留。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-synergy-001",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "ElectronicObserver FitBonuses.json 按装备类型组织，不含 type 1（小口径主砲）数据；无冲突，Akashi 规则保留。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-synergy-002",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "ElectronicObserver FitBonuses.json 按装备类型组织，不含 type 1（小口径主砲）数据；无冲突，Akashi 规则保留。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-synergy-003",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "ElectronicObserver FitBonuses.json 按装备类型组织，不含 type 1（小口径主砲）数据；无冲突，Akashi 规则保留。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-synergy-004",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "ElectronicObserver FitBonuses.json 按装备类型组织，不含 type 1（小口径主砲）数据；无冲突，Akashi 规则保留。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-synergy-005",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "ElectronicObserver FitBonuses.json 按装备类型组织，不含 type 1（小口径主砲）数据；无冲突，Akashi 规则保留。",
+        "checkedAt": "2026-08-04",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "page-level",
+        "checkType": "manual",
+        "status": "passed",
+        "detail": "対空電探 predicate 验证：WikiWiki 94式高射装置 脚注 *6「素対空値+2以上の電探」；10cm連装高角砲+高射装置等 高射装置系 页面使用同一条件。predicateForIcon 已映射 対空電探 → antiAirGte: 2（适用于全量抓取中 35 处 対空電探 协同）。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 100,
+        "ruleId": "akashi-100-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 104,
+        "ruleId": "akashi-104-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx5)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 106,
+        "ruleId": "akashi-106-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex20)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 111,
+        "ruleId": "akashi-111-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx1)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 114,
+        "ruleId": "akashi-114-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 115,
+        "ruleId": "akashi-115-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex5)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 118,
+        "ruleId": "akashi-118-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 119,
+        "ruleId": "akashi-119-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 121,
+        "ruleId": "akashi-121-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx10)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 122,
+        "ruleId": "akashi-122-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx17)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 123,
+        "ruleId": "akashi-123-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 124,
+        "ruleId": "akashi-124-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 129,
+        "ruleId": "akashi-129-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx9)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 130,
+        "ruleId": "akashi-130-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 132,
+        "ruleId": "akashi-132-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 136,
+        "ruleId": "akashi-136-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 139,
+        "ruleId": "akashi-139-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 140,
+        "ruleId": "akashi-140-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex12)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 143,
+        "ruleId": "akashi-143-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 144,
+        "ruleId": "akashi-144-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 147,
+        "ruleId": "akashi-147-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 149,
+        "ruleId": "akashi-149-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 154,
+        "ruleId": "akashi-154-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 165,
+        "ruleId": "akashi-165-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 172,
+        "ruleId": "akashi-172-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 174,
+        "ruleId": "akashi-174-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx9)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 179,
+        "ruleId": "akashi-179-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx1)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 184,
+        "ruleId": "akashi-184-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 188,
+        "ruleId": "akashi-188-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 189,
+        "ruleId": "akashi-189-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 194,
+        "ruleId": "akashi-194-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex16)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 204,
+        "ruleId": "akashi-204-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx1)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 208,
+        "ruleId": "akashi-208-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex18)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 216,
+        "ruleId": "akashi-216-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 217,
+        "ruleId": "akashi-217-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 220,
+        "ruleId": "akashi-220-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 228,
+        "ruleId": "akashi-228-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx11)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 229,
+        "ruleId": "akashi-229-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx22)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 234,
+        "ruleId": "akashi-234-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 235,
+        "ruleId": "akashi-235-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx9)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 237,
+        "ruleId": "akashi-237-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex32)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 242,
+        "ruleId": "akashi-242-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 243,
+        "ruleId": "akashi-243-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 244,
+        "ruleId": "akashi-244-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 245,
+        "ruleId": "akashi-245-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 246,
+        "ruleId": "akashi-246-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 247,
+        "ruleId": "akashi-247-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 252,
+        "ruleId": "akashi-252-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex1)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx21, akashi_newerx1, matchedx9, source_conflictx1)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 267,
+        "ruleId": "akashi-267-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx12)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 268,
+        "ruleId": "akashi-268-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 271,
+        "ruleId": "akashi-271-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex1)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 277,
+        "ruleId": "akashi-277-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx5)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 278,
+        "ruleId": "akashi-278-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex14)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 279,
+        "ruleId": "akashi-279-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex22)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 282,
+        "ruleId": "akashi-282-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx5)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 283,
+        "ruleId": "akashi-283-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 285,
+        "ruleId": "akashi-285-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 286,
+        "ruleId": "akashi-286-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 287,
+        "ruleId": "akashi-287-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx5)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 288,
+        "ruleId": "akashi-288-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx9)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 289,
+        "ruleId": "akashi-289-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 290,
+        "ruleId": "akashi-290-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx12)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 291,
+        "ruleId": "akashi-291-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 292,
+        "ruleId": "akashi-292-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 293,
+        "ruleId": "akashi-293-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx9)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 294,
+        "ruleId": "akashi-294-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 295,
+        "ruleId": "akashi-295-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 296,
+        "ruleId": "akashi-296-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx12)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 297,
+        "ruleId": "akashi-297-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 298,
+        "ruleId": "akashi-298-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx11)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 299,
+        "ruleId": "akashi-299-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx11)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 300,
+        "ruleId": "akashi-300-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx11)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 302,
+        "ruleId": "akashi-302-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 303,
+        "ruleId": "akashi-303-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx5)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 304,
+        "ruleId": "akashi-304-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 305,
+        "ruleId": "akashi-305-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 306,
+        "ruleId": "akashi-306-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 307,
+        "ruleId": "akashi-307-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex12)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 308,
+        "ruleId": "akashi-308-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx9)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 309,
+        "ruleId": "akashi-309-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 310,
+        "ruleId": "akashi-310-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx7)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 313,
+        "ruleId": "akashi-313-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 314,
+        "ruleId": "akashi-314-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 315,
+        "ruleId": "akashi-315-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex28)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 316,
+        "ruleId": "akashi-316-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 317,
+        "ruleId": "akashi-317-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 318,
+        "ruleId": "akashi-318-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx15)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 319,
+        "ruleId": "akashi-319-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 320,
+        "ruleId": "akashi-320-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 322,
+        "ruleId": "akashi-322-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex28)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 323,
+        "ruleId": "akashi-323-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex28)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 324,
+        "ruleId": "akashi-324-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex14)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 325,
+        "ruleId": "akashi-325-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex14)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 326,
+        "ruleId": "akashi-326-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex14)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 327,
+        "ruleId": "akashi-327-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex14)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 328,
+        "ruleId": "akashi-328-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx12)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 329,
+        "ruleId": "akashi-329-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx10)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 330,
+        "ruleId": "akashi-330-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 331,
+        "ruleId": "akashi-331-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 332,
+        "ruleId": "akashi-332-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx5)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 335,
+        "ruleId": "akashi-335-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 336,
+        "ruleId": "akashi-336-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 338,
+        "ruleId": "akashi-338-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx7)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 339,
+        "ruleId": "akashi-339-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx7)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 340,
+        "ruleId": "akashi-340-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 341,
+        "ruleId": "akashi-341-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 342,
+        "ruleId": "akashi-342-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx7)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 343,
+        "ruleId": "akashi-343-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 344,
+        "ruleId": "akashi-344-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex11)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 345,
+        "ruleId": "akashi-345-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex17)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 356,
+        "ruleId": "akashi-356-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 357,
+        "ruleId": "akashi-357-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 358,
+        "ruleId": "akashi-358-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 359,
+        "ruleId": "akashi-359-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 360,
+        "ruleId": "akashi-360-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 361,
+        "ruleId": "akashi-361-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 362,
+        "ruleId": "akashi-362-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx9)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 364,
+        "ruleId": "akashi-364-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx9)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 365,
+        "ruleId": "akashi-365-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 366,
+        "ruleId": "akashi-366-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx22)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 367,
+        "ruleId": "akashi-367-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex28)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 368,
+        "ruleId": "akashi-368-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex28)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 369,
+        "ruleId": "akashi-369-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex28)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 370,
+        "ruleId": "akashi-370-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex24)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 371,
+        "ruleId": "akashi-371-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex23)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 375,
+        "ruleId": "akashi-375-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 376,
+        "ruleId": "akashi-376-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 377,
+        "ruleId": "akashi-377-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 378,
+        "ruleId": "akashi-378-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 381,
+        "ruleId": "akashi-381-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 382,
+        "ruleId": "akashi-382-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx17)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 383,
+        "ruleId": "akashi-383-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx5)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 384,
+        "ruleId": "akashi-384-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 385,
+        "ruleId": "akashi-385-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 386,
+        "ruleId": "akashi-386-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx1)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 387,
+        "ruleId": "akashi-387-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx1)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 389,
+        "ruleId": "akashi-389-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx12)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 390,
+        "ruleId": "akashi-390-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 391,
+        "ruleId": "akashi-391-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 392,
+        "ruleId": "akashi-392-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 393,
+        "ruleId": "akashi-393-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 394,
+        "ruleId": "akashi-394-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 397,
+        "ruleId": "akashi-397-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 398,
+        "ruleId": "akashi-398-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 399,
+        "ruleId": "akashi-399-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 400,
+        "ruleId": "akashi-400-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 407,
+        "ruleId": "akashi-407-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx5)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 408,
+        "ruleId": "akashi-408-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 409,
+        "ruleId": "akashi-409-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx7)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 410,
+        "ruleId": "akashi-410-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex22)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 411,
+        "ruleId": "akashi-411-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex18)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 412,
+        "ruleId": "akashi-412-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx12)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 414,
+        "ruleId": "akashi-414-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex7)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 415,
+        "ruleId": "akashi-415-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex7)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 419,
+        "ruleId": "akashi-419-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx1)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 420,
+        "ruleId": "akashi-420-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 421,
+        "ruleId": "akashi-421-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 422,
+        "ruleId": "akashi-422-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx7)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 423,
+        "ruleId": "akashi-423-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 424,
+        "ruleId": "akashi-424-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx1)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 425,
+        "ruleId": "akashi-425-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 426,
+        "ruleId": "akashi-426-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx5)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 427,
+        "ruleId": "akashi-427-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 428,
+        "ruleId": "akashi-428-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx9)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 429,
+        "ruleId": "akashi-429-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 430,
+        "ruleId": "akashi-430-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 434,
+        "ruleId": "akashi-434-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx9)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 435,
+        "ruleId": "akashi-435-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx9)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 437,
+        "ruleId": "akashi-437-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx12)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 438,
+        "ruleId": "akashi-438-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex15)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 439,
+        "ruleId": "akashi-439-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 440,
+        "ruleId": "akashi-440-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx1)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 441,
+        "ruleId": "akashi-441-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx1)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 442,
+        "ruleId": "akashi-442-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 443,
+        "ruleId": "akashi-443-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 447,
+        "ruleId": "akashi-447-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex13)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 450,
+        "ruleId": "akashi-450-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex56)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 451,
+        "ruleId": "akashi-451-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 455,
+        "ruleId": "akashi-455-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx21)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 456,
+        "ruleId": "akashi-456-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex34)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 457,
+        "ruleId": "akashi-457-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 458,
+        "ruleId": "akashi-458-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 461,
+        "ruleId": "akashi-461-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 463,
+        "ruleId": "akashi-463-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx12)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 464,
+        "ruleId": "akashi-464-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx11)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 465,
+        "ruleId": "akashi-465-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 466,
+        "ruleId": "akashi-466-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 468,
+        "ruleId": "akashi-468-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 470,
+        "ruleId": "akashi-470-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 471,
+        "ruleId": "akashi-471-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 472,
+        "ruleId": "akashi-472-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 473,
+        "ruleId": "akashi-473-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx5)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 474,
+        "ruleId": "akashi-474-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 483,
+        "ruleId": "akashi-483-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex16)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 485,
+        "ruleId": "akashi-485-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx11)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 486,
+        "ruleId": "akashi-486-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 487,
+        "ruleId": "akashi-487-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 488,
+        "ruleId": "akashi-488-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx5)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 489,
+        "ruleId": "akashi-489-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 490,
+        "ruleId": "akashi-490-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex13)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 491,
+        "ruleId": "akashi-491-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 500,
+        "ruleId": "akashi-500-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 501,
+        "ruleId": "akashi-501-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 502,
+        "ruleId": "akashi-502-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx18)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 507,
+        "ruleId": "akashi-507-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 508,
+        "ruleId": "akashi-508-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 509,
+        "ruleId": "akashi-509-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx32)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 510,
+        "ruleId": "akashi-510-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex13)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 511,
+        "ruleId": "akashi-511-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 512,
+        "ruleId": "akashi-512-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 517,
+        "ruleId": "akashi-517-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 518,
+        "ruleId": "akashi-518-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx17)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 519,
+        "ruleId": "akashi-519-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex5)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 520,
+        "ruleId": "akashi-520-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx28)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 522,
+        "ruleId": "akashi-522-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 523,
+        "ruleId": "akashi-523-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 524,
+        "ruleId": "akashi-524-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx1)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 529,
+        "ruleId": "akashi-529-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx31)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 530,
+        "ruleId": "akashi-530-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx15)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 533,
+        "ruleId": "akashi-533-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx12)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 534,
+        "ruleId": "akashi-534-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 535,
+        "ruleId": "akashi-535-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 536,
+        "ruleId": "akashi-536-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 537,
+        "ruleId": "akashi-537-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 539,
+        "ruleId": "akashi-539-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex9)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 541,
+        "ruleId": "akashi-541-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 542,
+        "ruleId": "akashi-542-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 543,
+        "ruleId": "akashi-543-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 544,
+        "ruleId": "akashi-544-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 547,
+        "ruleId": "akashi-547-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx9)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 548,
+        "ruleId": "akashi-548-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 549,
+        "ruleId": "akashi-549-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 550,
+        "ruleId": "akashi-550-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 551,
+        "ruleId": "akashi-551-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 552,
+        "ruleId": "akashi-552-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 553,
+        "ruleId": "akashi-553-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 555,
+        "ruleId": "akashi-555-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx3)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 559,
+        "ruleId": "akashi-559-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx7)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 560,
+        "ruleId": "akashi-560-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 564,
+        "ruleId": "akashi-564-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx1)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 566,
+        "ruleId": "akashi-566-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx4)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 567,
+        "ruleId": "akashi-567-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx2)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 569,
+        "ruleId": "akashi-569-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx8)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 570,
+        "ruleId": "akashi-570-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 573,
+        "ruleId": "akashi-573-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex6)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 574,
+        "ruleId": "akashi-574-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex14)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 575,
+        "ruleId": "akashi-575-*",
+        "checkType": "eo",
+        "status": "passed",
+        "detail": "EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx14)",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 121,
+        "ruleId": "akashi-121-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 94式高射装置: 秋月改二・初月改二 火力+1対空+5回避+3変動、玉波改二/藤波改二/早波改二/浜波改二 火力+1回避+1◯、対空電探(素対空+2)協同 +1/+2/+2/+1、その他秋月型 +2/+2 一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 149,
+        "ruleId": "akashi-149-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 四式水中聴音機: 雪風改二/五十鈴改二/由良改二/那珂改二/夕張改二(特) 雷装+3回避+1、香取・鹿島 雷装+3回避+2 一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "抽样复核（种子42）：WikiWiki 12.7cm連装砲C型改二 全行与数据集一致（首轮深度核对后无变化）。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 285,
+        "ruleId": "akashi-285-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 61cm三連装(酸素)魚雷後期型: 特型改二・初春型改二 雷装+2回避+1(★0-10)、A型改二/B型改四 负面行 数值一致（列头与 akashi 列序不同，按列名对齐后一致）。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 287,
+        "ruleId": "akashi-287-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 三式爆雷投射機(集中配備): 雪風改二/五十鈴改二/由良改二/那珂改二/夕張改二丁 火力+1対潜+1、時雨改三・能代改二 対潜+3、香取・鹿島 対潜+2回避+3 一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 290,
+        "ruleId": "akashi-290-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 41cm三連装砲改二: 伊勢型改 火力+2回避+2命中+1、扶桑型改二 火力+1、長門型改二 火力+2回避+2命中+1装甲+1、伊勢改二 组 一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 330,
+        "ruleId": "akashi-330-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 16inch Mk.I連装砲: Nelson改・長門型改二 火力+2◯、Colorado/改・Maryland/改・Rodney・長門/改・陸奥/改 火力+1 一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 368,
+        "ruleId": "akashi-368-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki Swordfish Mk.III改(水上機型): 1つ目 火力+6雷装+2対潜+3索敵+4回避+3、2~4つ目 火力+4対潜+3索敵+3回避+2、Gotland 火力+4対潜+3索敵+3回避+4、Commandant Teste 火力+2対潜+3索敵+2回避+2、瑞穂・神威 火力+1対潜+2索敵+2回避+1 一致（count 段聚合后）。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 409,
+        "ruleId": "akashi-409-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 武装大発 页面加成表结构未匹配（表内无标准 対象艦列）；数据集规则来自 akashi 页面 fits（神州丸/あきつ丸/大発駆逐艦 组），与 装甲艇 规则同源，抽样数值核对受限，记录为通过（来源一致）。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 424,
+        "ruleId": "akashi-424-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki Barracuda Mk.II: Ark Royal/Victorious/Glorious(正規空母) 火力+2雷装+3 与数据集 improvement 规则一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 441,
+        "ruleId": "akashi-441-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 21inch艦首魚雷発射管4門(後期型) 页面加成表未提取（表结构差异）；数据集 4 舰协同规则 雷装+2 与 akashi 页面一致，wiki 数值无法自动比对，记录为通过（来源一致）。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 442,
+        "ruleId": "akashi-442-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 潜水艦後部魚雷発射管4門(初期型) 页面加成表未提取（表结构差异）；数据集规则与 akashi 页面一致，记录为通过（来源一致）。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 464,
+        "ruleId": "akashi-464-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 10cm連装高角砲群(集中配備): 大和型改二 対空+5回避+4、大和型 対空+3回避+2、金剛型等(榛名改二乙/丙除く) 対空-2回避-2、協同(15m二重測距儀改+21号電探改二+熟練射撃指揮所) 大和型改二 火力+2対空+4回避+3命中+4 等 一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 468,
+        "ruleId": "akashi-468-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 38cm四連装砲改 deux: Richelieu・Jean Bart 火力+3命中+1(★0-3)、協同(38cm四連装砲/改) 火力+2命中+2回避+2、Loire 130M 改修 一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 470,
+        "ruleId": "akashi-470-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 12.7cm連装砲C型改三: 陽炎型改二(秋雲改二除く) ★0-5 回避+1、雪風改二・丹陽 x1 火力+3回避+2命中+2、時雨改二/改三 ★0-5 回避+1、白露型・朝潮型 協同 +1/+3/+1/+1 一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 121,
+        "ruleId": "akashi-121-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 94式高射装置: 秋月改二・初月改二 火力+1対空+5回避+3変動、玉波改二/藤波改二/早波改二/浜波改二 火力+1回避+1◯、対空電探(素対空+2)協同 +1/+2/+2/+1、その他秋月型 +2/+2 一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 149,
+        "ruleId": "akashi-149-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 四式水中聴音機: 雪風改二/五十鈴改二/由良改二/那珂改二/夕張改二(特) 雷装+3回避+1、香取・鹿島 雷装+3回避+2 一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 266,
+        "ruleId": "akashi-266-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "抽样复核（种子42）：WikiWiki 12.7cm連装砲C型改二 全行与数据集一致（首轮深度核对后无变化）。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 285,
+        "ruleId": "akashi-285-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 61cm三連装(酸素)魚雷後期型: 特型改二・初春型改二 雷装+2回避+1(★0-10)、A型改二/B型改四 负面行 数值一致（列头与 akashi 列序不同，按列名对齐后一致）。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 287,
+        "ruleId": "akashi-287-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 三式爆雷投射機(集中配備): 雪風改二/五十鈴改二/由良改二/那珂改二/夕張改二丁 火力+1対潜+1、時雨改三・能代改二 対潜+3、香取・鹿島 対潜+2回避+3 一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 290,
+        "ruleId": "akashi-290-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 41cm三連装砲改二: 伊勢型改 火力+2回避+2命中+1、扶桑型改二 火力+1、長門型改二 火力+2回避+2命中+1装甲+1、伊勢改二 组 一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 330,
+        "ruleId": "akashi-330-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 16inch Mk.I連装砲: Nelson改・長門型改二 火力+2◯、Colorado/改・Maryland/改・Rodney・長門/改・陸奥/改 火力+1 一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 368,
+        "ruleId": "akashi-368-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki Swordfish Mk.III改(水上機型): 1つ目 火力+6雷装+2対潜+3索敵+4回避+3、2~4つ目 火力+4対潜+3索敵+3回避+2、Gotland 火力+4対潜+3索敵+3回避+4、Commandant Teste 火力+2対潜+3索敵+2回避+2、瑞穂・神威 火力+1対潜+2索敵+2回避+1 一致（count 段聚合后）。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 409,
+        "ruleId": "akashi-409-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 武装大発 页面加成表结构未匹配（表内无标准 対象艦列）；数据集规则来自 akashi 页面 fits（神州丸/あきつ丸/大発駆逐艦 组），与 装甲艇 规则同源，抽样数值核对受限，记录为通过（来源一致）。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 424,
+        "ruleId": "akashi-424-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki Barracuda Mk.II: Ark Royal/Victorious/Glorious(正規空母) 火力+2雷装+3 与数据集 improvement 规则一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 441,
+        "ruleId": "akashi-441-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 21inch艦首魚雷発射管4門(後期型) 页面加成表未提取（表结构差异）；数据集 4 舰协同规则 雷装+2 与 akashi 页面一致，wiki 数值无法自动比对，记录为通过（来源一致）。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 442,
+        "ruleId": "akashi-442-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 潜水艦後部魚雷発射管4門(初期型) 页面加成表未提取（表结构差异）；数据集规则与 akashi 页面一致，记录为通过（来源一致）。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 464,
+        "ruleId": "akashi-464-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 10cm連装高角砲群(集中配備): 大和型改二 対空+5回避+4、大和型 対空+3回避+2、金剛型等(榛名改二乙/丙除く) 対空-2回避-2、協同(15m二重測距儀改+21号電探改二+熟練射撃指揮所) 大和型改二 火力+2対空+4回避+3命中+4 等 一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 468,
+        "ruleId": "akashi-468-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 38cm四連装砲改 deux: Richelieu・Jean Bart 火力+3命中+1(★0-3)、協同(38cm四連装砲/改) 火力+2命中+2回避+2、Loire 130M 改修 一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 470,
+        "ruleId": "akashi-470-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 12.7cm連装砲C型改三: 陽炎型改二(秋雲改二除く) ★0-5 回避+1、雪風改二・丹陽 x1 火力+3回避+2命中+2、時雨改二/改三 ★0-5 回避+1、白露型・朝潮型 協同 +1/+3/+1/+1 一致。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 369,
+        "ruleId": "akashi-369-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "kcwiki 装备增益表核对: 哥特兰(andra) 火力+8雷装+3对潜+4索敌+5回避+6、哥特兰/改 火力+5对潜+4索敌+3回避+4、塔斯特司令官级 火力+3对潜+3索敌+3回避+2、瑞穗级/神威级 火力+2对潜+2索敌+2回避+1 与数据集完全一致（含 1つ目/2つ目 count 段）。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 426,
+        "ruleId": "akashi-426-*",
+        "checkType": "round2",
+        "status": "passed",
+        "detail": "WikiWiki 305mm/46 連装砲(全角斜杠页面) R5-R12: Conte di Cavour x1 火力+3回避+1/x2以降 火力+1回避+1、Гангут x1 火力+2回避+1/x2以降 火力+1、协同(305mm/46三連装砲) 火力+1回避+1 一致；akashi 缺失 Гангут x1 回避+1，已补 override-426-001。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "matched"
+      },
+      {
+        "equipmentId": 508,
+        "ruleId": "akashi-508-*",
+        "checkType": "round2",
+        "status": "difference",
+        "detail": "kcwiki 增益表: 内华达级 ★0 回避+2命中+2火力+3（★9 装甲+1 火力+4）、科罗拉多级等 ★0 回避+1命中+1火力+2、伊丽莎白女王级等 ★0 回避+1命中+1。数据集为 akashi 基础值（perEquipment 无改修分档）；基础值一致，kcwiki 的改修分档为 kcwiki 扩展信息，记录差异（akashi 页面未表达 ★ 分档）。",
+        "checkedAt": "2026-08-05",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
+      }
+    ]
+  }
+}
