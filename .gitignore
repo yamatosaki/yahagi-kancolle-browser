@@ -49,6 +49,11 @@ app.*.map.json
 .scratch-resource-trend/
 .superpowers/
 docs/superpowers/
+docs/internal/
+docs/previews/
+docs/demos/
+docs/TECHNICAL_REPORT.md
+docs/项目交接与下一步路线-2026-07-31.md
 temp_fonts/
 find_zh.py
 fix.py
@@ -56,3 +61,9 @@ zh_strings.txt
 test/failures/
 assets/temp_cropped.jpg
 assets/empty.png
+
+# Wiki bonus dataset build cache (raw HTML, master data dumps)
+tool/wiki_bonus/cache/
+
+# Akashi bonus dataset build cache (raw HTML)
+tool/akashi_bonus/cache/
