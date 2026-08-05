@@ -1,5 +1,6 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_controller.dart';
+import 'package:flutter/widgets.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_port.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_store.dart';
 
@@ -65,10 +66,72 @@ void main() {
     expect(store.savedMuted, isNull);
     expect(port.mutedValues, isEmpty);
   });
+
+  test(
+    'background playback defaults off and temporarily mutes lifecycle',
+    () async {
+      final store = _MemoryAudioStore();
+      final port = _RecordingAudioPort();
+      final controller = await GameAudioController.load(store);
+      await controller.attachPort(port);
+      port.mutedValues.clear();
+
+      await controller.handleLifecycleState(AppLifecycleState.paused);
+      await controller.handleLifecycleState(AppLifecycleState.resumed);
+
+      expect(controller.backgroundPlaybackEnabled, isFalse);
+      expect(controller.isMuted, isFalse);
+      expect(port.mutedValues, <bool>[true, false]);
+    },
+  );
+
+  test(
+    'background playback opt-in persists and leaves sound enabled',
+    () async {
+      final store = _MemoryAudioStore();
+      final port = _RecordingAudioPort();
+      final controller = await GameAudioController.load(store);
+      await controller.attachPort(port);
+
+      await controller.setBackgroundPlaybackEnabled(true);
+      port.mutedValues.clear();
+      await controller.handleLifecycleState(AppLifecycleState.inactive);
+      await controller.handleLifecycleState(AppLifecycleState.hidden);
+      await controller.handleLifecycleState(AppLifecycleState.paused);
+
+      expect(store.savedBackgroundPlayback, isTrue);
+      expect(port.mutedValues, isEmpty);
+    },
+  );
+
+  test('user mute remains effective after returning to foreground', () async {
+    final store = _MemoryAudioStore()..savedMuted = true;
+    final port = _RecordingAudioPort();
+    final controller = await GameAudioController.load(store);
+    await controller.attachPort(port);
+    port.mutedValues.clear();
+
+    await controller.handleLifecycleState(AppLifecycleState.detached);
+    await controller.handleLifecycleState(AppLifecycleState.resumed);
+
+    expect(controller.isMuted, isTrue);
+    expect(port.mutedValues, isEmpty);
+  });
+
+  test('a port attached while backgrounded is muted immediately', () async {
+    final port = _RecordingAudioPort();
+    final controller = await GameAudioController.load(_MemoryAudioStore());
+
+    await controller.handleLifecycleState(AppLifecycleState.paused);
+    await controller.attachPort(port);
+
+    expect(port.mutedValues, <bool>[true]);
+  });
 }
 
 final class _MemoryAudioStore implements GameAudioStore {
   bool? savedMuted;
+  bool? savedBackgroundPlayback;
 
   @override
   Future<bool?> readMuted() async => savedMuted;
@@ -76,6 +139,15 @@ final class _MemoryAudioStore implements GameAudioStore {
   @override
   Future<void> writeMuted(bool muted) async {
     savedMuted = muted;
+  }
+
+  @override
+  Future<bool?> readBackgroundPlaybackEnabled() async =>
+      savedBackgroundPlayback;
+
+  @override
+  Future<void> writeBackgroundPlaybackEnabled(bool enabled) async {
+    savedBackgroundPlayback = enabled;
   }
 }
 

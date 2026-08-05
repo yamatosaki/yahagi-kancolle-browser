@@ -31,5 +31,13 @@ void main() {
       expect(nativeGameCaptureScript, contains('api_starttime'));
       expect(nativeGameCaptureScript, contains('delete'));
     });
+
+    test('preserves formation parameters from modern POST body types', () {
+      expect(
+        nativeGameCaptureScript,
+        contains('body instanceof URLSearchParams'),
+      );
+      expect(nativeGameCaptureScript, contains('input.clone().text()'));
+    });
   });
 }

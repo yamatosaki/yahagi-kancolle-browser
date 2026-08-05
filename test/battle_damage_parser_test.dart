@@ -1,4 +1,4 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_damage_parser.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_models.dart';
 
@@ -7,6 +7,7 @@ BattleShipSnapshot snapshot({
   required int position,
   required int hp,
   BattleFleetRole role = BattleFleetRole.main,
+  List<int> equipmentMasterIds = const <int>[],
 }) {
   return BattleShipSnapshot(
     masterId: 100 + position,
@@ -17,6 +18,7 @@ BattleShipSnapshot snapshot({
     initialHp: hp,
     maxHp: hp,
     currentHp: hp,
+    equipmentMasterIds: equipmentMasterIds,
   );
 }
 
@@ -279,5 +281,185 @@ void main() {
     );
 
     expect(result.enemyMain.single.currentHp, 10);
+  });
+
+  test('targets keep their original slot when an earlier slot is empty', () {
+    final result = BattleDamageParser().apply(
+      data: <String, Object?>{
+        'api_kouku': <String, Object?>{
+          'api_stage3': <String, Object?>{
+            'api_edam': <num>[0, 0, 7],
+          },
+        },
+      },
+      friendMain: <BattleShipSnapshot>[],
+      enemyMain: <BattleShipSnapshot>[
+        snapshot(side: BattleSide.enemy, position: 0, hp: 20),
+        snapshot(side: BattleSide.enemy, position: 2, hp: 20),
+      ],
+    );
+
+    expect(result.enemyMain.first.currentHp, 20);
+    expect(result.enemyMain.last.currentHp, 13);
+    expect(result.enemyMain.last.position, 2);
+  });
+
+  test(
+    'damage control personnel is consumed once and restores twenty percent',
+    () {
+      final result = BattleDamageParser().apply(
+        data: <String, Object?>{
+          'api_hougeki1': <String, Object?>{
+            'api_at_eflag': <int>[1],
+            'api_at_list': <int>[0],
+            'api_df_list': <Object?>[
+              <int>[0],
+            ],
+            'api_damage': <Object?>[
+              <num>[30],
+            ],
+          },
+          'api_hougeki2': <String, Object?>{
+            'api_at_eflag': <int>[1],
+            'api_at_list': <int>[0],
+            'api_df_list': <Object?>[
+              <int>[0],
+            ],
+            'api_damage': <Object?>[
+              <num>[30],
+            ],
+          },
+        },
+        friendMain: <BattleShipSnapshot>[
+          snapshot(
+            side: BattleSide.friend,
+            position: 0,
+            hp: 20,
+            equipmentMasterIds: const <int>[42],
+          ),
+        ],
+        enemyMain: <BattleShipSnapshot>[
+          snapshot(side: BattleSide.enemy, position: 0, hp: 20),
+        ],
+      );
+
+      expect(result.friendMain.single.currentHp, 0);
+      expect(result.friendMain.single.usedDamageControlItemIds, <int>[42]);
+    },
+  );
+
+  test('repair goddess restores full hp after lethal damage', () {
+    final result = BattleDamageParser().apply(
+      data: <String, Object?>{
+        'api_hougeki1': <String, Object?>{
+          'api_at_eflag': <int>[1],
+          'api_at_list': <int>[0],
+          'api_df_list': <Object?>[
+            <int>[0],
+          ],
+          'api_damage': <Object?>[
+            <num>[30],
+          ],
+        },
+      },
+      friendMain: <BattleShipSnapshot>[
+        snapshot(
+          side: BattleSide.friend,
+          position: 0,
+          hp: 20,
+          equipmentMasterIds: const <int>[43],
+        ),
+      ],
+      enemyMain: <BattleShipSnapshot>[
+        snapshot(side: BattleSide.enemy, position: 0, hp: 20),
+      ],
+    );
+
+    expect(result.friendMain.single.currentHp, 20);
+    expect(result.friendMain.single.usedDamageControlItemIds, <int>[43]);
+  });
+
+  test('executes known phases in game order instead of JSON key order', () {
+    final result = BattleDamageParser().apply(
+      data: <String, Object?>{
+        'api_hougeki1': <String, Object?>{
+          'api_at_eflag': <int>[0],
+          'api_at_list': <int>[0],
+          'api_df_list': <Object?>[
+            <int>[0],
+          ],
+          'api_damage': <Object?>[
+            <num>[1],
+          ],
+        },
+        'api_kouku': <String, Object?>{
+          'api_stage3': <String, Object?>{
+            'api_edam': <num>[1],
+          },
+        },
+        'api_air_base_attack': <Object?>[
+          <String, Object?>{
+            'api_stage3': <String, Object?>{
+              'api_edam': <num>[1],
+            },
+          },
+        ],
+        'api_opening_taisen': <String, Object?>{
+          'api_at_eflag': <int>[0],
+          'api_at_list': <int>[0],
+          'api_df_list': <Object?>[
+            <int>[0],
+          ],
+          'api_damage': <Object?>[
+            <num>[1],
+          ],
+        },
+        'api_raigeki': <String, Object?>{
+          'api_edam': <num>[1],
+        },
+      },
+      friendMain: <BattleShipSnapshot>[
+        snapshot(side: BattleSide.friend, position: 0, hp: 20),
+      ],
+      enemyMain: <BattleShipSnapshot>[
+        snapshot(side: BattleSide.enemy, position: 0, hp: 20),
+      ],
+    );
+
+    expect(result.stages.map((stage) => stage.kind), <BattleStageKind>[
+      BattleStageKind.landBaseAirAttack,
+      BattleStageKind.aerialCombat,
+      BattleStageKind.openingAntiSubmarine,
+      BattleStageKind.shelling,
+      BattleStageKind.closingTorpedo,
+    ]);
+    expect(result.enemyMain.single.currentHp, 15);
+  });
+
+  test('marks an invalid nonzero target as unconfirmed with its stage', () {
+    final result = BattleDamageParser().apply(
+      data: <String, Object?>{
+        'api_hougeki1': <String, Object?>{
+          'api_at_eflag': <int>[0],
+          'api_at_list': <int>[0],
+          'api_df_list': <Object?>[
+            <int>[9],
+          ],
+          'api_damage': <Object?>[
+            <num>[8],
+          ],
+        },
+      },
+      friendMain: <BattleShipSnapshot>[
+        snapshot(side: BattleSide.friend, position: 0, hp: 20),
+      ],
+      enemyMain: <BattleShipSnapshot>[
+        snapshot(side: BattleSide.enemy, position: 0, hp: 20),
+      ],
+    );
+
+    expect(result.isConfirmed, isFalse);
+    expect(result.issues.single.stage, 'api_hougeki1');
+    expect(result.issues.single.message, contains('target 9'));
   });
 }

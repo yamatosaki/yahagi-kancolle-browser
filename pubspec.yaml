@@ -1,4 +1,4 @@
-﻿name: yahagi_kancolle_browser
+name: yahagi_kancolle_browser
 description: "Yahagi KanColle Browser mobile client."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: ^3.12.2
@@ -47,6 +47,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.2
+  package_info_plus: ^10.2.1
 
 dev_dependencies:
   flutter_test:
@@ -60,6 +61,8 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
+  html: ^0.15.6
+  crypto: ^3.0.7
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -78,6 +81,7 @@ flutter:
     - assets/images/material/
     - assets/images/slotitem/
     - assets/images/airplane/
+    - assets/data/fcd/map.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -142,6 +146,9 @@ flutter:
     - family: HarmonyOS_Sans
       fonts:
         - asset: assets/fonts/HarmonyOS_Sans.ttf
+    - family: NotoSansJP
+      fonts:
+        - asset: assets/fonts/NotoSansJP-wght.ttf
 
 flutter_icons:
   android: true

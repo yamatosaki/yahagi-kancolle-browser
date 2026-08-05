@@ -182,10 +182,7 @@ class _NavigationOverview extends StatelessWidget {
                   label: this.context.combinedFleetType.label,
                   color: const Color(0xff70c7bc),
                 ),
-              MetaChip(
-                label: this.context.nodeTypeLabel,
-                color: const Color(0xffd4a85f),
-              ),
+              NodeTypePill(label: this.context.nodeTypeLabel),
             ],
           ),
         ],
@@ -212,12 +209,19 @@ class _BattleOverview extends StatelessWidget {
     final details = <(String, Color)>[
       if (battle.context.combinedFleetType != CombinedFleetType.none)
         (battle.context.combinedFleetType.label, const Color(0xff70c7bc)),
-      (battle.phaseLabel, const Color(0xff9db2bf)),
+      (battle.phaseLabel, battlePhaseChipColor(battle.phaseLabel)),
       if (battle.engagement > 0)
         (
           engagementLabel(battle.engagement),
           engagementChipColor(battle.engagement),
         ),
+    ];
+    final statusPills = <Widget>[
+      NodeTypePill(label: battle.context.nodeTypeLabel),
+      if (battle.airSuperiority != null)
+        AirSuperiorityPill(label: battle.airSuperiority!),
+      for (final detail in details)
+        MetaChip(label: detail.$1, color: detail.$2),
     ];
     final dropShipId = battle.dropShipMasterId ?? 0;
     final dropShipName = dropShipId > 0
@@ -230,78 +234,28 @@ class _BattleOverview extends StatelessWidget {
     ];
     return Row(
       children: [
-        Container(
-          width: phone ? 50 : 48,
-          height: phone ? 50 : 48,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: const Color(0xff243343),
-            borderRadius: BorderRadius.circular(9),
-            border: Border.all(color: const Color(0xffd4a85f)),
-          ),
-          child: Text(
-            battle.rank.label,
-            style: TextStyle(
-              color: const Color(0xffffd65c),
-              fontSize: phone ? 21 : 20,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
+        BattleRankBadge(
+          rank: battle.rank,
+          size: phone ? 50 : 48,
+          fontSize: phone ? 21 : 20,
         ),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: <Widget>[
-                  Text(
-                    battle.context.nodeLabel,
-                    style: const TextStyle(
-                      color: Color(0xffffd65c),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      enemyName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: enemyCombined ? const Color(0xffff8c78) : null,
-                        fontSize: phone ? 13 : null,
-                        fontWeight: phone ? FontWeight.w600 : FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  if (!phone) ...<Widget>[
-                    const SizedBox(width: 8),
-                    NodeTypePill(label: battle.context.nodeTypeLabel),
-                    if (battle.airSuperiority != null) ...<Widget>[
-                      const SizedBox(width: 8),
-                      AirSuperiorityPill(label: battle.airSuperiority!),
-                    ],
-                  ],
-                ],
-              ),
-              if (phone || details.isNotEmpty) ...<Widget>[
-                const SizedBox(height: 5),
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
-                  children: <Widget>[
-                    if (phone) ...<Widget>[
-                      NodeTypePill(label: battle.context.nodeTypeLabel),
-                      if (battle.airSuperiority != null)
-                        AirSuperiorityPill(label: battle.airSuperiority!),
-                    ],
-                    for (final detail in details)
-                      MetaChip(label: detail.$1, color: detail.$2),
-                  ],
+              AdaptiveBattleHeader(
+                nodeLabel: battle.context.nodeLabel,
+                enemyName: enemyName,
+                enemyStyle: TextStyle(
+                  color: enemyCombined ? const Color(0xffff8c78) : null,
+                  fontSize: phone ? 13 : null,
+                  fontWeight: phone ? FontWeight.w600 : FontWeight.w800,
                 ),
+              ),
+              if (statusPills.isNotEmpty) ...<Widget>[
+                const SizedBox(height: 5),
+                Wrap(spacing: 4, runSpacing: 4, children: statusPills),
               ],
               if (phone && dropEntries.isNotEmpty) ...<Widget>[
                 const SizedBox(height: 4),
@@ -496,9 +450,10 @@ class _BattleShipRow extends StatelessWidget {
   }
 }
 
-/// Engagement colors: T-advantage green, T-disadvantage red, others neutral.
+/// Engagement colors: ordinary engagements yellow, T outcomes semantic.
 Color engagementChipColor(int value) {
   if (value == 3) return const Color(0xff6fd3a9);
   if (value == 4) return const Color(0xffff6f68);
+  if (value == 1 || value == 2) return const Color(0xffffc95c);
   return const Color(0xff9db2bf);
 }

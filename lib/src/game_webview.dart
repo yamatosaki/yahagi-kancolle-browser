@@ -3,6 +3,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/app_localizations.dart';
 import 'audio/game_audio_controller.dart';
 import 'audio/game_audio_port.dart';
 import 'bridge/native_game_capture_script.dart';
@@ -330,7 +331,11 @@ class _GameWebViewState extends State<GameWebView> {
                   });
             },
             icon: const Icon(Icons.public),
-            label: const Text('改用系统网络重试'),
+            label: Text(
+              (AppLocalizations.of(context) ??
+                      lookupAppLocalizations(const Locale('zh')))
+                  .retryWithSystemNetwork,
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xff183631),
               foregroundColor: const Color(0xff80c8bd),

@@ -48,7 +48,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get infoPanelWidth => '情报面板宽度';
 
   @override
-  String get autoZoom => '自动缩放游戏画面 (推荐)';
+  String get autoZoom => '自动缩放游戏画面（默认推荐 65：35）';
 
   @override
   String get language => '语言 (Language)';
@@ -234,10 +234,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutApp => '关于 ヤハギ';
 
   @override
-  String get aboutSubtitle => '版本 学习版 1.0 · 免责声明 · 检查更新';
+  String get aboutSubtitle => '版本 学习版 1.0.2 · 免责声明 · 检查更新';
 
   @override
-  String get version => '版本 学习版 1.0';
+  String get version => '版本 学习版 1.0.2';
 
   @override
   String get disclaimerTitle => '免责声明 (DISCLAIMER)';
@@ -675,6 +675,369 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get fatigue => '疲劳';
+
+  @override
+  String get startupUpdateTitle => '发现新版本';
+
+  @override
+  String get backgroundAudio => '后台播放声音';
+
+  @override
+  String get backgroundAudioDesc => '开启后，应用进入后台时游戏声音仍会继续播放。';
+
+  @override
+  String get screenAwake => '屏幕常亮';
+
+  @override
+  String get screenAwakeDesc => '开启后，应用在前台期间屏幕不会自动关闭，可能增加耗电。';
+
+  @override
+  String get gameToolbar => '游戏工具栏';
+
+  @override
+  String get toolbarAutoHide => '自动隐藏';
+
+  @override
+  String get toolbarPersistent => '常驻';
+
+  @override
+  String get back => '返回';
+
+  @override
+  String get reload => '刷新';
+
+  @override
+  String get home => '回到主页';
+
+  @override
+  String get enterDmm => '进入 DMM 登录';
+
+  @override
+  String get enableGameAudio => '开启游戏声音';
+
+  @override
+  String get disableGameAudio => '关闭游戏声音';
+
+  @override
+  String get takeScreenshot => '一键截图';
+
+  @override
+  String get screenshotSaving => '正在保存游戏截图…';
+
+  @override
+  String get fitGameScreen => '修复显示（自适应屏幕）';
+
+  @override
+  String get collapseToolbar => '收起工具栏';
+
+  @override
+  String get editDone => '完成编辑';
+
+  @override
+  String get retryWithSystemNetwork => '改用系统网络重试';
+
+  @override
+  String get displayMode => '显示模式';
+
+  @override
+  String get displayAuto => '自动';
+
+  @override
+  String get displayLandscape => '横屏';
+
+  @override
+  String get displayPortrait => '竖屏';
+
+  @override
+  String get allRanks => '全部评级';
+
+  @override
+  String battleFleetSummary(
+    int friendAlive,
+    int friendTotal,
+    int enemyAlive,
+    int enemyTotal,
+  ) {
+    return '我方 $friendAlive/$friendTotal　敌方 $enemyAlive/$enemyTotal';
+  }
+
+  @override
+  String dropLabel(String name) {
+    return '掉落：$name';
+  }
+
+  @override
+  String get item => '道具';
+
+  @override
+  String get friendFinalStatus => '我方最终状态';
+
+  @override
+  String get enemyFinalStatus => '敌方最终状态';
+
+  @override
+  String airStateLabel(String label) {
+    return '制空：$label';
+  }
+
+  @override
+  String get postBattleWarningTitle => '战后安全警告';
+
+  @override
+  String get postBattleWarningHeadline => '出击舰队中存在大破舰娘！';
+
+  @override
+  String get postBattleWarningBody => '请在接下来的选择界面务必点击“撤退”，切勿强行进击以免沉船！';
+
+  @override
+  String get acknowledgeAndRetreat => '确认了解并撤退';
+
+  @override
+  String get postBattleWarningBanner => '战后安全警告：出击舰队中存在大破舰娘！请注意撤退！';
+
+  @override
+  String get noActiveExpedition => '没有正在进行的远征';
+
+  @override
+  String get noSortieWarnings => '暂无出击警告';
+
+  @override
+  String preSortieCriticalWarning(String fleetName) {
+    return '$fleetName 存在大破舰，停止出击！';
+  }
+
+  @override
+  String preSortieSupplyWarning(String fleetName) {
+    return '$fleetName 舰娘未补给';
+  }
+
+  @override
+  String preSortieFatigueWarning(String fleetName) {
+    return '$fleetName 舰娘疲劳未恢复';
+  }
+
+  @override
+  String preSortieMainEquipmentWarning(String fleetName, String shipNames) {
+    return '$fleetName 装备缺失（主装备槽）：$shipNames';
+  }
+
+  @override
+  String preSortieExtraEquipmentWarning(String fleetName, String shipNames) {
+    return '$fleetName 装备缺失（增设槽）：$shipNames';
+  }
+
+  @override
+  String get noPinnedQuests => '当前没有进行中的任务';
+
+  @override
+  String get waitingQuestData => '等待任务数据';
+
+  @override
+  String get waitingQuestDataDesc => '打开游戏任务列表后，这里会自动同步当前已接受任务';
+
+  @override
+  String get diagnosticsAndAbout => '诊断与关于';
+
+  @override
+  String get safetyBoundary => '安全边界';
+
+  @override
+  String get applyingNetworkSettings => '正在应用网络设置…';
+
+  @override
+  String networkSettingsApplied(String message) {
+    return '网络设置应用成功：$message';
+  }
+
+  @override
+  String get clearingProxy => '正在清除应用内代理…';
+
+  @override
+  String get systemNetworkRestored => '已恢复系统网络。';
+
+  @override
+  String screenshotSaved(String path) {
+    return '游戏截图已保存到相册：$path';
+  }
+
+  @override
+  String get screenshotFailed => '游戏截图失败，请稍后重试。';
+
+  @override
+  String startupUpdateMessage(String version) {
+    return 'ヤハギ $version 已发布。';
+  }
+
+  @override
+  String get gameStatusError => '游戏状态异常';
+
+  @override
+  String get gameStatusErrorDesc => '网页或捕获状态异常，请在设置中查看诊断信息。';
+
+  @override
+  String get browserOnlyCaptureOff => '纯浏览模式 · 数据捕获已关闭';
+
+  @override
+  String get browserOnlyCaptureOffDesc => '游戏网页继续运行，舰队、任务和战斗信息暂停更新。';
+
+  @override
+  String capturedCount(int count) {
+    return '已捕获 $count 条';
+  }
+
+  @override
+  String get waitingKcsapi => '等待 /kcsapi/ 响应';
+
+  @override
+  String get ignoredNonTargetMessage => '已忽略非目标消息';
+
+  @override
+  String get readOnlyNoActions => '只读取，不操作';
+
+  @override
+  String get readOnlyNoActionsDesc => '不会自动点击、补给、编成、出击或领取任务。';
+
+  @override
+  String get noCookieRead => '不读取 Cookie';
+
+  @override
+  String get noCookieReadDesc => 'JS 桥接消息只包含接口路径、响应正文和时间。';
+
+  @override
+  String get browserIdle => '等待网页';
+
+  @override
+  String get browserLoading => '网页加载中';
+
+  @override
+  String get browserReady => '网页已就绪';
+
+  @override
+  String get browserFailed => '网页加载失败';
+
+  @override
+  String get capturePreparing => '正在准备游戏接口捕获';
+
+  @override
+  String get captureReady => '捕获已就绪';
+
+  @override
+  String get captureActive => '正在捕获游戏接口';
+
+  @override
+  String get captureUnsupported => '当前 WebView 不支持跨框架捕获';
+
+  @override
+  String get captureFailed => '游戏接口捕获启动失败';
+
+  @override
+  String get captureCheckingDesc => '正在检查 Android WebView 捕获能力。';
+
+  @override
+  String get captureReadyDesc => '等待 /kcsapi/ 响应，游戏仍可正常操作。';
+
+  @override
+  String get portCaptureVerified => '母港接口验证通过';
+
+  @override
+  String get captureReceived => '已经收到游戏接口。';
+
+  @override
+  String captureLatest(String path) {
+    return '最近一次捕获：$path';
+  }
+
+  @override
+  String get captureUnsupportedDesc => '游戏仍可运行；当前设备只提供网页浏览。';
+
+  @override
+  String get captureFailedDesc => '游戏仍可运行，可刷新页面后重试。';
+
+  @override
+  String networkApplyFailed(String code, String message) {
+    return '设置失败 [$code]：$message';
+  }
+
+  @override
+  String networkRestoreFailed(String code, String message) {
+    return '恢复失败 [$code]：$message';
+  }
+
+  @override
+  String get tcpConnection => 'TCP 连接';
+
+  @override
+  String get gameService => '游戏服务';
+
+  @override
+  String get externalNetwork => 'Google（外网）';
+
+  @override
+  String get statusUnknown => '未知';
+
+  @override
+  String get statusSuccess => '成功';
+
+  @override
+  String get statusFailed => '失败';
+
+  @override
+  String get statusSkipped => '跳过';
+
+  @override
+  String get formula33 => '33式';
+
+  @override
+  String fatigueValue(int value) {
+    return '疲劳 $value';
+  }
+
+  @override
+  String get fcdMapSectionTitle => '数据更新';
+
+  @override
+  String get fcdMapDataTitle => '未卜先知数据';
+
+  @override
+  String fcdMapDataVersion(String version) {
+    return '数据版本：$version';
+  }
+
+  @override
+  String fcdMapLastChecked(String time) {
+    return '上次检查：$time';
+  }
+
+  @override
+  String get fcdMapNeverChecked => '上次检查：尚未检查';
+
+  @override
+  String fcdMapSource(String source) {
+    return '更新源：$source';
+  }
+
+  @override
+  String get fcdMapAttribution => '数据来源：poi FCD（MIT）';
+
+  @override
+  String get fcdMapCheckUpdates => '检查未卜先知数据更新';
+
+  @override
+  String get fcdMapUpToDate => '未卜先知数据已经是最新版本。';
+
+  @override
+  String fcdMapUpdated(String oldVersion, String newVersion) {
+    return '未卜先知数据已从 $oldVersion 更新至 $newVersion，已立即生效。';
+  }
+
+  @override
+  String get fcdMapNetworkError => '未能连接数据更新源，请稍后重试。';
+
+  @override
+  String get fcdMapValidationError => '下载的数据未通过校验，已保留当前版本。';
+
+  @override
+  String get fcdMapStorageError => '数据保存失败，已保留当前版本。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -721,7 +1084,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get infoPanelWidth => '情報面板寬度';
 
   @override
-  String get autoZoom => '自動縮放遊戲畫面 (推薦)';
+  String get autoZoom => '自動縮放遊戲畫面（預設推薦 65：35）';
 
   @override
   String get language => '語言 (Language)';
@@ -907,10 +1270,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get aboutApp => '關於 ヤハギ';
 
   @override
-  String get aboutSubtitle => '版本 學習版 1.0 · 免責聲明 · 檢查更新';
+  String get aboutSubtitle => '版本 學習版 1.0.2 · 免責聲明 · 檢查更新';
 
   @override
-  String get version => '版本 學習版 1.0';
+  String get version => '版本 學習版 1.0.2';
 
   @override
   String get disclaimerTitle => '免責聲明 (DISCLAIMER)';
@@ -1281,7 +1644,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get langJa => '日本語';
 
   @override
-  String get node => '点';
+  String get node => '點';
 
   @override
   String get friend => '我方';
@@ -1348,4 +1711,367 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get fatigue => '疲勞';
+
+  @override
+  String get startupUpdateTitle => '發現新版本';
+
+  @override
+  String get backgroundAudio => '背景播放聲音';
+
+  @override
+  String get backgroundAudioDesc => '開啟後，應用程式進入背景時遊戲聲音仍會繼續播放。';
+
+  @override
+  String get screenAwake => '螢幕保持開啟';
+
+  @override
+  String get screenAwakeDesc => '開啟後，應用程式位於前景時螢幕不會自動關閉，可能增加耗電。';
+
+  @override
+  String get gameToolbar => '遊戲工具列';
+
+  @override
+  String get toolbarAutoHide => '自動隱藏';
+
+  @override
+  String get toolbarPersistent => '常駐';
+
+  @override
+  String get back => '返回';
+
+  @override
+  String get reload => '重新整理';
+
+  @override
+  String get home => '返回首頁';
+
+  @override
+  String get enterDmm => '進入 DMM 登入';
+
+  @override
+  String get enableGameAudio => '開啟遊戲聲音';
+
+  @override
+  String get disableGameAudio => '關閉遊戲聲音';
+
+  @override
+  String get takeScreenshot => '遊戲截圖';
+
+  @override
+  String get screenshotSaving => '正在儲存遊戲截圖…';
+
+  @override
+  String get fitGameScreen => '修正顯示（自動適應螢幕）';
+
+  @override
+  String get collapseToolbar => '收起工具列';
+
+  @override
+  String get editDone => '完成編輯';
+
+  @override
+  String get retryWithSystemNetwork => '改用系統網路重試';
+
+  @override
+  String get displayMode => '顯示模式';
+
+  @override
+  String get displayAuto => '自動';
+
+  @override
+  String get displayLandscape => '橫向';
+
+  @override
+  String get displayPortrait => '直向';
+
+  @override
+  String get allRanks => '全部評級';
+
+  @override
+  String battleFleetSummary(
+    int friendAlive,
+    int friendTotal,
+    int enemyAlive,
+    int enemyTotal,
+  ) {
+    return '我方 $friendAlive/$friendTotal　敵方 $enemyAlive/$enemyTotal';
+  }
+
+  @override
+  String dropLabel(String name) {
+    return '掉落：$name';
+  }
+
+  @override
+  String get item => '道具';
+
+  @override
+  String get friendFinalStatus => '我方最終狀態';
+
+  @override
+  String get enemyFinalStatus => '敵方最終狀態';
+
+  @override
+  String airStateLabel(String label) {
+    return '制空：$label';
+  }
+
+  @override
+  String get postBattleWarningTitle => '戰後安全警告';
+
+  @override
+  String get postBattleWarningHeadline => '出擊艦隊中有大破艦娘！';
+
+  @override
+  String get postBattleWarningBody => '請務必在接下來的選擇畫面點選「撤退」，切勿強行進擊以免沉船！';
+
+  @override
+  String get acknowledgeAndRetreat => '確認並撤退';
+
+  @override
+  String get postBattleWarningBanner => '戰後安全警告：出擊艦隊中有大破艦娘！請注意撤退！';
+
+  @override
+  String get noActiveExpedition => '沒有正在進行的遠征';
+
+  @override
+  String get noSortieWarnings => '暫無出擊警告';
+
+  @override
+  String preSortieCriticalWarning(String fleetName) {
+    return '$fleetName 存在大破艦，停止出擊！';
+  }
+
+  @override
+  String preSortieSupplyWarning(String fleetName) {
+    return '$fleetName 艦娘尚未補給';
+  }
+
+  @override
+  String preSortieFatigueWarning(String fleetName) {
+    return '$fleetName 艦娘疲勞尚未恢復';
+  }
+
+  @override
+  String preSortieMainEquipmentWarning(String fleetName, String shipNames) {
+    return '$fleetName 裝備缺失（主裝備欄）：$shipNames';
+  }
+
+  @override
+  String preSortieExtraEquipmentWarning(String fleetName, String shipNames) {
+    return '$fleetName 裝備缺失（增設欄）：$shipNames';
+  }
+
+  @override
+  String get noPinnedQuests => '目前沒有進行中的任務';
+
+  @override
+  String get waitingQuestData => '等待任務資料';
+
+  @override
+  String get waitingQuestDataDesc => '開啟遊戲任務列表後，這裡會自動同步目前已接受的任務';
+
+  @override
+  String get diagnosticsAndAbout => '診斷與關於';
+
+  @override
+  String get safetyBoundary => '安全界線';
+
+  @override
+  String get applyingNetworkSettings => '正在套用網路設定…';
+
+  @override
+  String networkSettingsApplied(String message) {
+    return '網路設定套用成功：$message';
+  }
+
+  @override
+  String get clearingProxy => '正在清除應用程式內代理…';
+
+  @override
+  String get systemNetworkRestored => '已恢復系統網路。';
+
+  @override
+  String screenshotSaved(String path) {
+    return '遊戲截圖已儲存至相簿：$path';
+  }
+
+  @override
+  String get screenshotFailed => '遊戲截圖失敗，請稍後再試。';
+
+  @override
+  String startupUpdateMessage(String version) {
+    return 'ヤハギ $version 已發布。';
+  }
+
+  @override
+  String get gameStatusError => '遊戲狀態異常';
+
+  @override
+  String get gameStatusErrorDesc => '網頁或擷取狀態異常，請在設定中查看診斷資訊。';
+
+  @override
+  String get browserOnlyCaptureOff => '純瀏覽模式 · 資料擷取已關閉';
+
+  @override
+  String get browserOnlyCaptureOffDesc => '遊戲網頁繼續運行，艦隊、任務和戰鬥資訊暫停更新。';
+
+  @override
+  String capturedCount(int count) {
+    return '已擷取 $count 條';
+  }
+
+  @override
+  String get waitingKcsapi => '等待 /kcsapi/ 回應';
+
+  @override
+  String get ignoredNonTargetMessage => '已忽略非目標訊息';
+
+  @override
+  String get readOnlyNoActions => '只讀取，不操作';
+
+  @override
+  String get readOnlyNoActionsDesc => '不會自動點擊、補給、編成、出擊或領取任務。';
+
+  @override
+  String get noCookieRead => '不讀取 Cookie';
+
+  @override
+  String get noCookieReadDesc => 'JS 橋接訊息只包含介面路徑、回應本文和時間。';
+
+  @override
+  String get browserIdle => '等待網頁';
+
+  @override
+  String get browserLoading => '網頁載入中';
+
+  @override
+  String get browserReady => '網頁已就緒';
+
+  @override
+  String get browserFailed => '網頁載入失敗';
+
+  @override
+  String get capturePreparing => '正在準備遊戲介面擷取';
+
+  @override
+  String get captureReady => '擷取已就緒';
+
+  @override
+  String get captureActive => '正在擷取遊戲介面';
+
+  @override
+  String get captureUnsupported => '目前 WebView 不支援跨框架擷取';
+
+  @override
+  String get captureFailed => '遊戲介面擷取啟動失敗';
+
+  @override
+  String get captureCheckingDesc => '正在檢查 Android WebView 擷取能力。';
+
+  @override
+  String get captureReadyDesc => '等待 /kcsapi/ 回應，遊戲仍可正常操作。';
+
+  @override
+  String get portCaptureVerified => '母港介面驗證通過';
+
+  @override
+  String get captureReceived => '已經收到遊戲介面。';
+
+  @override
+  String captureLatest(String path) {
+    return '最近一次擷取：$path';
+  }
+
+  @override
+  String get captureUnsupportedDesc => '遊戲仍可運行；目前裝置只提供網頁瀏覽。';
+
+  @override
+  String get captureFailedDesc => '遊戲仍可運行，可重新整理頁面後重試。';
+
+  @override
+  String networkApplyFailed(String code, String message) {
+    return '設定失敗 [$code]：$message';
+  }
+
+  @override
+  String networkRestoreFailed(String code, String message) {
+    return '恢復失敗 [$code]：$message';
+  }
+
+  @override
+  String get tcpConnection => 'TCP 連線';
+
+  @override
+  String get gameService => '遊戲服務';
+
+  @override
+  String get externalNetwork => 'Google（外網）';
+
+  @override
+  String get statusUnknown => '未知';
+
+  @override
+  String get statusSuccess => '成功';
+
+  @override
+  String get statusFailed => '失敗';
+
+  @override
+  String get statusSkipped => '略過';
+
+  @override
+  String get formula33 => '33式';
+
+  @override
+  String fatigueValue(int value) {
+    return '疲勞 $value';
+  }
+
+  @override
+  String get fcdMapSectionTitle => '資料更新';
+
+  @override
+  String get fcdMapDataTitle => '未卜先知資料';
+
+  @override
+  String fcdMapDataVersion(String version) {
+    return '資料版本：$version';
+  }
+
+  @override
+  String fcdMapLastChecked(String time) {
+    return '上次檢查：$time';
+  }
+
+  @override
+  String get fcdMapNeverChecked => '上次檢查：尚未檢查';
+
+  @override
+  String fcdMapSource(String source) {
+    return '更新來源：$source';
+  }
+
+  @override
+  String get fcdMapAttribution => '資料來源：poi FCD（MIT）';
+
+  @override
+  String get fcdMapCheckUpdates => '檢查未卜先知資料更新';
+
+  @override
+  String get fcdMapUpToDate => '未卜先知資料已是最新版本。';
+
+  @override
+  String fcdMapUpdated(String oldVersion, String newVersion) {
+    return '未卜先知資料已從 $oldVersion 更新至 $newVersion，並已立即生效。';
+  }
+
+  @override
+  String get fcdMapNetworkError => '無法連線至資料更新來源，請稍後再試。';
+
+  @override
+  String get fcdMapValidationError => '下載的資料未通過驗證，已保留目前版本。';
+
+  @override
+  String get fcdMapStorageError => '資料儲存失敗，已保留目前版本。';
 }

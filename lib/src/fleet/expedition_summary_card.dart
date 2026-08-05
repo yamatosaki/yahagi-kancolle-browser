@@ -47,7 +47,9 @@ class ExpeditionSummaryCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Center(
                     child: Text(
-                      '没有正在进行的远征',
+                      (AppLocalizations.of(context) ??
+                              lookupAppLocalizations(const Locale('zh')))
+                          .noActiveExpedition,
                       style: _expeditionSummaryTextStyle.copyWith(
                         color: const Color(0xff8197a5),
                       ),

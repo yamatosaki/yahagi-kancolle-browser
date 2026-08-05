@@ -19,6 +19,8 @@ import 'package:yahagi_kancolle_browser/src/settings/safety_settings_controller.
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_browser_controller.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_toolbar_controller.dart';
+import 'package:yahagi_kancolle_browser/src/browser/game_toolbar_display_controller.dart';
+import 'package:yahagi_kancolle_browser/src/browser/game_screenshot_controller.dart';
 import 'package:yahagi_kancolle_browser/src/bridge/captured_api_event.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode_controller.dart';
@@ -33,7 +35,7 @@ void main() {
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(1024, 1024);
+    tester.view.physicalSize = const Size(1200, 700);
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
     final captureModeController = await CaptureModeController.load(
@@ -54,6 +56,12 @@ void main() {
     final browserController = GameBrowserController(port: _NoopBrowserPort());
     final audioController = await GameAudioController.load(_MemoryAudioStore());
     final toolbarController = GameToolbarController();
+    final toolbarDisplayController = await GameToolbarDisplayController.load(
+      _MemoryToolbarDisplayStore(),
+    );
+    final gameScreenshotController = GameScreenshotController(
+      _FakeScreenshotPort(),
+    );
     final gameCaptureController = GameCaptureController();
     final gameStateController = GameStateController();
     final battleController = BattleController(
@@ -79,6 +87,8 @@ void main() {
         captureModeController: captureModeController,
         audioController: audioController,
         toolbarController: toolbarController,
+        toolbarDisplayController: toolbarDisplayController,
+        gameScreenshotController: gameScreenshotController,
         gameCaptureController: gameCaptureController,
         gameStateController: gameStateController,
         battleController: battleController,
@@ -94,6 +104,19 @@ void main() {
     expect(gameSize.width / gameSize.height, closeTo(1200 / 720, 0.001));
     final panel = find.byKey(const Key('information-panel'));
     expect(panel, findsOneWidget);
+    final workspaceWidth = tester
+        .getSize(find.byKey(const Key('game-workspace')))
+        .width;
+    final panelWidth = tester.getSize(panel).width;
+    expect(panelWidth / workspaceWidth, closeTo(0.5, 0.015));
+    for (final informationRatio in <double>[0.25, 0.37, 0.5]) {
+      await layoutSettingsController.setGameAreaRatio(1 - informationRatio);
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSize(panel).width / workspaceWidth,
+        closeTo(informationRatio, 0.015),
+      );
+    }
     expect(find.text('功能面板'), findsNothing);
     expect(find.text('编辑顺序'), findsNothing);
     await tester.longPress(find.byKey(const ValueKey('fleet')));
@@ -119,12 +142,52 @@ void main() {
     expect(find.byKey(const Key('browser-home')), findsOneWidget);
     expect(find.byKey(const Key('game-browser-overlay')), findsOneWidget);
     expect(find.byKey(const Key('game-audio-toggle')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('browser-screenshot')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('yahagi-test.png'), findsOneWidget);
+    ScaffoldMessenger.of(
+      tester.element(find.byType(Scaffold).first),
+    ).hideCurrentSnackBar();
+    await tester.pumpAndSettle();
+    await toolbarDisplayController.setMode(GameToolbarDisplayMode.persistent);
+    await tester.pumpAndSettle();
+    final persistentLayout = find.byKey(
+      const Key('persistent-game-toolbar-layout'),
+    );
+    expect(persistentLayout, findsOneWidget);
+    expect(find.byKey(const Key('game-browser-overlay')), findsNothing);
+    expect(
+      tester.getTopLeft(persistentLayout).dy,
+      closeTo(tester.getTopLeft(panel).dy, 0.1),
+    );
+    expect(
+      tester.getSize(persistentLayout).width + tester.getSize(panel).width,
+      lessThanOrEqualTo(workspaceWidth),
+    );
     await tester.tap(find.byKey(const Key('workspace-nav-settings')));
     await tester.pumpAndSettle();
 
+    final settingsLabelX = tester
+        .getTopLeft(find.byKey(const Key('settings-language-label')))
+        .dx;
+    expect(
+      tester.getTopLeft(find.byKey(const Key('settings-auto-zoom-label'))).dx,
+      closeTo(settingsLabelX, 0.1),
+    );
+    expect(find.text('自动缩放游戏画面（默认推荐 65：35）'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('settings-logout-label')));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(find.byKey(const Key('settings-logout-label'))).dx,
+      closeTo(settingsLabelX, 0.1),
+    );
+
     expect(find.text('游戏模式（默认）'), findsOneWidget);
     expect(find.text('纯浏览模式'), findsOneWidget);
-    expect(find.text('捕获已就绪', skipOffstage: false), findsOneWidget);
+    expect(find.text('后台播放声音'), findsOneWidget);
+    expect(find.text('关于 ヤハギ', skipOffstage: false), findsWidgets);
+    expect(find.text('诊断与关于', skipOffstage: false), findsNothing);
+    expect(find.text('安全边界', skipOffstage: false), findsNothing);
     await tester.tap(find.byKey(const Key('workspace-nav-game')));
     await tester.pumpAndSettle();
     expect(find.text('资源'), findsNothing);
@@ -188,6 +251,7 @@ void main() {
         gameCaptureController: gameCaptureController,
         gameStateController: gameStateController,
         battleController: battleController,
+        showDeveloperDiagnostics: true,
         gameSurface: const ColoredBox(color: Colors.black),
       ),
     );
@@ -250,6 +314,7 @@ void main() {
         gameCaptureController: gameCaptureController,
         gameStateController: gameStateController,
         battleController: battleController,
+        showDeveloperDiagnostics: true,
         audioController: await GameAudioController.load(_MemoryAudioStore()),
         toolbarController: toolbarController,
         gameSurface: const ColoredBox(
@@ -312,6 +377,7 @@ void main() {
         gameCaptureController: gameCaptureController,
         gameStateController: gameStateController,
         battleController: battleController,
+        showDeveloperDiagnostics: true,
         audioController: await GameAudioController.load(_MemoryAudioStore()),
         toolbarController: toolbarController,
         gameSurface: const ColoredBox(color: Colors.black),
@@ -457,6 +523,7 @@ class _LifecycleProbeState extends State<_LifecycleProbe> {
 
 final class _MemoryAudioStore implements GameAudioStore {
   bool? savedMuted;
+  bool? savedBackgroundPlayback;
 
   @override
   Future<bool?> readMuted() async => savedMuted;
@@ -464,6 +531,15 @@ final class _MemoryAudioStore implements GameAudioStore {
   @override
   Future<void> writeMuted(bool muted) async {
     savedMuted = muted;
+  }
+
+  @override
+  Future<bool?> readBackgroundPlaybackEnabled() async =>
+      savedBackgroundPlayback;
+
+  @override
+  Future<void> writeBackgroundPlaybackEnabled(bool enabled) async {
+    savedBackgroundPlayback = enabled;
   }
 }
 
@@ -546,6 +622,21 @@ class _MemoryLayoutSettingsStore implements LayoutSettingsStore {
 
   @override
   Future<void> saveLocaleCode(String? value) async {}
+}
+
+final class _MemoryToolbarDisplayStore implements GameToolbarDisplayStore {
+  GameToolbarDisplayMode? value;
+
+  @override
+  Future<GameToolbarDisplayMode?> read() async => value;
+
+  @override
+  Future<void> write(GameToolbarDisplayMode mode) async => value = mode;
+}
+
+final class _FakeScreenshotPort implements GameScreenshotPort {
+  @override
+  Future<String> captureWebView() async => '/pictures/yahagi-test.png';
 }
 
 final class _MemoryNetworkSettingsStore implements NetworkSettingsStore {

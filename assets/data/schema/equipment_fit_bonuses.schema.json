@@ -1,0 +1,192 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/anomalyco/yahagi-kancolle-browser/blob/main/assets/data/schema/equipment_fit_bonuses.schema.json",
+  "title": "Equipment Fit Bonus Dataset",
+  "description": "Normalized equipment fit bonus rules extracted from akashi-list.me, cross-checked against wikiwiki.jp/kancolle and ElectronicObserverEN/Data.",
+  "type": "object",
+  "required": ["schemaVersion", "datasetVersion", "sourceName", "secondarySources", "rules"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "datasetVersion": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}\\.\\d+$" },
+    "sourceName": { "type": "string", "const": "akashi-list.me" },
+    "secondarySources": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "rules": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/rule" }
+    }
+  },
+  "definitions": {
+    "statBonus": {
+      "type": "object",
+      "properties": {
+        "firepower": { "type": "integer" },
+        "torpedo": { "type": "integer" },
+        "antiAir": { "type": "integer" },
+        "evasion": { "type": "integer" },
+        "accuracy": { "type": "integer" },
+        "armor": { "type": "integer" },
+        "antiSubmarine": { "type": "integer" },
+        "lineOfSight": { "type": "integer" },
+        "bombing": { "type": "integer" },
+        "range": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "compactStatMap": {
+      "type": "object",
+      "additionalProperties": { "type": "integer" }
+    },
+    "shipCondition": {
+      "type": "object",
+      "required": ["shipIds", "baseShipIds", "classIds", "shipTypeIds", "nationalityIds"],
+      "properties": {
+        "shipIds": { "type": "array", "items": { "type": "integer" } },
+        "baseShipIds": { "type": "array", "items": { "type": "integer" } },
+        "classIds": { "type": "array", "items": { "type": "integer" } },
+        "shipTypeIds": { "type": "array", "items": { "type": "integer" } },
+        "nationalityIds": { "type": "array", "items": { "type": "integer" } }
+      },
+      "additionalProperties": false
+    },
+    "equipmentCondition": {
+      "type": "object",
+      "required": ["minImprovement", "maxImprovement"],
+      "properties": {
+        "minImprovement": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "maxImprovement": { "type": "integer", "minimum": 0, "maximum": 10 }
+      },
+      "additionalProperties": false
+    },
+    "equipmentPredicate": {
+      "type": "object",
+      "properties": {
+        "lineOfSightGte": { "type": "integer" },
+        "antiAirGte": { "type": "integer" },
+        "improvementGte": { "type": "integer" },
+        "itemIds": { "type": "array", "items": { "type": "integer" } },
+        "typeIds": { "type": "array", "items": { "type": "integer" } }
+      },
+      "additionalProperties": false
+    },
+    "requirement": {
+      "type": "object",
+      "required": ["kind", "minCount", "predicate"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["equipmentPredicate", "equipment"] },
+        "minCount": { "type": "integer", "minimum": 1 },
+        "predicate": { "$ref": "#/definitions/equipmentPredicate" },
+        "sourceLabel": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "perEquipmentEffect": {
+      "type": "object",
+      "required": ["mode", "bonus"],
+      "properties": {
+        "mode": { "type": "string", "const": "perEquipment" },
+        "bonus": { "$ref": "#/definitions/statBonus" }
+      },
+      "additionalProperties": false
+    },
+    "onceEffect": {
+      "type": "object",
+      "required": ["mode", "bonus"],
+      "properties": {
+        "mode": { "type": "string", "const": "once" },
+        "bonus": { "$ref": "#/definitions/statBonus" }
+      },
+      "additionalProperties": false
+    },
+    "countTableEffect": {
+      "type": "object",
+      "required": ["mode", "increments", "byCount", "overflow"],
+      "properties": {
+        "mode": { "type": "string", "const": "countTable" },
+        "increments": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/compactStatMap" }
+        },
+        "byCount": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/compactStatMap" }
+        },
+        "overflow": { "type": "string", "enum": ["unresolved", "repeat", "cap"] }
+      },
+      "additionalProperties": false
+    },
+    "improvementTableEffect": {
+      "type": "object",
+      "required": ["mode", "byStar"],
+      "properties": {
+        "mode": { "type": "string", "const": "improvementTable" },
+        "byStar": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/compactStatMap" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "unresolvedEffect": {
+      "type": "object",
+      "required": ["mode", "note"],
+      "properties": {
+        "mode": { "type": "string", "const": "unresolved" },
+        "note": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "effect": {
+      "oneOf": [
+        { "$ref": "#/definitions/perEquipmentEffect" },
+        { "$ref": "#/definitions/onceEffect" },
+        { "$ref": "#/definitions/countTableEffect" },
+        { "$ref": "#/definitions/improvementTableEffect" },
+        { "$ref": "#/definitions/unresolvedEffect" }
+      ]
+    },
+    "source": {
+      "type": "object",
+      "required": ["url", "pageName", "fetchedAt", "httpLastModified", "contentSha256", "fragmentHash", "sourceGroupLabel", "rawEffect"],
+      "properties": {
+        "url": { "type": "string", "pattern": "^https://akashi-list\\.me/detail/w\\d+\\.html$" },
+        "pageName": { "type": "string" },
+        "fetchedAt": { "type": "string" },
+        "httpLastModified": { "type": ["string", "null"] },
+        "contentSha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "fragmentHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "sourceGroupLabel": { "type": "string" },
+        "rawEffect": { "type": "string" },
+        "rawCondition": { "type": ["string", "null"] },
+        "annotation": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "rule": {
+      "type": "object",
+      "required": ["ruleId", "equipment", "category", "shipCondition", "equipmentCondition", "requires", "effect", "source"],
+      "properties": {
+        "ruleId": { "type": "string", "pattern": "^akashi-\\d+-(single|count|synergy|improvement)-\\d{3}$" },
+        "equipment": {
+          "type": "object",
+          "required": ["ids", "typeIds"],
+          "properties": {
+            "ids": { "type": "array", "items": { "type": "integer" } },
+            "typeIds": { "type": "array", "items": { "type": "integer" } }
+          },
+          "additionalProperties": false
+        },
+        "category": { "type": "string", "enum": ["single", "count", "synergy", "improvement"] },
+        "shipCondition": { "$ref": "#/definitions/shipCondition" },
+        "equipmentCondition": { "$ref": "#/definitions/equipmentCondition" },
+        "requires": { "type": "array", "items": { "$ref": "#/definitions/requirement" } },
+        "effect": { "$ref": "#/definitions/effect" },
+        "notes": { "type": "array", "items": { "type": "string" } },
+        "source": { "$ref": "#/definitions/source" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

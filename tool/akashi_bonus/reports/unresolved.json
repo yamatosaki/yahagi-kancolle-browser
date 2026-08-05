@@ -1,0 +1,39 @@
+{
+  "count": 4,
+  "blocking": 0,
+  "items": [
+    {
+      "equipmentId": 338,
+      "kind": "target",
+      "detail": "fit #2 token \"赤城型改二/護\": unknown target token",
+      "rawHtmlHash": "sha256:ea5435fd95e34945838f3f621b69f937f54cd0c874d70c11a12dfc28b35fe03f",
+      "sourceGroupLabel": "赤城型改二/護",
+      "resolvedByOverride": true
+    },
+    {
+      "equipmentId": 339,
+      "kind": "target",
+      "detail": "fit #2 token \"赤城型改二/護\": unknown target token",
+      "rawHtmlHash": "sha256:910084e4636bdf888479c0a5c26647cedcad81fdfa683d26e99805b3996727a8",
+      "sourceGroupLabel": "赤城型改二/護",
+      "resolvedByOverride": true
+    },
+    {
+      "equipmentId": 362,
+      "kind": "countGate",
+      "detail": "fit #3 block #1 unsupported count gate: デメリット大",
+      "rawHtmlHash": "sha256:4bea92e379248f5b6d70cbb0bef8350dfae7c1cf35e40d0f3112e5d153dcc9d6",
+      "rawEffect": "",
+      "sourceGroupLabel": "その他軽巡・雷巡・練巡",
+      "resolvedByOverride": true
+    },
+    {
+      "equipmentId": 408,
+      "kind": "target",
+      "detail": "fit #3 token \"大発駆逐艦\": unknown target token",
+      "rawHtmlHash": "sha256:c5f2f0c03c6ea5ff9825f2d0acd82a1d43ffb7c21dbb572a0c8d1f3322a0ed92",
+      "sourceGroupLabel": "大発駆逐艦",
+      "resolvedByOverride": true
+    }
+  ]
+}

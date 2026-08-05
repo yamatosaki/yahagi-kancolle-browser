@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../bridge/captured_api_event.dart';
 import '../battle/battle_controller.dart';
 import '../battle/battle_models.dart';
@@ -147,28 +148,31 @@ class _BattleResultWarningOverlayState
       context: context,
       barrierDismissible: false,
       builder: (context) {
+        final l10n =
+            AppLocalizations.of(context) ??
+            lookupAppLocalizations(const Locale('zh'));
         return AlertDialog(
           backgroundColor: const Color(0xff122431),
-          title: const Text(
-            '战后安全警告',
-            style: TextStyle(color: Color(0xffd4a85f)),
+          title: Text(
+            l10n.postBattleWarningTitle,
+            style: const TextStyle(color: Color(0xffd4a85f)),
           ),
-          content: const Column(
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '出击舰队中存在大破舰娘！',
-                style: TextStyle(
+                l10n.postBattleWarningHeadline,
+                style: const TextStyle(
                   color: Colors.redAccent,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
-                '请在接下来的选择界面务必点击“撤退”，切勿强行进击以免沉船！',
-                style: TextStyle(color: Colors.white70),
+                l10n.postBattleWarningBody,
+                style: const TextStyle(color: Colors.white70),
               ),
             ],
           ),
@@ -178,7 +182,7 @@ class _BattleResultWarningOverlayState
               style: TextButton.styleFrom(
                 foregroundColor: const Color(0xff4B9FD5),
               ),
-              child: const Text('确认了解并撤退'),
+              child: Text(l10n.acknowledgeAndRetreat),
             ),
           ],
         );
@@ -241,10 +245,12 @@ class _FlashingReminderState extends State<_FlashingReminder>
               ),
             ],
           ),
-          child: const Text(
-            '战后安全警告：出击舰队中存在大破舰娘！请注意撤退！',
+          child: Text(
+            (AppLocalizations.of(context) ??
+                    lookupAppLocalizations(const Locale('zh')))
+                .postBattleWarningBanner,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 16,
               fontWeight: FontWeight.bold,

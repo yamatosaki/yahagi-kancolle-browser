@@ -36,12 +36,17 @@ class PinnedQuestsSummary extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (pinnedQuests.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 4),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Center(
                     child: Text(
-                      '当前没有进业任务',
-                      style: TextStyle(color: Color(0xff8197a5), fontSize: 13),
+                      (AppLocalizations.of(context) ??
+                              lookupAppLocalizations(const Locale('zh')))
+                          .noPinnedQuests,
+                      style: const TextStyle(
+                        color: Color(0xff8197a5),
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 )

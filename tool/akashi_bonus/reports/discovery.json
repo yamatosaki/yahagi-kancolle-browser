@@ -1,0 +1,2876 @@
+{
+  "entryUrl": "https://akashi-list.me/",
+  "fetchedAt": "2026-08-05T20:43:15.822751",
+  "homepageSha256": "sha256:e450505ce81d27c05fade9fd2838562db3d3d1619ab5fade157ca2a493a06121",
+  "discoveredEquipment": 573,
+  "detailsFetched": 0,
+  "detailsWithBonus": 0,
+  "detailsWithoutBonus": 0,
+  "items": [
+    {
+      "equipmentId": 1,
+      "name": "12cm単装砲",
+      "detailUrl": "https://akashi-list.me/detail/w1.html"
+    },
+    {
+      "equipmentId": 2,
+      "name": "12.7cm連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w2.html"
+    },
+    {
+      "equipmentId": 3,
+      "name": "10cm連装高角砲",
+      "detailUrl": "https://akashi-list.me/detail/w3.html"
+    },
+    {
+      "equipmentId": 4,
+      "name": "14cm単装砲",
+      "detailUrl": "https://akashi-list.me/detail/w4.html"
+    },
+    {
+      "equipmentId": 5,
+      "name": "15.5cm三連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w5.html"
+    },
+    {
+      "equipmentId": 6,
+      "name": "20.3cm連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w6.html"
+    },
+    {
+      "equipmentId": 7,
+      "name": "35.6cm連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w7.html"
+    },
+    {
+      "equipmentId": 8,
+      "name": "41cm連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w8.html"
+    },
+    {
+      "equipmentId": 9,
+      "name": "46cm三連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w9.html"
+    },
+    {
+      "equipmentId": 10,
+      "name": "12.7cm連装高角砲",
+      "detailUrl": "https://akashi-list.me/detail/w10.html"
+    },
+    {
+      "equipmentId": 11,
+      "name": "15.2cm単装砲",
+      "detailUrl": "https://akashi-list.me/detail/w11.html"
+    },
+    {
+      "equipmentId": 12,
+      "name": "15.5cm三連装副砲",
+      "detailUrl": "https://akashi-list.me/detail/w12.html"
+    },
+    {
+      "equipmentId": 13,
+      "name": "61cm三連装魚雷",
+      "detailUrl": "https://akashi-list.me/detail/w13.html"
+    },
+    {
+      "equipmentId": 14,
+      "name": "61cm四連装魚雷",
+      "detailUrl": "https://akashi-list.me/detail/w14.html"
+    },
+    {
+      "equipmentId": 15,
+      "name": "61cm四連装(酸素)魚雷",
+      "detailUrl": "https://akashi-list.me/detail/w15.html"
+    },
+    {
+      "equipmentId": 16,
+      "name": "九七式艦攻",
+      "detailUrl": "https://akashi-list.me/detail/w16.html"
+    },
+    {
+      "equipmentId": 17,
+      "name": "天山",
+      "detailUrl": "https://akashi-list.me/detail/w17.html"
+    },
+    {
+      "equipmentId": 18,
+      "name": "流星",
+      "detailUrl": "https://akashi-list.me/detail/w18.html"
+    },
+    {
+      "equipmentId": 19,
+      "name": "九六式艦戦",
+      "detailUrl": "https://akashi-list.me/detail/w19.html"
+    },
+    {
+      "equipmentId": 20,
+      "name": "零式艦戦21型",
+      "detailUrl": "https://akashi-list.me/detail/w20.html"
+    },
+    {
+      "equipmentId": 21,
+      "name": "零式艦戦52型",
+      "detailUrl": "https://akashi-list.me/detail/w21.html"
+    },
+    {
+      "equipmentId": 22,
+      "name": "試製烈風 後期型",
+      "detailUrl": "https://akashi-list.me/detail/w22.html"
+    },
+    {
+      "equipmentId": 23,
+      "name": "九九式艦爆",
+      "detailUrl": "https://akashi-list.me/detail/w23.html"
+    },
+    {
+      "equipmentId": 24,
+      "name": "彗星",
+      "detailUrl": "https://akashi-list.me/detail/w24.html"
+    },
+    {
+      "equipmentId": 25,
+      "name": "零式水上偵察機",
+      "detailUrl": "https://akashi-list.me/detail/w25.html"
+    },
+    {
+      "equipmentId": 26,
+      "name": "瑞雲",
+      "detailUrl": "https://akashi-list.me/detail/w26.html"
+    },
+    {
+      "equipmentId": 27,
+      "name": "13号対空電探",
+      "detailUrl": "https://akashi-list.me/detail/w27.html"
+    },
+    {
+      "equipmentId": 28,
+      "name": "22号対水上電探",
+      "detailUrl": "https://akashi-list.me/detail/w28.html"
+    },
+    {
+      "equipmentId": 29,
+      "name": "33号対水上電探",
+      "detailUrl": "https://akashi-list.me/detail/w29.html"
+    },
+    {
+      "equipmentId": 30,
+      "name": "21号対空電探",
+      "detailUrl": "https://akashi-list.me/detail/w30.html"
+    },
+    {
+      "equipmentId": 31,
+      "name": "32号対水上電探",
+      "detailUrl": "https://akashi-list.me/detail/w31.html"
+    },
+    {
+      "equipmentId": 32,
+      "name": "42号対空電探",
+      "detailUrl": "https://akashi-list.me/detail/w32.html"
+    },
+    {
+      "equipmentId": 33,
+      "name": "改良型艦本式タービン",
+      "detailUrl": "https://akashi-list.me/detail/w33.html"
+    },
+    {
+      "equipmentId": 34,
+      "name": "強化型艦本式缶",
+      "detailUrl": "https://akashi-list.me/detail/w34.html"
+    },
+    {
+      "equipmentId": 35,
+      "name": "三式弾",
+      "detailUrl": "https://akashi-list.me/detail/w35.html"
+    },
+    {
+      "equipmentId": 36,
+      "name": "九一式徹甲弾",
+      "detailUrl": "https://akashi-list.me/detail/w36.html"
+    },
+    {
+      "equipmentId": 37,
+      "name": "7.7mm機銃",
+      "detailUrl": "https://akashi-list.me/detail/w37.html"
+    },
+    {
+      "equipmentId": 38,
+      "name": "12.7mm単装機銃",
+      "detailUrl": "https://akashi-list.me/detail/w38.html"
+    },
+    {
+      "equipmentId": 39,
+      "name": "25mm連装機銃",
+      "detailUrl": "https://akashi-list.me/detail/w39.html"
+    },
+    {
+      "equipmentId": 40,
+      "name": "25mm三連装機銃",
+      "detailUrl": "https://akashi-list.me/detail/w40.html"
+    },
+    {
+      "equipmentId": 41,
+      "name": "甲標的 甲型",
+      "detailUrl": "https://akashi-list.me/detail/w41.html"
+    },
+    {
+      "equipmentId": 42,
+      "name": "応急修理要員",
+      "detailUrl": "https://akashi-list.me/detail/w42.html"
+    },
+    {
+      "equipmentId": 43,
+      "name": "応急修理女神",
+      "detailUrl": "https://akashi-list.me/detail/w43.html"
+    },
+    {
+      "equipmentId": 44,
+      "name": "九四式爆雷投射機",
+      "detailUrl": "https://akashi-list.me/detail/w44.html"
+    },
+    {
+      "equipmentId": 45,
+      "name": "三式爆雷投射機",
+      "detailUrl": "https://akashi-list.me/detail/w45.html"
+    },
+    {
+      "equipmentId": 46,
+      "name": "九三式水中聴音機",
+      "detailUrl": "https://akashi-list.me/detail/w46.html"
+    },
+    {
+      "equipmentId": 47,
+      "name": "三式水中探信儀",
+      "detailUrl": "https://akashi-list.me/detail/w47.html"
+    },
+    {
+      "equipmentId": 48,
+      "name": "12cm単装高角砲",
+      "detailUrl": "https://akashi-list.me/detail/w48.html"
+    },
+    {
+      "equipmentId": 49,
+      "name": "25mm単装機銃",
+      "detailUrl": "https://akashi-list.me/detail/w49.html"
+    },
+    {
+      "equipmentId": 50,
+      "name": "20.3cm(3号)連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w50.html"
+    },
+    {
+      "equipmentId": 51,
+      "name": "12cm30連装噴進砲",
+      "detailUrl": "https://akashi-list.me/detail/w51.html"
+    },
+    {
+      "equipmentId": 52,
+      "name": "流星改",
+      "detailUrl": "https://akashi-list.me/detail/w52.html"
+    },
+    {
+      "equipmentId": 53,
+      "name": "烈風 一一型",
+      "detailUrl": "https://akashi-list.me/detail/w53.html"
+    },
+    {
+      "equipmentId": 54,
+      "name": "彩雲",
+      "detailUrl": "https://akashi-list.me/detail/w54.html"
+    },
+    {
+      "equipmentId": 55,
+      "name": "紫電改二",
+      "detailUrl": "https://akashi-list.me/detail/w55.html"
+    },
+    {
+      "equipmentId": 56,
+      "name": "震電改",
+      "detailUrl": "https://akashi-list.me/detail/w56.html"
+    },
+    {
+      "equipmentId": 57,
+      "name": "彗星一二型甲",
+      "detailUrl": "https://akashi-list.me/detail/w57.html"
+    },
+    {
+      "equipmentId": 58,
+      "name": "61cm五連装(酸素)魚雷",
+      "detailUrl": "https://akashi-list.me/detail/w58.html"
+    },
+    {
+      "equipmentId": 59,
+      "name": "零式水上観測機",
+      "detailUrl": "https://akashi-list.me/detail/w59.html"
+    },
+    {
+      "equipmentId": 60,
+      "name": "零式艦戦62型(爆戦)",
+      "detailUrl": "https://akashi-list.me/detail/w60.html"
+    },
+    {
+      "equipmentId": 61,
+      "name": "二式艦上偵察機",
+      "detailUrl": "https://akashi-list.me/detail/w61.html"
+    },
+    {
+      "equipmentId": 62,
+      "name": "試製晴嵐",
+      "detailUrl": "https://akashi-list.me/detail/w62.html"
+    },
+    {
+      "equipmentId": 63,
+      "name": "12.7cm連装砲B型改二",
+      "detailUrl": "https://akashi-list.me/detail/w63.html"
+    },
+    {
+      "equipmentId": 64,
+      "name": "Ju87C改",
+      "detailUrl": "https://akashi-list.me/detail/w64.html"
+    },
+    {
+      "equipmentId": 65,
+      "name": "15.2cm連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w65.html"
+    },
+    {
+      "equipmentId": 66,
+      "name": "8cm高角砲",
+      "detailUrl": "https://akashi-list.me/detail/w66.html"
+    },
+    {
+      "equipmentId": 67,
+      "name": "53cm艦首(酸素)魚雷",
+      "detailUrl": "https://akashi-list.me/detail/w67.html"
+    },
+    {
+      "equipmentId": 68,
+      "name": "大発動艇",
+      "detailUrl": "https://akashi-list.me/detail/w68.html"
+    },
+    {
+      "equipmentId": 69,
+      "name": "カ号観測機",
+      "detailUrl": "https://akashi-list.me/detail/w69.html"
+    },
+    {
+      "equipmentId": 70,
+      "name": "三式指揮連絡機(対潜)",
+      "detailUrl": "https://akashi-list.me/detail/w70.html"
+    },
+    {
+      "equipmentId": 71,
+      "name": "10cm連装高角砲(砲架)",
+      "detailUrl": "https://akashi-list.me/detail/w71.html"
+    },
+    {
+      "equipmentId": 72,
+      "name": "増設バルジ(中型艦)",
+      "detailUrl": "https://akashi-list.me/detail/w72.html"
+    },
+    {
+      "equipmentId": 73,
+      "name": "増設バルジ(大型艦)",
+      "detailUrl": "https://akashi-list.me/detail/w73.html"
+    },
+    {
+      "equipmentId": 74,
+      "name": "探照灯",
+      "detailUrl": "https://akashi-list.me/detail/w74.html"
+    },
+    {
+      "equipmentId": 75,
+      "name": "ドラム缶(輸送用)",
+      "detailUrl": "https://akashi-list.me/detail/w75.html"
+    },
+    {
+      "equipmentId": 76,
+      "name": "38cm連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w76.html"
+    },
+    {
+      "equipmentId": 77,
+      "name": "15cm連装副砲",
+      "detailUrl": "https://akashi-list.me/detail/w77.html"
+    },
+    {
+      "equipmentId": 78,
+      "name": "12.7cm単装砲",
+      "detailUrl": "https://akashi-list.me/detail/w78.html"
+    },
+    {
+      "equipmentId": 79,
+      "name": "瑞雲(六三四空)",
+      "detailUrl": "https://akashi-list.me/detail/w79.html"
+    },
+    {
+      "equipmentId": 80,
+      "name": "瑞雲12型",
+      "detailUrl": "https://akashi-list.me/detail/w80.html"
+    },
+    {
+      "equipmentId": 81,
+      "name": "瑞雲12型(六三四空)",
+      "detailUrl": "https://akashi-list.me/detail/w81.html"
+    },
+    {
+      "equipmentId": 82,
+      "name": "九七式艦攻(九三一空)",
+      "detailUrl": "https://akashi-list.me/detail/w82.html"
+    },
+    {
+      "equipmentId": 83,
+      "name": "天山(九三一空)",
+      "detailUrl": "https://akashi-list.me/detail/w83.html"
+    },
+    {
+      "equipmentId": 84,
+      "name": "2cm 四連装FlaK 38",
+      "detailUrl": "https://akashi-list.me/detail/w84.html"
+    },
+    {
+      "equipmentId": 85,
+      "name": "3.7cm FlaK M42",
+      "detailUrl": "https://akashi-list.me/detail/w85.html"
+    },
+    {
+      "equipmentId": 86,
+      "name": "艦艇修理施設",
+      "detailUrl": "https://akashi-list.me/detail/w86.html"
+    },
+    {
+      "equipmentId": 87,
+      "name": "新型高温高圧缶",
+      "detailUrl": "https://akashi-list.me/detail/w87.html"
+    },
+    {
+      "equipmentId": 88,
+      "name": "22号対水上電探改四",
+      "detailUrl": "https://akashi-list.me/detail/w88.html"
+    },
+    {
+      "equipmentId": 89,
+      "name": "21号対空電探改",
+      "detailUrl": "https://akashi-list.me/detail/w89.html"
+    },
+    {
+      "equipmentId": 90,
+      "name": "20.3cm(2号)連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w90.html"
+    },
+    {
+      "equipmentId": 91,
+      "name": "12.7cm連装高角砲(後期型)",
+      "detailUrl": "https://akashi-list.me/detail/w91.html"
+    },
+    {
+      "equipmentId": 92,
+      "name": "毘式40mm連装機銃",
+      "detailUrl": "https://akashi-list.me/detail/w92.html"
+    },
+    {
+      "equipmentId": 93,
+      "name": "九七式艦攻(友永隊)",
+      "detailUrl": "https://akashi-list.me/detail/w93.html"
+    },
+    {
+      "equipmentId": 94,
+      "name": "天山一二型(友永隊)",
+      "detailUrl": "https://akashi-list.me/detail/w94.html"
+    },
+    {
+      "equipmentId": 95,
+      "name": "潜水艦53cm艦首魚雷(8門)",
+      "detailUrl": "https://akashi-list.me/detail/w95.html"
+    },
+    {
+      "equipmentId": 96,
+      "name": "零式艦戦21型(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w96.html"
+    },
+    {
+      "equipmentId": 97,
+      "name": "九九式艦爆(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w97.html"
+    },
+    {
+      "equipmentId": 98,
+      "name": "九七式艦攻(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w98.html"
+    },
+    {
+      "equipmentId": 99,
+      "name": "九九式艦爆(江草隊)",
+      "detailUrl": "https://akashi-list.me/detail/w99.html"
+    },
+    {
+      "equipmentId": 100,
+      "name": "彗星(江草隊)",
+      "detailUrl": "https://akashi-list.me/detail/w100.html"
+    },
+    {
+      "equipmentId": 101,
+      "name": "照明弾",
+      "detailUrl": "https://akashi-list.me/detail/w101.html"
+    },
+    {
+      "equipmentId": 102,
+      "name": "九八式水上偵察機(夜偵)",
+      "detailUrl": "https://akashi-list.me/detail/w102.html"
+    },
+    {
+      "equipmentId": 103,
+      "name": "試製35.6cm三連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w103.html"
+    },
+    {
+      "equipmentId": 104,
+      "name": "35.6cm連装砲(ダズル迷彩)",
+      "detailUrl": "https://akashi-list.me/detail/w104.html"
+    },
+    {
+      "equipmentId": 105,
+      "name": "試製41cm三連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w105.html"
+    },
+    {
+      "equipmentId": 106,
+      "name": "13号対空電探改",
+      "detailUrl": "https://akashi-list.me/detail/w106.html"
+    },
+    {
+      "equipmentId": 107,
+      "name": "艦隊司令部施設",
+      "detailUrl": "https://akashi-list.me/detail/w107.html"
+    },
+    {
+      "equipmentId": 108,
+      "name": "熟練艦載機整備員",
+      "detailUrl": "https://akashi-list.me/detail/w108.html"
+    },
+    {
+      "equipmentId": 109,
+      "name": "零戦52型丙(六〇一空)",
+      "detailUrl": "https://akashi-list.me/detail/w109.html"
+    },
+    {
+      "equipmentId": 110,
+      "name": "烈風(六〇一空)",
+      "detailUrl": "https://akashi-list.me/detail/w110.html"
+    },
+    {
+      "equipmentId": 111,
+      "name": "彗星(六〇一空)",
+      "detailUrl": "https://akashi-list.me/detail/w111.html"
+    },
+    {
+      "equipmentId": 112,
+      "name": "天山(六〇一空)",
+      "detailUrl": "https://akashi-list.me/detail/w112.html"
+    },
+    {
+      "equipmentId": 113,
+      "name": "流星(六〇一空)",
+      "detailUrl": "https://akashi-list.me/detail/w113.html"
+    },
+    {
+      "equipmentId": 114,
+      "name": "38cm連装砲改",
+      "detailUrl": "https://akashi-list.me/detail/w114.html"
+    },
+    {
+      "equipmentId": 115,
+      "name": "Ar196改",
+      "detailUrl": "https://akashi-list.me/detail/w115.html"
+    },
+    {
+      "equipmentId": 116,
+      "name": "一式徹甲弾",
+      "detailUrl": "https://akashi-list.me/detail/w116.html"
+    },
+    {
+      "equipmentId": 117,
+      "name": "試製46cm連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w117.html"
+    },
+    {
+      "equipmentId": 118,
+      "name": "紫雲",
+      "detailUrl": "https://akashi-list.me/detail/w118.html"
+    },
+    {
+      "equipmentId": 119,
+      "name": "14cm連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w119.html"
+    },
+    {
+      "equipmentId": 120,
+      "name": "91式高射装置",
+      "detailUrl": "https://akashi-list.me/detail/w120.html"
+    },
+    {
+      "equipmentId": 121,
+      "name": "94式高射装置",
+      "detailUrl": "https://akashi-list.me/detail/w121.html"
+    },
+    {
+      "equipmentId": 122,
+      "name": "10cm連装高角砲＋高射装置",
+      "detailUrl": "https://akashi-list.me/detail/w122.html"
+    },
+    {
+      "equipmentId": 123,
+      "name": "SKC34 20.3cm連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w123.html"
+    },
+    {
+      "equipmentId": 124,
+      "name": "FuMO25 レーダー",
+      "detailUrl": "https://akashi-list.me/detail/w124.html"
+    },
+    {
+      "equipmentId": 125,
+      "name": "61cm三連装(酸素)魚雷",
+      "detailUrl": "https://akashi-list.me/detail/w125.html"
+    },
+    {
+      "equipmentId": 126,
+      "name": "WG42(Wurfgerat 42)",
+      "detailUrl": "https://akashi-list.me/detail/w126.html"
+    },
+    {
+      "equipmentId": 127,
+      "name": "試製FaT仕様九五式酸素魚雷改",
+      "detailUrl": "https://akashi-list.me/detail/w127.html"
+    },
+    {
+      "equipmentId": 128,
+      "name": "試製51cm連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w128.html"
+    },
+    {
+      "equipmentId": 129,
+      "name": "熟練見張員",
+      "detailUrl": "https://akashi-list.me/detail/w129.html"
+    },
+    {
+      "equipmentId": 130,
+      "name": "12.7cm高角砲＋高射装置",
+      "detailUrl": "https://akashi-list.me/detail/w130.html"
+    },
+    {
+      "equipmentId": 131,
+      "name": "25mm三連装機銃 集中配備",
+      "detailUrl": "https://akashi-list.me/detail/w131.html"
+    },
+    {
+      "equipmentId": 132,
+      "name": "零式水中聴音機",
+      "detailUrl": "https://akashi-list.me/detail/w132.html"
+    },
+    {
+      "equipmentId": 133,
+      "name": "381mm/50 三連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w133.html"
+    },
+    {
+      "equipmentId": 134,
+      "name": "OTO 152mm三連装速射砲",
+      "detailUrl": "https://akashi-list.me/detail/w134.html"
+    },
+    {
+      "equipmentId": 135,
+      "name": "90mm単装高角砲",
+      "detailUrl": "https://akashi-list.me/detail/w135.html"
+    },
+    {
+      "equipmentId": 136,
+      "name": "プリエーゼ式水中防御隔壁",
+      "detailUrl": "https://akashi-list.me/detail/w136.html"
+    },
+    {
+      "equipmentId": 137,
+      "name": "381mm/50 三連装砲改",
+      "detailUrl": "https://akashi-list.me/detail/w137.html"
+    },
+    {
+      "equipmentId": 138,
+      "name": "二式大艇",
+      "detailUrl": "https://akashi-list.me/detail/w138.html"
+    },
+    {
+      "equipmentId": 139,
+      "name": "15.2cm連装砲改",
+      "detailUrl": "https://akashi-list.me/detail/w139.html"
+    },
+    {
+      "equipmentId": 140,
+      "name": "96式150cm探照灯",
+      "detailUrl": "https://akashi-list.me/detail/w140.html"
+    },
+    {
+      "equipmentId": 141,
+      "name": "32号対水上電探改",
+      "detailUrl": "https://akashi-list.me/detail/w141.html"
+    },
+    {
+      "equipmentId": 142,
+      "name": "15m二重測距儀+21号電探改二",
+      "detailUrl": "https://akashi-list.me/detail/w142.html"
+    },
+    {
+      "equipmentId": 143,
+      "name": "九七式艦攻(村田隊)",
+      "detailUrl": "https://akashi-list.me/detail/w143.html"
+    },
+    {
+      "equipmentId": 144,
+      "name": "天山一二型(村田隊)",
+      "detailUrl": "https://akashi-list.me/detail/w144.html"
+    },
+    {
+      "equipmentId": 145,
+      "name": "戦闘糧食",
+      "detailUrl": "https://akashi-list.me/detail/w145.html"
+    },
+    {
+      "equipmentId": 146,
+      "name": "洋上補給",
+      "detailUrl": "https://akashi-list.me/detail/w146.html"
+    },
+    {
+      "equipmentId": 147,
+      "name": "120mm/50 連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w147.html"
+    },
+    {
+      "equipmentId": 148,
+      "name": "試製南山",
+      "detailUrl": "https://akashi-list.me/detail/w148.html"
+    },
+    {
+      "equipmentId": 149,
+      "name": "四式水中聴音機",
+      "detailUrl": "https://akashi-list.me/detail/w149.html"
+    },
+    {
+      "equipmentId": 150,
+      "name": "秋刀魚の缶詰",
+      "detailUrl": "https://akashi-list.me/detail/w150.html"
+    },
+    {
+      "equipmentId": 151,
+      "name": "試製景雲(艦偵型)",
+      "detailUrl": "https://akashi-list.me/detail/w151.html"
+    },
+    {
+      "equipmentId": 152,
+      "name": "零式艦戦52型(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w152.html"
+    },
+    {
+      "equipmentId": 153,
+      "name": "零戦52型丙(付岩井小隊)",
+      "detailUrl": "https://akashi-list.me/detail/w153.html"
+    },
+    {
+      "equipmentId": 154,
+      "name": "零戦62型(爆戦／岩井隊)",
+      "detailUrl": "https://akashi-list.me/detail/w154.html"
+    },
+    {
+      "equipmentId": 155,
+      "name": "零戦21型(付岩本小隊)",
+      "detailUrl": "https://akashi-list.me/detail/w155.html"
+    },
+    {
+      "equipmentId": 156,
+      "name": "零戦52型甲(付岩本小隊)",
+      "detailUrl": "https://akashi-list.me/detail/w156.html"
+    },
+    {
+      "equipmentId": 157,
+      "name": "零式艦戦53型(岩本隊)",
+      "detailUrl": "https://akashi-list.me/detail/w157.html"
+    },
+    {
+      "equipmentId": 158,
+      "name": "Bf109T改",
+      "detailUrl": "https://akashi-list.me/detail/w158.html"
+    },
+    {
+      "equipmentId": 159,
+      "name": "Fw190T改",
+      "detailUrl": "https://akashi-list.me/detail/w159.html"
+    },
+    {
+      "equipmentId": 160,
+      "name": "10.5cm連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w160.html"
+    },
+    {
+      "equipmentId": 161,
+      "name": "16inch三連装砲 Mk.7",
+      "detailUrl": "https://akashi-list.me/detail/w161.html"
+    },
+    {
+      "equipmentId": 162,
+      "name": "203mm/53 連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w162.html"
+    },
+    {
+      "equipmentId": 163,
+      "name": "Ro.43水偵",
+      "detailUrl": "https://akashi-list.me/detail/w163.html"
+    },
+    {
+      "equipmentId": 164,
+      "name": "Ro.44水上戦闘機",
+      "detailUrl": "https://akashi-list.me/detail/w164.html"
+    },
+    {
+      "equipmentId": 165,
+      "name": "二式水戦改",
+      "detailUrl": "https://akashi-list.me/detail/w165.html"
+    },
+    {
+      "equipmentId": 166,
+      "name": "大発動艇(八九式中戦車&陸戦隊)",
+      "detailUrl": "https://akashi-list.me/detail/w166.html"
+    },
+    {
+      "equipmentId": 167,
+      "name": "特二式内火艇",
+      "detailUrl": "https://akashi-list.me/detail/w167.html"
+    },
+    {
+      "equipmentId": 168,
+      "name": "九六式陸攻",
+      "detailUrl": "https://akashi-list.me/detail/w168.html"
+    },
+    {
+      "equipmentId": 169,
+      "name": "一式陸攻",
+      "detailUrl": "https://akashi-list.me/detail/w169.html"
+    },
+    {
+      "equipmentId": 170,
+      "name": "一式陸攻(野中隊)",
+      "detailUrl": "https://akashi-list.me/detail/w170.html"
+    },
+    {
+      "equipmentId": 171,
+      "name": "OS2U",
+      "detailUrl": "https://akashi-list.me/detail/w171.html"
+    },
+    {
+      "equipmentId": 172,
+      "name": "5inch連装砲 Mk.28 mod.2",
+      "detailUrl": "https://akashi-list.me/detail/w172.html"
+    },
+    {
+      "equipmentId": 173,
+      "name": "Bofors 40mm四連装機関砲",
+      "detailUrl": "https://akashi-list.me/detail/w173.html"
+    },
+    {
+      "equipmentId": 174,
+      "name": "53cm連装魚雷",
+      "detailUrl": "https://akashi-list.me/detail/w174.html"
+    },
+    {
+      "equipmentId": 175,
+      "name": "雷電",
+      "detailUrl": "https://akashi-list.me/detail/w175.html"
+    },
+    {
+      "equipmentId": 176,
+      "name": "三式戦 飛燕",
+      "detailUrl": "https://akashi-list.me/detail/w176.html"
+    },
+    {
+      "equipmentId": 177,
+      "name": "三式戦 飛燕(飛行第244戦隊)",
+      "detailUrl": "https://akashi-list.me/detail/w177.html"
+    },
+    {
+      "equipmentId": 178,
+      "name": "PBY-5A Catalina",
+      "detailUrl": "https://akashi-list.me/detail/w178.html"
+    },
+    {
+      "equipmentId": 179,
+      "name": "試製61cm六連装(酸素)魚雷",
+      "detailUrl": "https://akashi-list.me/detail/w179.html"
+    },
+    {
+      "equipmentId": 180,
+      "name": "一式陸攻 二二型甲",
+      "detailUrl": "https://akashi-list.me/detail/w180.html"
+    },
+    {
+      "equipmentId": 181,
+      "name": "零式艦戦32型",
+      "detailUrl": "https://akashi-list.me/detail/w181.html"
+    },
+    {
+      "equipmentId": 182,
+      "name": "零式艦戦32型(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w182.html"
+    },
+    {
+      "equipmentId": 183,
+      "name": "16inch三連装砲 Mk.7+GFCS",
+      "detailUrl": "https://akashi-list.me/detail/w183.html"
+    },
+    {
+      "equipmentId": 184,
+      "name": "Re.2001 OR改",
+      "detailUrl": "https://akashi-list.me/detail/w184.html"
+    },
+    {
+      "equipmentId": 185,
+      "name": "三式戦 飛燕一型丁",
+      "detailUrl": "https://akashi-list.me/detail/w185.html"
+    },
+    {
+      "equipmentId": 186,
+      "name": "一式陸攻 三四型",
+      "detailUrl": "https://akashi-list.me/detail/w186.html"
+    },
+    {
+      "equipmentId": 187,
+      "name": "銀河",
+      "detailUrl": "https://akashi-list.me/detail/w187.html"
+    },
+    {
+      "equipmentId": 188,
+      "name": "Re.2001 G改",
+      "detailUrl": "https://akashi-list.me/detail/w188.html"
+    },
+    {
+      "equipmentId": 189,
+      "name": "Re.2005 改",
+      "detailUrl": "https://akashi-list.me/detail/w189.html"
+    },
+    {
+      "equipmentId": 190,
+      "name": "38.1cm Mk.I連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w190.html"
+    },
+    {
+      "equipmentId": 191,
+      "name": "QF 2ポンド8連装ポンポン砲",
+      "detailUrl": "https://akashi-list.me/detail/w191.html"
+    },
+    {
+      "equipmentId": 192,
+      "name": "38.1cm Mk.I/N連装砲改",
+      "detailUrl": "https://akashi-list.me/detail/w192.html"
+    },
+    {
+      "equipmentId": 193,
+      "name": "特大発動艇",
+      "detailUrl": "https://akashi-list.me/detail/w193.html"
+    },
+    {
+      "equipmentId": 194,
+      "name": "Laté 298B",
+      "detailUrl": "https://akashi-list.me/detail/w194.html"
+    },
+    {
+      "equipmentId": 195,
+      "name": "SBD",
+      "detailUrl": "https://akashi-list.me/detail/w195.html"
+    },
+    {
+      "equipmentId": 196,
+      "name": "TBD",
+      "detailUrl": "https://akashi-list.me/detail/w196.html"
+    },
+    {
+      "equipmentId": 197,
+      "name": "F4F-3",
+      "detailUrl": "https://akashi-list.me/detail/w197.html"
+    },
+    {
+      "equipmentId": 198,
+      "name": "F4F-4",
+      "detailUrl": "https://akashi-list.me/detail/w198.html"
+    },
+    {
+      "equipmentId": 199,
+      "name": "噴式景雲改",
+      "detailUrl": "https://akashi-list.me/detail/w199.html"
+    },
+    {
+      "equipmentId": 200,
+      "name": "橘花改",
+      "detailUrl": "https://akashi-list.me/detail/w200.html"
+    },
+    {
+      "equipmentId": 201,
+      "name": "紫電一一型",
+      "detailUrl": "https://akashi-list.me/detail/w201.html"
+    },
+    {
+      "equipmentId": 202,
+      "name": "紫電二一型 紫電改",
+      "detailUrl": "https://akashi-list.me/detail/w202.html"
+    },
+    {
+      "equipmentId": 203,
+      "name": "艦本新設計 増設バルジ(中型艦)",
+      "detailUrl": "https://akashi-list.me/detail/w203.html"
+    },
+    {
+      "equipmentId": 204,
+      "name": "艦本新設計 増設バルジ(大型艦)",
+      "detailUrl": "https://akashi-list.me/detail/w204.html"
+    },
+    {
+      "equipmentId": 205,
+      "name": "F6F-3",
+      "detailUrl": "https://akashi-list.me/detail/w205.html"
+    },
+    {
+      "equipmentId": 206,
+      "name": "F6F-5",
+      "detailUrl": "https://akashi-list.me/detail/w206.html"
+    },
+    {
+      "equipmentId": 207,
+      "name": "瑞雲(六三一空)",
+      "detailUrl": "https://akashi-list.me/detail/w207.html"
+    },
+    {
+      "equipmentId": 208,
+      "name": "晴嵐(六三一空)",
+      "detailUrl": "https://akashi-list.me/detail/w208.html"
+    },
+    {
+      "equipmentId": 209,
+      "name": "彩雲(輸送用分解済)",
+      "detailUrl": "https://akashi-list.me/detail/w209.html"
+    },
+    {
+      "equipmentId": 210,
+      "name": "潜水艦搭載電探＆水防式望遠鏡",
+      "detailUrl": "https://akashi-list.me/detail/w210.html"
+    },
+    {
+      "equipmentId": 211,
+      "name": "潜水艦搭載電探＆逆探(E27)",
+      "detailUrl": "https://akashi-list.me/detail/w211.html"
+    },
+    {
+      "equipmentId": 212,
+      "name": "彩雲(東カロリン空)",
+      "detailUrl": "https://akashi-list.me/detail/w212.html"
+    },
+    {
+      "equipmentId": 213,
+      "name": "後期型艦首魚雷(6門)",
+      "detailUrl": "https://akashi-list.me/detail/w213.html"
+    },
+    {
+      "equipmentId": 214,
+      "name": "熟練聴音員＋後期型艦首魚雷(6門)",
+      "detailUrl": "https://akashi-list.me/detail/w214.html"
+    },
+    {
+      "equipmentId": 215,
+      "name": "Ro.44水上戦闘機bis",
+      "detailUrl": "https://akashi-list.me/detail/w215.html"
+    },
+    {
+      "equipmentId": 216,
+      "name": "二式水戦改(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w216.html"
+    },
+    {
+      "equipmentId": 217,
+      "name": "強風改",
+      "detailUrl": "https://akashi-list.me/detail/w217.html"
+    },
+    {
+      "equipmentId": 218,
+      "name": "四式戦 疾風",
+      "detailUrl": "https://akashi-list.me/detail/w218.html"
+    },
+    {
+      "equipmentId": 219,
+      "name": "零式艦戦63型(爆戦)",
+      "detailUrl": "https://akashi-list.me/detail/w219.html"
+    },
+    {
+      "equipmentId": 220,
+      "name": "8cm高角砲改＋増設機銃",
+      "detailUrl": "https://akashi-list.me/detail/w220.html"
+    },
+    {
+      "equipmentId": 221,
+      "name": "一式戦 隼II型",
+      "detailUrl": "https://akashi-list.me/detail/w221.html"
+    },
+    {
+      "equipmentId": 222,
+      "name": "一式戦 隼III型甲",
+      "detailUrl": "https://akashi-list.me/detail/w222.html"
+    },
+    {
+      "equipmentId": 223,
+      "name": "一式戦 隼III型甲(54戦隊)",
+      "detailUrl": "https://akashi-list.me/detail/w223.html"
+    },
+    {
+      "equipmentId": 224,
+      "name": "爆装一式戦 隼III型改(65戦隊)",
+      "detailUrl": "https://akashi-list.me/detail/w224.html"
+    },
+    {
+      "equipmentId": 225,
+      "name": "一式戦 隼II型(64戦隊)",
+      "detailUrl": "https://akashi-list.me/detail/w225.html"
+    },
+    {
+      "equipmentId": 226,
+      "name": "九五式爆雷",
+      "detailUrl": "https://akashi-list.me/detail/w226.html"
+    },
+    {
+      "equipmentId": 227,
+      "name": "二式爆雷",
+      "detailUrl": "https://akashi-list.me/detail/w227.html"
+    },
+    {
+      "equipmentId": 228,
+      "name": "九六式艦戦改",
+      "detailUrl": "https://akashi-list.me/detail/w228.html"
+    },
+    {
+      "equipmentId": 229,
+      "name": "12.7cm単装高角砲(後期型)",
+      "detailUrl": "https://akashi-list.me/detail/w229.html"
+    },
+    {
+      "equipmentId": 230,
+      "name": "特大発動艇+戦車第11連隊",
+      "detailUrl": "https://akashi-list.me/detail/w230.html"
+    },
+    {
+      "equipmentId": 231,
+      "name": "30.5cm三連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w231.html"
+    },
+    {
+      "equipmentId": 232,
+      "name": "30.5cm三連装砲改",
+      "detailUrl": "https://akashi-list.me/detail/w232.html"
+    },
+    {
+      "equipmentId": 233,
+      "name": "F4U-1D",
+      "detailUrl": "https://akashi-list.me/detail/w233.html"
+    },
+    {
+      "equipmentId": 234,
+      "name": "15.5cm三連装副砲改",
+      "detailUrl": "https://akashi-list.me/detail/w234.html"
+    },
+    {
+      "equipmentId": 235,
+      "name": "15.5cm三連装砲改",
+      "detailUrl": "https://akashi-list.me/detail/w235.html"
+    },
+    {
+      "equipmentId": 236,
+      "name": "41cm三連装砲改",
+      "detailUrl": "https://akashi-list.me/detail/w236.html"
+    },
+    {
+      "equipmentId": 237,
+      "name": "瑞雲(六三四空/熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w237.html"
+    },
+    {
+      "equipmentId": 238,
+      "name": "零式水上偵察機11型乙",
+      "detailUrl": "https://akashi-list.me/detail/w238.html"
+    },
+    {
+      "equipmentId": 239,
+      "name": "零式水上偵察機11型乙(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w239.html"
+    },
+    {
+      "equipmentId": 240,
+      "name": "22号対水上電探改四(後期調整型)",
+      "detailUrl": "https://akashi-list.me/detail/w240.html"
+    },
+    {
+      "equipmentId": 241,
+      "name": "戦闘糧食(特別なおにぎり)",
+      "detailUrl": "https://akashi-list.me/detail/w241.html"
+    },
+    {
+      "equipmentId": 242,
+      "name": "Swordfish",
+      "detailUrl": "https://akashi-list.me/detail/w242.html"
+    },
+    {
+      "equipmentId": 243,
+      "name": "Swordfish Mk.II(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w243.html"
+    },
+    {
+      "equipmentId": 244,
+      "name": "Swordfish Mk.III(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w244.html"
+    },
+    {
+      "equipmentId": 245,
+      "name": "38cm四連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w245.html"
+    },
+    {
+      "equipmentId": 246,
+      "name": "38cm四連装砲改",
+      "detailUrl": "https://akashi-list.me/detail/w246.html"
+    },
+    {
+      "equipmentId": 247,
+      "name": "15.2cm三連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w247.html"
+    },
+    {
+      "equipmentId": 248,
+      "name": "Skua",
+      "detailUrl": "https://akashi-list.me/detail/w248.html"
+    },
+    {
+      "equipmentId": 249,
+      "name": "Fulmar",
+      "detailUrl": "https://akashi-list.me/detail/w249.html"
+    },
+    {
+      "equipmentId": 250,
+      "name": "Spitfire Mk.I",
+      "detailUrl": "https://akashi-list.me/detail/w250.html"
+    },
+    {
+      "equipmentId": 251,
+      "name": "Spitfire Mk.V",
+      "detailUrl": "https://akashi-list.me/detail/w251.html"
+    },
+    {
+      "equipmentId": 252,
+      "name": "Seafire Mk.III改",
+      "detailUrl": "https://akashi-list.me/detail/w252.html"
+    },
+    {
+      "equipmentId": 253,
+      "name": "Spitfire Mk.IX(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w253.html"
+    },
+    {
+      "equipmentId": 254,
+      "name": "F6F-3N",
+      "detailUrl": "https://akashi-list.me/detail/w254.html"
+    },
+    {
+      "equipmentId": 255,
+      "name": "F6F-5N",
+      "detailUrl": "https://akashi-list.me/detail/w255.html"
+    },
+    {
+      "equipmentId": 256,
+      "name": "TBF",
+      "detailUrl": "https://akashi-list.me/detail/w256.html"
+    },
+    {
+      "equipmentId": 257,
+      "name": "TBM-3D",
+      "detailUrl": "https://akashi-list.me/detail/w257.html"
+    },
+    {
+      "equipmentId": 258,
+      "name": "夜間作戦航空要員",
+      "detailUrl": "https://akashi-list.me/detail/w258.html"
+    },
+    {
+      "equipmentId": 259,
+      "name": "夜間作戦航空要員＋熟練甲板員",
+      "detailUrl": "https://akashi-list.me/detail/w259.html"
+    },
+    {
+      "equipmentId": 260,
+      "name": "Type124 ASDIC",
+      "detailUrl": "https://akashi-list.me/detail/w260.html"
+    },
+    {
+      "equipmentId": 261,
+      "name": "Type144/147 ASDIC",
+      "detailUrl": "https://akashi-list.me/detail/w261.html"
+    },
+    {
+      "equipmentId": 262,
+      "name": "HF/DF ＋ Type144/147 ASDIC",
+      "detailUrl": "https://akashi-list.me/detail/w262.html"
+    },
+    {
+      "equipmentId": 263,
+      "name": "紫電改(三四三空) 戦闘301",
+      "detailUrl": "https://akashi-list.me/detail/w263.html"
+    },
+    {
+      "equipmentId": 264,
+      "name": "紫電改(三四三空) 戦闘701",
+      "detailUrl": "https://akashi-list.me/detail/w264.html"
+    },
+    {
+      "equipmentId": 265,
+      "name": "紫電改(三四三空) 戦闘407",
+      "detailUrl": "https://akashi-list.me/detail/w265.html"
+    },
+    {
+      "equipmentId": 266,
+      "name": "12.7cm連装砲C型改二",
+      "detailUrl": "https://akashi-list.me/detail/w266.html"
+    },
+    {
+      "equipmentId": 267,
+      "name": "12.7cm連装砲D型改二",
+      "detailUrl": "https://akashi-list.me/detail/w267.html"
+    },
+    {
+      "equipmentId": 268,
+      "name": "北方迷彩(＋北方装備)",
+      "detailUrl": "https://akashi-list.me/detail/w268.html"
+    },
+    {
+      "equipmentId": 269,
+      "name": "試製東海",
+      "detailUrl": "https://akashi-list.me/detail/w269.html"
+    },
+    {
+      "equipmentId": 270,
+      "name": "東海(九〇一空)",
+      "detailUrl": "https://akashi-list.me/detail/w270.html"
+    },
+    {
+      "equipmentId": 271,
+      "name": "紫電改四",
+      "detailUrl": "https://akashi-list.me/detail/w271.html"
+    },
+    {
+      "equipmentId": 272,
+      "name": "遊撃部隊 艦隊司令部",
+      "detailUrl": "https://akashi-list.me/detail/w272.html"
+    },
+    {
+      "equipmentId": 273,
+      "name": "彩雲(偵四)",
+      "detailUrl": "https://akashi-list.me/detail/w273.html"
+    },
+    {
+      "equipmentId": 274,
+      "name": "12cm30連装噴進砲改二",
+      "detailUrl": "https://akashi-list.me/detail/w274.html"
+    },
+    {
+      "equipmentId": 275,
+      "name": "10cm連装高角砲改＋増設機銃",
+      "detailUrl": "https://akashi-list.me/detail/w275.html"
+    },
+    {
+      "equipmentId": 276,
+      "name": "46cm三連装砲改",
+      "detailUrl": "https://akashi-list.me/detail/w276.html"
+    },
+    {
+      "equipmentId": 277,
+      "name": "FM-2",
+      "detailUrl": "https://akashi-list.me/detail/w277.html"
+    },
+    {
+      "equipmentId": 278,
+      "name": "SKレーダー",
+      "detailUrl": "https://akashi-list.me/detail/w278.html"
+    },
+    {
+      "equipmentId": 279,
+      "name": "SK＋SGレーダー",
+      "detailUrl": "https://akashi-list.me/detail/w279.html"
+    },
+    {
+      "equipmentId": 280,
+      "name": "QF 4.7inch砲 Mk.XII改",
+      "detailUrl": "https://akashi-list.me/detail/w280.html"
+    },
+    {
+      "equipmentId": 281,
+      "name": "51cm連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w281.html"
+    },
+    {
+      "equipmentId": 282,
+      "name": "130mm B-13連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w282.html"
+    },
+    {
+      "equipmentId": 283,
+      "name": "533mm 三連装魚雷",
+      "detailUrl": "https://akashi-list.me/detail/w283.html"
+    },
+    {
+      "equipmentId": 284,
+      "name": "5inch単装砲 Mk.30",
+      "detailUrl": "https://akashi-list.me/detail/w284.html"
+    },
+    {
+      "equipmentId": 285,
+      "name": "61cm三連装(酸素)魚雷後期型",
+      "detailUrl": "https://akashi-list.me/detail/w285.html"
+    },
+    {
+      "equipmentId": 286,
+      "name": "61cm四連装(酸素)魚雷後期型",
+      "detailUrl": "https://akashi-list.me/detail/w286.html"
+    },
+    {
+      "equipmentId": 287,
+      "name": "三式爆雷投射機 集中配備",
+      "detailUrl": "https://akashi-list.me/detail/w287.html"
+    },
+    {
+      "equipmentId": 288,
+      "name": "試製15cm9連装対潜噴進砲",
+      "detailUrl": "https://akashi-list.me/detail/w288.html"
+    },
+    {
+      "equipmentId": 289,
+      "name": "35.6cm三連装砲改(ダズル迷彩仕様)",
+      "detailUrl": "https://akashi-list.me/detail/w289.html"
+    },
+    {
+      "equipmentId": 290,
+      "name": "41cm三連装砲改二",
+      "detailUrl": "https://akashi-list.me/detail/w290.html"
+    },
+    {
+      "equipmentId": 291,
+      "name": "彗星二二型(六三四空)",
+      "detailUrl": "https://akashi-list.me/detail/w291.html"
+    },
+    {
+      "equipmentId": 292,
+      "name": "彗星二二型(六三四空／熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w292.html"
+    },
+    {
+      "equipmentId": 293,
+      "name": "12cm単装砲改二",
+      "detailUrl": "https://akashi-list.me/detail/w293.html"
+    },
+    {
+      "equipmentId": 294,
+      "name": "12.7cm連装砲A型改二",
+      "detailUrl": "https://akashi-list.me/detail/w294.html"
+    },
+    {
+      "equipmentId": 295,
+      "name": "12.7cm連装砲A型改三(戦時改修)＋高射装置",
+      "detailUrl": "https://akashi-list.me/detail/w295.html"
+    },
+    {
+      "equipmentId": 296,
+      "name": "12.7cm連装砲B型改四(戦時改修)＋高射装置",
+      "detailUrl": "https://akashi-list.me/detail/w296.html"
+    },
+    {
+      "equipmentId": 297,
+      "name": "12.7cm連装砲A型",
+      "detailUrl": "https://akashi-list.me/detail/w297.html"
+    },
+    {
+      "equipmentId": 298,
+      "name": "16inch Mk.I三連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w298.html"
+    },
+    {
+      "equipmentId": 299,
+      "name": "16inch Mk.I三連装砲＋AFCT改",
+      "detailUrl": "https://akashi-list.me/detail/w299.html"
+    },
+    {
+      "equipmentId": 300,
+      "name": "16inch Mk.I三連装砲改＋FCR type284",
+      "detailUrl": "https://akashi-list.me/detail/w300.html"
+    },
+    {
+      "equipmentId": 301,
+      "name": "20連装7inch UP Rocket Launchers",
+      "detailUrl": "https://akashi-list.me/detail/w301.html"
+    },
+    {
+      "equipmentId": 302,
+      "name": "九七式艦攻(九三一空/熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w302.html"
+    },
+    {
+      "equipmentId": 303,
+      "name": "Bofors15.2cm連装砲 Model1930",
+      "detailUrl": "https://akashi-list.me/detail/w303.html"
+    },
+    {
+      "equipmentId": 304,
+      "name": "S9 Osprey",
+      "detailUrl": "https://akashi-list.me/detail/w304.html"
+    },
+    {
+      "equipmentId": 305,
+      "name": "Ju87C改二(KMX搭載機)",
+      "detailUrl": "https://akashi-list.me/detail/w305.html"
+    },
+    {
+      "equipmentId": 306,
+      "name": "Ju87C改二(KMX搭載機/熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w306.html"
+    },
+    {
+      "equipmentId": 307,
+      "name": "GFCS Mk.37",
+      "detailUrl": "https://akashi-list.me/detail/w307.html"
+    },
+    {
+      "equipmentId": 308,
+      "name": "5inch単装砲 Mk.30改＋GFCS Mk.37",
+      "detailUrl": "https://akashi-list.me/detail/w308.html"
+    },
+    {
+      "equipmentId": 309,
+      "name": "甲標的 丙型",
+      "detailUrl": "https://akashi-list.me/detail/w309.html"
+    },
+    {
+      "equipmentId": 310,
+      "name": "14cm連装砲改",
+      "detailUrl": "https://akashi-list.me/detail/w310.html"
+    },
+    {
+      "equipmentId": 311,
+      "name": "二式陸上偵察機",
+      "detailUrl": "https://akashi-list.me/detail/w311.html"
+    },
+    {
+      "equipmentId": 312,
+      "name": "二式陸上偵察機(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w312.html"
+    },
+    {
+      "equipmentId": 313,
+      "name": "5inch単装砲 Mk.30改",
+      "detailUrl": "https://akashi-list.me/detail/w313.html"
+    },
+    {
+      "equipmentId": 314,
+      "name": "533mm五連装魚雷(初期型)",
+      "detailUrl": "https://akashi-list.me/detail/w314.html"
+    },
+    {
+      "equipmentId": 315,
+      "name": "SG レーダー(初期型)",
+      "detailUrl": "https://akashi-list.me/detail/w315.html"
+    },
+    {
+      "equipmentId": 316,
+      "name": "Re.2001 CB改",
+      "detailUrl": "https://akashi-list.me/detail/w316.html"
+    },
+    {
+      "equipmentId": 317,
+      "name": "三式弾改",
+      "detailUrl": "https://akashi-list.me/detail/w317.html"
+    },
+    {
+      "equipmentId": 318,
+      "name": "41cm連装砲改二",
+      "detailUrl": "https://akashi-list.me/detail/w318.html"
+    },
+    {
+      "equipmentId": 319,
+      "name": "彗星一二型(六三四空／三号爆弾搭載機)",
+      "detailUrl": "https://akashi-list.me/detail/w319.html"
+    },
+    {
+      "equipmentId": 320,
+      "name": "彗星一二型(三一号光電管爆弾搭載機)",
+      "detailUrl": "https://akashi-list.me/detail/w320.html"
+    },
+    {
+      "equipmentId": 322,
+      "name": "瑞雲改二(六三四空)",
+      "detailUrl": "https://akashi-list.me/detail/w322.html"
+    },
+    {
+      "equipmentId": 323,
+      "name": "瑞雲改二(六三四空／熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w323.html"
+    },
+    {
+      "equipmentId": 324,
+      "name": "オ号観測機改",
+      "detailUrl": "https://akashi-list.me/detail/w324.html"
+    },
+    {
+      "equipmentId": 325,
+      "name": "オ号観測機改二",
+      "detailUrl": "https://akashi-list.me/detail/w325.html"
+    },
+    {
+      "equipmentId": 326,
+      "name": "S-51J",
+      "detailUrl": "https://akashi-list.me/detail/w326.html"
+    },
+    {
+      "equipmentId": 327,
+      "name": "S-51J改",
+      "detailUrl": "https://akashi-list.me/detail/w327.html"
+    },
+    {
+      "equipmentId": 328,
+      "name": "35.6cm連装砲改",
+      "detailUrl": "https://akashi-list.me/detail/w328.html"
+    },
+    {
+      "equipmentId": 329,
+      "name": "35.6cm連装砲改二",
+      "detailUrl": "https://akashi-list.me/detail/w329.html"
+    },
+    {
+      "equipmentId": 330,
+      "name": "16inch Mk.I連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w330.html"
+    },
+    {
+      "equipmentId": 331,
+      "name": "16inch Mk.V連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w331.html"
+    },
+    {
+      "equipmentId": 332,
+      "name": "16inch Mk.VIII連装砲改",
+      "detailUrl": "https://akashi-list.me/detail/w332.html"
+    },
+    {
+      "equipmentId": 333,
+      "name": "烈風改",
+      "detailUrl": "https://akashi-list.me/detail/w333.html"
+    },
+    {
+      "equipmentId": 334,
+      "name": "烈風改(三五二空／熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w334.html"
+    },
+    {
+      "equipmentId": 335,
+      "name": "烈風改(試製艦載型)",
+      "detailUrl": "https://akashi-list.me/detail/w335.html"
+    },
+    {
+      "equipmentId": 336,
+      "name": "烈風改二",
+      "detailUrl": "https://akashi-list.me/detail/w336.html"
+    },
+    {
+      "equipmentId": 338,
+      "name": "烈風改二戊型",
+      "detailUrl": "https://akashi-list.me/detail/w338.html"
+    },
+    {
+      "equipmentId": 339,
+      "name": "烈風改二戊型(一航戦／熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w339.html"
+    },
+    {
+      "equipmentId": 340,
+      "name": "152mm／55 三連装速射砲",
+      "detailUrl": "https://akashi-list.me/detail/w340.html"
+    },
+    {
+      "equipmentId": 341,
+      "name": "152mm／55 三連装速射砲改",
+      "detailUrl": "https://akashi-list.me/detail/w341.html"
+    },
+    {
+      "equipmentId": 342,
+      "name": "流星改(一航戦)",
+      "detailUrl": "https://akashi-list.me/detail/w342.html"
+    },
+    {
+      "equipmentId": 343,
+      "name": "流星改(一航戦／熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w343.html"
+    },
+    {
+      "equipmentId": 344,
+      "name": "九七式艦攻改 試製三号戊型(空六号電探改装備機)",
+      "detailUrl": "https://akashi-list.me/detail/w344.html"
+    },
+    {
+      "equipmentId": 345,
+      "name": "九七式艦攻改(熟練) 試製三号戊型(空六号電探改装備機)",
+      "detailUrl": "https://akashi-list.me/detail/w345.html"
+    },
+    {
+      "equipmentId": 346,
+      "name": "二式12cm迫撃砲改",
+      "detailUrl": "https://akashi-list.me/detail/w346.html"
+    },
+    {
+      "equipmentId": 347,
+      "name": "二式12cm迫撃砲改 集中配備",
+      "detailUrl": "https://akashi-list.me/detail/w347.html"
+    },
+    {
+      "equipmentId": 348,
+      "name": "艦載型 四式20cm対地噴進砲",
+      "detailUrl": "https://akashi-list.me/detail/w348.html"
+    },
+    {
+      "equipmentId": 349,
+      "name": "四式20cm対地噴進砲 集中配備",
+      "detailUrl": "https://akashi-list.me/detail/w349.html"
+    },
+    {
+      "equipmentId": 350,
+      "name": "Me163B",
+      "detailUrl": "https://akashi-list.me/detail/w350.html"
+    },
+    {
+      "equipmentId": 351,
+      "name": "試製 秋水",
+      "detailUrl": "https://akashi-list.me/detail/w351.html"
+    },
+    {
+      "equipmentId": 352,
+      "name": "秋水",
+      "detailUrl": "https://akashi-list.me/detail/w352.html"
+    },
+    {
+      "equipmentId": 353,
+      "name": "Fw190 A-5改(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w353.html"
+    },
+    {
+      "equipmentId": 354,
+      "name": "Fw190 D-9",
+      "detailUrl": "https://akashi-list.me/detail/w354.html"
+    },
+    {
+      "equipmentId": 355,
+      "name": "M4A1 DD",
+      "detailUrl": "https://akashi-list.me/detail/w355.html"
+    },
+    {
+      "equipmentId": 356,
+      "name": "8inch三連装砲 Mk.9",
+      "detailUrl": "https://akashi-list.me/detail/w356.html"
+    },
+    {
+      "equipmentId": 357,
+      "name": "8inch三連装砲 Mk.9 mod.2",
+      "detailUrl": "https://akashi-list.me/detail/w357.html"
+    },
+    {
+      "equipmentId": 358,
+      "name": "5inch 単装高角砲群",
+      "detailUrl": "https://akashi-list.me/detail/w358.html"
+    },
+    {
+      "equipmentId": 359,
+      "name": "6inch連装速射砲 Mk.XXI",
+      "detailUrl": "https://akashi-list.me/detail/w359.html"
+    },
+    {
+      "equipmentId": 360,
+      "name": "Bofors 15cm連装速射砲 Mk.9Model 1938",
+      "detailUrl": "https://akashi-list.me/detail/w360.html"
+    },
+    {
+      "equipmentId": 361,
+      "name": "Bofors 15cm連装速射砲 Mk.9改＋単装速射砲 Mk.10改 Model 1938",
+      "detailUrl": "https://akashi-list.me/detail/w361.html"
+    },
+    {
+      "equipmentId": 362,
+      "name": "5inch連装両用砲(集中配備)",
+      "detailUrl": "https://akashi-list.me/detail/w362.html"
+    },
+    {
+      "equipmentId": 363,
+      "name": "GFCS Mk.37＋5inch連装両用砲(集中配備)",
+      "detailUrl": "https://akashi-list.me/detail/w363.html"
+    },
+    {
+      "equipmentId": 364,
+      "name": "甲標的 丁型改(蛟龍改)",
+      "detailUrl": "https://akashi-list.me/detail/w364.html"
+    },
+    {
+      "equipmentId": 365,
+      "name": "一式徹甲弾改",
+      "detailUrl": "https://akashi-list.me/detail/w365.html"
+    },
+    {
+      "equipmentId": 366,
+      "name": "12.7cm連装砲D型改三",
+      "detailUrl": "https://akashi-list.me/detail/w366.html"
+    },
+    {
+      "equipmentId": 367,
+      "name": "Swordfish(水上機型)",
+      "detailUrl": "https://akashi-list.me/detail/w367.html"
+    },
+    {
+      "equipmentId": 368,
+      "name": "Swordfish Mk.III改(水上機型)",
+      "detailUrl": "https://akashi-list.me/detail/w368.html"
+    },
+    {
+      "equipmentId": 369,
+      "name": "Swordfish Mk.III改(水上機型/熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w369.html"
+    },
+    {
+      "equipmentId": 370,
+      "name": "Swordfish Mk.II改(水偵型)",
+      "detailUrl": "https://akashi-list.me/detail/w370.html"
+    },
+    {
+      "equipmentId": 371,
+      "name": "Fairey Seafox改",
+      "detailUrl": "https://akashi-list.me/detail/w371.html"
+    },
+    {
+      "equipmentId": 372,
+      "name": "天山一二型甲",
+      "detailUrl": "https://akashi-list.me/detail/w372.html"
+    },
+    {
+      "equipmentId": 373,
+      "name": "天山一二型甲改(空六号電探改装備機)",
+      "detailUrl": "https://akashi-list.me/detail/w373.html"
+    },
+    {
+      "equipmentId": 374,
+      "name": "天山一二型甲改(熟練/空六号電探改装備機)",
+      "detailUrl": "https://akashi-list.me/detail/w374.html"
+    },
+    {
+      "equipmentId": 375,
+      "name": "XF5U",
+      "detailUrl": "https://akashi-list.me/detail/w375.html"
+    },
+    {
+      "equipmentId": 376,
+      "name": "533mm五連装魚雷(後期型)",
+      "detailUrl": "https://akashi-list.me/detail/w376.html"
+    },
+    {
+      "equipmentId": 377,
+      "name": "RUR-4A Weapon Alpha改",
+      "detailUrl": "https://akashi-list.me/detail/w377.html"
+    },
+    {
+      "equipmentId": 378,
+      "name": "対潜短魚雷(試作初期型)",
+      "detailUrl": "https://akashi-list.me/detail/w378.html"
+    },
+    {
+      "equipmentId": 379,
+      "name": "12.7cm単装高角砲改二",
+      "detailUrl": "https://akashi-list.me/detail/w379.html"
+    },
+    {
+      "equipmentId": 380,
+      "name": "12.7cm連装高角砲改二",
+      "detailUrl": "https://akashi-list.me/detail/w380.html"
+    },
+    {
+      "equipmentId": 381,
+      "name": "16inch三連装砲 Mk.6",
+      "detailUrl": "https://akashi-list.me/detail/w381.html"
+    },
+    {
+      "equipmentId": 382,
+      "name": "12cm単装高角砲E型",
+      "detailUrl": "https://akashi-list.me/detail/w382.html"
+    },
+    {
+      "equipmentId": 383,
+      "name": "後期型53cm艦首魚雷(8門)",
+      "detailUrl": "https://akashi-list.me/detail/w383.html"
+    },
+    {
+      "equipmentId": 384,
+      "name": "後期型潜水艦搭載電探＆逆探",
+      "detailUrl": "https://akashi-list.me/detail/w384.html"
+    },
+    {
+      "equipmentId": 385,
+      "name": "16inch三連装砲 Mk.6 mod.2",
+      "detailUrl": "https://akashi-list.me/detail/w385.html"
+    },
+    {
+      "equipmentId": 386,
+      "name": "6inch三連装速射砲 Mk.16",
+      "detailUrl": "https://akashi-list.me/detail/w386.html"
+    },
+    {
+      "equipmentId": 387,
+      "name": "6inch三連装速射砲 Mk.16 mod.2",
+      "detailUrl": "https://akashi-list.me/detail/w387.html"
+    },
+    {
+      "equipmentId": 388,
+      "name": "銀河(江草隊)",
+      "detailUrl": "https://akashi-list.me/detail/w388.html"
+    },
+    {
+      "equipmentId": 389,
+      "name": "TBM-3W ＋ 3S",
+      "detailUrl": "https://akashi-list.me/detail/w389.html"
+    },
+    {
+      "equipmentId": 390,
+      "name": "16inch三連装砲 Mk.6＋GFCS",
+      "detailUrl": "https://akashi-list.me/detail/w390.html"
+    },
+    {
+      "equipmentId": 391,
+      "name": "九九式艦爆二二型",
+      "detailUrl": "https://akashi-list.me/detail/w391.html"
+    },
+    {
+      "equipmentId": 392,
+      "name": "九九式艦爆二二型(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w392.html"
+    },
+    {
+      "equipmentId": 393,
+      "name": "120mm/50 連装砲 mod.1936",
+      "detailUrl": "https://akashi-list.me/detail/w393.html"
+    },
+    {
+      "equipmentId": 394,
+      "name": "120mm/50 連装砲改 A.mod.1937",
+      "detailUrl": "https://akashi-list.me/detail/w394.html"
+    },
+    {
+      "equipmentId": 395,
+      "name": "深山",
+      "detailUrl": "https://akashi-list.me/detail/w395.html"
+    },
+    {
+      "equipmentId": 396,
+      "name": "深山改",
+      "detailUrl": "https://akashi-list.me/detail/w396.html"
+    },
+    {
+      "equipmentId": 397,
+      "name": "現地改装12.7cm連装高角砲",
+      "detailUrl": "https://akashi-list.me/detail/w397.html"
+    },
+    {
+      "equipmentId": 398,
+      "name": "現地改装10cm連装高角砲",
+      "detailUrl": "https://akashi-list.me/detail/w398.html"
+    },
+    {
+      "equipmentId": 399,
+      "name": "6inch Mk.XXIII三連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w399.html"
+    },
+    {
+      "equipmentId": 400,
+      "name": "533mm 三連装魚雷(53-39型)",
+      "detailUrl": "https://akashi-list.me/detail/w400.html"
+    },
+    {
+      "equipmentId": 401,
+      "name": "Do 17 Z-2",
+      "detailUrl": "https://akashi-list.me/detail/w401.html"
+    },
+    {
+      "equipmentId": 402,
+      "name": "寒冷地装備＆甲板要員",
+      "detailUrl": "https://akashi-list.me/detail/w402.html"
+    },
+    {
+      "equipmentId": 403,
+      "name": "四式重爆 飛龍",
+      "detailUrl": "https://akashi-list.me/detail/w403.html"
+    },
+    {
+      "equipmentId": 404,
+      "name": "四式重爆 飛龍(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w404.html"
+    },
+    {
+      "equipmentId": 405,
+      "name": "Do 217 E-5＋Hs293初期型",
+      "detailUrl": "https://akashi-list.me/detail/w405.html"
+    },
+    {
+      "equipmentId": 406,
+      "name": "Do 217 K-2＋Fritz-X",
+      "detailUrl": "https://akashi-list.me/detail/w406.html"
+    },
+    {
+      "equipmentId": 407,
+      "name": "15.2cm連装砲改二",
+      "detailUrl": "https://akashi-list.me/detail/w407.html"
+    },
+    {
+      "equipmentId": 408,
+      "name": "装甲艇(AB艇)",
+      "detailUrl": "https://akashi-list.me/detail/w408.html"
+    },
+    {
+      "equipmentId": 409,
+      "name": "武装大発",
+      "detailUrl": "https://akashi-list.me/detail/w409.html"
+    },
+    {
+      "equipmentId": 410,
+      "name": "21号対空電探改二",
+      "detailUrl": "https://akashi-list.me/detail/w410.html"
+    },
+    {
+      "equipmentId": 411,
+      "name": "42号対空電探改二",
+      "detailUrl": "https://akashi-list.me/detail/w411.html"
+    },
+    {
+      "equipmentId": 412,
+      "name": "水雷戦隊 熟練見張員",
+      "detailUrl": "https://akashi-list.me/detail/w412.html"
+    },
+    {
+      "equipmentId": 413,
+      "name": "精鋭水雷戦隊 司令部",
+      "detailUrl": "https://akashi-list.me/detail/w413.html"
+    },
+    {
+      "equipmentId": 414,
+      "name": "SOC Seagull",
+      "detailUrl": "https://akashi-list.me/detail/w414.html"
+    },
+    {
+      "equipmentId": 415,
+      "name": "SO3C Seamew改",
+      "detailUrl": "https://akashi-list.me/detail/w415.html"
+    },
+    {
+      "equipmentId": 416,
+      "name": "零式艦戦21型(台南空)",
+      "detailUrl": "https://akashi-list.me/detail/w416.html"
+    },
+    {
+      "equipmentId": 417,
+      "name": "零式艦戦32型(台南空)",
+      "detailUrl": "https://akashi-list.me/detail/w417.html"
+    },
+    {
+      "equipmentId": 418,
+      "name": "零式艦戦22型(251空)",
+      "detailUrl": "https://akashi-list.me/detail/w418.html"
+    },
+    {
+      "equipmentId": 419,
+      "name": "SBD-5",
+      "detailUrl": "https://akashi-list.me/detail/w419.html"
+    },
+    {
+      "equipmentId": 420,
+      "name": "SB2C-3",
+      "detailUrl": "https://akashi-list.me/detail/w420.html"
+    },
+    {
+      "equipmentId": 421,
+      "name": "SB2C-5",
+      "detailUrl": "https://akashi-list.me/detail/w421.html"
+    },
+    {
+      "equipmentId": 422,
+      "name": "FR-1 Fireball",
+      "detailUrl": "https://akashi-list.me/detail/w422.html"
+    },
+    {
+      "equipmentId": 423,
+      "name": "Fulmar(戦闘偵察/熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w423.html"
+    },
+    {
+      "equipmentId": 424,
+      "name": "Barracuda Mk.II",
+      "detailUrl": "https://akashi-list.me/detail/w424.html"
+    },
+    {
+      "equipmentId": 425,
+      "name": "Barracuda Mk.III",
+      "detailUrl": "https://akashi-list.me/detail/w425.html"
+    },
+    {
+      "equipmentId": 426,
+      "name": "305mm/46 連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w426.html"
+    },
+    {
+      "equipmentId": 427,
+      "name": "305mm/46 三連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w427.html"
+    },
+    {
+      "equipmentId": 428,
+      "name": "320mm/44 連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w428.html"
+    },
+    {
+      "equipmentId": 429,
+      "name": "320mm/44 三連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w429.html"
+    },
+    {
+      "equipmentId": 430,
+      "name": "65mm/64 単装速射砲改",
+      "detailUrl": "https://akashi-list.me/detail/w430.html"
+    },
+    {
+      "equipmentId": 431,
+      "name": "SM.79",
+      "detailUrl": "https://akashi-list.me/detail/w431.html"
+    },
+    {
+      "equipmentId": 432,
+      "name": "SM.79 bis",
+      "detailUrl": "https://akashi-list.me/detail/w432.html"
+    },
+    {
+      "equipmentId": 433,
+      "name": "SM.79 bis(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w433.html"
+    },
+    {
+      "equipmentId": 434,
+      "name": "Corsair Mk.II",
+      "detailUrl": "https://akashi-list.me/detail/w434.html"
+    },
+    {
+      "equipmentId": 435,
+      "name": "Corsair Mk.II(Ace)",
+      "detailUrl": "https://akashi-list.me/detail/w435.html"
+    },
+    {
+      "equipmentId": 436,
+      "name": "大発動艇(II号戦車/北アフリカ仕様)",
+      "detailUrl": "https://akashi-list.me/detail/w436.html"
+    },
+    {
+      "equipmentId": 437,
+      "name": "試製 陣風",
+      "detailUrl": "https://akashi-list.me/detail/w437.html"
+    },
+    {
+      "equipmentId": 438,
+      "name": "三式水中探信儀改",
+      "detailUrl": "https://akashi-list.me/detail/w438.html"
+    },
+    {
+      "equipmentId": 439,
+      "name": "Hedgehog(初期型)",
+      "detailUrl": "https://akashi-list.me/detail/w439.html"
+    },
+    {
+      "equipmentId": 440,
+      "name": "21inch艦首魚雷発射管6門(初期型)",
+      "detailUrl": "https://akashi-list.me/detail/w440.html"
+    },
+    {
+      "equipmentId": 441,
+      "name": "21inch艦首魚雷発射管6門(後期型)",
+      "detailUrl": "https://akashi-list.me/detail/w441.html"
+    },
+    {
+      "equipmentId": 442,
+      "name": "潜水艦後部魚雷発射管4門(初期型)",
+      "detailUrl": "https://akashi-list.me/detail/w442.html"
+    },
+    {
+      "equipmentId": 443,
+      "name": "潜水艦後部魚雷発射管4門(後期型)",
+      "detailUrl": "https://akashi-list.me/detail/w443.html"
+    },
+    {
+      "equipmentId": 444,
+      "name": "四式重爆 飛龍＋イ号一型甲 誘導弾",
+      "detailUrl": "https://akashi-list.me/detail/w444.html"
+    },
+    {
+      "equipmentId": 445,
+      "name": "二式複戦 屠龍",
+      "detailUrl": "https://akashi-list.me/detail/w445.html"
+    },
+    {
+      "equipmentId": 446,
+      "name": "二式複戦 屠龍 丙型",
+      "detailUrl": "https://akashi-list.me/detail/w446.html"
+    },
+    {
+      "equipmentId": 447,
+      "name": "零式艦戦64型(複座KMX搭載機)",
+      "detailUrl": "https://akashi-list.me/detail/w447.html"
+    },
+    {
+      "equipmentId": 449,
+      "name": "特大発動艇＋一式砲戦車",
+      "detailUrl": "https://akashi-list.me/detail/w449.html"
+    },
+    {
+      "equipmentId": 450,
+      "name": "13号対空電探改(後期型)",
+      "detailUrl": "https://akashi-list.me/detail/w450.html"
+    },
+    {
+      "equipmentId": 451,
+      "name": "三式指揮連絡機改",
+      "detailUrl": "https://akashi-list.me/detail/w451.html"
+    },
+    {
+      "equipmentId": 452,
+      "name": "キ96",
+      "detailUrl": "https://akashi-list.me/detail/w452.html"
+    },
+    {
+      "equipmentId": 453,
+      "name": "キ102乙",
+      "detailUrl": "https://akashi-list.me/detail/w453.html"
+    },
+    {
+      "equipmentId": 454,
+      "name": "キ102乙改＋イ号一型乙 誘導弾",
+      "detailUrl": "https://akashi-list.me/detail/w454.html"
+    },
+    {
+      "equipmentId": 455,
+      "name": "試製 長12.7cm連装砲A型改四",
+      "detailUrl": "https://akashi-list.me/detail/w455.html"
+    },
+    {
+      "equipmentId": 456,
+      "name": "SG レーダー(後期型)",
+      "detailUrl": "https://akashi-list.me/detail/w456.html"
+    },
+    {
+      "equipmentId": 457,
+      "name": "後期型艦首魚雷(4門)",
+      "detailUrl": "https://akashi-list.me/detail/w457.html"
+    },
+    {
+      "equipmentId": 458,
+      "name": "後期型電探＆逆探＋シュノーケル装備",
+      "detailUrl": "https://akashi-list.me/detail/w458.html"
+    },
+    {
+      "equipmentId": 459,
+      "name": "B-25",
+      "detailUrl": "https://akashi-list.me/detail/w459.html"
+    },
+    {
+      "equipmentId": 460,
+      "name": "15m二重測距儀改+21号電探改二+熟練射撃指揮所",
+      "detailUrl": "https://akashi-list.me/detail/w460.html"
+    },
+    {
+      "equipmentId": 461,
+      "name": "熟練聴音員+後期型艦首魚雷(4門)",
+      "detailUrl": "https://akashi-list.me/detail/w461.html"
+    },
+    {
+      "equipmentId": 463,
+      "name": "15.5cm三連装副砲改二",
+      "detailUrl": "https://akashi-list.me/detail/w463.html"
+    },
+    {
+      "equipmentId": 464,
+      "name": "10cm連装高角砲群 集中配備",
+      "detailUrl": "https://akashi-list.me/detail/w464.html"
+    },
+    {
+      "equipmentId": 465,
+      "name": "試製51cm三連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w465.html"
+    },
+    {
+      "equipmentId": 466,
+      "name": "流星改(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w466.html"
+    },
+    {
+      "equipmentId": 467,
+      "name": "5inch連装砲(副砲配置)集中配備",
+      "detailUrl": "https://akashi-list.me/detail/w467.html"
+    },
+    {
+      "equipmentId": 468,
+      "name": "38cm四連装砲改 deux",
+      "detailUrl": "https://akashi-list.me/detail/w468.html"
+    },
+    {
+      "equipmentId": 469,
+      "name": "零式水上偵察機11型乙改(夜偵)",
+      "detailUrl": "https://akashi-list.me/detail/w469.html"
+    },
+    {
+      "equipmentId": 470,
+      "name": "12.7cm連装砲C型改三",
+      "detailUrl": "https://akashi-list.me/detail/w470.html"
+    },
+    {
+      "equipmentId": 471,
+      "name": "Loire 130M",
+      "detailUrl": "https://akashi-list.me/detail/w471.html"
+    },
+    {
+      "equipmentId": 472,
+      "name": "Mk.32 対潜魚雷(Mk.2落射機)",
+      "detailUrl": "https://akashi-list.me/detail/w472.html"
+    },
+    {
+      "equipmentId": 473,
+      "name": "F4U-2 Night Corsair",
+      "detailUrl": "https://akashi-list.me/detail/w473.html"
+    },
+    {
+      "equipmentId": 474,
+      "name": "F4U-4",
+      "detailUrl": "https://akashi-list.me/detail/w474.html"
+    },
+    {
+      "equipmentId": 475,
+      "name": "AU-1",
+      "detailUrl": "https://akashi-list.me/detail/w475.html"
+    },
+    {
+      "equipmentId": 476,
+      "name": "F4U-7",
+      "detailUrl": "https://akashi-list.me/detail/w476.html"
+    },
+    {
+      "equipmentId": 477,
+      "name": "熟練甲板要員",
+      "detailUrl": "https://akashi-list.me/detail/w477.html"
+    },
+    {
+      "equipmentId": 478,
+      "name": "熟練甲板要員＋航空整備員",
+      "detailUrl": "https://akashi-list.me/detail/w478.html"
+    },
+    {
+      "equipmentId": 479,
+      "name": "Mosquito FB Mk.VI",
+      "detailUrl": "https://akashi-list.me/detail/w479.html"
+    },
+    {
+      "equipmentId": 480,
+      "name": "Mosquito PR Mk.IV",
+      "detailUrl": "https://akashi-list.me/detail/w480.html"
+    },
+    {
+      "equipmentId": 481,
+      "name": "Mosquito TR Mk.33",
+      "detailUrl": "https://akashi-list.me/detail/w481.html"
+    },
+    {
+      "equipmentId": 482,
+      "name": "特大発動艇+III号戦車(北アフリカ仕様)",
+      "detailUrl": "https://akashi-list.me/detail/w482.html"
+    },
+    {
+      "equipmentId": 483,
+      "name": "三式弾改二",
+      "detailUrl": "https://akashi-list.me/detail/w483.html"
+    },
+    {
+      "equipmentId": 484,
+      "name": "四式重爆 飛龍(熟練)＋イ号一型甲 誘導弾",
+      "detailUrl": "https://akashi-list.me/detail/w484.html"
+    },
+    {
+      "equipmentId": 485,
+      "name": "強風改二",
+      "detailUrl": "https://akashi-list.me/detail/w485.html"
+    },
+    {
+      "equipmentId": 486,
+      "name": "零式艦戦64型(制空戦闘機仕様)",
+      "detailUrl": "https://akashi-list.me/detail/w486.html"
+    },
+    {
+      "equipmentId": 487,
+      "name": "零式艦戦64型(熟練爆戦)",
+      "detailUrl": "https://akashi-list.me/detail/w487.html"
+    },
+    {
+      "equipmentId": 488,
+      "name": "二式爆雷改二",
+      "detailUrl": "https://akashi-list.me/detail/w488.html"
+    },
+    {
+      "equipmentId": 489,
+      "name": "一式戦 隼II型改(20戦隊)",
+      "detailUrl": "https://akashi-list.me/detail/w489.html"
+    },
+    {
+      "equipmentId": 490,
+      "name": "試製 夜間瑞雲(攻撃装備)",
+      "detailUrl": "https://akashi-list.me/detail/w490.html"
+    },
+    {
+      "equipmentId": 491,
+      "name": "一式戦 隼III型改(熟練/20戦隊)",
+      "detailUrl": "https://akashi-list.me/detail/w491.html"
+    },
+    {
+      "equipmentId": 492,
+      "name": "零戦52型丙(八幡部隊)",
+      "detailUrl": "https://akashi-list.me/detail/w492.html"
+    },
+    {
+      "equipmentId": 493,
+      "name": "一式陸攻(八幡部隊)",
+      "detailUrl": "https://akashi-list.me/detail/w493.html"
+    },
+    {
+      "equipmentId": 494,
+      "name": "特大発動艇＋チハ",
+      "detailUrl": "https://akashi-list.me/detail/w494.html"
+    },
+    {
+      "equipmentId": 495,
+      "name": "特大発動艇＋チハ改",
+      "detailUrl": "https://akashi-list.me/detail/w495.html"
+    },
+    {
+      "equipmentId": 496,
+      "name": "陸軍歩兵部隊",
+      "detailUrl": "https://akashi-list.me/detail/w496.html"
+    },
+    {
+      "equipmentId": 497,
+      "name": "九七式中戦車(チハ)",
+      "detailUrl": "https://akashi-list.me/detail/w497.html"
+    },
+    {
+      "equipmentId": 498,
+      "name": "九七式中戦車 新砲塔(チハ改)",
+      "detailUrl": "https://akashi-list.me/detail/w498.html"
+    },
+    {
+      "equipmentId": 499,
+      "name": "陸軍歩兵部隊＋チハ改",
+      "detailUrl": "https://akashi-list.me/detail/w499.html"
+    },
+    {
+      "equipmentId": 500,
+      "name": "発煙装置(煙幕)",
+      "detailUrl": "https://akashi-list.me/detail/w500.html"
+    },
+    {
+      "equipmentId": 501,
+      "name": "発煙装置改(煙幕)",
+      "detailUrl": "https://akashi-list.me/detail/w501.html"
+    },
+    {
+      "equipmentId": 502,
+      "name": "35.6cm連装砲改三(ダズル迷彩仕様)",
+      "detailUrl": "https://akashi-list.me/detail/w502.html"
+    },
+    {
+      "equipmentId": 503,
+      "name": "35.6cm連装砲改四",
+      "detailUrl": "https://akashi-list.me/detail/w503.html"
+    },
+    {
+      "equipmentId": 504,
+      "name": "銀河(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w504.html"
+    },
+    {
+      "equipmentId": 505,
+      "name": "25mm対空機銃増備",
+      "detailUrl": "https://akashi-list.me/detail/w505.html"
+    },
+    {
+      "equipmentId": 506,
+      "name": "電探装備マスト(13号改+22号電探改四)",
+      "detailUrl": "https://akashi-list.me/detail/w506.html"
+    },
+    {
+      "equipmentId": 507,
+      "name": "14inch/45 連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w507.html"
+    },
+    {
+      "equipmentId": 508,
+      "name": "14inch/45 三連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w508.html"
+    },
+    {
+      "equipmentId": 509,
+      "name": "12cm単装高角砲E型改",
+      "detailUrl": "https://akashi-list.me/detail/w509.html"
+    },
+    {
+      "equipmentId": 510,
+      "name": "Walrus",
+      "detailUrl": "https://akashi-list.me/detail/w510.html"
+    },
+    {
+      "equipmentId": 511,
+      "name": "21inch艦首魚雷発射管4門(初期型)",
+      "detailUrl": "https://akashi-list.me/detail/w511.html"
+    },
+    {
+      "equipmentId": 512,
+      "name": "21inch艦首魚雷発射管4門(後期型)",
+      "detailUrl": "https://akashi-list.me/detail/w512.html"
+    },
+    {
+      "equipmentId": 513,
+      "name": "阻塞気球",
+      "detailUrl": "https://akashi-list.me/detail/w513.html"
+    },
+    {
+      "equipmentId": 514,
+      "name": "特大発動艇＋III号戦車J型",
+      "detailUrl": "https://akashi-list.me/detail/w514.html"
+    },
+    {
+      "equipmentId": 515,
+      "name": "Sea Otter",
+      "detailUrl": "https://akashi-list.me/detail/w515.html"
+    },
+    {
+      "equipmentId": 516,
+      "name": "Me262 A-1a／R1",
+      "detailUrl": "https://akashi-list.me/detail/w516.html"
+    },
+    {
+      "equipmentId": 517,
+      "name": "逆探(E27)＋22号対水上電探改四(後期調整型)",
+      "detailUrl": "https://akashi-list.me/detail/w517.html"
+    },
+    {
+      "equipmentId": 518,
+      "name": "14cm連装砲改二",
+      "detailUrl": "https://akashi-list.me/detail/w518.html"
+    },
+    {
+      "equipmentId": 519,
+      "name": "SJレーダー+潜水艦司令塔装備",
+      "detailUrl": "https://akashi-list.me/detail/w519.html"
+    },
+    {
+      "equipmentId": 520,
+      "name": "試製20.3cm(4号)連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w520.html"
+    },
+    {
+      "equipmentId": 521,
+      "name": "紫雲(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w521.html"
+    },
+    {
+      "equipmentId": 522,
+      "name": "零式小型水上機",
+      "detailUrl": "https://akashi-list.me/detail/w522.html"
+    },
+    {
+      "equipmentId": 523,
+      "name": "零式小型水上機(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w523.html"
+    },
+    {
+      "equipmentId": 524,
+      "name": "12cm単装高角砲＋25mm機銃増備",
+      "detailUrl": "https://akashi-list.me/detail/w524.html"
+    },
+    {
+      "equipmentId": 525,
+      "name": "特四式内火艇",
+      "detailUrl": "https://akashi-list.me/detail/w525.html"
+    },
+    {
+      "equipmentId": 526,
+      "name": "特四式内火艇改",
+      "detailUrl": "https://akashi-list.me/detail/w526.html"
+    },
+    {
+      "equipmentId": 527,
+      "name": "Type281 レーダー",
+      "detailUrl": "https://akashi-list.me/detail/w527.html"
+    },
+    {
+      "equipmentId": 528,
+      "name": "Type274 射撃管制レーダー",
+      "detailUrl": "https://akashi-list.me/detail/w528.html"
+    },
+    {
+      "equipmentId": 529,
+      "name": "12.7cm連装砲C型改三H",
+      "detailUrl": "https://akashi-list.me/detail/w529.html"
+    },
+    {
+      "equipmentId": 530,
+      "name": "35.6cm連装砲改三丙",
+      "detailUrl": "https://akashi-list.me/detail/w530.html"
+    },
+    {
+      "equipmentId": 531,
+      "name": "艦隊通信アンテナ",
+      "detailUrl": "https://akashi-list.me/detail/w531.html"
+    },
+    {
+      "equipmentId": 532,
+      "name": "通信装置&要員",
+      "detailUrl": "https://akashi-list.me/detail/w532.html"
+    },
+    {
+      "equipmentId": 533,
+      "name": "10cm連装高角砲改+高射装置改",
+      "detailUrl": "https://akashi-list.me/detail/w533.html"
+    },
+    {
+      "equipmentId": 534,
+      "name": "13.8cm連装砲",
+      "detailUrl": "https://akashi-list.me/detail/w534.html"
+    },
+    {
+      "equipmentId": 535,
+      "name": "13.8cm連装砲改",
+      "detailUrl": "https://akashi-list.me/detail/w535.html"
+    },
+    {
+      "equipmentId": 536,
+      "name": "15.2cm三連装主砲",
+      "detailUrl": "https://akashi-list.me/detail/w536.html"
+    },
+    {
+      "equipmentId": 537,
+      "name": "15.2cm三連装主砲改",
+      "detailUrl": "https://akashi-list.me/detail/w537.html"
+    },
+    {
+      "equipmentId": 538,
+      "name": "Loire 130M改(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w538.html"
+    },
+    {
+      "equipmentId": 539,
+      "name": "SOC Seagull 後期型(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w539.html"
+    },
+    {
+      "equipmentId": 540,
+      "name": "零式水上偵察機11型甲改二",
+      "detailUrl": "https://akashi-list.me/detail/w540.html"
+    },
+    {
+      "equipmentId": 541,
+      "name": "SBD(Yellow Wings)",
+      "detailUrl": "https://akashi-list.me/detail/w541.html"
+    },
+    {
+      "equipmentId": 542,
+      "name": "TBD(Yellow Wings)",
+      "detailUrl": "https://akashi-list.me/detail/w542.html"
+    },
+    {
+      "equipmentId": 543,
+      "name": "SBD VS-2(偵察飛行隊)",
+      "detailUrl": "https://akashi-list.me/detail/w543.html"
+    },
+    {
+      "equipmentId": 544,
+      "name": "SBD VB-2(爆撃飛行隊)",
+      "detailUrl": "https://akashi-list.me/detail/w544.html"
+    },
+    {
+      "equipmentId": 545,
+      "name": "天山一二型甲改二(村田隊/電探装備)",
+      "detailUrl": "https://akashi-list.me/detail/w545.html"
+    },
+    {
+      "equipmentId": 546,
+      "name": "試製 震電(局地戦闘機)",
+      "detailUrl": "https://akashi-list.me/detail/w546.html"
+    },
+    {
+      "equipmentId": 547,
+      "name": "震電改二(艦戦型改二)",
+      "detailUrl": "https://akashi-list.me/detail/w547.html"
+    },
+    {
+      "equipmentId": 548,
+      "name": "震電改三(試製 噴式震電)",
+      "detailUrl": "https://akashi-list.me/detail/w548.html"
+    },
+    {
+      "equipmentId": 549,
+      "name": "三式指揮連絡機改二",
+      "detailUrl": "https://akashi-list.me/detail/w549.html"
+    },
+    {
+      "equipmentId": 550,
+      "name": "試製 明星(増加試作機)",
+      "detailUrl": "https://akashi-list.me/detail/w550.html"
+    },
+    {
+      "equipmentId": 551,
+      "name": "明星改",
+      "detailUrl": "https://akashi-list.me/detail/w551.html"
+    },
+    {
+      "equipmentId": 552,
+      "name": "九九式練爆二二型改(夜間装備実験機)",
+      "detailUrl": "https://akashi-list.me/detail/w552.html"
+    },
+    {
+      "equipmentId": 553,
+      "name": "10cm連装高角砲改",
+      "detailUrl": "https://akashi-list.me/detail/w553.html"
+    },
+    {
+      "equipmentId": 554,
+      "name": "九七式艦攻改(北東海軍航空隊)",
+      "detailUrl": "https://akashi-list.me/detail/w554.html"
+    },
+    {
+      "equipmentId": 555,
+      "name": "18cm/57 三連装主砲",
+      "detailUrl": "https://akashi-list.me/detail/w555.html"
+    },
+    {
+      "equipmentId": 556,
+      "name": "10cm/56 単装高角砲(集中配備)",
+      "detailUrl": "https://akashi-list.me/detail/w556.html"
+    },
+    {
+      "equipmentId": 557,
+      "name": "零式艦戦62型改(夜間爆戦)",
+      "detailUrl": "https://akashi-list.me/detail/w557.html"
+    },
+    {
+      "equipmentId": 558,
+      "name": "零式艦戦62型改(熟練/夜間爆戦)",
+      "detailUrl": "https://akashi-list.me/detail/w558.html"
+    },
+    {
+      "equipmentId": 559,
+      "name": "Ju87 D-4(Fliegerass)",
+      "detailUrl": "https://akashi-list.me/detail/w559.html"
+    },
+    {
+      "equipmentId": 560,
+      "name": "Bf109 T-3(G)",
+      "detailUrl": "https://akashi-list.me/detail/w560.html"
+    },
+    {
+      "equipmentId": 561,
+      "name": "Ho229",
+      "detailUrl": "https://akashi-list.me/detail/w561.html"
+    },
+    {
+      "equipmentId": 562,
+      "name": "Do 217 E-5＋TV誘導型 Hs293D",
+      "detailUrl": "https://akashi-list.me/detail/w562.html"
+    },
+    {
+      "equipmentId": 564,
+      "name": "21cm単装主砲",
+      "detailUrl": "https://akashi-list.me/detail/w564.html"
+    },
+    {
+      "equipmentId": 565,
+      "name": "15cm単装副砲",
+      "detailUrl": "https://akashi-list.me/detail/w565.html"
+    },
+    {
+      "equipmentId": 566,
+      "name": "10.2cm三連装副砲",
+      "detailUrl": "https://akashi-list.me/detail/w566.html"
+    },
+    {
+      "equipmentId": 567,
+      "name": "Sea Gladiator",
+      "detailUrl": "https://akashi-list.me/detail/w567.html"
+    },
+    {
+      "equipmentId": 568,
+      "name": "強風改二(熟練)",
+      "detailUrl": "https://akashi-list.me/detail/w568.html"
+    },
+    {
+      "equipmentId": 569,
+      "name": "三式爆雷投射機改",
+      "detailUrl": "https://akashi-list.me/detail/w569.html"
+    },
+    {
+      "equipmentId": 570,
+      "name": "流星改(友永隊)",
+      "detailUrl": "https://akashi-list.me/detail/w570.html"
+    },
+    {
+      "equipmentId": 571,
+      "name": "53cm連装魚雷改(酸素魚雷)",
+      "detailUrl": "https://akashi-list.me/detail/w571.html"
+    },
+    {
+      "equipmentId": 572,
+      "name": "12.7cm単装高角砲改三",
+      "detailUrl": "https://akashi-list.me/detail/w572.html"
+    },
+    {
+      "equipmentId": 573,
+      "name": "試製 23号電探改三",
+      "detailUrl": "https://akashi-list.me/detail/w573.html"
+    },
+    {
+      "equipmentId": 574,
+      "name": "SCレーダー改(後期調整型)",
+      "detailUrl": "https://akashi-list.me/detail/w574.html"
+    },
+    {
+      "equipmentId": 575,
+      "name": "25mm連装機銃(熟練機銃員分隊)",
+      "detailUrl": "https://akashi-list.me/detail/w575.html"
+    },
+    {
+      "equipmentId": 576,
+      "name": "大発動艇(R35＆フランス兵)",
+      "detailUrl": "https://akashi-list.me/detail/w576.html"
+    },
+    {
+      "equipmentId": 577,
+      "name": "61cm四連装(酸素)魚雷五型改三",
+      "detailUrl": "https://akashi-list.me/detail/w577.html"
+    },
+    {
+      "equipmentId": 578,
+      "name": "SB2U-2",
+      "detailUrl": "https://akashi-list.me/detail/w578.html"
+    }
+  ]
+}

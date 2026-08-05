@@ -10,7 +10,10 @@ class GameApiParseException implements Exception {
 }
 
 abstract final class GameApiDecoder {
-  static Object? decodeData(String responseBody) {
+  static Object? decodeData(
+    String responseBody, {
+    bool allowMissingData = false,
+  }) {
     final body = responseBody.startsWith('svdata=')
         ? responseBody.substring('svdata='.length)
         : responseBody;
@@ -27,7 +30,7 @@ abstract final class GameApiDecoder {
     if (_asInt(decoded['api_result']) != 1) {
       throw const GameApiParseException('游戏接口返回失败');
     }
-    if (!decoded.containsKey('api_data')) {
+    if (!allowMissingData && !decoded.containsKey('api_data')) {
       throw const GameApiParseException('响应缺少 api_data');
     }
     return decoded['api_data'];

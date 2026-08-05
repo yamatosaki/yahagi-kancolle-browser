@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_browser_controller.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_browser_toolbar.dart';
@@ -116,5 +116,114 @@ void main() {
     );
     expect(button.onPressed, isNull);
     expect(find.text('声音不可用'), findsNothing);
+  });
+
+  testWidgets(
+    'persistent mode shows six actions in order without overlay controls',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      var screenshots = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: GameBrowserToolbar(
+              persistent: true,
+              mode: GameBrowserMode.realWeb,
+              loadState: GamePageLoadState.ready,
+              displayAddress: 'https://play.games.dmm.com/game/kancolle',
+              onBack: () async {},
+              onReload: () async {},
+              onHome: () async {},
+              onEnterDmm: () async {},
+              isMuted: false,
+              audioEnabled: true,
+              onToggleMuted: () async {},
+              onCollapse: () {},
+              onFitScreen: () {},
+              onScreenshot: () => screenshots++,
+            ),
+          ),
+        ),
+      );
+
+      final actions = <Finder>[
+        find.byKey(const Key('browser-back')),
+        find.byKey(const Key('browser-reload')),
+        find.byKey(const Key('browser-home')),
+        find.byKey(const Key('game-audio-toggle')),
+        find.byKey(const Key('browser-screenshot')),
+        find.byKey(const Key('browser-fit-screen')),
+      ];
+      for (var index = 1; index < actions.length; index++) {
+        expect(
+          tester.getCenter(actions[index]).dx,
+          greaterThan(tester.getCenter(actions[index - 1]).dx),
+        );
+      }
+      expect(find.byKey(const Key('browser-toolbar-collapse')), findsNothing);
+      expect(find.textContaining('https://'), findsNothing);
+      await tester.tap(find.byKey(const Key('browser-screenshot')));
+      expect(screenshots, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('persistent toolbar is compact only on landscape phones', (
+    tester,
+  ) async {
+    Future<void> pumpAt(Size size) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: GameBrowserToolbar(
+              persistent: true,
+              mode: GameBrowserMode.realWeb,
+              loadState: GamePageLoadState.ready,
+              displayAddress: 'https://play.games.dmm.com/game/kancolle',
+              onBack: () async {},
+              onReload: () async {},
+              onHome: () async {},
+              onEnterDmm: () async {},
+              isMuted: false,
+              audioEnabled: true,
+              onToggleMuted: () async {},
+              onCollapse: () {},
+              onFitScreen: () {},
+            ),
+          ),
+        ),
+      );
+    }
+
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await pumpAt(const Size(700, 320));
+    expect(tester.getSize(find.byType(GameBrowserToolbar)).height, 36);
+    expect(
+      tester.getSize(find.byKey(const Key('browser-back'))),
+      const Size(34, 34),
+    );
+    expect(
+      tester.getSize(find.byKey(const Key('game-audio-toggle'))),
+      const Size(34, 34),
+    );
+
+    await pumpAt(const Size(1200, 800));
+    expect(tester.getSize(find.byType(GameBrowserToolbar)).height, 42);
+    expect(
+      tester.getSize(find.byKey(const Key('browser-back'))),
+      const Size(36, 36),
+    );
+    expect(
+      tester.getSize(find.byKey(const Key('game-audio-toggle'))),
+      const Size(40, 40),
+    );
   });
 }

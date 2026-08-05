@@ -6,7 +6,6 @@ import 'battle_models.dart';
 import 'battle_pills.dart';
 import '../fleet/dashboard_card.dart';
 import '../fleet/ship_status_style.dart';
-import '../fleet/status_density.dart';
 import '../game_state/game_state.dart';
 import 'detailed_battle_panel.dart';
 
@@ -53,8 +52,8 @@ class _LiveBattleCardState extends State<LiveBattleCard> {
               });
             },
           ),
-          borderColor: idle
-              ? const Color(0xff294052)
+          borderColor: widget.collapsed || idle
+              ? null
               : battle.status == LiveBattleStatus.forecast
               ? const Color(0xff8b6a2b)
               : const Color(0xff2f7469),
@@ -214,8 +213,13 @@ class _CompactBattlePanel extends StatelessWidget {
     final enemyName = battleEnemyFleetDisplayName(rawEnemyName);
     final enemyCombined =
         battle.enemyEscort.isNotEmpty || rawEnemyName.contains('联合舰队');
-    final phone = isPhoneDensity(context);
     final metaChips = _compactMetaChips(battle);
+    final statusPills = <Widget>[
+      NodeTypePill(label: battle.context.nodeTypeLabel),
+      if (battle.airSuperiority != null)
+        AirSuperiorityPill(label: battle.airSuperiority!),
+      for (final chip in metaChips) MetaChip(label: chip.$1, color: chip.$2),
+    ];
 
     return Column(
       key: const Key('compact-battle-panel'),
@@ -229,67 +233,18 @@ class _CompactBattlePanel extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        battle.context.nodeLabel,
-                        style: const TextStyle(
-                          color: Color(0xffffd65c),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          enemyName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ).copyWith(
-                                color: enemyCombined
-                                    ? const Color(0xffff8c78)
-                                    : null,
-                              ),
-                        ),
-                      ),
-                      if (!phone) ...<Widget>[
-                        const SizedBox(width: 8),
-                        NodeTypePill(label: battle.context.nodeTypeLabel),
-                        if (battle.airSuperiority != null) ...<Widget>[
-                          const SizedBox(width: 8),
-                          AirSuperiorityPill(label: battle.airSuperiority!),
-                        ],
-                      ],
-                    ],
+                  AdaptiveBattleHeader(
+                    nodeLabel: battle.context.nodeLabel,
+                    enemyName: enemyName,
+                    enemyStyle: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: enemyCombined ? const Color(0xffff8c78) : null,
+                    ),
                   ),
-                  if (phone) ...<Widget>[
+                  if (statusPills.isNotEmpty) ...<Widget>[
                     const SizedBox(height: 5),
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: <Widget>[
-                        NodeTypePill(label: battle.context.nodeTypeLabel),
-                        if (battle.airSuperiority != null)
-                          AirSuperiorityPill(label: battle.airSuperiority!),
-                        for (final chip in metaChips)
-                          MetaChip(label: chip.$1, color: chip.$2),
-                      ],
-                    ),
-                  ] else if (metaChips.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: 5),
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: <Widget>[
-                        for (final chip in metaChips)
-                          MetaChip(label: chip.$1, color: chip.$2),
-                      ],
-                    ),
+                    Wrap(spacing: 4, runSpacing: 4, children: statusPills),
                   ],
                   if (dropEntries.isNotEmpty) ...<Widget>[
                     const SizedBox(height: 4),
@@ -562,7 +517,7 @@ List<(String, Color)> _compactMetaChips(LiveBattle battle) {
   return <(String, Color)>[
     if (battle.context.combinedFleetType != CombinedFleetType.none)
       (battle.context.combinedFleetType.label, const Color(0xff70c7bc)),
-    (battle.phaseLabel, const Color(0xff9db2bf)),
+    (battle.phaseLabel, battlePhaseChipColor(battle.phaseLabel)),
     if (battle.engagement > 0)
       (
         engagementLabel(battle.engagement),
@@ -677,23 +632,6 @@ class _RankBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 50,
-      height: 50,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: const Color(0xff243343),
-        borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: const Color(0xffd4a85f)),
-      ),
-      child: Text(
-        rank.label,
-        style: const TextStyle(
-          color: Color(0xffffd65c),
-          fontSize: 21,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    );
+    return BattleRankBadge(rank: rank);
   }
 }

@@ -1,13 +1,23 @@
 ﻿package app.yahagi.kancollebrowser
 
+import android.Manifest
+import android.content.ContentValues
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.media.MediaScannerConnection
+import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.WindowManager
 import android.webkit.WebView
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
@@ -17,8 +27,14 @@ import io.flutter.plugin.common.MethodChannel
 import app.yahagi.kancollebrowser.browser.WebViewProxyManager
 import app.yahagi.kancollebrowser.browser.GadgetBypassManager
 import app.yahagi.kancollebrowser.browser.GadgetBypassWebViewClient
+import app.yahagi.kancollebrowser.browser.FixedCanvasScalePolicy
 import app.yahagi.kancollebrowser.capture.GameCaptureBridge
-import kotlin.math.abs
+import app.yahagi.kancollebrowser.capture.ScreenshotDestination
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,6 +57,9 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
         const val SCALE_CHANNEL = "app.webview/fixed_canvas_scaling"
         const val PROXY_CHANNEL = "app.yahagi.kancollebrowser/network_proxy"
         const val GADGET_BYPASS_CHANNEL = "app.yahagi.kancollebrowser/gadget_bypass"
+        const val SCREEN_AWAKE_CHANNEL = "app.yahagi.kancollebrowser/screen_awake"
+        const val GAME_SCREENSHOT_CHANNEL = "app.yahagi.kancollebrowser/game_screenshot"
+        const val SCREENSHOT_PERMISSION_REQUEST = 2406
     }
 
     private var gameCaptureBridge: GameCaptureBridge? = null
@@ -49,7 +68,11 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
     private var gadgetBypassLayoutListener: ViewTreeObserver.OnGlobalLayoutListener? = null
     
     private var boundWebView: WebView? = null
-    private var previousFitScale: Float = 0f
+    private var fixedCanvasLayoutListener: View.OnLayoutChangeListener? = null
+    private val fixedCanvasScalePolicy = FixedCanvasScalePolicy()
+    private var fixedCanvasContentWidth: Int = 1200
+    private var fixedCanvasContentHeight: Int = 720
+    private var pendingScreenshotResult: MethodChannel.Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -76,6 +99,42 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
                     }
                     setGameWebViewMuted(muted, result)
                 }
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            SCREEN_AWAKE_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "isEnabled" -> result.success(
+                    window.attributes.flags and
+                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON != 0,
+                )
+                "setEnabled" -> {
+                    val enabled = call.argument<Boolean>("enabled")
+                    if (enabled == null) {
+                        result.error("invalid_argument", "enabled must be a boolean", null)
+                        return@setMethodCallHandler
+                    }
+                    if (enabled) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    } else {
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    }
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            GAME_SCREENSHOT_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "captureWebView" -> captureGameWebView(result)
                 else -> result.notImplemented()
             }
         }
@@ -141,8 +200,40 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
         webViewProxyManager?.dispose()
         webViewProxyManager = null
         gadgetBypassManager = null
+        fixedCanvasLayoutListener?.let { listener ->
+            boundWebView?.removeOnLayoutChangeListener(listener)
+        }
+        fixedCanvasLayoutListener = null
         boundWebView = null
+        fixedCanvasScalePolicy.reset()
+        pendingScreenshotResult?.error(
+            "activity_destroyed",
+            "The screenshot request was cancelled.",
+            null,
+        )
+        pendingScreenshotResult = null
         super.onDestroy()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != SCREENSHOT_PERMISSION_REQUEST) return
+
+        val result = pendingScreenshotResult ?: return
+        pendingScreenshotResult = null
+        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            captureGameWebView(result)
+        } else {
+            result.error(
+                "storage_permission_denied",
+                "Storage permission is required to save screenshots to the gallery.",
+                null,
+            )
+        }
     }
 
     override fun onBypassEnabledChanged(enabled: Boolean) {
@@ -248,17 +339,169 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
         }
     }
 
+    private fun captureGameWebView(result: MethodChannel.Result) {
+        if (
+            Build.VERSION.SDK_INT <= Build.VERSION_CODES.P &&
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            if (pendingScreenshotResult != null) {
+                result.error("screenshot_busy", "A screenshot is already pending.", null)
+                return
+            }
+            pendingScreenshotResult = result
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                SCREENSHOT_PERMISSION_REQUEST,
+            )
+            return
+        }
+
+        val webViews = mutableListOf<WebView>()
+        collectWebViews(window.decorView, webViews)
+        if (webViews.size != 1) {
+            result.error(
+                "webview_not_found",
+                "Expected one game WebView but found ${webViews.size}.",
+                null,
+            )
+            return
+        }
+        val webView = webViews.single()
+        if (webView.width <= 0 || webView.height <= 0) {
+            result.error("invalid_size", "The game WebView has no visible size.", null)
+            return
+        }
+
+        var bitmap: Bitmap? = null
+        try {
+            bitmap = Bitmap.createBitmap(
+                webView.width,
+                webView.height,
+                Bitmap.Config.ARGB_8888,
+            )
+            webView.draw(Canvas(bitmap))
+            if (!hasVisualContent(bitmap)) {
+                result.error(
+                    "blank_screenshot",
+                    "The captured WebView image is blank or a single color.",
+                    null,
+                )
+                return
+            }
+
+            val timestamp = SimpleDateFormat("yyyyMMdd-HHmmss-SSS", Locale.US)
+                .format(Date())
+            val destination = ScreenshotDestination.create(timestamp)
+            saveScreenshotToGallery(bitmap, destination)
+            result.success(destination.displayLocation)
+        } catch (error: Exception) {
+            result.error(
+                "screenshot_failed",
+                error.message ?: "Unable to capture the game WebView.",
+                null,
+            )
+        } finally {
+            bitmap?.recycle()
+        }
+    }
+
+    private fun saveScreenshotToGallery(
+        bitmap: Bitmap,
+        destination: ScreenshotDestination,
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            saveScreenshotWithMediaStore(bitmap, destination)
+            return
+        }
+
+        @Suppress("DEPRECATION")
+        val picturesRoot = Environment.getExternalStoragePublicDirectory(
+            Environment.DIRECTORY_PICTURES,
+        )
+        val outputDirectory = File(picturesRoot, "Yahagi")
+        if (!outputDirectory.exists() && !outputDirectory.mkdirs()) {
+            throw IllegalStateException("Unable to create the gallery directory.")
+        }
+        val output = File(outputDirectory, destination.fileName)
+        FileOutputStream(output).use { stream ->
+            if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)) {
+                throw IllegalStateException("Unable to encode screenshot.")
+            }
+        }
+        MediaScannerConnection.scanFile(
+            this,
+            arrayOf(output.absolutePath),
+            arrayOf("image/png"),
+            null,
+        )
+    }
+
+    private fun saveScreenshotWithMediaStore(
+        bitmap: Bitmap,
+        destination: ScreenshotDestination,
+    ) {
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, destination.fileName)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+            put(MediaStore.Images.Media.RELATIVE_PATH, destination.relativeDirectory)
+            put(MediaStore.Images.Media.IS_PENDING, 1)
+        }
+        val collection = MediaStore.Images.Media.getContentUri(
+            MediaStore.VOLUME_EXTERNAL_PRIMARY,
+        )
+        val uri = contentResolver.insert(collection, values)
+            ?: throw IllegalStateException("Unable to create a gallery entry.")
+
+        try {
+            contentResolver.openOutputStream(uri, "w").use { stream ->
+                if (
+                    stream == null ||
+                    !bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                ) {
+                    throw IllegalStateException("Unable to encode screenshot.")
+                }
+            }
+            values.clear()
+            values.put(MediaStore.Images.Media.IS_PENDING, 0)
+            contentResolver.update(uri, values, null, null)
+        } catch (error: Exception) {
+            contentResolver.delete(uri, null, null)
+            throw error
+        }
+    }
+
+    private fun hasVisualContent(bitmap: Bitmap): Boolean {
+        val stepX = (bitmap.width / 20).coerceAtLeast(1)
+        val stepY = (bitmap.height / 20).coerceAtLeast(1)
+        var firstColor: Int? = null
+        var hasOpaquePixel = false
+        var y = 0
+        while (y < bitmap.height) {
+            var x = 0
+            while (x < bitmap.width) {
+                val color = bitmap.getPixel(x, y)
+                hasOpaquePixel = hasOpaquePixel || color ushr 24 != 0
+                if (firstColor == null) {
+                    firstColor = color
+                } else if (color != firstColor && hasOpaquePixel) {
+                    return true
+                }
+                x += stepX
+            }
+            y += stepY
+        }
+        return false
+    }
+
     private fun setFixedCanvasScaling(
         contentWidth: Int,
         contentHeight: Int,
         result: MethodChannel.Result,
     ) {
-        if (boundWebView != null) {
-            // Already bound, scaling is handled by LayoutChangeListener
-            result.success(null)
-            return
-        }
-        
         val webViews = mutableListOf<WebView>()
         collectWebViews(window.decorView, webViews)
         when (webViews.size) {
@@ -270,36 +513,53 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
             1 -> {
                 try {
                     val webView = webViews.single()
-                    boundWebView = webView
-                    
+                    fixedCanvasContentWidth = contentWidth
+                    fixedCanvasContentHeight = contentHeight
+
+                    if (boundWebView !== webView) {
+                        fixedCanvasLayoutListener?.let { listener ->
+                            boundWebView?.removeOnLayoutChangeListener(listener)
+                        }
+                        fixedCanvasScalePolicy.reset()
+                        boundWebView = webView
+
+                        val listener = View.OnLayoutChangeListener {
+                                _, left, top, right, bottom, _, _, _, _ ->
+                            applyFixedCanvasScale(
+                                webView,
+                                right - left,
+                                bottom - top,
+                            )
+                        }
+                        fixedCanvasLayoutListener = listener
+                        webView.addOnLayoutChangeListener(listener)
+                    }
+
                     webView.settings.useWideViewPort = true
                     webView.settings.loadWithOverviewMode = false
                     webView.settings.builtInZoomControls = true
                     webView.settings.displayZoomControls = false
 
-                    val applyScale = { w: Int, h: Int ->
-                        if (w > 0 && h > 0) {
-                            val fitScale = java.lang.Float.min(
-                                w.toFloat() / contentWidth.toFloat(),
-                                h.toFloat() / contentHeight.toFloat()
+                    // A new document resets WebView's effective initial scale even
+                    // when the outer view keeps the same dimensions. Reapply after
+                    // the current UI/layout work and only then complete the channel.
+                    webView.post {
+                        try {
+                            applyFixedCanvasScale(
+                                webView,
+                                webView.width,
+                                webView.height,
+                                force = true,
                             )
-                            if (abs(fitScale - previousFitScale) > 0.01f) {
-                                previousFitScale = fitScale
-                                val initialScalePercent = (fitScale * 100f).toInt()
-                                webView.setInitialScale(initialScalePercent)
-                            }
+                            result.success(null)
+                        } catch (error: RuntimeException) {
+                            result.error(
+                                "scaling_failed",
+                                error.message ?: "Unable to set WebView scaling.",
+                                null,
+                            )
                         }
                     }
-
-                    applyScale(webView.width, webView.height)
-                    
-                    webView.addOnLayoutChangeListener { v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
-                        val w = right - left
-                        val h = bottom - top
-                        applyScale(w, h)
-                    }
-
-                    result.success(null)
                 } catch (error: RuntimeException) {
                     result.error(
                         "scaling_failed",
@@ -314,6 +574,22 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
                 null,
             )
         }
+    }
+
+    private fun applyFixedCanvasScale(
+        webView: WebView,
+        viewportWidth: Int,
+        viewportHeight: Int,
+        force: Boolean = false,
+    ) {
+        val scalePercent = fixedCanvasScalePolicy.nextScalePercent(
+            viewportWidth,
+            viewportHeight,
+            fixedCanvasContentWidth,
+            fixedCanvasContentHeight,
+            force,
+        ) ?: return
+        webView.setInitialScale(scalePercent)
     }
 
     private fun collectWebViews(

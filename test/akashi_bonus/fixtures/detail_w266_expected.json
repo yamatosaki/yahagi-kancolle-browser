@@ -1,0 +1,681 @@
+{
+  "rules": [
+    {
+      "ruleId": "akashi-266-count-001",
+      "equipment": {
+        "ids": [
+          266
+        ],
+        "typeIds": []
+      },
+      "category": "count",
+      "shipCondition": {
+        "shipIds": [
+          566,
+          567,
+          568,
+          648,
+          656,
+          670,
+          915,
+          951
+        ],
+        "baseShipIds": [],
+        "classIds": [],
+        "shipTypeIds": [],
+        "nationalityIds": []
+      },
+      "equipmentCondition": {
+        "minImprovement": 0,
+        "maxImprovement": 10
+      },
+      "requires": [],
+      "effect": {
+        "mode": "countTable",
+        "increments": {
+          "1": {
+            "firepower": 2
+          },
+          "2": {
+            "firepower": 3
+          },
+          "3": {
+            "firepower": 1
+          }
+        },
+        "byCount": {
+          "1": {
+            "firepower": 2
+          },
+          "2": {
+            "firepower": 5
+          },
+          "3": {
+            "firepower": 6
+          }
+        },
+        "overflow": "unresolved"
+      },
+      "source": {
+        "url": "https://akashi-list.me/detail/w266.html",
+        "pageName": "12.7cm連装砲C型改二",
+        "fetchedAt": "",
+        "httpLastModified": null,
+        "contentSha256": "",
+        "fragmentHash": "",
+        "sourceGroupLabel": "陽炎型改二・雪風改二",
+        "rawEffect": "火力+2,+3,+1"
+      }
+    },
+    {
+      "ruleId": "akashi-266-single-001",
+      "equipment": {
+        "ids": [
+          266
+        ],
+        "typeIds": []
+      },
+      "category": "single",
+      "shipCondition": {
+        "shipIds": [
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          95,
+          96,
+          97,
+          98,
+          405,
+          413,
+          414,
+          457,
+          458,
+          459,
+          582,
+          583
+        ],
+        "baseShipIds": [],
+        "classIds": [],
+        "shipTypeIds": [],
+        "nationalityIds": []
+      },
+      "equipmentCondition": {
+        "minImprovement": 0,
+        "maxImprovement": 10
+      },
+      "requires": [],
+      "effect": {
+        "mode": "perEquipment",
+        "bonus": {
+          "firepower": 1,
+          "torpedo": 0,
+          "antiAir": 0,
+          "evasion": 0,
+          "accuracy": 0,
+          "armor": 0,
+          "antiSubmarine": 0,
+          "lineOfSight": 0,
+          "bombing": 0,
+          "range": 0
+        }
+      },
+      "source": {
+        "url": "https://akashi-list.me/detail/w266.html",
+        "pageName": "12.7cm連装砲C型改二",
+        "fetchedAt": "",
+        "httpLastModified": null,
+        "contentSha256": "",
+        "fragmentHash": "",
+        "sourceGroupLabel": "白露型・朝潮型",
+        "rawEffect": "火力+1"
+      }
+    },
+    {
+      "ruleId": "akashi-266-single-002",
+      "equipment": {
+        "ids": [
+          266
+        ],
+        "typeIds": []
+      },
+      "category": "single",
+      "shipCondition": {
+        "shipIds": [
+          557
+        ],
+        "baseShipIds": [],
+        "classIds": [],
+        "shipTypeIds": [],
+        "nationalityIds": []
+      },
+      "equipmentCondition": {
+        "minImprovement": 0,
+        "maxImprovement": 10
+      },
+      "requires": [],
+      "effect": {
+        "mode": "perEquipment",
+        "bonus": {
+          "firepower": 0,
+          "torpedo": 0,
+          "antiAir": 0,
+          "evasion": 1,
+          "accuracy": 0,
+          "armor": 0,
+          "antiSubmarine": 0,
+          "lineOfSight": 0,
+          "bombing": 0,
+          "range": 0
+        }
+      },
+      "source": {
+        "url": "https://akashi-list.me/detail/w266.html",
+        "pageName": "12.7cm連装砲C型改二",
+        "fetchedAt": "",
+        "httpLastModified": null,
+        "contentSha256": "",
+        "fragmentHash": "",
+        "sourceGroupLabel": "陽炎型・磯風乙改",
+        "rawEffect": "回避+1(磯風乙改のみ)",
+        "rawCondition": "(磯風乙改のみ)"
+      }
+    },
+    {
+      "ruleId": "akashi-266-single-003",
+      "equipment": {
+        "ids": [
+          266
+        ],
+        "typeIds": []
+      },
+      "category": "single",
+      "shipCondition": {
+        "shipIds": [
+          17,
+          18,
+          19,
+          20,
+          122,
+          132,
+          167,
+          168,
+          169,
+          170,
+          181,
+          186,
+          190,
+          415,
+          454,
+          455,
+          456,
+          557
+        ],
+        "baseShipIds": [],
+        "classIds": [],
+        "shipTypeIds": [],
+        "nationalityIds": []
+      },
+      "equipmentCondition": {
+        "minImprovement": 0,
+        "maxImprovement": 10
+      },
+      "requires": [],
+      "effect": {
+        "mode": "perEquipment",
+        "bonus": {
+          "firepower": 1,
+          "torpedo": 0,
+          "antiAir": 0,
+          "evasion": 0,
+          "accuracy": 0,
+          "armor": 0,
+          "antiSubmarine": 0,
+          "lineOfSight": 0,
+          "bombing": 0,
+          "range": 0
+        }
+      },
+      "source": {
+        "url": "https://akashi-list.me/detail/w266.html",
+        "pageName": "12.7cm連装砲C型改二",
+        "fetchedAt": "",
+        "httpLastModified": null,
+        "contentSha256": "",
+        "fragmentHash": "",
+        "sourceGroupLabel": "陽炎型・磯風乙改",
+        "rawEffect": "火力+1"
+      }
+    },
+    {
+      "ruleId": "akashi-266-single-004",
+      "equipment": {
+        "ids": [
+          266
+        ],
+        "typeIds": []
+      },
+      "category": "single",
+      "shipCondition": {
+        "shipIds": [
+          656
+        ],
+        "baseShipIds": [],
+        "classIds": [],
+        "shipTypeIds": [],
+        "nationalityIds": []
+      },
+      "equipmentCondition": {
+        "minImprovement": 0,
+        "maxImprovement": 10
+      },
+      "requires": [],
+      "effect": {
+        "mode": "perEquipment",
+        "bonus": {
+          "firepower": 0,
+          "torpedo": 0,
+          "antiAir": 0,
+          "evasion": 1,
+          "accuracy": 0,
+          "armor": 0,
+          "antiSubmarine": 0,
+          "lineOfSight": 0,
+          "bombing": 0,
+          "range": 0
+        }
+      },
+      "source": {
+        "url": "https://akashi-list.me/detail/w266.html",
+        "pageName": "12.7cm連装砲C型改二",
+        "fetchedAt": "",
+        "httpLastModified": null,
+        "contentSha256": "",
+        "fragmentHash": "",
+        "sourceGroupLabel": "陽炎型改二・雪風改二",
+        "rawEffect": "回避+1(雪風改二のみ)",
+        "rawCondition": "(雪風改二のみ)"
+      }
+    },
+    {
+      "ruleId": "akashi-266-single-005",
+      "equipment": {
+        "ids": [
+          266
+        ],
+        "typeIds": []
+      },
+      "category": "single",
+      "shipCondition": {
+        "shipIds": [
+          145,
+          228
+        ],
+        "baseShipIds": [],
+        "classIds": [],
+        "shipTypeIds": [],
+        "nationalityIds": []
+      },
+      "equipmentCondition": {
+        "minImprovement": 0,
+        "maxImprovement": 10
+      },
+      "requires": [],
+      "effect": {
+        "mode": "perEquipment",
+        "bonus": {
+          "firepower": 0,
+          "torpedo": 0,
+          "antiAir": 0,
+          "evasion": 1,
+          "accuracy": 0,
+          "armor": 0,
+          "antiSubmarine": 0,
+          "lineOfSight": 0,
+          "bombing": 0,
+          "range": 0
+        }
+      },
+      "source": {
+        "url": "https://akashi-list.me/detail/w266.html",
+        "pageName": "12.7cm連装砲C型改二",
+        "fetchedAt": "",
+        "httpLastModified": null,
+        "contentSha256": "",
+        "fragmentHash": "",
+        "sourceGroupLabel": "雪風改・時雨改二",
+        "rawEffect": "回避+1"
+      }
+    },
+    {
+      "ruleId": "akashi-266-single-006",
+      "equipment": {
+        "ids": [
+          266
+        ],
+        "typeIds": []
+      },
+      "category": "single",
+      "shipCondition": {
+        "shipIds": [
+          145,
+          228
+        ],
+        "baseShipIds": [],
+        "classIds": [],
+        "shipTypeIds": [],
+        "nationalityIds": []
+      },
+      "equipmentCondition": {
+        "minImprovement": 0,
+        "maxImprovement": 10
+      },
+      "requires": [],
+      "effect": {
+        "mode": "perEquipment",
+        "bonus": {
+          "firepower": 1,
+          "torpedo": 0,
+          "antiAir": 0,
+          "evasion": 0,
+          "accuracy": 0,
+          "armor": 0,
+          "antiSubmarine": 0,
+          "lineOfSight": 0,
+          "bombing": 0,
+          "range": 0
+        }
+      },
+      "source": {
+        "url": "https://akashi-list.me/detail/w266.html",
+        "pageName": "12.7cm連装砲C型改二",
+        "fetchedAt": "",
+        "httpLastModified": null,
+        "contentSha256": "",
+        "fragmentHash": "",
+        "sourceGroupLabel": "雪風改・時雨改二",
+        "rawEffect": "火力+1"
+      }
+    },
+    {
+      "ruleId": "akashi-266-synergy-001",
+      "equipment": {
+        "ids": [
+          266
+        ],
+        "typeIds": []
+      },
+      "category": "synergy",
+      "shipCondition": {
+        "shipIds": [
+          42,
+          43,
+          44,
+          45,
+          46,
+          47,
+          48,
+          49,
+          95,
+          96,
+          97,
+          98,
+          405,
+          413,
+          414,
+          457,
+          458,
+          459,
+          582,
+          583
+        ],
+        "baseShipIds": [],
+        "classIds": [],
+        "shipTypeIds": [],
+        "nationalityIds": []
+      },
+      "equipmentCondition": {
+        "minImprovement": 0,
+        "maxImprovement": 10
+      },
+      "requires": [
+        {
+          "kind": "equipmentPredicate",
+          "minCount": 1,
+          "predicate": {
+            "lineOfSightGte": 5
+          },
+          "sourceLabel": "水上電探"
+        }
+      ],
+      "effect": {
+        "mode": "once",
+        "bonus": {
+          "firepower": 1,
+          "torpedo": 3,
+          "antiAir": 0,
+          "evasion": 1,
+          "accuracy": 0,
+          "armor": 0,
+          "antiSubmarine": 0,
+          "lineOfSight": 0,
+          "bombing": 0,
+          "range": 0
+        }
+      },
+      "source": {
+        "url": "https://akashi-list.me/detail/w266.html",
+        "pageName": "12.7cm連装砲C型改二",
+        "fetchedAt": "",
+        "httpLastModified": null,
+        "contentSha256": "",
+        "fragmentHash": "",
+        "sourceGroupLabel": "白露型・朝潮型",
+        "rawEffect": "火力+1 雷装+3 回避+1"
+      }
+    },
+    {
+      "ruleId": "akashi-266-synergy-002",
+      "equipment": {
+        "ids": [
+          266
+        ],
+        "typeIds": []
+      },
+      "category": "synergy",
+      "shipCondition": {
+        "shipIds": [
+          17,
+          18,
+          19,
+          20,
+          122,
+          132,
+          167,
+          168,
+          169,
+          170,
+          181,
+          186,
+          190,
+          415,
+          454,
+          455,
+          456,
+          557
+        ],
+        "baseShipIds": [],
+        "classIds": [],
+        "shipTypeIds": [],
+        "nationalityIds": []
+      },
+      "equipmentCondition": {
+        "minImprovement": 0,
+        "maxImprovement": 10
+      },
+      "requires": [
+        {
+          "kind": "equipmentPredicate",
+          "minCount": 1,
+          "predicate": {
+            "lineOfSightGte": 5
+          },
+          "sourceLabel": "水上電探"
+        }
+      ],
+      "effect": {
+        "mode": "once",
+        "bonus": {
+          "firepower": 2,
+          "torpedo": 3,
+          "antiAir": 0,
+          "evasion": 1,
+          "accuracy": 0,
+          "armor": 0,
+          "antiSubmarine": 0,
+          "lineOfSight": 0,
+          "bombing": 0,
+          "range": 0
+        }
+      },
+      "source": {
+        "url": "https://akashi-list.me/detail/w266.html",
+        "pageName": "12.7cm連装砲C型改二",
+        "fetchedAt": "",
+        "httpLastModified": null,
+        "contentSha256": "",
+        "fragmentHash": "",
+        "sourceGroupLabel": "陽炎型・磯風乙改",
+        "rawEffect": "火力+2 雷装+3 回避+1"
+      }
+    },
+    {
+      "ruleId": "akashi-266-synergy-003",
+      "equipment": {
+        "ids": [
+          266
+        ],
+        "typeIds": []
+      },
+      "category": "synergy",
+      "shipCondition": {
+        "shipIds": [
+          566,
+          567,
+          568,
+          648,
+          656,
+          670,
+          915,
+          951
+        ],
+        "baseShipIds": [],
+        "classIds": [],
+        "shipTypeIds": [],
+        "nationalityIds": []
+      },
+      "equipmentCondition": {
+        "minImprovement": 0,
+        "maxImprovement": 10
+      },
+      "requires": [
+        {
+          "kind": "equipmentPredicate",
+          "minCount": 1,
+          "predicate": {
+            "lineOfSightGte": 5
+          },
+          "sourceLabel": "水上電探"
+        }
+      ],
+      "effect": {
+        "mode": "once",
+        "bonus": {
+          "firepower": 2,
+          "torpedo": 3,
+          "antiAir": 0,
+          "evasion": 1,
+          "accuracy": 0,
+          "armor": 0,
+          "antiSubmarine": 0,
+          "lineOfSight": 0,
+          "bombing": 0,
+          "range": 0
+        }
+      },
+      "source": {
+        "url": "https://akashi-list.me/detail/w266.html",
+        "pageName": "12.7cm連装砲C型改二",
+        "fetchedAt": "",
+        "httpLastModified": null,
+        "contentSha256": "",
+        "fragmentHash": "",
+        "sourceGroupLabel": "陽炎型改二・雪風改二",
+        "rawEffect": "火力+2 雷装+3 回避+1"
+      }
+    },
+    {
+      "ruleId": "akashi-266-synergy-004",
+      "equipment": {
+        "ids": [
+          266
+        ],
+        "typeIds": []
+      },
+      "category": "synergy",
+      "shipCondition": {
+        "shipIds": [
+          145,
+          228
+        ],
+        "baseShipIds": [],
+        "classIds": [],
+        "shipTypeIds": [],
+        "nationalityIds": []
+      },
+      "equipmentCondition": {
+        "minImprovement": 0,
+        "maxImprovement": 10
+      },
+      "requires": [
+        {
+          "kind": "equipmentPredicate",
+          "minCount": 1,
+          "predicate": {
+            "lineOfSightGte": 5
+          },
+          "sourceLabel": "水上電探"
+        }
+      ],
+      "effect": {
+        "mode": "once",
+        "bonus": {
+          "firepower": 1,
+          "torpedo": 3,
+          "antiAir": 0,
+          "evasion": 1,
+          "accuracy": 0,
+          "armor": 0,
+          "antiSubmarine": 0,
+          "lineOfSight": 0,
+          "bombing": 0,
+          "range": 0
+        }
+      },
+      "source": {
+        "url": "https://akashi-list.me/detail/w266.html",
+        "pageName": "12.7cm連装砲C型改二",
+        "fetchedAt": "",
+        "httpLastModified": null,
+        "contentSha256": "",
+        "fragmentHash": "",
+        "sourceGroupLabel": "雪風改・時雨改二",
+        "rawEffect": "火力+1 雷装+3 回避+1"
+      }
+    }
+  ]
+}

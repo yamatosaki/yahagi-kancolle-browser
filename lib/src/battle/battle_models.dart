@@ -13,6 +13,8 @@ String battleEnemyFleetDisplayName(String name) {
 
 enum BattleDisplayStage { navigation, battle, result }
 
+const _unsetNodeDisplayLabel = Object();
+
 enum BattleRank {
   ss('SS'),
   s('S'),
@@ -49,6 +51,7 @@ class BattleContext {
     this.practice = false,
     this.eventId = 0,
     this.eventKind = 0,
+    this.nodeDisplayLabel,
   });
 
   final int mapAreaId;
@@ -60,6 +63,7 @@ class BattleContext {
   final bool practice;
   final int eventId;
   final int eventKind;
+  final String? nodeDisplayLabel;
 
   String get mapLabel => practice
       ? '演习'
@@ -67,7 +71,13 @@ class BattleContext {
       ? '$mapAreaId-$mapInfoNo'
       : '未知海域';
 
-  String get nodeLabel => node > 0 ? '${_alphabeticNode(node)}点' : '节点未知';
+  String get nodeLabel {
+    final label = nodeDisplayLabel?.trim();
+    if (label != null && label.isNotEmpty) {
+      return '$label点';
+    }
+    return node > 0 ? '节点 $node' : '节点未知';
+  }
 
   String get nodeTypeLabel {
     var kind = eventId + 1;
@@ -102,7 +112,7 @@ class BattleContext {
           9: '护送成功',
           10: '运输点',
           11: '长距离空袭战',
-          12: '能动分歧',
+          12: '路线选择',
           13: '航空侦察',
           14: '夜战',
           15: '敌联合舰队',
@@ -121,6 +131,7 @@ class BattleContext {
     bool? practice,
     int? eventId,
     int? eventKind,
+    Object? nodeDisplayLabel = _unsetNodeDisplayLabel,
   }) {
     return BattleContext(
       mapAreaId: mapAreaId ?? this.mapAreaId,
@@ -132,19 +143,11 @@ class BattleContext {
       practice: practice ?? this.practice,
       eventId: eventId ?? this.eventId,
       eventKind: eventKind ?? this.eventKind,
+      nodeDisplayLabel: identical(nodeDisplayLabel, _unsetNodeDisplayLabel)
+          ? this.nodeDisplayLabel
+          : nodeDisplayLabel as String?,
     );
   }
-}
-
-String _alphabeticNode(int node) {
-  var value = node;
-  final characters = <int>[];
-  while (value > 0) {
-    value--;
-    characters.add(65 + value % 26);
-    value ~/= 26;
-  }
-  return String.fromCharCodes(characters.reversed);
 }
 
 class BattleShipSnapshot {
@@ -161,6 +164,8 @@ class BattleShipSnapshot {
     this.damageDealt = 0,
     this.damageReceived = 0,
     this.condition = 49,
+    this.equipmentMasterIds = const <int>[],
+    this.usedDamageControlItemIds = const <int>[],
   });
 
   final int masterId;
@@ -175,6 +180,8 @@ class BattleShipSnapshot {
   final int damageDealt;
   final int damageReceived;
   final int condition;
+  final List<int> equipmentMasterIds;
+  final List<int> usedDamageControlItemIds;
 
   bool get isSunk => currentHp <= 0;
   bool get isHeavilyDamaged => !isSunk && currentHp * 4 <= maxHp;
@@ -186,6 +193,7 @@ class BattleShipSnapshot {
     int? damageDealt,
     int? damageReceived,
     int? condition,
+    List<int>? usedDamageControlItemIds,
   }) {
     return BattleShipSnapshot(
       masterId: masterId,
@@ -200,6 +208,9 @@ class BattleShipSnapshot {
       damageDealt: damageDealt ?? this.damageDealt,
       damageReceived: damageReceived ?? this.damageReceived,
       condition: condition ?? this.condition,
+      equipmentMasterIds: equipmentMasterIds,
+      usedDamageControlItemIds:
+          usedDamageControlItemIds ?? this.usedDamageControlItemIds,
     );
   }
 }

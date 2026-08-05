@@ -65,6 +65,20 @@ void main() {
     expect(FleetMetrics.fromState(state, fleet).airPower, isNull);
   });
 
+  test('uses equipment-modified owned ship speed before master speed', () {
+    const fleet = Fleet(id: 1, name: '第一舰队', shipIds: <int>[9001]);
+    const state = GameState(
+      masterShips: <int, MasterShip>{
+        101: MasterShip(id: 101, name: '岛风改', shipTypeId: 2, speed: 10),
+      },
+      ships: <int, OwnedShip>{
+        9001: OwnedShip(id: 9001, masterId: 101, level: 94, speed: 15),
+      },
+    );
+
+    expect(FleetMetrics.fromState(state, fleet).speedLabel, '高速+');
+  });
+
   test('calculates Yahagi-compatible formula 33 for map modifiers 1 to 4', () {
     const fleet = Fleet(
       id: 1,

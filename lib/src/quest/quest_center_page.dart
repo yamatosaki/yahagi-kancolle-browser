@@ -9,10 +9,12 @@ class QuestCenterPage extends StatefulWidget {
     super.key,
     required this.controller,
     this.initialQuestId,
+    this.showTitle = true,
   });
 
   final GameStateController controller;
   final int? initialQuestId;
+  final bool showTitle;
 
   @override
   State<QuestCenterPage> createState() => _QuestCenterPageState();
@@ -54,13 +56,12 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
       child: AnimatedBuilder(
         animation: widget.controller,
         builder: (context, _) {
-          final state = widget.controller.state;
           final quests = _sortedQuests;
           final selected = _selectedQuest(quests);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _QuestHeader(quests: quests, updatedAt: state.updatedAt),
+              if (widget.showTitle) _QuestHeader(quests: quests),
               Expanded(
                 child: quests.isEmpty
                     ? const _WaitingState()
@@ -115,22 +116,15 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
 }
 
 class _QuestHeader extends StatelessWidget {
-  const _QuestHeader({required this.quests, required this.updatedAt});
+  const _QuestHeader({required this.quests});
 
   final List<GameQuest> quests;
-  final DateTime? updatedAt;
 
   @override
   Widget build(BuildContext context) {
-    final localTime = updatedAt?.toLocal();
-    final localizations = AppLocalizations.of(context);
-    final updateLabel = localTime == null
-        ? (localizations?.waitingForData ?? '等待数据')
-        : '${localizations?.updatedAt ?? "更新"} ${_two(localTime.hour)}:${_two(localTime.minute)}:${_two(localTime.second)}';
-    final completed = quests.where((quest) => quest.isCompleted).length;
     return Container(
-      height: 58,
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: const BoxDecoration(
         color: Color(0xff0d1a26),
         border: Border(bottom: BorderSide(color: Color(0xff294052))),
@@ -146,54 +140,75 @@ class _QuestHeader extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          _HeaderCount(
+          QuestCountSegmentedBar(quests: quests),
+        ],
+      ),
+    );
+  }
+}
+
+class QuestCountSegmentedBar extends StatelessWidget {
+  const QuestCountSegmentedBar({super.key, required this.quests});
+
+  final Iterable<GameQuest> quests;
+
+  @override
+  Widget build(BuildContext context) {
+    final accepted = quests.where((quest) => quest.isAccepted).length;
+    final completed = quests.where((quest) => quest.isCompleted).length;
+    return Container(
+      key: const Key('quest-count-segmented'),
+      height: 32,
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: const Color(0xff102331),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: const Color(0xff294052)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _QuestCountSegment(
+            key: const Key('quest-count-accepted'),
             label:
-                '${AppLocalizations.of(context)?.accepted ?? "已接受"} ${quests.length}',
+                '${AppLocalizations.of(context)?.accepted ?? "已接受"} $accepted',
+            selected: true,
           ),
-          const SizedBox(width: 8),
-          _HeaderCount(
+          _QuestCountSegment(
+            key: const Key('quest-count-completed'),
             label:
                 '${AppLocalizations.of(context)?.completed ?? "已完成"} $completed',
-            highlighted: completed > 0,
-          ),
-          const SizedBox(width: 14),
-          Text(
-            updateLabel,
-            style: const TextStyle(color: Color(0xff8197a5), fontSize: 12),
           ),
         ],
       ),
     );
   }
-
-  static String _two(int value) => value.toString().padLeft(2, '0');
 }
 
-class _HeaderCount extends StatelessWidget {
-  const _HeaderCount({required this.label, this.highlighted = false});
+class _QuestCountSegment extends StatelessWidget {
+  const _QuestCountSegment({
+    super.key,
+    required this.label,
+    this.selected = false,
+  });
 
   final String label;
-  final bool highlighted;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      height: 26,
+      padding: const EdgeInsets.symmetric(horizontal: 11),
       decoration: BoxDecoration(
-        color: highlighted ? const Color(0xff183d32) : const Color(0xff142735),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: highlighted
-              ? const Color(0xff2f8065)
-              : const Color(0xff294052),
-        ),
+        color: selected ? const Color(0xff654c29) : Colors.transparent,
+        borderRadius: BorderRadius.circular(7),
       ),
+      alignment: Alignment.center,
       child: Text(
         label,
         style: TextStyle(
-          color: highlighted
-              ? const Color(0xff6fd5ad)
-              : const Color(0xffa7bac5),
+          color: selected ? const Color(0xffffc861) : const Color(0xffa7bac5),
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
@@ -530,20 +545,27 @@ class _WaitingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.assignment_outlined, color: Color(0xffd4a85f), size: 42),
-          SizedBox(height: 14),
-          Text(
-            '等待任务数据',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          const Icon(
+            Icons.assignment_outlined,
+            color: Color(0xffd4a85f),
+            size: 42,
           ),
-          SizedBox(height: 7),
+          const SizedBox(height: 14),
           Text(
-            '打开游戏任务列表后，这里会自动同步当前已接受任务',
-            style: TextStyle(color: Color(0xff8197a5)),
+            l10n.waitingQuestData,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            l10n.waitingQuestDataDesc,
+            style: const TextStyle(color: Color(0xff8197a5)),
           ),
         ],
       ),

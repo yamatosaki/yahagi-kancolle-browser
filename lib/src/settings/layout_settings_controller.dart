@@ -13,11 +13,13 @@ class LayoutSettingsController extends ChangeNotifier {
     this._dashboardCardHidden,
     this._fontFamily,
     this._localeCode,
+    this._fontLocaleCode,
   );
 
   static Future<LayoutSettingsController> load(
-    LayoutSettingsStore store,
-  ) async {
+    LayoutSettingsStore store, {
+    String? systemLocaleCode,
+  }) async {
     final ratio = await store.loadGameAreaRatio();
     final width = await store.loadInformationPanelWidth();
     final autoZoom = await store.loadAutoZoom();
@@ -26,6 +28,11 @@ class LayoutSettingsController extends ChangeNotifier {
     final dashboardCardHidden = await store.loadDashboardCardHidden();
     final fontFamily = await store.loadFontFamily();
     final localeCode = await store.loadLocaleCode();
+    final fontLocaleCode = localeCode ?? systemLocaleCode ?? 'zh';
+    final regionalFont = _fontForLocale(fontLocaleCode);
+    if (fontFamily != null && fontFamily != regionalFont) {
+      await store.saveFontFamily(regionalFont);
+    }
     return LayoutSettingsController._(
       store,
       ratio,
@@ -34,8 +41,9 @@ class LayoutSettingsController extends ChangeNotifier {
       dashboardCardOrder,
       dashboardCardCollapsed,
       dashboardCardHidden,
-      fontFamily,
+      fontFamily == null ? null : regionalFont,
       localeCode,
+      fontLocaleCode,
     );
   }
 
@@ -49,6 +57,7 @@ class LayoutSettingsController extends ChangeNotifier {
   List<String> _dashboardCardHidden;
   String? _fontFamily;
   String? _localeCode;
+  String _fontLocaleCode;
 
   double get gameAreaRatio => _gameAreaRatio;
   double get informationPanelWidth => _informationPanelWidth;
@@ -58,6 +67,11 @@ class LayoutSettingsController extends ChangeNotifier {
   List<String> get dashboardCardHidden => _dashboardCardHidden;
   String? get fontFamily => _fontFamily;
   String? get localeCode => _localeCode;
+  List<String> get fontFamilyFallback => switch (_fontLocaleCode) {
+    'ja' => const <String>['HarmonyOS_Sans_TC', 'HarmonyOS_Sans_SC'],
+    'zh_Hant' => const <String>['NotoSansJP', 'HarmonyOS_Sans_SC'],
+    _ => const <String>['HarmonyOS_Sans_TC', 'NotoSansJP'],
+  };
 
   Future<void> setGameAreaRatio(double ratio) async {
     if (_gameAreaRatio == ratio) {
@@ -130,16 +144,16 @@ class LayoutSettingsController extends ChangeNotifier {
       return;
     }
     _localeCode = localeCode;
-    // Auto-switch font based on language
-    if (localeCode == 'ja') {
-      _fontFamily = 'HarmonyOS_Sans_TC';
-    } else if (localeCode == 'zh_Hant') {
-      _fontFamily = 'HarmonyOS_Sans_TC';
-    } else {
-      _fontFamily = 'HarmonyOS_Sans_SC';
-    }
+    _fontLocaleCode = localeCode ?? 'zh';
+    _fontFamily = _fontForLocale(_fontLocaleCode);
     notifyListeners();
     await _store.saveLocaleCode(localeCode);
     await _store.saveFontFamily(_fontFamily);
   }
 }
+
+String _fontForLocale(String localeCode) => switch (localeCode) {
+  'ja' => 'NotoSansJP',
+  'zh_Hant' => 'HarmonyOS_Sans_TC',
+  _ => 'HarmonyOS_Sans_SC',
+};

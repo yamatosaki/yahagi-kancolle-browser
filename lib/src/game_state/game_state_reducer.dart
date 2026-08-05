@@ -19,8 +19,17 @@ class GameStateReducer {
     '/kcsapi/api_get_member/ndock',
     '/kcsapi/api_get_member/kdock',
     '/kcsapi/api_get_member/questlist',
+    '/kcsapi/api_req_hokyu/charge',
+    '/kcsapi/api_req_kaisou/slot_deprive',
+    '/kcsapi/api_req_kaisou/slot_exchange_index',
     '/kcsapi/api_req_kousyou/createship',
+    '/kcsapi/api_req_kousyou/createship_speedchange',
+    '/kcsapi/api_req_kousyou/getship',
+    '/kcsapi/api_req_hensei/change',
     '/kcsapi/api_req_hensei/combined',
+    '/kcsapi/api_req_hensei/preset_select',
+    '/kcsapi/api_req_nyukyo/start',
+    '/kcsapi/api_req_nyukyo/speedchange',
     '/kcsapi/api_req_quest/clearitemget',
     '/kcsapi/api_req_quest/stop',
     '/kcsapi/api_req_map/start',
@@ -28,6 +37,7 @@ class GameStateReducer {
     '/kcsapi/api_req_sortie/battle',
     '/kcsapi/api_req_sortie/battleresult',
     '/kcsapi/api_req_mission/result',
+    '/kcsapi/api_req_mission/start',
   };
 
   GameState reduce(GameState state, CapturedApiEvent event) {
@@ -35,7 +45,12 @@ class GameStateReducer {
       return state;
     }
 
-    final data = GameApiDecoder.decodeData(event.responseBody);
+    final data = GameApiDecoder.decodeData(
+      event.responseBody,
+      // The formation change response only contains api_result and
+      // api_result_msg. Its state transition is driven by request parameters.
+      allowMissingData: event.path == '/kcsapi/api_req_hensei/change',
+    );
     final origin = event.sourceOrigin.isEmpty
         ? state.serverOrigin
         : event.sourceOrigin;
@@ -99,12 +114,39 @@ class GameStateReducer {
         serverOrigin: origin,
         updatedAt: event.capturedAt,
       ),
+      '/kcsapi/api_req_hokyu/charge' => _charge(
+        state,
+        _requiredMap(data, 'charge'),
+        event,
+        origin,
+      ),
+      '/kcsapi/api_req_kaisou/slot_exchange_index' => _mergeActionShips(
+        state,
+        <Object?>[_requiredMap(data, 'slot exchange')['api_ship_data']],
+        event,
+        origin,
+      ),
+      '/kcsapi/api_req_kaisou/slot_deprive' => _slotDeprive(
+        state,
+        _requiredMap(data, 'slot deprive'),
+        event,
+        origin,
+      ),
       '/kcsapi/api_req_kousyou/createship' => _constructionStart(
         state,
         _requiredMap(data, 'createship'),
         event,
         origin,
       ),
+      '/kcsapi/api_req_kousyou/createship_speedchange' =>
+        _constructionSpeedChange(state, event, origin),
+      '/kcsapi/api_req_kousyou/getship' => _getShip(
+        state,
+        _requiredMap(data, 'getship'),
+        event,
+        origin,
+      ),
+      '/kcsapi/api_req_hensei/change' => _formationChange(state, event, origin),
       '/kcsapi/api_req_hensei/combined' => state.copyWith(
         combinedFleetType: CombinedFleetType.fromApiValue(
           _asInt(event.requestParams['api_combined_type']),
@@ -112,6 +154,18 @@ class GameStateReducer {
         serverOrigin: origin,
         updatedAt: event.capturedAt,
       ),
+      '/kcsapi/api_req_hensei/preset_select' => _formationPresetSelect(
+        state,
+        _requiredMap(data, 'formation preset'),
+        event,
+        origin,
+      ),
+      '/kcsapi/api_req_nyukyo/speedchange' => _repairSpeedChange(
+        state,
+        event,
+        origin,
+      ),
+      '/kcsapi/api_req_nyukyo/start' => _repairStart(state, event, origin),
       '/kcsapi/api_req_quest/clearitemget' ||
       '/kcsapi/api_req_quest/stop' => _removeQuest(
         state,
@@ -148,8 +202,275 @@ class GameStateReducer {
         event,
       ),
       '/kcsapi/api_req_mission/result' => _missionResult(state, event, origin),
+      '/kcsapi/api_req_mission/start' => _missionStart(
+        state,
+        _requiredMap(data, 'mission start'),
+        event,
+        origin,
+      ),
       _ => state,
     };
+  }
+
+  GameState _charge(
+    GameState state,
+    Map<String, Object?> data,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final ships = Map<int, OwnedShip>.of(state.ships);
+    for (final value in _optionalList(data['api_ship'])) {
+      final item = _optionalMap(value);
+      final id = _asInt(item?['api_id']);
+      final previous = ships[id];
+      if (item == null || previous == null) {
+        continue;
+      }
+      ships[id] = _copyShip(
+        previous,
+        currentFuel: _asInt(item['api_fuel'], previous.currentFuel),
+        currentAmmo: _asInt(item['api_bull'], previous.currentAmmo),
+        onSlot: item.containsKey('api_onslot')
+            ? _intList(item['api_onslot'], includeNonPositive: true)
+            : previous.onSlot,
+      );
+    }
+    return state.copyWith(
+      ships: ships,
+      resources: _mergeResourceArray(
+        state.resources,
+        _optionalList(data['api_material']),
+      ),
+      serverOrigin: origin,
+      updatedAt: event.capturedAt,
+    );
+  }
+
+  GameState _mergeActionShips(
+    GameState state,
+    List<Object?> values,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final parsed = _parseShips(values);
+    final ships = Map<int, OwnedShip>.of(state.ships)..addAll(parsed);
+    return state.copyWith(
+      ships: ships,
+      serverOrigin: origin,
+      updatedAt: event.capturedAt,
+    );
+  }
+
+  GameState _slotDeprive(
+    GameState state,
+    Map<String, Object?> data,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final shipData = _optionalMap(data['api_ship_data']);
+    return _mergeActionShips(
+      state,
+      shipData?.values.toList() ?? const <Object?>[],
+      event,
+      origin,
+    );
+  }
+
+  GameState _getShip(
+    GameState state,
+    Map<String, Object?> data,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final ships = Map<int, OwnedShip>.of(state.ships)
+      ..addAll(_parseShips(<Object?>[data['api_ship']]));
+    final slotItems = Map<int, OwnedSlotItem>.of(state.slotItems)
+      ..addAll(_parseSlotItems(_optionalList(data['api_slotitem'])));
+    final parsedDocks = _parseConstructionDocks(
+      _optionalList(data['api_kdock']),
+    );
+    final docksById = <int, ConstructionDock>{
+      for (final dock in state.constructionDocks) dock.id: dock,
+      for (final dock in parsedDocks) dock.id: dock,
+    };
+    final docks = docksById.values.toList()
+      ..sort((left, right) => left.id.compareTo(right.id));
+    return state.copyWith(
+      ships: ships,
+      slotItems: slotItems,
+      constructionDocks: docks,
+      serverOrigin: origin,
+      updatedAt: event.capturedAt,
+    );
+  }
+
+  GameState _missionStart(
+    GameState state,
+    Map<String, Object?> data,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final deckId = _asInt(event.requestParams['api_deck_id']);
+    final missionId = _asInt(event.requestParams['api_mission_id']);
+    final completionTime = _dateTimeFromMilliseconds(data['api_complatetime']);
+    if (deckId <= 0 || missionId <= 0 || completionTime == null) {
+      return state.copyWith(serverOrigin: origin, updatedAt: event.capturedAt);
+    }
+    final fleets = <Fleet>[
+      for (final fleet in state.fleets)
+        if (fleet.id == deckId)
+          Fleet(
+            id: fleet.id,
+            name: fleet.name,
+            shipIds: fleet.shipIds,
+            slotCount: fleet.slotCount,
+            mission: FleetMission(
+              state: 1,
+              missionId: missionId,
+              completionTime: completionTime,
+            ),
+          )
+        else
+          fleet,
+    ];
+    return state.copyWith(
+      fleets: fleets,
+      serverOrigin: origin,
+      updatedAt: event.capturedAt,
+    );
+  }
+
+  GameState _repairSpeedChange(
+    GameState state,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final dockId = _asInt(event.requestParams['api_ndock_id']);
+    final dock = state.repairDocks
+        .where((candidate) => candidate.id == dockId)
+        .firstOrNull;
+    if (dock == null) {
+      return state.copyWith(serverOrigin: origin, updatedAt: event.capturedAt);
+    }
+    final ships = Map<int, OwnedShip>.of(state.ships);
+    final ship = ships[dock.shipId];
+    if (ship != null) {
+      ships[ship.id] = _copyShip(ship, currentHp: ship.maxHp);
+    }
+    final docks = <RepairDock>[
+      for (final candidate in state.repairDocks)
+        if (candidate.id == dockId) RepairDock(id: candidate.id) else candidate,
+    ];
+    return state.copyWith(
+      ships: ships,
+      repairDocks: docks,
+      resources: _changeResource(
+        state.resources,
+        GameResourceType.instantRepair,
+        -1,
+      ),
+      serverOrigin: origin,
+      updatedAt: event.capturedAt,
+    );
+  }
+
+  GameState _repairStart(
+    GameState state,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final dockId = _asInt(event.requestParams['api_ndock_id']);
+    final shipId = _asInt(event.requestParams['api_ship_id']);
+    final highSpeed = _asInt(event.requestParams['api_highspeed']) == 1;
+    final ship = state.ships[shipId];
+    if (dockId <= 0 || ship == null) {
+      return state.copyWith(serverOrigin: origin, updatedAt: event.capturedAt);
+    }
+
+    var resources = _changeResource(
+      state.resources,
+      GameResourceType.fuel,
+      -ship.repairFuelCost,
+    );
+    resources = _changeResource(
+      resources,
+      GameResourceType.steel,
+      -ship.repairSteelCost,
+    );
+    final ships = Map<int, OwnedShip>.of(state.ships);
+    var docks = state.repairDocks;
+    if (highSpeed) {
+      ships[shipId] = _copyShip(ship, currentHp: ship.maxHp);
+      resources = _changeResource(
+        resources,
+        GameResourceType.instantRepair,
+        -1,
+      );
+    } else {
+      docks = <RepairDock>[
+        for (final dock in state.repairDocks)
+          if (dock.id == dockId)
+            RepairDock(
+              id: dock.id,
+              state: 1,
+              shipId: shipId,
+              completionTime: event.capturedAt.add(
+                Duration(milliseconds: ship.repairDurationMilliseconds),
+              ),
+              fuelCost: ship.repairFuelCost,
+              steelCost: ship.repairSteelCost,
+            )
+          else
+            dock,
+      ];
+    }
+    return state.copyWith(
+      ships: ships,
+      repairDocks: docks,
+      resources: resources,
+      serverOrigin: origin,
+      updatedAt: event.capturedAt,
+    );
+  }
+
+  GameState _constructionSpeedChange(
+    GameState state,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final dockId = _asInt(event.requestParams['api_kdock_id']);
+    final docks = <ConstructionDock>[
+      for (final dock in state.constructionDocks)
+        if (dock.id == dockId)
+          ConstructionDock(
+            id: dock.id,
+            state: 3,
+            createdShipMasterId: dock.createdShipMasterId,
+            completionTime: event.capturedAt,
+            startedAt: dock.startedAt,
+            fuel: dock.fuel,
+            ammunition: dock.ammunition,
+            steel: dock.steel,
+            bauxite: dock.bauxite,
+            developmentMaterial: dock.developmentMaterial,
+          )
+        else
+          dock,
+    ];
+    final dock = state.constructionDocks
+        .where((candidate) => candidate.id == dockId)
+        .firstOrNull;
+    final bucketCost = dock?.isLargeConstruction == true ? 10 : 1;
+    return state.copyWith(
+      constructionDocks: docks,
+      resources: _changeResource(
+        state.resources,
+        GameResourceType.instantBuild,
+        -bucketCost,
+      ),
+      serverOrigin: origin,
+      updatedAt: event.capturedAt,
+    );
   }
 
   Map<int, GameQuest> _parseQuests(
@@ -208,6 +529,127 @@ class GameStateReducer {
       quests: quests,
       serverOrigin: origin,
       updatedAt: event.capturedAt,
+    );
+  }
+
+  GameState _formationChange(
+    GameState state,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final deckId = _asInt(event.requestParams['api_id']);
+    final position = _asInt(event.requestParams['api_ship_idx'], -1);
+    final nextShipId = _asInt(event.requestParams['api_ship_id']);
+    final targetFleetIndex = state.fleets.indexWhere(
+      (fleet) => fleet.id == deckId,
+    );
+    if (targetFleetIndex < 0 || position < 0) {
+      return state;
+    }
+
+    final targetFleet = state.fleets[targetFleetIndex];
+    if (position >= targetFleet.slotCount) {
+      return state;
+    }
+    final fleets = List<Fleet>.of(state.fleets);
+
+    // This mirrors Poi's formation reducer: -2 keeps only the flagship.
+    if (nextShipId == -2) {
+      fleets[targetFleetIndex] = Fleet(
+        id: targetFleet.id,
+        name: targetFleet.name,
+        shipIds: targetFleet.shipIds.take(1).toList(growable: false),
+        slotCount: targetFleet.slotCount,
+        mission: targetFleet.mission,
+      );
+      return state.copyWith(
+        fleets: fleets,
+        serverOrigin: origin,
+        updatedAt: event.capturedAt,
+      );
+    }
+
+    final previousShipId = position < targetFleet.shipIds.length
+        ? targetFleet.shipIds[position]
+        : -1;
+    var sourceFleetIndex = -1;
+    var sourcePosition = -1;
+    if (nextShipId > 0) {
+      for (var index = 0; index < fleets.length; index++) {
+        final found = fleets[index].shipIds.indexOf(nextShipId);
+        if (found >= 0) {
+          sourceFleetIndex = index;
+          sourcePosition = found;
+          break;
+        }
+      }
+    }
+
+    // Set the destination first, then put the displaced ship back at the
+    // source position. The order is significant for same-fleet swaps.
+    fleets[targetFleetIndex] = _setFleetShip(
+      fleets[targetFleetIndex],
+      position,
+      nextShipId,
+    );
+    if (sourceFleetIndex >= 0) {
+      fleets[sourceFleetIndex] = _setFleetShip(
+        fleets[sourceFleetIndex],
+        sourcePosition,
+        previousShipId,
+      );
+    }
+
+    return state.copyWith(
+      fleets: fleets,
+      serverOrigin: origin,
+      updatedAt: event.capturedAt,
+    );
+  }
+
+  GameState _formationPresetSelect(
+    GameState state,
+    Map<String, Object?> data,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final parsed = _parseFleets(<Object?>[data]);
+    if (parsed.isEmpty) {
+      return state;
+    }
+    final replacement = parsed.single;
+    final fleets = <Fleet>[
+      for (final fleet in state.fleets)
+        if (fleet.id == replacement.id) replacement else fleet,
+    ];
+    if (!fleets.any((fleet) => fleet.id == replacement.id)) {
+      fleets.add(replacement);
+      fleets.sort((a, b) => a.id.compareTo(b.id));
+    }
+    return state.copyWith(
+      fleets: fleets,
+      serverOrigin: origin,
+      updatedAt: event.capturedAt,
+    );
+  }
+
+  Fleet _setFleetShip(Fleet fleet, int position, int shipId) {
+    final slots = List<int>.generate(
+      fleet.slotCount,
+      (index) => index < fleet.shipIds.length ? fleet.shipIds[index] : -1,
+    );
+    if (shipId == -1) {
+      slots.removeAt(position);
+      slots.add(-1);
+    } else {
+      slots[position] = shipId;
+    }
+    return Fleet(
+      id: fleet.id,
+      name: fleet.name,
+      shipIds: slots.where((id) => id > 0).toList(growable: false),
+      slotCount: fleet.slotCount,
+      mission: fleet.mission,
     );
   }
 
@@ -419,6 +861,66 @@ class GameStateReducer {
     return result;
   }
 
+  Map<GameResourceType, int> _mergeResourceArray(
+    Map<GameResourceType, int> previous,
+    List<Object?> values,
+  ) {
+    final result = Map<GameResourceType, int>.of(previous);
+    for (var index = 0; index < values.length; index++) {
+      final type = GameResourceType.fromApiId(index + 1);
+      if (type != null) {
+        result[type] = _asInt(values[index], result[type] ?? 0);
+      }
+    }
+    return result;
+  }
+
+  Map<GameResourceType, int> _changeResource(
+    Map<GameResourceType, int> previous,
+    GameResourceType type,
+    int delta,
+  ) {
+    final result = Map<GameResourceType, int>.of(previous);
+    result[type] = ((result[type] ?? 0) + delta).clamp(0, 999999);
+    return result;
+  }
+
+  OwnedShip _copyShip(
+    OwnedShip ship, {
+    int? currentHp,
+    int? currentFuel,
+    int? currentAmmo,
+    List<int>? onSlot,
+  }) {
+    return OwnedShip(
+      id: ship.id,
+      masterId: ship.masterId,
+      level: ship.level,
+      currentHp: currentHp ?? ship.currentHp,
+      maxHp: ship.maxHp,
+      condition: ship.condition,
+      currentFuel: currentFuel ?? ship.currentFuel,
+      currentAmmo: currentAmmo ?? ship.currentAmmo,
+      nextExperience: ship.nextExperience,
+      firepower: ship.firepower,
+      torpedo: ship.torpedo,
+      antiAir: ship.antiAir,
+      antiSub: ship.antiSub,
+      lineOfSight: ship.lineOfSight,
+      armor: ship.armor,
+      evasion: ship.evasion,
+      luck: ship.luck,
+      speed: ship.speed,
+      range: ship.range,
+      slotIds: ship.slotIds,
+      onSlot: onSlot ?? ship.onSlot,
+      extraSlotId: ship.extraSlotId,
+      repairDurationMilliseconds: ship.repairDurationMilliseconds,
+      repairFuelCost: ship.repairFuelCost,
+      repairSteelCost: ship.repairSteelCost,
+    );
+  }
+
   Map<int, MasterShipType> _parseMasterShipTypes(List<Object?> values) {
     final result = <int, MasterShipType>{};
     for (final value in values) {
@@ -495,6 +997,7 @@ class GameStateReducer {
         continue;
       }
       final experience = _optionalList(item['api_exp']);
+      final repairItems = _optionalList(item['api_ndock_item']);
       result[id] = OwnedShip(
         id: id,
         masterId: masterId,
@@ -510,10 +1013,17 @@ class GameStateReducer {
         antiAir: _currentStat(item['api_taiku']),
         antiSub: _currentStat(item['api_taisen']),
         lineOfSight: _currentStat(item['api_sakuteki']),
+        armor: _currentStat(item['api_soukou']),
+        evasion: _currentStat(item['api_kaihi']),
+        luck: _currentStat(item['api_lucky']),
+        speed: _asInt(item['api_soku']),
+        range: _asInt(item['api_leng']),
         slotIds: _intList(item['api_slot']),
         onSlot: _intList(item['api_onslot'], includeNonPositive: true),
         extraSlotId: _asInt(item['api_slot_ex'], -1),
         repairDurationMilliseconds: _asInt(item['api_ndock_time']),
+        repairFuelCost: repairItems.isNotEmpty ? _asInt(repairItems[0]) : 0,
+        repairSteelCost: repairItems.length > 1 ? _asInt(repairItems[1]) : 0,
       );
     }
     return result;

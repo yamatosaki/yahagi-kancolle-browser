@@ -42,6 +42,10 @@ void main() {
       expect(state.masterMissions[5]?.fuelConsumptionPercent, 50);
       expect(state.masterMissions[5]?.ammunitionConsumptionPercent, 0);
       expect(state.ships[9002]?.repairDurationMilliseconds, 5400000);
+      expect(state.ships[9001]?.armor, 46);
+      expect(state.ships[9001]?.evasion, 80);
+      expect(state.ships[9001]?.luck, 41);
+      expect(state.ships[9001]?.speed, 15);
       expect(state.repairDocks.first.fuelCost, 24);
       expect(state.repairDocks.first.steelCost, 46);
       expect(state.constructionDocks, hasLength(4));
@@ -49,6 +53,7 @@ void main() {
       expect(state.constructionDocks[2].isLargeConstruction, isTrue);
       expect(state.constructionDocks[3].isLocked, isTrue);
       expect(state.serverOrigin, 'https://w01y.kancolle-server.com');
+      expect(state.ships[9001]?.range, 4);
     });
 
     test('material update changes only resources', () {
@@ -68,6 +73,98 @@ void main() {
       expect(updated.resource(GameResourceType.ammunition), 138649);
       expect(updated.ships, same(initial.ships));
       expect(updated.fleets, same(initial.fleets));
+    });
+
+    test(
+      'formation change removes a ship immediately without a port refresh',
+      () {
+        final reducer = GameStateReducer();
+        var state = reducer.reduce(
+          reducer.reduce(GameState.empty, start2Event),
+          portEvent,
+        );
+
+        state = reducer.reduce(
+          state,
+          kcsapiEvent(
+            '/kcsapi/api_req_hensei/change',
+            null,
+            includeApiData: false,
+            requestParams: const <String, Object?>{
+              'api_id': '1',
+              'api_ship_idx': '1',
+              'api_ship_id': '-1',
+            },
+          ),
+        );
+
+        expect(state.fleets.first.shipIds, <int>[9001]);
+      },
+    );
+
+    test(
+      'formation change moves and swaps ships between fleets immediately',
+      () {
+        final reducer = GameStateReducer();
+        var state = reducer.reduce(
+          reducer.reduce(GameState.empty, start2Event),
+          portEvent,
+        );
+        state = reducer.reduce(
+          state,
+          kcsapiEvent('/kcsapi/api_get_member/deck', <Object?>[
+            <String, Object?>{
+              'api_id': 1,
+              'api_name': '第一舰队',
+              'api_ship': <int>[9001, -1, -1, -1, -1, -1],
+              'api_mission': <int>[0, 0, 0, 0],
+            },
+            <String, Object?>{
+              'api_id': 2,
+              'api_name': '第二舰队',
+              'api_ship': <int>[9002, -1, -1, -1, -1, -1],
+              'api_mission': <int>[0, 0, 0, 0],
+            },
+          ]),
+        );
+
+        state = reducer.reduce(
+          state,
+          kcsapiEvent(
+            '/kcsapi/api_req_hensei/change',
+            null,
+            includeApiData: false,
+            requestParams: const <String, Object?>{
+              'api_id': '1',
+              'api_ship_idx': '0',
+              'api_ship_id': '9002',
+            },
+          ),
+        );
+
+        expect(state.fleets[0].shipIds, <int>[9002]);
+        expect(state.fleets[1].shipIds, <int>[9001]);
+      },
+    );
+
+    test('formation preset replaces its fleet immediately', () {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(
+        reducer.reduce(GameState.empty, start2Event),
+        portEvent,
+      );
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent('/kcsapi/api_req_hensei/preset_select', <String, Object?>{
+          'api_id': 1,
+          'api_name': '第一舰队',
+          'api_ship': <int>[9002, -1, -1, -1, -1, -1],
+          'api_mission': <int>[0, 0, 0, 0],
+        }),
+      );
+
+      expect(state.fleets.first.shipIds, <int>[9002]);
     });
 
     test(
@@ -228,6 +325,226 @@ void main() {
 
       expect(state.constructionDocks.first.startedAt, startedAt);
       expect(state.constructionDocks, hasLength(4));
+    });
+
+    test('charge updates resources and supplied ships immediately', () {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(GameState.empty, portEvent);
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent('/kcsapi/api_req_hokyu/charge', <String, Object?>{
+          'api_material': <int>[120000, 130000, 220000, 74000],
+          'api_ship': <Object?>[
+            <String, Object?>{
+              'api_id': 9001,
+              'api_fuel': 30,
+              'api_bull': 40,
+              'api_onslot': <int>[0, 2, 0],
+            },
+          ],
+        }),
+      );
+
+      expect(state.ships[9001]?.currentFuel, 30);
+      expect(state.ships[9001]?.currentAmmo, 40);
+      expect(state.ships[9001]?.level, 50);
+      expect(state.resource(GameResourceType.fuel), 120000);
+      expect(state.resource(GameResourceType.bauxite), 74000);
+      expect(state.resource(GameResourceType.instantBuild), 799);
+    });
+
+    test('mission start marks the selected fleet active immediately', () {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(GameState.empty, portEvent);
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent(
+          '/kcsapi/api_req_mission/start',
+          const <String, Object?>{'api_complatetime': 1785416400000},
+          requestParams: const <String, Object?>{
+            'api_deck_id': '3',
+            'api_mission_id': '5',
+          },
+        ),
+      );
+
+      final fleet = state.fleets.firstWhere((fleet) => fleet.id == 3);
+      expect(fleet.mission.isActive, isTrue);
+      expect(fleet.mission.missionId, 5);
+      expect(
+        fleet.mission.completionTime,
+        DateTime.fromMillisecondsSinceEpoch(1785416400000, isUtc: true),
+      );
+    });
+
+    test('instant repair clears the dock and restores ship hp immediately', () {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(GameState.empty, portEvent);
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent(
+          '/kcsapi/api_req_nyukyo/speedchange',
+          const <String, Object?>{},
+          requestParams: const <String, Object?>{'api_ndock_id': '1'},
+        ),
+      );
+
+      expect(state.repairDocks.first.isRepairing, isFalse);
+      expect(state.ships[9002]?.currentHp, state.ships[9002]?.maxHp);
+      expect(state.resource(GameResourceType.instantRepair), 707);
+    });
+
+    test(
+      'repair start updates dock and resource costs without port refresh',
+      () {
+        final reducer = GameStateReducer();
+        var state = reducer.reduce(GameState.empty, portEvent);
+        state = reducer.reduce(
+          state,
+          kcsapiEvent('/kcsapi/api_get_member/ship2', <Object?>[
+            <String, Object?>{
+              'api_id': 9002,
+              'api_ship_id': 102,
+              'api_lv': 44,
+              'api_nowhp': 8,
+              'api_maxhp': 15,
+              'api_cond': 32,
+              'api_fuel': 8,
+              'api_bull': 10,
+              'api_slot': <int>[7003, -1],
+              'api_onslot': <int>[0, 0],
+              'api_ndock_time': 5400000,
+              'api_ndock_item': <int>[24, 46],
+            },
+          ]),
+        );
+
+        state = reducer.reduce(
+          state,
+          kcsapiEvent(
+            '/kcsapi/api_req_nyukyo/start',
+            const <String, Object?>{},
+            requestParams: const <String, Object?>{
+              'api_ndock_id': '2',
+              'api_ship_id': '9002',
+              'api_highspeed': '0',
+            },
+          ),
+        );
+
+        expect(state.repairDocks[1].shipId, 9002);
+        expect(state.repairDocks[1].isRepairing, isTrue);
+        expect(state.repairDocks[1].fuelCost, 24);
+        expect(state.repairDocks[1].steelCost, 46);
+        expect(state.resource(GameResourceType.fuel), 123236);
+        expect(state.resource(GameResourceType.steel), 220204);
+      },
+    );
+
+    test('instant construction marks its dock completed immediately', () {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(GameState.empty, portEvent);
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent(
+          '/kcsapi/api_req_kousyou/createship_speedchange',
+          const <String, Object?>{},
+          requestParams: const <String, Object?>{'api_kdock_id': '1'},
+        ),
+      );
+
+      expect(state.constructionDocks.first.state, 3);
+      expect(
+        state.constructionDocks.first.isCompletedAt(DateTime.utc(2026)),
+        isTrue,
+      );
+      expect(state.resource(GameResourceType.instantBuild), 798);
+    });
+
+    test('getship adds the ship and equipment and clears the dock', () {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(GameState.empty, portEvent);
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent(
+          '/kcsapi/api_req_kousyou/getship',
+          <String, Object?>{
+            'api_ship': <String, Object?>{
+              'api_id': 9003,
+              'api_ship_id': 101,
+              'api_lv': 1,
+              'api_nowhp': 30,
+              'api_maxhp': 30,
+              'api_cond': 40,
+              'api_fuel': 15,
+              'api_bull': 20,
+              'api_slot': <int>[7100, -1, -1],
+              'api_onslot': <int>[0, 0, 0],
+            },
+            'api_slotitem': <Object?>[
+              <String, Object?>{
+                'api_id': 7100,
+                'api_slotitem_id': 201,
+                'api_level': 0,
+                'api_alv': 0,
+              },
+            ],
+            'api_kdock': <Object?>[
+              <String, Object?>{
+                'api_id': 1,
+                'api_state': 0,
+                'api_created_ship_id': 0,
+                'api_complete_time': 0,
+                'api_item1': 0,
+                'api_item2': 0,
+                'api_item3': 0,
+                'api_item4': 0,
+                'api_item5': 0,
+              },
+            ],
+          },
+          requestParams: const <String, Object?>{'api_kdock_id': '1'},
+        ),
+      );
+
+      expect(state.ships[9003]?.level, 1);
+      expect(state.slotItems[7100]?.masterId, 201);
+      expect(state.constructionDocks.first.isBuilding, isFalse);
+    });
+
+    test('slot exchange replaces the changed ship immediately', () {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(GameState.empty, portEvent);
+      final original = state.ships[9001]!;
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent(
+          '/kcsapi/api_req_kaisou/slot_exchange_index',
+          <String, Object?>{
+            'api_ship_data': <String, Object?>{
+              'api_id': original.id,
+              'api_ship_id': original.masterId,
+              'api_lv': original.level,
+              'api_nowhp': original.currentHp,
+              'api_maxhp': original.maxHp,
+              'api_cond': original.condition,
+              'api_fuel': original.currentFuel,
+              'api_bull': original.currentAmmo,
+              'api_slot': <int>[7002, 7001, 7004],
+              'api_onslot': original.onSlot,
+            },
+          },
+        ),
+      );
+
+      expect(state.ships[9001]?.slotIds, <int>[7002, 7001, 7004]);
+      expect(state.ships[9002]?.level, 44);
     });
 
     test('merges accepted quests and preserves server progress bands', () {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import '../browser/game_browser_controller.dart';
 import '../bridge/captured_api_event.dart';
@@ -32,6 +33,9 @@ class DiagnosticsSection extends StatelessWidget {
         prototypeStatusController,
       ]),
       builder: (context, _) {
+        final l10n =
+            AppLocalizations.of(context) ??
+            lookupAppLocalizations(const Locale('zh'));
         final nativeEvent = gameCaptureController.events.isEmpty
             ? null
             : gameCaptureController.events.last;
@@ -43,9 +47,9 @@ class DiagnosticsSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              '诊断与关于',
-              style: TextStyle(
+            Text(
+              l10n.diagnosticsAndAbout,
+              style: const TextStyle(
                 color: Color(0xffd4a85f),
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
@@ -53,7 +57,7 @@ class DiagnosticsSection extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             _DiagnosticCard(
-              title: _browserStateLabel(browserController.loadState),
+              title: _browserStateLabel(l10n, browserController.loadState),
               subtitle:
                   browserController.errorMessage ??
                   browserController.displayAddress,
@@ -62,49 +66,49 @@ class DiagnosticsSection extends StatelessWidget {
             const SizedBox(height: 8),
             _DiagnosticCard(
               title: captureModeController.mode == CaptureMode.browserOnly
-                  ? '纯浏览模式 · 数据捕获已关闭'
-                  : _captureStateTitle(gameCaptureController.state),
+                  ? l10n.browserOnlyCaptureOff
+                  : _captureStateTitle(l10n, gameCaptureController.state),
               subtitle: captureModeController.mode == CaptureMode.browserOnly
-                  ? '游戏网页继续运行，舰队、任务和战斗信息暂停更新。'
-                  : _captureStateSubtitle(gameCaptureController, event),
+                  ? l10n.browserOnlyCaptureOffDesc
+                  : _captureStateSubtitle(l10n, gameCaptureController, event),
               warning:
                   gameCaptureController.state == GameCaptureState.error ||
                   gameCaptureController.state == GameCaptureState.unsupported,
             ),
             const SizedBox(height: 8),
             _DiagnosticCard(
-              title: '已捕获 $capturedCount 条',
+              title: l10n.capturedCount(capturedCount),
               subtitle: event == null
-                  ? '等待 /kcsapi/ 响应'
+                  ? l10n.waitingKcsapi
                   : '${event.source.label} · ${event.capturedAt.toLocal()}',
             ),
             if (prototypeStatusController.lastBridgeError
                 case final error?) ...[
               const SizedBox(height: 8),
               _DiagnosticCard(
-                title: '已忽略非目标消息',
+                title: l10n.ignoredNonTargetMessage,
                 subtitle: error,
                 warning: true,
               ),
             ],
             const SizedBox(height: 12),
-            const Text(
-              '安全边界',
-              style: TextStyle(
+            Text(
+              l10n.safetyBoundary,
+              style: const TextStyle(
                 color: Color(0xffd4a85f),
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
               ),
             ),
             const SizedBox(height: 8),
-            const _DiagnosticCard(
-              title: '只读取，不操作',
-              subtitle: '不会自动点击、补给、编成、出击或领取任务。',
+            _DiagnosticCard(
+              title: l10n.readOnlyNoActions,
+              subtitle: l10n.readOnlyNoActionsDesc,
             ),
             const SizedBox(height: 8),
-            const _DiagnosticCard(
-              title: '不读取 Cookie',
-              subtitle: 'JS 桥接消息只包含接口路径、响应正文和时间。',
+            _DiagnosticCard(
+              title: l10n.noCookieRead,
+              subtitle: l10n.noCookieReadDesc,
             ),
           ],
         );
@@ -112,44 +116,45 @@ class DiagnosticsSection extends StatelessWidget {
     );
   }
 
-  String _browserStateLabel(GamePageLoadState state) {
+  String _browserStateLabel(AppLocalizations l10n, GamePageLoadState state) {
     return switch (state) {
-      GamePageLoadState.idle => '等待网页',
-      GamePageLoadState.loading => '网页加载中',
-      GamePageLoadState.ready => '网页已就绪',
-      GamePageLoadState.failed => '网页加载失败',
+      GamePageLoadState.idle => l10n.browserIdle,
+      GamePageLoadState.loading => l10n.browserLoading,
+      GamePageLoadState.ready => l10n.browserReady,
+      GamePageLoadState.failed => l10n.browserFailed,
     };
   }
 
-  String _captureStateTitle(GameCaptureState state) {
+  String _captureStateTitle(AppLocalizations l10n, GameCaptureState state) {
     return switch (state) {
-      GameCaptureState.disabled => '正在准备游戏接口捕获',
-      GameCaptureState.checking => '正在准备游戏接口捕获',
-      GameCaptureState.ready => '捕获已就绪',
-      GameCaptureState.capturing => '正在捕获游戏接口',
-      GameCaptureState.unsupported => '当前 WebView 不支持跨框架捕获',
-      GameCaptureState.error => '游戏接口捕获启动失败',
+      GameCaptureState.disabled => l10n.capturePreparing,
+      GameCaptureState.checking => l10n.capturePreparing,
+      GameCaptureState.ready => l10n.captureReady,
+      GameCaptureState.capturing => l10n.captureActive,
+      GameCaptureState.unsupported => l10n.captureUnsupported,
+      GameCaptureState.error => l10n.captureFailed,
     };
   }
 
   String _captureStateSubtitle(
+    AppLocalizations l10n,
     GameCaptureController captureController,
     CapturedApiEvent? latestEvent,
   ) {
     return switch (captureController.state) {
       GameCaptureState.disabled ||
-      GameCaptureState.checking => '正在检查 Android WebView 捕获能力。',
-      GameCaptureState.ready => '等待 /kcsapi/ 响应，游戏仍可正常操作。',
+      GameCaptureState.checking => l10n.captureCheckingDesc,
+      GameCaptureState.ready => l10n.captureReadyDesc,
       GameCaptureState.capturing =>
         latestEvent?.path == '/kcsapi/api_port/port' &&
                 latestEvent?.apiResult == 1
-            ? '母港接口验证通过'
+            ? l10n.portCaptureVerified
             : latestEvent == null
-            ? '已经收到游戏接口。'
-            : '最近一次捕获：${latestEvent.path}',
-      GameCaptureState.unsupported => '游戏仍可运行；当前设备只提供网页浏览。',
+            ? l10n.captureReceived
+            : l10n.captureLatest(latestEvent.path),
+      GameCaptureState.unsupported => l10n.captureUnsupportedDesc,
       GameCaptureState.error =>
-        captureController.errorMessage ?? '游戏仍可运行，可刷新页面后重试。',
+        captureController.errorMessage ?? l10n.captureFailedDesc,
     };
   }
 }

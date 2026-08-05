@@ -109,10 +109,13 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
     final formattedHost = NetworkSettingsValidator.formatProxyHost(host);
     FocusScope.of(context).unfocus();
 
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('正在应用网络设置...'),
-        duration: Duration(seconds: 1),
+      SnackBar(
+        content: Text(l10n.applyingNetworkSettings),
+        duration: const Duration(seconds: 1),
       ),
     );
 
@@ -125,12 +128,12 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
     if (!mounted) return;
 
     if (result.success) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('网络设置应用成功: ${result.message}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.networkSettingsApplied(result.message))),
+      );
       widget.onApplySuccess();
     } else {
-      _showErrorSnackBar('设置失败 [${result.code}]: ${result.message}');
+      _showErrorSnackBar(l10n.networkApplyFailed(result.code, result.message));
     }
   }
 
@@ -141,10 +144,13 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
       _selectedMode = NetworkMode.system;
     });
 
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('正在清除应用内代理...'),
-        duration: Duration(seconds: 1),
+      SnackBar(
+        content: Text(l10n.clearingProxy),
+        duration: const Duration(seconds: 1),
       ),
     );
 
@@ -159,10 +165,12 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
     if (result.success) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('已恢复系统网络。')));
+      ).showSnackBar(SnackBar(content: Text(l10n.systemNetworkRestored)));
       widget.onApplySuccess();
     } else {
-      _showErrorSnackBar('恢复失败 [${result.code}]: ${result.message}');
+      _showErrorSnackBar(
+        l10n.networkRestoreFailed(result.code, result.message),
+      );
     }
   }
 
@@ -173,7 +181,7 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
     );
   }
 
-  Widget _buildDiagnosticCard(ProxyResult? result) {
+  Widget _buildDiagnosticCard(AppLocalizations l10n, ProxyResult? result) {
     if (result == null) return const SizedBox.shrink();
 
     final success = result.success;
@@ -219,16 +227,24 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
           ),
           if (result.details.isNotEmpty) ...[
             const Divider(color: Color(0xff294052)),
-            _buildDetailRow('TCP 连接', result.details['proxy']),
-            _buildDetailRow('游戏服务', result.details['gameTarget']),
-            _buildDetailRow('Google (外网)', result.details['google']),
+            _buildDetailRow(l10n, l10n.tcpConnection, result.details['proxy']),
+            _buildDetailRow(
+              l10n,
+              l10n.gameService,
+              result.details['gameTarget'],
+            ),
+            _buildDetailRow(
+              l10n,
+              l10n.externalNetwork,
+              result.details['google'],
+            ),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildDetailRow(String label, dynamic detail) {
+  Widget _buildDetailRow(AppLocalizations l10n, String label, dynamic detail) {
     if (detail == null) return const SizedBox.shrink();
 
     final status = detail['status'] as String? ?? 'unknown';
@@ -236,20 +252,20 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
 
     Color color = Colors.white70;
     IconData icon = Icons.help_outline;
-    String statusText = '未知';
+    String statusText = l10n.statusUnknown;
 
     if (status == 'success') {
       color = Colors.green.shade400;
       icon = Icons.check;
-      statusText = '成功';
+      statusText = l10n.statusSuccess;
     } else if (status == 'failed') {
       color = Colors.red.shade400;
       icon = Icons.close;
-      statusText = '失败';
+      statusText = l10n.statusFailed;
     } else if (status == 'skipped') {
       color = Colors.grey.shade500;
       icon = Icons.remove;
-      statusText = '跳过';
+      statusText = l10n.statusSkipped;
     }
 
     return Padding(
@@ -286,6 +302,9 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
     return AnimatedBuilder(
       animation: widget.controller,
       builder: (context, _) {
+        final l10n =
+            AppLocalizations.of(context) ??
+            lookupAppLocalizations(const Locale('zh'));
         final c = widget.controller;
         final bool isProxySupported = c.isProxyOverrideSupported;
         final bool isVpnActive = c.networkStatus.hasVpn;
@@ -303,8 +322,7 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                   border: Border.all(color: Colors.red.shade700),
                 ),
                 child: Text(
-                  AppLocalizations.of(context)?.proxyNotSupported ??
-                      '当前设备的 Android System WebView 不支持应用内代理设置。\n您只能使用系统网络或全局 VPN。',
+                  l10n.proxyNotSupported,
                   style: const TextStyle(color: Colors.white, fontSize: 13),
                 ),
               ),
@@ -317,13 +335,11 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                 children: [
                   RadioListTile<NetworkMode>(
                     title: Text(
-                      AppLocalizations.of(context)?.systemNetwork ??
-                          '系统网络 / VPN',
+                      l10n.systemNetwork,
                       style: const TextStyle(fontSize: 14),
                     ),
                     subtitle: Text(
-                      AppLocalizations.of(context)?.systemNetworkDesc ??
-                          '不使用应用内代理，跟随系统网络环境。',
+                      l10n.systemNetworkDesc,
                       style: const TextStyle(
                         color: Color(0xff8197a5),
                         fontSize: 12,
@@ -334,12 +350,11 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                   ),
                   RadioListTile<NetworkMode>(
                     title: Text(
-                      AppLocalizations.of(context)?.httpProxy ?? 'HTTP 代理',
+                      l10n.httpProxy,
                       style: const TextStyle(fontSize: 14),
                     ),
                     subtitle: Text(
-                      AppLocalizations.of(context)?.httpProxyDesc ??
-                          '连接自定义 HTTP 代理服务器。',
+                      l10n.httpProxyDesc,
                       style: const TextStyle(
                         color: Color(0xff8197a5),
                         fontSize: 12,
@@ -351,12 +366,11 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                   ),
                   RadioListTile<NetworkMode>(
                     title: Text(
-                      AppLocalizations.of(context)?.socks5Proxy ?? 'SOCKS5 代理',
+                      l10n.socks5Proxy,
                       style: const TextStyle(fontSize: 14),
                     ),
                     subtitle: Text(
-                      AppLocalizations.of(context)?.socks5ProxyDesc ??
-                          '连接自定义 SOCKS5 代理服务器。',
+                      l10n.socks5ProxyDesc,
                       style: const TextStyle(
                         color: Color(0xff8197a5),
                         fontSize: 12,
@@ -383,12 +397,8 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                       child: TextField(
                         controller: _hostController,
                         decoration: InputDecoration(
-                          labelText:
-                              AppLocalizations.of(context)?.hostAddress ??
-                              '主机地址 (IP 或域名)',
-                          hintText:
-                              AppLocalizations.of(context)?.hostHint ??
-                              '如 192.168.1.10',
+                          labelText: l10n.hostAddress,
+                          hintText: l10n.hostHint,
                           border: const OutlineInputBorder(),
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -408,7 +418,7 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                           FilteringTextInputFormatter.digitsOnly,
                         ],
                         decoration: InputDecoration(
-                          labelText: AppLocalizations.of(context)?.port ?? '端口',
+                          labelText: l10n.port,
                           border: const OutlineInputBorder(),
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -430,21 +440,21 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    '${AppLocalizations.of(context)?.currentSavedMode ?? "当前已保存模式"}: ${c.settings.mode.name}',
+                    '${l10n.currentSavedMode}: ${c.settings.mode.name}',
                     style: const TextStyle(
                       color: Color(0xff8197a5),
                       fontSize: 13,
                     ),
                   ),
                   Text(
-                    '${AppLocalizations.of(context)?.vpnStatus ?? "VPN 状态"}: ${isVpnActive ? (AppLocalizations.of(context)?.vpnActive ?? "已检测到活动 VPN") : (AppLocalizations.of(context)?.vpnInactive ?? "未检测到活动 VPN")}',
+                    '${l10n.vpnStatus}: ${isVpnActive ? l10n.vpnActive : l10n.vpnInactive}',
                     style: const TextStyle(
                       color: Color(0xff8197a5),
                       fontSize: 13,
                     ),
                   ),
 
-                  _buildDiagnosticCard(c.lastTestResult),
+                  _buildDiagnosticCard(l10n, c.lastTestResult),
 
                   const SizedBox(height: 16),
 
@@ -459,9 +469,7 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.speed, size: 18),
-                    label: Text(
-                      AppLocalizations.of(context)?.testConnection ?? '网络连接测试',
-                    ),
+                    label: Text(l10n.testConnection),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xff183631),
                       foregroundColor: const Color(0xff80c8bd),
@@ -481,10 +489,7 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.check_circle_outline, size: 18),
-                    label: Text(
-                      AppLocalizations.of(context)?.applySettings ??
-                          '应用设置并重新加载游戏',
-                    ),
+                    label: Text(l10n.applySettings),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xffd4a85f),
                       foregroundColor: Colors.black87,
@@ -498,8 +503,7 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                           ? null
                           : _restoreSystemNetwork,
                       child: Text(
-                        AppLocalizations.of(context)?.restoreSystemNetwork ??
-                            '恢复系统网络',
+                        l10n.restoreSystemNetwork,
                         style: const TextStyle(color: Color(0xff8197a5)),
                       ),
                     ),

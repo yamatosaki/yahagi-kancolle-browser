@@ -180,7 +180,7 @@ abstract class AppLocalizations {
   /// No description provided for @autoZoom.
   ///
   /// In zh, this message translates to:
-  /// **'自动缩放游戏画面 (推荐)'**
+  /// **'自动缩放游戏画面（默认推荐 65：35）'**
   String get autoZoom;
 
   /// No description provided for @language.
@@ -546,13 +546,13 @@ abstract class AppLocalizations {
   /// No description provided for @aboutSubtitle.
   ///
   /// In zh, this message translates to:
-  /// **'版本 学习版 1.0 · 免责声明 · 检查更新'**
+  /// **'版本 学习版 1.0.2 · 免责声明 · 检查更新'**
   String get aboutSubtitle;
 
   /// No description provided for @version.
   ///
   /// In zh, this message translates to:
-  /// **'版本 学习版 1.0'**
+  /// **'版本 学习版 1.0.2'**
   String get version;
 
   /// No description provided for @disclaimerTitle.
@@ -1418,6 +1418,647 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'疲劳'**
   String get fatigue;
+
+  /// No description provided for @startupUpdateTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'发现新版本'**
+  String get startupUpdateTitle;
+
+  /// No description provided for @backgroundAudio.
+  ///
+  /// In zh, this message translates to:
+  /// **'后台播放声音'**
+  String get backgroundAudio;
+
+  /// No description provided for @backgroundAudioDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'开启后，应用进入后台时游戏声音仍会继续播放。'**
+  String get backgroundAudioDesc;
+
+  /// No description provided for @screenAwake.
+  ///
+  /// In zh, this message translates to:
+  /// **'屏幕常亮'**
+  String get screenAwake;
+
+  /// No description provided for @screenAwakeDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'开启后，应用在前台期间屏幕不会自动关闭，可能增加耗电。'**
+  String get screenAwakeDesc;
+
+  /// No description provided for @gameToolbar.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏工具栏'**
+  String get gameToolbar;
+
+  /// No description provided for @toolbarAutoHide.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动隐藏'**
+  String get toolbarAutoHide;
+
+  /// No description provided for @toolbarPersistent.
+  ///
+  /// In zh, this message translates to:
+  /// **'常驻'**
+  String get toolbarPersistent;
+
+  /// No description provided for @back.
+  ///
+  /// In zh, this message translates to:
+  /// **'返回'**
+  String get back;
+
+  /// No description provided for @reload.
+  ///
+  /// In zh, this message translates to:
+  /// **'刷新'**
+  String get reload;
+
+  /// No description provided for @home.
+  ///
+  /// In zh, this message translates to:
+  /// **'回到主页'**
+  String get home;
+
+  /// No description provided for @enterDmm.
+  ///
+  /// In zh, this message translates to:
+  /// **'进入 DMM 登录'**
+  String get enterDmm;
+
+  /// No description provided for @enableGameAudio.
+  ///
+  /// In zh, this message translates to:
+  /// **'开启游戏声音'**
+  String get enableGameAudio;
+
+  /// No description provided for @disableGameAudio.
+  ///
+  /// In zh, this message translates to:
+  /// **'关闭游戏声音'**
+  String get disableGameAudio;
+
+  /// No description provided for @takeScreenshot.
+  ///
+  /// In zh, this message translates to:
+  /// **'一键截图'**
+  String get takeScreenshot;
+
+  /// No description provided for @screenshotSaving.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在保存游戏截图…'**
+  String get screenshotSaving;
+
+  /// No description provided for @fitGameScreen.
+  ///
+  /// In zh, this message translates to:
+  /// **'修复显示（自适应屏幕）'**
+  String get fitGameScreen;
+
+  /// No description provided for @collapseToolbar.
+  ///
+  /// In zh, this message translates to:
+  /// **'收起工具栏'**
+  String get collapseToolbar;
+
+  /// No description provided for @editDone.
+  ///
+  /// In zh, this message translates to:
+  /// **'完成编辑'**
+  String get editDone;
+
+  /// No description provided for @retryWithSystemNetwork.
+  ///
+  /// In zh, this message translates to:
+  /// **'改用系统网络重试'**
+  String get retryWithSystemNetwork;
+
+  /// No description provided for @displayMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'显示模式'**
+  String get displayMode;
+
+  /// No description provided for @displayAuto.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动'**
+  String get displayAuto;
+
+  /// No description provided for @displayLandscape.
+  ///
+  /// In zh, this message translates to:
+  /// **'横屏'**
+  String get displayLandscape;
+
+  /// No description provided for @displayPortrait.
+  ///
+  /// In zh, this message translates to:
+  /// **'竖屏'**
+  String get displayPortrait;
+
+  /// No description provided for @allRanks.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部评级'**
+  String get allRanks;
+
+  /// No description provided for @battleFleetSummary.
+  ///
+  /// In zh, this message translates to:
+  /// **'我方 {friendAlive}/{friendTotal}　敌方 {enemyAlive}/{enemyTotal}'**
+  String battleFleetSummary(
+    int friendAlive,
+    int friendTotal,
+    int enemyAlive,
+    int enemyTotal,
+  );
+
+  /// No description provided for @dropLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'掉落：{name}'**
+  String dropLabel(String name);
+
+  /// No description provided for @item.
+  ///
+  /// In zh, this message translates to:
+  /// **'道具'**
+  String get item;
+
+  /// No description provided for @friendFinalStatus.
+  ///
+  /// In zh, this message translates to:
+  /// **'我方最终状态'**
+  String get friendFinalStatus;
+
+  /// No description provided for @enemyFinalStatus.
+  ///
+  /// In zh, this message translates to:
+  /// **'敌方最终状态'**
+  String get enemyFinalStatus;
+
+  /// No description provided for @airStateLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'制空：{label}'**
+  String airStateLabel(String label);
+
+  /// No description provided for @postBattleWarningTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'战后安全警告'**
+  String get postBattleWarningTitle;
+
+  /// No description provided for @postBattleWarningHeadline.
+  ///
+  /// In zh, this message translates to:
+  /// **'出击舰队中存在大破舰娘！'**
+  String get postBattleWarningHeadline;
+
+  /// No description provided for @postBattleWarningBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'请在接下来的选择界面务必点击“撤退”，切勿强行进击以免沉船！'**
+  String get postBattleWarningBody;
+
+  /// No description provided for @acknowledgeAndRetreat.
+  ///
+  /// In zh, this message translates to:
+  /// **'确认了解并撤退'**
+  String get acknowledgeAndRetreat;
+
+  /// No description provided for @postBattleWarningBanner.
+  ///
+  /// In zh, this message translates to:
+  /// **'战后安全警告：出击舰队中存在大破舰娘！请注意撤退！'**
+  String get postBattleWarningBanner;
+
+  /// No description provided for @noActiveExpedition.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有正在进行的远征'**
+  String get noActiveExpedition;
+
+  /// No description provided for @noSortieWarnings.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无出击警告'**
+  String get noSortieWarnings;
+
+  /// No description provided for @preSortieCriticalWarning.
+  ///
+  /// In zh, this message translates to:
+  /// **'{fleetName} 存在大破舰，停止出击！'**
+  String preSortieCriticalWarning(String fleetName);
+
+  /// No description provided for @preSortieSupplyWarning.
+  ///
+  /// In zh, this message translates to:
+  /// **'{fleetName} 舰娘未补给'**
+  String preSortieSupplyWarning(String fleetName);
+
+  /// No description provided for @preSortieFatigueWarning.
+  ///
+  /// In zh, this message translates to:
+  /// **'{fleetName} 舰娘疲劳未恢复'**
+  String preSortieFatigueWarning(String fleetName);
+
+  /// No description provided for @preSortieMainEquipmentWarning.
+  ///
+  /// In zh, this message translates to:
+  /// **'{fleetName} 装备缺失（主装备槽）：{shipNames}'**
+  String preSortieMainEquipmentWarning(String fleetName, String shipNames);
+
+  /// No description provided for @preSortieExtraEquipmentWarning.
+  ///
+  /// In zh, this message translates to:
+  /// **'{fleetName} 装备缺失（增设槽）：{shipNames}'**
+  String preSortieExtraEquipmentWarning(String fleetName, String shipNames);
+
+  /// No description provided for @noPinnedQuests.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前没有进行中的任务'**
+  String get noPinnedQuests;
+
+  /// No description provided for @waitingQuestData.
+  ///
+  /// In zh, this message translates to:
+  /// **'等待任务数据'**
+  String get waitingQuestData;
+
+  /// No description provided for @waitingQuestDataDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开游戏任务列表后，这里会自动同步当前已接受任务'**
+  String get waitingQuestDataDesc;
+
+  /// No description provided for @diagnosticsAndAbout.
+  ///
+  /// In zh, this message translates to:
+  /// **'诊断与关于'**
+  String get diagnosticsAndAbout;
+
+  /// No description provided for @safetyBoundary.
+  ///
+  /// In zh, this message translates to:
+  /// **'安全边界'**
+  String get safetyBoundary;
+
+  /// No description provided for @applyingNetworkSettings.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在应用网络设置…'**
+  String get applyingNetworkSettings;
+
+  /// No description provided for @networkSettingsApplied.
+  ///
+  /// In zh, this message translates to:
+  /// **'网络设置应用成功：{message}'**
+  String networkSettingsApplied(String message);
+
+  /// No description provided for @clearingProxy.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在清除应用内代理…'**
+  String get clearingProxy;
+
+  /// No description provided for @systemNetworkRestored.
+  ///
+  /// In zh, this message translates to:
+  /// **'已恢复系统网络。'**
+  String get systemNetworkRestored;
+
+  /// No description provided for @screenshotSaved.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏截图已保存到相册：{path}'**
+  String screenshotSaved(String path);
+
+  /// No description provided for @screenshotFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏截图失败，请稍后重试。'**
+  String get screenshotFailed;
+
+  /// No description provided for @startupUpdateMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'ヤハギ {version} 已发布。'**
+  String startupUpdateMessage(String version);
+
+  /// No description provided for @gameStatusError.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏状态异常'**
+  String get gameStatusError;
+
+  /// No description provided for @gameStatusErrorDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'网页或捕获状态异常，请在设置中查看诊断信息。'**
+  String get gameStatusErrorDesc;
+
+  /// No description provided for @browserOnlyCaptureOff.
+  ///
+  /// In zh, this message translates to:
+  /// **'纯浏览模式 · 数据捕获已关闭'**
+  String get browserOnlyCaptureOff;
+
+  /// No description provided for @browserOnlyCaptureOffDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏网页继续运行，舰队、任务和战斗信息暂停更新。'**
+  String get browserOnlyCaptureOffDesc;
+
+  /// No description provided for @capturedCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'已捕获 {count} 条'**
+  String capturedCount(int count);
+
+  /// No description provided for @waitingKcsapi.
+  ///
+  /// In zh, this message translates to:
+  /// **'等待 /kcsapi/ 响应'**
+  String get waitingKcsapi;
+
+  /// No description provided for @ignoredNonTargetMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'已忽略非目标消息'**
+  String get ignoredNonTargetMessage;
+
+  /// No description provided for @readOnlyNoActions.
+  ///
+  /// In zh, this message translates to:
+  /// **'只读取，不操作'**
+  String get readOnlyNoActions;
+
+  /// No description provided for @readOnlyNoActionsDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'不会自动点击、补给、编成、出击或领取任务。'**
+  String get readOnlyNoActionsDesc;
+
+  /// No description provided for @noCookieRead.
+  ///
+  /// In zh, this message translates to:
+  /// **'不读取 Cookie'**
+  String get noCookieRead;
+
+  /// No description provided for @noCookieReadDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'JS 桥接消息只包含接口路径、响应正文和时间。'**
+  String get noCookieReadDesc;
+
+  /// No description provided for @browserIdle.
+  ///
+  /// In zh, this message translates to:
+  /// **'等待网页'**
+  String get browserIdle;
+
+  /// No description provided for @browserLoading.
+  ///
+  /// In zh, this message translates to:
+  /// **'网页加载中'**
+  String get browserLoading;
+
+  /// No description provided for @browserReady.
+  ///
+  /// In zh, this message translates to:
+  /// **'网页已就绪'**
+  String get browserReady;
+
+  /// No description provided for @browserFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'网页加载失败'**
+  String get browserFailed;
+
+  /// No description provided for @capturePreparing.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在准备游戏接口捕获'**
+  String get capturePreparing;
+
+  /// No description provided for @captureReady.
+  ///
+  /// In zh, this message translates to:
+  /// **'捕获已就绪'**
+  String get captureReady;
+
+  /// No description provided for @captureActive.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在捕获游戏接口'**
+  String get captureActive;
+
+  /// No description provided for @captureUnsupported.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前 WebView 不支持跨框架捕获'**
+  String get captureUnsupported;
+
+  /// No description provided for @captureFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏接口捕获启动失败'**
+  String get captureFailed;
+
+  /// No description provided for @captureCheckingDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在检查 Android WebView 捕获能力。'**
+  String get captureCheckingDesc;
+
+  /// No description provided for @captureReadyDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'等待 /kcsapi/ 响应，游戏仍可正常操作。'**
+  String get captureReadyDesc;
+
+  /// No description provided for @portCaptureVerified.
+  ///
+  /// In zh, this message translates to:
+  /// **'母港接口验证通过'**
+  String get portCaptureVerified;
+
+  /// No description provided for @captureReceived.
+  ///
+  /// In zh, this message translates to:
+  /// **'已经收到游戏接口。'**
+  String get captureReceived;
+
+  /// No description provided for @captureLatest.
+  ///
+  /// In zh, this message translates to:
+  /// **'最近一次捕获：{path}'**
+  String captureLatest(String path);
+
+  /// No description provided for @captureUnsupportedDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏仍可运行；当前设备只提供网页浏览。'**
+  String get captureUnsupportedDesc;
+
+  /// No description provided for @captureFailedDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏仍可运行，可刷新页面后重试。'**
+  String get captureFailedDesc;
+
+  /// No description provided for @networkApplyFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'设置失败 [{code}]：{message}'**
+  String networkApplyFailed(String code, String message);
+
+  /// No description provided for @networkRestoreFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复失败 [{code}]：{message}'**
+  String networkRestoreFailed(String code, String message);
+
+  /// No description provided for @tcpConnection.
+  ///
+  /// In zh, this message translates to:
+  /// **'TCP 连接'**
+  String get tcpConnection;
+
+  /// No description provided for @gameService.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏服务'**
+  String get gameService;
+
+  /// No description provided for @externalNetwork.
+  ///
+  /// In zh, this message translates to:
+  /// **'Google（外网）'**
+  String get externalNetwork;
+
+  /// No description provided for @statusUnknown.
+  ///
+  /// In zh, this message translates to:
+  /// **'未知'**
+  String get statusUnknown;
+
+  /// No description provided for @statusSuccess.
+  ///
+  /// In zh, this message translates to:
+  /// **'成功'**
+  String get statusSuccess;
+
+  /// No description provided for @statusFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'失败'**
+  String get statusFailed;
+
+  /// No description provided for @statusSkipped.
+  ///
+  /// In zh, this message translates to:
+  /// **'跳过'**
+  String get statusSkipped;
+
+  /// No description provided for @formula33.
+  ///
+  /// In zh, this message translates to:
+  /// **'33式'**
+  String get formula33;
+
+  /// No description provided for @fatigueValue.
+  ///
+  /// In zh, this message translates to:
+  /// **'疲劳 {value}'**
+  String fatigueValue(int value);
+
+  /// No description provided for @fcdMapSectionTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'数据更新'**
+  String get fcdMapSectionTitle;
+
+  /// No description provided for @fcdMapDataTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'未卜先知数据'**
+  String get fcdMapDataTitle;
+
+  /// No description provided for @fcdMapDataVersion.
+  ///
+  /// In zh, this message translates to:
+  /// **'数据版本：{version}'**
+  String fcdMapDataVersion(String version);
+
+  /// No description provided for @fcdMapLastChecked.
+  ///
+  /// In zh, this message translates to:
+  /// **'上次检查：{time}'**
+  String fcdMapLastChecked(String time);
+
+  /// No description provided for @fcdMapNeverChecked.
+  ///
+  /// In zh, this message translates to:
+  /// **'上次检查：尚未检查'**
+  String get fcdMapNeverChecked;
+
+  /// No description provided for @fcdMapSource.
+  ///
+  /// In zh, this message translates to:
+  /// **'更新源：{source}'**
+  String fcdMapSource(String source);
+
+  /// No description provided for @fcdMapAttribution.
+  ///
+  /// In zh, this message translates to:
+  /// **'数据来源：poi FCD（MIT）'**
+  String get fcdMapAttribution;
+
+  /// No description provided for @fcdMapCheckUpdates.
+  ///
+  /// In zh, this message translates to:
+  /// **'检查未卜先知数据更新'**
+  String get fcdMapCheckUpdates;
+
+  /// No description provided for @fcdMapUpToDate.
+  ///
+  /// In zh, this message translates to:
+  /// **'未卜先知数据已经是最新版本。'**
+  String get fcdMapUpToDate;
+
+  /// No description provided for @fcdMapUpdated.
+  ///
+  /// In zh, this message translates to:
+  /// **'未卜先知数据已从 {oldVersion} 更新至 {newVersion}，已立即生效。'**
+  String fcdMapUpdated(String oldVersion, String newVersion);
+
+  /// No description provided for @fcdMapNetworkError.
+  ///
+  /// In zh, this message translates to:
+  /// **'未能连接数据更新源，请稍后重试。'**
+  String get fcdMapNetworkError;
+
+  /// No description provided for @fcdMapValidationError.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载的数据未通过校验，已保留当前版本。'**
+  String get fcdMapValidationError;
+
+  /// No description provided for @fcdMapStorageError.
+  ///
+  /// In zh, this message translates to:
+  /// **'数据保存失败，已保留当前版本。'**
+  String get fcdMapStorageError;
 }
 
 class _AppLocalizationsDelegate

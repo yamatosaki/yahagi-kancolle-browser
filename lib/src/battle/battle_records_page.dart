@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../fleet/ship_status_style.dart';
 import 'battle_controller.dart';
 import 'battle_models.dart';
@@ -71,6 +72,9 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
     return Container(
       height: 58,
       padding: const EdgeInsets.symmetric(horizontal: 18),
@@ -80,9 +84,9 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Text(
-            '战斗记录',
-            style: TextStyle(
+          Text(
+            l10n.battleRecords,
+            style: const TextStyle(
               color: Color(0xffd4a85f),
               fontWeight: FontWeight.w800,
               fontSize: 17,
@@ -93,12 +97,12 @@ class _Header extends StatelessWidget {
             child: DropdownButton<BattleRank?>(
               key: const Key('battle-rank-filter'),
               value: rankFilter,
-              hint: const Text('全部评级'),
+              hint: Text(l10n.allRanks),
               dropdownColor: const Color(0xff142735),
               items: <DropdownMenuItem<BattleRank?>>[
-                const DropdownMenuItem<BattleRank?>(
+                DropdownMenuItem<BattleRank?>(
                   value: null,
-                  child: Text('全部评级'),
+                  child: Text(l10n.allRanks),
                 ),
                 for (final rank in BattleRank.values)
                   if (rank != BattleRank.unknown)
@@ -121,18 +125,28 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.history_toggle_off, size: 42, color: Color(0xff567080)),
-          SizedBox(height: 12),
-          Text(
-            '尚无战斗记录',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          const Icon(
+            Icons.history_toggle_off,
+            size: 42,
+            color: Color(0xff567080),
           ),
-          SizedBox(height: 5),
-          Text('出击后会自动记录，不需要额外操作', style: TextStyle(color: Color(0xff8197a5))),
+          const SizedBox(height: 12),
+          Text(
+            l10n.noBattleRecords,
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            l10n.autoRecordHint,
+            style: const TextStyle(color: Color(0xff8197a5)),
+          ),
         ],
       ),
     );
@@ -151,6 +165,9 @@ class _RecordCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
     final battle = record.battle;
     final dropName = battle.dropShipMasterId == null
         ? null
@@ -178,7 +195,9 @@ class _RecordCard extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                battle.enemyFleetName.isEmpty ? '敌舰队' : battle.enemyFleetName,
+                battle.enemyFleetName.isEmpty
+                    ? l10n.enemyFleet
+                    : battle.enemyFleetName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w800),
@@ -199,13 +218,21 @@ class _RecordCard extends StatelessWidget {
               Text('${battle.context.mapLabel} · ${battle.context.nodeLabel}'),
               Text(battle.phaseLabel),
               Text(
-                '我方 $friendAlive/${battle.friendShips.length}　'
-                '敌方 $enemyAlive/${battle.enemyShips.length}',
+                l10n.battleFleetSummary(
+                  friendAlive,
+                  battle.friendShips.length,
+                  enemyAlive,
+                  battle.enemyShips.length,
+                ),
               ),
-              if (dropName != null) Text('掉落：$dropName'),
+              if (dropName != null) Text(l10n.dropLabel(dropName)),
               if ((battle.dropItemId ?? 0) > 0)
                 Text(
-                  '掉落：${dropItemName?.isNotEmpty == true ? dropItemName : '道具'}',
+                  l10n.dropLabel(
+                    dropItemName?.isNotEmpty == true
+                        ? dropItemName!
+                        : l10n.item,
+                  ),
                 ),
             ],
           ),
@@ -216,12 +243,12 @@ class _RecordCard extends StatelessWidget {
             builder: (context, constraints) {
               final vertical = constraints.maxWidth < 680;
               final friend = _FleetResult(
-                title: '我方最终状态',
+                title: l10n.friendFinalStatus,
                 ships: battle.friendShips,
                 color: const Color(0xff70c7bc),
               );
               final enemy = _FleetResult(
-                title: '敌方最终状态',
+                title: l10n.enemyFinalStatus,
                 ships: battle.enemyShips,
                 color: const Color(0xffff8c78),
               );

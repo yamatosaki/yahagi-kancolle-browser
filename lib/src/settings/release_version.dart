@@ -6,6 +6,13 @@ bool isNewerRelease(String candidateTag, {required String currentTag}) {
       candidate.compareTo(current) > 0;
 }
 
+bool isValidReleaseTag(String tag) => _SemanticVersion.tryParse(tag) != null;
+
+String normalizedReleaseVersion(String tag) {
+  final trimmed = tag.trim();
+  return trimmed.startsWith('v') ? trimmed.substring(1) : trimmed;
+}
+
 final class _SemanticVersion implements Comparable<_SemanticVersion> {
   const _SemanticVersion(this.major, this.minor, this.patch, this.preRelease);
 

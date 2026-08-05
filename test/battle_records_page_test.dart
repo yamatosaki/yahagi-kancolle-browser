@@ -35,6 +35,38 @@ class _TestBattleCardState extends State<_TestBattleCard> {
 }
 
 void main() {
+  testWidgets('collapsed idle forecast card has no extra outline', (
+    tester,
+  ) async {
+    final controller = createController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: LiveBattleCard(
+            controller: controller,
+            collapsed: true,
+            onToggleCollapse: () {},
+          ),
+        ),
+      ),
+    );
+
+    final surfaces = tester.widgetList<Container>(
+      find.descendant(
+        of: find.byKey(const Key('live-battle-card')),
+        matching: find.byType(Container),
+      ),
+    );
+    final surface = surfaces.singleWhere(
+      (container) =>
+          (container.decoration as BoxDecoration?)?.color ==
+          const Color(0xff142735),
+    );
+    expect((surface.decoration! as BoxDecoration).border, isNull);
+  });
+
   testWidgets('live card stays visible and changes from idle to forecast', (
     tester,
   ) async {
@@ -99,7 +131,7 @@ void main() {
     );
 
     expect(find.text('航向'), findsWidgets);
-    expect(find.text('A点'), findsOneWidget);
+    expect(find.text('节点 1'), findsOneWidget);
     expect(find.text('普通战斗'), findsOneWidget);
     expect(find.text('我方舰队'), findsOneWidget);
     expect(find.text('夕張'), findsOneWidget);
