@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-08-05T20:43:19.012618",
+  "generatedAt": "2026-08-06T04:11:44.875542",
   "toolVersion": "1.0.0",
-  "gitCommit": "8f53961e814900bcc17b6dead935676a0283f171",
+  "gitCommit": "61917f249eea6887708f0cea3c663d6ea95fd25a",
   "robots": "allowed",
   "homepageSha256": "sha256:e450505ce81d27c05fade9fd2838562db3d3d1619ab5fade157ca2a493a06121",
   "discoveredEquipment": 573,
@@ -11,8 +11,8 @@
   "rules": 1783,
   "unresolved": 4,
   "unresolvedBlocking": 0,
-  "rulesCanonicalSha256": "sha256:2ea3a5dc182bf507af7c249e44b86abdded444fbfd1a042a13e70fe743455a1a",
-  "overridesApplied": 37,
+  "rulesCanonicalSha256": "sha256:beb5c4f9a77d6b0bb381d0550a7c28c228e2c1df93b10e0749f140b83c57637e",
+  "overridesApplied": 59,
   "datasetPath": "assets/data/equipment_fit_bonuses.json",
   "published": true
 }

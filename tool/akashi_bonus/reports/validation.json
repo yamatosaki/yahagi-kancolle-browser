@@ -3126,6 +3126,96 @@
         "checkedAt": "2026-08-05",
         "checkedBy": "agent/manual",
         "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 121,
+        "ruleId": "akashi-121-*",
+        "checkType": "round2-fix",
+        "status": "difference-fixed",
+        "detail": "WikiWiki 94式高射装置: 玉波改二组(玉波改二/藤波改二/早波改二/浜波改二) 単体 火力+1 回避+1(◯)、シナジー(対空電探) 対空+2 回避+2。akashi 页面仅列 2 舰且単体値错位为 対空+2 回避+2。override-121-001~004 修正（remove 错规则 + add 4舰 perEquipment + extend synergy 至 4 舰）。",
+        "checkedAt": "2026-08-06",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_conflict"
+      },
+      {
+        "equipmentId": 149,
+        "ruleId": "akashi-149-*",
+        "checkType": "round2-fix",
+        "status": "difference-fixed",
+        "detail": "WikiWiki 四式水中聴音機: 香取・鹿島 回避+3 対潜+2(×*3)。akashi 页面无此行；override-149-001 补充。另修正 round2 早期记录笔误（本装备为 回避/対潜 加成，非雷装）。",
+        "checkedAt": "2026-08-06",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 290,
+        "ruleId": "akashi-290-*",
+        "checkType": "round2-fix",
+        "status": "difference-fixed",
+        "detail": "WikiWiki 41cm三連装砲改二(2025-04更新): 伊勢改二 単体 火力+3 対空+2 回避+1 命中+3；日向改二 +命中+3；伊勢型改 火力+2 対空+2 命中+1；相互シナジー(41cm連装砲改二) 長門型改二 火力+2 回避+2 装甲+1 命中+1 / 日向改二 火力+1 命中+2；対空電探シナジー 伊勢改二・伊勢改・日向改 火力+2 回避+5 命中+1 / 日向改二 火力+1 対空+2 回避+5 命中+1。akashi 页面 synergy 段为 2018 旧数据，override-290-rm-1..5 + 006..012 全部重建。",
+        "checkedAt": "2026-08-06",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_conflict"
+      },
+      {
+        "equipmentId": 368,
+        "ruleId": "akashi-368-*",
+        "checkType": "round2-fix",
+        "status": "passed",
+        "detail": "count 段聚合 bug 修复: 1つ目/2~4つ目 段的 start==1 基础值不再被后续件数排除（原 byCount x2=火力4 错，现 x2=火力10）。修复影响 w368/w369 等所有跨段 count 规则。",
+        "checkedAt": "2026-08-06",
+        "checkedBy": "agent/manual",
+        "diffClass": "parser_fix"
+      },
+      {
+        "equipmentId": 369,
+        "ruleId": "akashi-369-*",
+        "checkType": "round2-fix",
+        "status": "passed",
+        "detail": "同 w368 count 聚合修复（x2 火力+13 恢复）。kcwiki 增益表核对完全一致。",
+        "checkedAt": "2026-08-06",
+        "checkedBy": "agent/manual",
+        "diffClass": "parser_fix"
+      },
+      {
+        "equipmentId": 426,
+        "ruleId": "akashi-426-*",
+        "checkType": "round2-fix",
+        "status": "difference-fixed",
+        "detail": "WikiWiki 305mm/46 連装砲(全角斜杠页面): Гангут x1 火力+2 回避+1。akashi 页面缺 回避+1；override-426-001 补充（去重后 1 条）。",
+        "checkedAt": "2026-08-06",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_missing"
+      },
+      {
+        "equipmentId": 464,
+        "ruleId": "akashi-464-*",
+        "checkType": "round2-fix",
+        "status": "difference-fixed",
+        "detail": "WikiWiki 10cm連装高角砲群(集中配備): 武蔵改二 单独 対空+3 回避+3（akashi 误并入 大和型改二 +5/+4）；金剛型等(榛名改二乙/丙除く) 対空-2 回避-2 负面组缺失；大和型/大和型改二 协同(15m二重測距儀＋21号電探改二=142 / 15m二重測距儀改＋21号電探改二＋熟練射撃指揮所=460) 应为 火力+2 回避+1 命中+1（akashi 旧値 対空+2 错误）。override-464-rm-1..5 + 006..011 重建。",
+        "checkedAt": "2026-08-06",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_conflict"
+      },
+      {
+        "equipmentId": 470,
+        "ruleId": "akashi-470-*",
+        "checkType": "round2-fix",
+        "status": "difference-fixed",
+        "detail": "WikiWiki 12.7cm連装砲C型改三: 雪風改二・丹陽 x1 火力+3 回避+2 命中+2 / x2 火力+7 回避+4 命中+2；陽炎型改二(雪風・秋雲除く) x1 火力+3 回避+2 / x2 火力+7 回避+2；時雨改二 x1 火力+2 回避+2 命中+2 / x2 火力+5 回避+4 命中+2；時雨改三 x1 火力+5 回避+4 命中+5 / x2 火力+11 回避+8 命中+8；改修ボーナス(★0-5 回避+1 / ★8-9 回避+1 命中+1 / Max 回避+1 命中+2)；白露型・朝潮型+水上電探 火力+1 雷装+3 回避+1 命中+1。akashi 页面仅 2 组过时数据，override-470-rm-1..6 + 007..013 重建。",
+        "checkedAt": "2026-08-06",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_conflict"
+      },
+      {
+        "equipmentId": 508,
+        "ruleId": "akashi-508-*",
+        "checkType": "round2-fix",
+        "status": "difference",
+        "detail": "kcwiki 增益表为改修分档(★0/3/6/9)；数据集为 akashi 基础值(perEquipment 无分档)。基础值一致，记录差异（格式差异，kcwiki 扩展信息）。",
+        "checkedAt": "2026-08-06",
+        "checkedBy": "agent/manual",
+        "diffClass": "format_difference"
       }
     ]
   }

@@ -3090,5 +3090,35 @@
     "checkedAt": "2026-08-05",
     "checkedBy": "agent/manual",
     "diffClass": "matched"
+  },
+  {
+    "equipmentId": 369,
+    "ruleId": "akashi-369-*",
+    "checkType": "round2",
+    "status": "passed",
+    "detail": "kcwiki 装备增益表核对: 哥特兰(andra) 火力+8雷装+3对潜+4索敌+5回避+6、哥特兰/改 火力+5对潜+4索敌+3回避+4、塔斯特司令官级 火力+3对潜+3索敌+3回避+2、瑞穗级/神威级 火力+2对潜+2索敌+2回避+1 与数据集完全一致（含 1つ目/2つ目 count 段）。",
+    "checkedAt": "2026-08-05",
+    "checkedBy": "agent/manual",
+    "diffClass": "matched"
+  },
+  {
+    "equipmentId": 426,
+    "ruleId": "akashi-426-*",
+    "checkType": "round2",
+    "status": "passed",
+    "detail": "WikiWiki 305mm/46 連装砲(全角斜杠页面) R5-R12: Conte di Cavour x1 火力+3回避+1/x2以降 火力+1回避+1、Гангут x1 火力+2回避+1/x2以降 火力+1、协同(305mm/46三連装砲) 火力+1回避+1 一致；akashi 缺失 Гангут x1 回避+1，已补 override-426-001。",
+    "checkedAt": "2026-08-05",
+    "checkedBy": "agent/manual",
+    "diffClass": "matched"
+  },
+  {
+    "equipmentId": 508,
+    "ruleId": "akashi-508-*",
+    "checkType": "round2",
+    "status": "difference",
+    "detail": "kcwiki 增益表: 内华达级 ★0 回避+2命中+2火力+3（★9 装甲+1 火力+4）、科罗拉多级等 ★0 回避+1命中+1火力+2、伊丽莎白女王级等 ★0 回避+1命中+1。数据集为 akashi 基础值（perEquipment 无改修分档）；基础值一致，kcwiki 的改修分档为 kcwiki 扩展信息，记录差异（akashi 页面未表达 ★ 分档）。",
+    "checkedAt": "2026-08-05",
+    "checkedBy": "agent/manual",
+    "diffClass": "format_difference"
   }
 ]

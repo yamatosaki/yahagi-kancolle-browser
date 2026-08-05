@@ -213,6 +213,13 @@ class RuleBuilder {
           }
         }
         segments.sort((a, b) => a.start.compareTo(b.start));
+        // The start==1 segment's stats are the first-equipment baseline, not
+        // per-slot increments stacked on later counts.
+        for (final seg in segments.where((s) => s.start == 1)) {
+          for (final s in seg.stats) {
+            baseStats[s.stat] = (baseStats[s.stat] ?? 0) + s.increments.first;
+          }
+        }
         if (!countOk) {
           // Fall through: the count block will be reported via countGateTexts.
         } else if (segments.isNotEmpty) {
@@ -226,6 +233,7 @@ class RuleBuilder {
           for (var n = 1; n <= maxEnd; n++) {
             final total = <String, int>{...baseStats};
             for (final seg in segments) {
+              if (seg.start == 1) continue;
               if (seg.start > n) continue;
               if (seg.end != null && seg.end! < n) continue;
               for (final s in seg.stats) {
@@ -526,6 +534,11 @@ class RuleBuilder {
             for (final b in block.statBonuses)
               if (b.increments.length == 1) b.stat: b.increments.first,
           };
+          for (final seg in block.countSegments.where((s) => s.start == 1)) {
+            for (final s in seg.stats) {
+              baseStats[s.stat] = (baseStats[s.stat] ?? 0) + s.increments.first;
+            }
+          }
           final maxEnd = block.countSegments
               .map((s) => s.end ?? 4)
               .reduce((a, b) => a > b ? a : b);
@@ -536,6 +549,7 @@ class RuleBuilder {
           for (var n = 1; n <= maxEnd; n++) {
             final total = <String, int>{...baseStats};
             for (final seg in block.countSegments) {
+              if (seg.start == 1) continue;
               if (seg.start > n) continue;
               if (seg.end != null && seg.end! < n) continue;
               for (final s in seg.stats) {

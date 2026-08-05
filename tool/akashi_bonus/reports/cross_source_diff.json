@@ -478,15 +478,6 @@
   },
   {
     "equipmentId": 121,
-    "ruleId": "akashi-121-single-002",
-    "kind": "source_missing",
-    "detail": "ElectronicObserver has no bonus entry for equipment 121 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx10)",
-    "reviewedBy": "agent/manual",
-    "reviewedAt": "2026-08-05",
-    "resolution": "passed"
-  },
-  {
-    "equipmentId": 121,
     "ruleId": "akashi-121-synergy-001",
     "kind": "source_missing",
     "detail": "ElectronicObserver has no bonus entry for equipment 121 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx10)",
@@ -1163,6 +1154,15 @@
   {
     "equipmentId": 149,
     "ruleId": "akashi-149-single-008",
+    "kind": "format_difference",
+    "detail": "EO covers shipTypes {} for type 10; akashi rule is ship-scoped // EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex8)",
+    "reviewedBy": "agent/manual",
+    "reviewedAt": "2026-08-05",
+    "resolution": "passed"
+  },
+  {
+    "equipmentId": 149,
+    "ruleId": "akashi-149-single-009",
     "kind": "format_difference",
     "detail": "EO covers shipTypes {} for type 10; akashi rule is ship-scoped // EO 覆盖该装备类型但按 shipType 粒度组织，akashi 规则为舰级粒度：结构差异，无值级冲突可验证（EO 不按舰娘细分）。 (diff 分类: format_differencex8)",
     "reviewedBy": "agent/manual",
@@ -3691,7 +3691,7 @@
   },
   {
     "equipmentId": 290,
-    "ruleId": "akashi-290-synergy-001",
+    "ruleId": "akashi-290-single-008",
     "kind": "source_missing",
     "detail": "ElectronicObserver has no bonus entry for equipment 290 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx12)",
     "reviewedBy": "agent/manual",
@@ -3700,7 +3700,7 @@
   },
   {
     "equipmentId": 290,
-    "ruleId": "akashi-290-synergy-002",
+    "ruleId": "akashi-290-single-009",
     "kind": "source_missing",
     "detail": "ElectronicObserver has no bonus entry for equipment 290 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx12)",
     "reviewedBy": "agent/manual",
@@ -3709,7 +3709,7 @@
   },
   {
     "equipmentId": 290,
-    "ruleId": "akashi-290-synergy-003",
+    "ruleId": "akashi-290-single-010",
     "kind": "source_missing",
     "detail": "ElectronicObserver has no bonus entry for equipment 290 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx12)",
     "reviewedBy": "agent/manual",
@@ -3718,7 +3718,7 @@
   },
   {
     "equipmentId": 290,
-    "ruleId": "akashi-290-synergy-004",
+    "ruleId": "akashi-290-single-011",
     "kind": "source_missing",
     "detail": "ElectronicObserver has no bonus entry for equipment 290 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx12)",
     "reviewedBy": "agent/manual",
@@ -3727,7 +3727,25 @@
   },
   {
     "equipmentId": 290,
-    "ruleId": "akashi-290-synergy-005",
+    "ruleId": "akashi-290-single-012",
+    "kind": "source_missing",
+    "detail": "ElectronicObserver has no bonus entry for equipment 290 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx12)",
+    "reviewedBy": "agent/manual",
+    "reviewedAt": "2026-08-05",
+    "resolution": "passed"
+  },
+  {
+    "equipmentId": 290,
+    "ruleId": "akashi-290-single-013",
+    "kind": "source_missing",
+    "detail": "ElectronicObserver has no bonus entry for equipment 290 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx12)",
+    "reviewedBy": "agent/manual",
+    "reviewedAt": "2026-08-05",
+    "resolution": "passed"
+  },
+  {
+    "equipmentId": 290,
+    "ruleId": "akashi-290-single-014",
     "kind": "source_missing",
     "detail": "ElectronicObserver has no bonus entry for equipment 290 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx12)",
     "reviewedBy": "agent/manual",
@@ -11368,6 +11386,15 @@
   },
   {
     "equipmentId": 426,
+    "ruleId": "akashi-426-count-003",
+    "kind": "source_missing",
+    "detail": "ElectronicObserver has no bonus entry for equipment 426 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx5)",
+    "reviewedBy": "agent/manual",
+    "reviewedAt": "2026-08-05",
+    "resolution": "passed"
+  },
+  {
+    "equipmentId": 426,
     "ruleId": "akashi-426-single-001",
     "kind": "source_missing",
     "detail": "ElectronicObserver has no bonus entry for equipment 426 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx5)",
@@ -13573,7 +13600,7 @@
   },
   {
     "equipmentId": 464,
-    "ruleId": "akashi-464-synergy-001",
+    "ruleId": "akashi-464-single-007",
     "kind": "source_missing",
     "detail": "ElectronicObserver has no bonus entry for equipment 464 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx11)",
     "reviewedBy": "agent/manual",
@@ -13582,7 +13609,7 @@
   },
   {
     "equipmentId": 464,
-    "ruleId": "akashi-464-synergy-002",
+    "ruleId": "akashi-464-single-008",
     "kind": "source_missing",
     "detail": "ElectronicObserver has no bonus entry for equipment 464 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx11)",
     "reviewedBy": "agent/manual",
@@ -13591,7 +13618,16 @@
   },
   {
     "equipmentId": 464,
-    "ruleId": "akashi-464-synergy-003",
+    "ruleId": "akashi-464-single-009",
+    "kind": "source_missing",
+    "detail": "ElectronicObserver has no bonus entry for equipment 464 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx11)",
+    "reviewedBy": "agent/manual",
+    "reviewedAt": "2026-08-05",
+    "resolution": "passed"
+  },
+  {
+    "equipmentId": 464,
+    "ruleId": "akashi-464-single-010",
     "kind": "source_missing",
     "detail": "ElectronicObserver has no bonus entry for equipment 464 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx11)",
     "reviewedBy": "agent/manual",
@@ -13798,7 +13834,7 @@
   },
   {
     "equipmentId": 470,
-    "ruleId": "akashi-470-single-001",
+    "ruleId": "akashi-470-count-003",
     "kind": "source_missing",
     "detail": "ElectronicObserver has no bonus entry for equipment 470 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
     "reviewedBy": "agent/manual",
@@ -13807,7 +13843,25 @@
   },
   {
     "equipmentId": 470,
-    "ruleId": "akashi-470-single-002",
+    "ruleId": "akashi-470-count-004",
+    "kind": "source_missing",
+    "detail": "ElectronicObserver has no bonus entry for equipment 470 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+    "reviewedBy": "agent/manual",
+    "reviewedAt": "2026-08-05",
+    "resolution": "passed"
+  },
+  {
+    "equipmentId": 470,
+    "ruleId": "akashi-470-improvement-001",
+    "kind": "source_missing",
+    "detail": "ElectronicObserver has no bonus entry for equipment 470 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
+    "reviewedBy": "agent/manual",
+    "reviewedAt": "2026-08-05",
+    "resolution": "passed"
+  },
+  {
+    "equipmentId": 470,
+    "ruleId": "akashi-470-improvement-002",
     "kind": "source_missing",
     "detail": "ElectronicObserver has no bonus entry for equipment 470 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
     "reviewedBy": "agent/manual",
@@ -13817,15 +13871,6 @@
   {
     "equipmentId": 470,
     "ruleId": "akashi-470-synergy-001",
-    "kind": "source_missing",
-    "detail": "ElectronicObserver has no bonus entry for equipment 470 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
-    "reviewedBy": "agent/manual",
-    "reviewedAt": "2026-08-05",
-    "resolution": "passed"
-  },
-  {
-    "equipmentId": 470,
-    "ruleId": "akashi-470-synergy-002",
     "kind": "source_missing",
     "detail": "ElectronicObserver has no bonus entry for equipment 470 types; rule kept from akashi-list // EO FitBonuses.json 按装备类型组织，该装备类型无 EO 数据；无冲突，Akashi 规则保留。 (diff 分类: source_missingx6)",
     "reviewedBy": "agent/manual",
@@ -20653,5 +20698,32 @@
     "reviewedBy": "agent/manual",
     "reviewedAt": "2026-08-05",
     "resolution": "passed"
+  },
+  {
+    "equipmentId": 369,
+    "ruleId": "akashi-369-*",
+    "kind": "matched",
+    "detail": "kcwiki 装备增益表核对: 哥特兰(andra) 火力+8雷装+3对潜+4索敌+5回避+6、哥特兰/改 火力+5对潜+4索敌+3回避+4、塔斯特司令官级 火力+3对潜+3索敌+3回避+2、瑞穗级/神威级 火力+2对潜+2索敌+2回避+1 与数据集完全一致（含 1つ目/2つ目 count 段）。",
+    "reviewedBy": "agent/manual",
+    "reviewedAt": "2026-08-05",
+    "resolution": "passed"
+  },
+  {
+    "equipmentId": 426,
+    "ruleId": "akashi-426-*",
+    "kind": "matched",
+    "detail": "WikiWiki 305mm/46 連装砲(全角斜杠页面) R5-R12: Conte di Cavour x1 火力+3回避+1/x2以降 火力+1回避+1、Гангут x1 火力+2回避+1/x2以降 火力+1、协同(305mm/46三連装砲) 火力+1回避+1 一致；akashi 缺失 Гангут x1 回避+1，已补 override-426-001。",
+    "reviewedBy": "agent/manual",
+    "reviewedAt": "2026-08-05",
+    "resolution": "passed"
+  },
+  {
+    "equipmentId": 508,
+    "ruleId": "akashi-508-*",
+    "kind": "format_difference",
+    "detail": "kcwiki 增益表: 内华达级 ★0 回避+2命中+2火力+3（★9 装甲+1 火力+4）、科罗拉多级等 ★0 回避+1命中+1火力+2、伊丽莎白女王级等 ★0 回避+1命中+1。数据集为 akashi 基础值（perEquipment 无改修分档）；基础值一致，kcwiki 的改修分档为 kcwiki 扩展信息，记录差异（akashi 页面未表达 ★ 分档）。",
+    "reviewedBy": "agent/manual",
+    "reviewedAt": "2026-08-05",
+    "resolution": "difference"
   }
 ]

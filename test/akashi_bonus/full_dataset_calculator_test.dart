@@ -96,8 +96,18 @@ void main() {
       expect(r.bonus.stats['antiAir'], 5);
       expect(r.bonus.stats['evasion'], 4);
     });
-    test('w464: 榛名改二乙 negative 対空-2 回避-2', () {
+    test('w464: 榛名改二乙 対空+5 回避+4', () {
       final r = run(shipIdOf('榛名改二乙'), 464);
+      expect(r.bonus.stats['antiAir'], 5);
+      expect(r.bonus.stats['evasion'], 4);
+    });
+    test('w464: 武蔵改二 対空+3 回避+3 (override)', () {
+      final r = run(shipIdOf('武蔵改二'), 464);
+      expect(r.bonus.stats['antiAir'], 3);
+      expect(r.bonus.stats['evasion'], 3);
+    });
+    test('w464: 金剛 (榛名改二乙/丙除く) negative 対空-2 回避-2 (override)', () {
+      final r = run(shipIdOf('金剛'), 464);
       expect(r.bonus.stats['antiAir'], -2);
       expect(r.bonus.stats['evasion'], -2);
     });
@@ -112,9 +122,10 @@ void main() {
       expect(r.bonus.stats['evasion'], 2);
       expect(r.bonus.stats['accuracy'], 2);
     });
-    test('w470: 陽炎改二 (秋雲除く) ★0-5 回避+1', () {
+    test('w470: 陽炎改二 (秋雲除く) ★0 回避+3 (単体2+改修1)', () {
       final r = run(shipIdOf('陽炎改二'), 470);
-      expect(r.bonus.stats['evasion'], 1);
+      expect(r.bonus.stats['firepower'], 3);
+      expect(r.bonus.stats['evasion'], 3);
     });
     test('w368 Swordfish: 瑞穂 x1 火力+1 対潜+2 索敵+2 回避+1', () {
       final r = run(shipIdOf('瑞穂'), 368, count: 1);
@@ -187,9 +198,9 @@ void main() {
       final r = run(shipIdOf('Киров'), 555);
       expect(r.bonus.stats['firepower'], 2);
     });
-    test('w555: Гангут (Киров以外) 火力+1 (★3-6)', () {
+    test('w555: Гангут (Киров以外) ★4 火力+2 (star table)', () {
       final r = run(shipIdOf('Гангут'), 555, star: 4);
-      expect(r.bonus.stats['firepower'], 1);
+      expect(r.bonus.stats['firepower'], 2);
     });
     test('w338 烈風改二戊型: 加賀改二護 火力+1 対空+2 回避+3 (override)', () {
       final r = run(shipIdOf('加賀改二護'), 338);

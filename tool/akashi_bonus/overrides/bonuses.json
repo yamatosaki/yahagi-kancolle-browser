@@ -1071,134 +1071,6 @@
       }
     },
     {
-      "overrideId": "override-426-001",
-      "reason": "WikiWiki 305mm/46 連装砲 R7: Гангут x1 火力+2 回避+1（x2以降 火力+1 无回避）。akashi 页面仅记 火力+2,+1,+1,+1，缺失 第1件 回避+1。补 countTable {1: 回避+1}。",
-      "primarySourceUrl": "https://akashi-list.me/detail/w426.html",
-      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/305mm%EF%BC%8F46%20%E9%80%A3%E8%A3%85%E7%A0%B2",
-      "reviewedBy": "agent/manual",
-      "reviewedAt": "2026-08-05",
-      "kind": "addRule",
-      "resolvesEquipmentIds": [
-        426
-      ],
-      "rule": {
-        "ruleId": "akashi-426-count-9xx",
-        "equipment": {
-          "ids": [
-            426
-          ],
-          "typeIds": []
-        },
-        "category": "count",
-        "shipCondition": {
-          "shipIds": [
-            511
-          ],
-          "baseShipIds": [],
-          "classIds": [],
-          "shipTypeIds": [],
-          "nationalityIds": []
-        },
-        "equipmentCondition": {
-          "minImprovement": 0,
-          "maxImprovement": 10
-        },
-        "requires": [],
-        "effect": {
-          "mode": "countTable",
-          "increments": {
-            "1": {
-              "evasion": 1
-            }
-          },
-          "byCount": {
-            "1": {
-              "evasion": 1
-            }
-          },
-          "overflow": "unresolved"
-        },
-        "notes": [
-          "override:override-426-001",
-          "verificationSource: wikiwiki.jp/kancolle 305mm/46連装砲"
-        ],
-        "source": {
-          "url": "https://akashi-list.me/detail/w426.html",
-          "pageName": "305mm/46 連装砲",
-          "fetchedAt": "",
-          "httpLastModified": null,
-          "contentSha256": "",
-          "fragmentHash": "override",
-          "sourceGroupLabel": "Гангут",
-          "rawEffect": "回避+1"
-        }
-      }
-    },
-    {
-      "overrideId": "override-426-001",
-      "reason": "WikiWiki 305mm/46 連装砲 R7: Гангут x1 火力+2 回避+1（x2以降 火力+1 无回避）。akashi 页面仅记 火力+2,+1,+1,+1，缺失 第1件 回避+1。补 countTable {1: 回避+1}。",
-      "primarySourceUrl": "https://akashi-list.me/detail/w426.html",
-      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/305mm%EF%BC%8F46%20%E9%80%A3%E8%A3%85%E7%A0%B2",
-      "reviewedBy": "agent/manual",
-      "reviewedAt": "2026-08-05",
-      "kind": "addRule",
-      "resolvesEquipmentIds": [
-        426
-      ],
-      "rule": {
-        "ruleId": "akashi-426-count-9xx",
-        "equipment": {
-          "ids": [
-            426
-          ],
-          "typeIds": []
-        },
-        "category": "count",
-        "shipCondition": {
-          "shipIds": [
-            511
-          ],
-          "baseShipIds": [],
-          "classIds": [],
-          "shipTypeIds": [],
-          "nationalityIds": []
-        },
-        "equipmentCondition": {
-          "minImprovement": 0,
-          "maxImprovement": 10
-        },
-        "requires": [],
-        "effect": {
-          "mode": "countTable",
-          "increments": {
-            "1": {
-              "evasion": 1
-            }
-          },
-          "byCount": {
-            "1": {
-              "evasion": 1
-            }
-          },
-          "overflow": "unresolved"
-        },
-        "notes": [
-          "override:override-426-001",
-          "verificationSource: wikiwiki.jp/kancolle 305mm/46連装砲"
-        ],
-        "source": {
-          "url": "https://akashi-list.me/detail/w426.html",
-          "pageName": "305mm/46 連装砲",
-          "fetchedAt": "",
-          "httpLastModified": null,
-          "contentSha256": "",
-          "fragmentHash": "override",
-          "sourceGroupLabel": "Гангут",
-          "rawEffect": "回避+1"
-        }
-      }
-    },
-    {
       "overrideId": "override-121-001",
       "reason": "WikiWiki 94式高射装置: 玉波改二组(玉波改二/藤波改二/早波改二/浜波改二) 単体 火力+1 回避+1(◯累積)。akashi 页面仅列 2 舰且単体值为 対空+2 回避+2（实为相互シナジー値错位）。移除错误规则并补正确 perEquipment 规则。",
       "primarySourceUrl": "https://akashi-list.me/detail/w121.html",
@@ -1892,7 +1764,7 @@
         "ruleId": "akashi-149-single-9x1",
         "equipment": {
           "ids": [
-            290
+            149
           ],
           "typeIds": []
         },
@@ -1942,6 +1814,1249 @@
           "rawEffect": "回避+3 対潜+2"
         }
       }
+    },
+    {
+      "overrideId": "override-464-rm-1",
+      "reason": "WikiWiki(2025-04): 武蔵改二 单独 対空+3 回避+3（非 大和型改二组 +5/+4）；移除 old single-003/004 并用新规则重建。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w464.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/10cm%E9%80%A3%E8%A3%85%E9%AB%98%E8%A7%92%E7%A0%B2%E7%BE%A4%20%E9%9B%86%E4%B8%AD%E9%85%8D%E5%82%99",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "removeRuleId",
+      "ruleId": "akashi-464-single-003",
+      "resolvesEquipmentIds": [
+        464
+      ]
+    },
+    {
+      "overrideId": "override-464-rm-2",
+      "reason": "同 rm-1。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w464.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/10cm%E9%80%A3%E8%A3%85%E9%AB%98%E8%A7%92%E7%A0%B2%E7%BE%A4%20%E9%9B%86%E4%B8%AD%E9%85%8D%E5%82%99",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "removeRuleId",
+      "ruleId": "akashi-464-single-004",
+      "resolvesEquipmentIds": [
+        464
+      ]
+    },
+    {
+      "overrideId": "override-464-rm-3",
+      "reason": "WikiWiki: 大和型 协同(15m二重測距儀＋21号電探改二) = 火力+2 回避+1 命中+1；akashi 旧値 対空+2 错误，移除重建。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w464.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/10cm%E9%80%A3%E8%A3%85%E9%AB%98%E8%A7%92%E7%A0%B2%E7%BE%A4%20%E9%9B%86%E4%B8%AD%E9%85%8D%E5%82%99",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "removeRuleId",
+      "ruleId": "akashi-464-synergy-001",
+      "resolvesEquipmentIds": [
+        464
+      ]
+    },
+    {
+      "overrideId": "override-464-rm-4",
+      "reason": "同 rm-3（15m二重測距儀改＋21号電探改二＋熟練射撃指揮所）。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w464.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/10cm%E9%80%A3%E8%A3%85%E9%AB%98%E8%A7%92%E7%A0%B2%E7%BE%A4%20%E9%9B%86%E4%B8%AD%E9%85%8D%E5%82%99",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "removeRuleId",
+      "ruleId": "akashi-464-synergy-002",
+      "resolvesEquipmentIds": [
+        464
+      ]
+    },
+    {
+      "overrideId": "override-464-rm-5",
+      "reason": "同 rm-3（大和型改二 +15m二重測距儀＋21号電探改二；且 546 移出）。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w464.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/10cm%E9%80%A3%E8%A3%85%E9%AB%98%E8%A7%92%E7%A0%B2%E7%BE%A4%20%E9%9B%86%E4%B8%AD%E9%85%8D%E5%82%99",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "removeRuleId",
+      "ruleId": "akashi-464-synergy-003",
+      "resolvesEquipmentIds": [
+        464
+      ]
+    },
+    {
+      "overrideId": "override-464-006",
+      "reason": "WikiWiki: 大和型改二(大和改二・大和改二重) 対空+5 回避+4 ◯。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w464.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/10cm%E9%80%A3%E8%A3%85%E9%AB%98%E8%A7%92%E7%A0%B2%E7%BE%A4%20%E9%9B%86%E4%B8%AD%E9%85%8D%E5%82%99",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "addRule",
+      "rule": {
+        "ruleId": "akashi-464-single-9x1",
+        "equipment": {
+          "ids": [
+            464
+          ],
+          "typeIds": []
+        },
+        "category": "single",
+        "shipCondition": {
+          "shipIds": [
+            911,
+            916
+          ],
+          "baseShipIds": [],
+          "classIds": [],
+          "shipTypeIds": [],
+          "nationalityIds": []
+        },
+        "equipmentCondition": {
+          "minImprovement": 0,
+          "maxImprovement": 10
+        },
+        "requires": [],
+        "effect": {
+          "mode": "once",
+          "bonus": {
+            "firepower": 0,
+            "torpedo": 0,
+            "antiAir": 5,
+            "evasion": 4,
+            "accuracy": 0,
+            "armor": 0,
+            "antiSubmarine": 0,
+            "lineOfSight": 0,
+            "bombing": 0,
+            "range": 0
+          }
+        },
+        "notes": [
+          "override:w464-fix",
+          "verificationSource: wikiwiki.jp/kancolle 10cm連装高角砲群(集中配備)"
+        ],
+        "source": {
+          "url": "https://akashi-list.me/detail/w464.html",
+          "pageName": "10cm連装高角砲群(集中配備)",
+          "fetchedAt": "",
+          "httpLastModified": null,
+          "contentSha256": "",
+          "fragmentHash": "override",
+          "sourceGroupLabel": "大和型改二",
+          "rawEffect": "対空+5 回避+4"
+        }
+      },
+      "resolvesEquipmentIds": [
+        464
+      ]
+    },
+    {
+      "overrideId": "override-464-007",
+      "reason": "WikiWiki: 武蔵改二 单独 対空+3 回避+3。akashi 无此行。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w464.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/10cm%E9%80%A3%E8%A3%85%E9%AB%98%E8%A7%92%E7%A0%B2%E7%BE%A4%20%E9%9B%86%E4%B8%AD%E9%85%8D%E5%82%99",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "addRule",
+      "rule": {
+        "ruleId": "akashi-464-single-9x2",
+        "equipment": {
+          "ids": [
+            464
+          ],
+          "typeIds": []
+        },
+        "category": "single",
+        "shipCondition": {
+          "shipIds": [
+            546
+          ],
+          "baseShipIds": [],
+          "classIds": [],
+          "shipTypeIds": [],
+          "nationalityIds": []
+        },
+        "equipmentCondition": {
+          "minImprovement": 0,
+          "maxImprovement": 10
+        },
+        "requires": [],
+        "effect": {
+          "mode": "once",
+          "bonus": {
+            "firepower": 0,
+            "torpedo": 0,
+            "antiAir": 3,
+            "evasion": 3,
+            "accuracy": 0,
+            "armor": 0,
+            "antiSubmarine": 0,
+            "lineOfSight": 0,
+            "bombing": 0,
+            "range": 0
+          }
+        },
+        "notes": [
+          "override:w464-fix",
+          "verificationSource: wikiwiki.jp/kancolle 10cm連装高角砲群(集中配備)"
+        ],
+        "source": {
+          "url": "https://akashi-list.me/detail/w464.html",
+          "pageName": "10cm連装高角砲群(集中配備)",
+          "fetchedAt": "",
+          "httpLastModified": null,
+          "contentSha256": "",
+          "fragmentHash": "override",
+          "sourceGroupLabel": "武蔵改二",
+          "rawEffect": "対空+3 回避+3"
+        }
+      },
+      "resolvesEquipmentIds": [
+        464
+      ]
+    },
+    {
+      "overrideId": "override-464-008",
+      "reason": "WikiWiki: 金剛型等(金剛・比叡・榛名・霧島 全形態、榛名改二乙/丙除く) 対空-2 回避-2。akashi 无负面行。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w464.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/10cm%E9%80%A3%E8%A3%85%E9%AB%98%E8%A7%92%E7%A0%B2%E7%BE%A4%20%E9%9B%86%E4%B8%AD%E9%85%8D%E5%82%99",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "addRule",
+      "rule": {
+        "ruleId": "akashi-464-single-9x3",
+        "equipment": {
+          "ids": [
+            464
+          ],
+          "typeIds": []
+        },
+        "category": "single",
+        "shipCondition": {
+          "shipIds": [
+            78,
+            209,
+            149,
+            591,
+            86,
+            210,
+            150,
+            592,
+            79,
+            211,
+            151,
+            85,
+            212,
+            152,
+            694
+          ],
+          "baseShipIds": [],
+          "classIds": [],
+          "shipTypeIds": [],
+          "nationalityIds": []
+        },
+        "equipmentCondition": {
+          "minImprovement": 0,
+          "maxImprovement": 10
+        },
+        "requires": [],
+        "effect": {
+          "mode": "once",
+          "bonus": {
+            "firepower": 0,
+            "torpedo": 0,
+            "antiAir": -2,
+            "evasion": -2,
+            "accuracy": 0,
+            "armor": 0,
+            "antiSubmarine": 0,
+            "lineOfSight": 0,
+            "bombing": 0,
+            "range": 0
+          }
+        },
+        "notes": [
+          "override:w464-fix",
+          "verificationSource: wikiwiki.jp/kancolle 10cm連装高角砲群(集中配備)"
+        ],
+        "source": {
+          "url": "https://akashi-list.me/detail/w464.html",
+          "pageName": "10cm連装高角砲群(集中配備)",
+          "fetchedAt": "",
+          "httpLastModified": null,
+          "contentSha256": "",
+          "fragmentHash": "override",
+          "sourceGroupLabel": "金剛型等(除く榛名改二乙/丙)",
+          "rawEffect": "対空-2 回避-2"
+        }
+      },
+      "resolvesEquipmentIds": [
+        464
+      ]
+    },
+    {
+      "overrideId": "override-464-009",
+      "reason": "WikiWiki: 大和型 +15m二重測距儀＋21号電探改二(142) 火力+2 回避+1 命中+1。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w464.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/10cm%E9%80%A3%E8%A3%85%E9%AB%98%E8%A7%92%E7%A0%B2%E7%BE%A4%20%E9%9B%86%E4%B8%AD%E9%85%8D%E5%82%99",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "addRule",
+      "rule": {
+        "ruleId": "akashi-464-synergy-9x1",
+        "equipment": {
+          "ids": [
+            464
+          ],
+          "typeIds": []
+        },
+        "category": "single",
+        "shipCondition": {
+          "shipIds": [
+            131,
+            143
+          ],
+          "baseShipIds": [],
+          "classIds": [],
+          "shipTypeIds": [],
+          "nationalityIds": []
+        },
+        "equipmentCondition": {
+          "minImprovement": 0,
+          "maxImprovement": 10
+        },
+        "requires": [
+          {
+            "kind": "equipmentPredicate",
+            "minCount": 1,
+            "predicate": {
+              "kind": "equipmentPredicate",
+              "itemIds": [
+                142
+              ]
+            },
+            "sourceLabel": ""
+          }
+        ],
+        "effect": {
+          "mode": "once",
+          "bonus": {
+            "firepower": 2,
+            "torpedo": 0,
+            "antiAir": 0,
+            "evasion": 1,
+            "accuracy": 1,
+            "armor": 0,
+            "antiSubmarine": 0,
+            "lineOfSight": 0,
+            "bombing": 0,
+            "range": 0
+          }
+        },
+        "notes": [
+          "override:w464-fix",
+          "verificationSource: wikiwiki.jp/kancolle 10cm連装高角砲群(集中配備)"
+        ],
+        "source": {
+          "url": "https://akashi-list.me/detail/w464.html",
+          "pageName": "10cm連装高角砲群(集中配備)",
+          "fetchedAt": "",
+          "httpLastModified": null,
+          "contentSha256": "",
+          "fragmentHash": "override",
+          "sourceGroupLabel": "大和型 +15m二重測距儀＋21号電探改二",
+          "rawEffect": "火力+2 回避+1 命中+1"
+        }
+      },
+      "resolvesEquipmentIds": [
+        464
+      ]
+    },
+    {
+      "overrideId": "override-464-010",
+      "reason": "WikiWiki: 大和型 +15m二重測距儀改＋21号電探改二＋熟練射撃指揮所(460) 火力+2 回避+1 命中+1。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w464.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/10cm%E9%80%A3%E8%A3%85%E9%AB%98%E8%A7%92%E7%A0%B2%E7%BE%A4%20%E9%9B%86%E4%B8%AD%E9%85%8D%E5%82%99",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "addRule",
+      "rule": {
+        "ruleId": "akashi-464-synergy-9x2",
+        "equipment": {
+          "ids": [
+            464
+          ],
+          "typeIds": []
+        },
+        "category": "single",
+        "shipCondition": {
+          "shipIds": [
+            131,
+            143
+          ],
+          "baseShipIds": [],
+          "classIds": [],
+          "shipTypeIds": [],
+          "nationalityIds": []
+        },
+        "equipmentCondition": {
+          "minImprovement": 0,
+          "maxImprovement": 10
+        },
+        "requires": [
+          {
+            "kind": "equipmentPredicate",
+            "minCount": 1,
+            "predicate": {
+              "kind": "equipmentPredicate",
+              "itemIds": [
+                460
+              ]
+            },
+            "sourceLabel": ""
+          }
+        ],
+        "effect": {
+          "mode": "once",
+          "bonus": {
+            "firepower": 2,
+            "torpedo": 0,
+            "antiAir": 0,
+            "evasion": 1,
+            "accuracy": 1,
+            "armor": 0,
+            "antiSubmarine": 0,
+            "lineOfSight": 0,
+            "bombing": 0,
+            "range": 0
+          }
+        },
+        "notes": [
+          "override:w464-fix",
+          "verificationSource: wikiwiki.jp/kancolle 10cm連装高角砲群(集中配備)"
+        ],
+        "source": {
+          "url": "https://akashi-list.me/detail/w464.html",
+          "pageName": "10cm連装高角砲群(集中配備)",
+          "fetchedAt": "",
+          "httpLastModified": null,
+          "contentSha256": "",
+          "fragmentHash": "override",
+          "sourceGroupLabel": "大和型 +15m二重測距儀改＋21号電探改二＋熟練射撃指揮所",
+          "rawEffect": "火力+2 回避+1 命中+1"
+        }
+      },
+      "resolvesEquipmentIds": [
+        464
+      ]
+    },
+    {
+      "overrideId": "override-464-011",
+      "reason": "WikiWiki: 大和型改二(大和改二・大和改二重) +15m二重測距儀＋21号電探改二(142) 火力+2 回避+1 命中+1。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w464.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/10cm%E9%80%A3%E8%A3%85%E9%AB%98%E8%A7%92%E7%A0%B2%E7%BE%A4%20%E9%9B%86%E4%B8%AD%E9%85%8D%E5%82%99",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "addRule",
+      "rule": {
+        "ruleId": "akashi-464-synergy-9x3",
+        "equipment": {
+          "ids": [
+            464
+          ],
+          "typeIds": []
+        },
+        "category": "single",
+        "shipCondition": {
+          "shipIds": [
+            911,
+            916
+          ],
+          "baseShipIds": [],
+          "classIds": [],
+          "shipTypeIds": [],
+          "nationalityIds": []
+        },
+        "equipmentCondition": {
+          "minImprovement": 0,
+          "maxImprovement": 10
+        },
+        "requires": [
+          {
+            "kind": "equipmentPredicate",
+            "minCount": 1,
+            "predicate": {
+              "kind": "equipmentPredicate",
+              "itemIds": [
+                142
+              ]
+            },
+            "sourceLabel": ""
+          }
+        ],
+        "effect": {
+          "mode": "once",
+          "bonus": {
+            "firepower": 2,
+            "torpedo": 0,
+            "antiAir": 0,
+            "evasion": 1,
+            "accuracy": 1,
+            "armor": 0,
+            "antiSubmarine": 0,
+            "lineOfSight": 0,
+            "bombing": 0,
+            "range": 0
+          }
+        },
+        "notes": [
+          "override:w464-fix",
+          "verificationSource: wikiwiki.jp/kancolle 10cm連装高角砲群(集中配備)"
+        ],
+        "source": {
+          "url": "https://akashi-list.me/detail/w464.html",
+          "pageName": "10cm連装高角砲群(集中配備)",
+          "fetchedAt": "",
+          "httpLastModified": null,
+          "contentSha256": "",
+          "fragmentHash": "override",
+          "sourceGroupLabel": "大和型改二 +15m二重測距儀＋21号電探改二",
+          "rawEffect": "火力+2 回避+1 命中+1"
+        }
+      },
+      "resolvesEquipmentIds": [
+        464
+      ]
+    },
+    {
+      "overrideId": "override-470-rm-1",
+      "reason": "WikiWiki(2025): 12.7cm連装砲C型改三 加成表为 変動(x1/x2)+改修分档+协同 完整结构；akashi 页面仅 2 组过时数据，移除重建。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w470.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/12.7cm%E9%80%A3%E8%A3%85%E7%A0%B2C%E5%9E%8B%E6%94%B9%E4%B8%89",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "removeRuleId",
+      "ruleId": "akashi-470-count-001",
+      "resolvesEquipmentIds": [
+        470
+      ]
+    },
+    {
+      "overrideId": "override-470-rm-2",
+      "reason": "WikiWiki(2025): 12.7cm連装砲C型改三 加成表为 変動(x1/x2)+改修分档+协同 完整结构；akashi 页面仅 2 组过时数据，移除重建。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w470.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/12.7cm%E9%80%A3%E8%A3%85%E7%A0%B2C%E5%9E%8B%E6%94%B9%E4%B8%89",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "removeRuleId",
+      "ruleId": "akashi-470-count-002",
+      "resolvesEquipmentIds": [
+        470
+      ]
+    },
+    {
+      "overrideId": "override-470-rm-3",
+      "reason": "WikiWiki(2025): 12.7cm連装砲C型改三 加成表为 変動(x1/x2)+改修分档+协同 完整结构；akashi 页面仅 2 组过时数据，移除重建。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w470.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/12.7cm%E9%80%A3%E8%A3%85%E7%A0%B2C%E5%9E%8B%E6%94%B9%E4%B8%89",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "removeRuleId",
+      "ruleId": "akashi-470-single-001",
+      "resolvesEquipmentIds": [
+        470
+      ]
+    },
+    {
+      "overrideId": "override-470-rm-4",
+      "reason": "WikiWiki(2025): 12.7cm連装砲C型改三 加成表为 変動(x1/x2)+改修分档+协同 完整结构；akashi 页面仅 2 组过时数据，移除重建。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w470.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/12.7cm%E9%80%A3%E8%A3%85%E7%A0%B2C%E5%9E%8B%E6%94%B9%E4%B8%89",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "removeRuleId",
+      "ruleId": "akashi-470-single-002",
+      "resolvesEquipmentIds": [
+        470
+      ]
+    },
+    {
+      "overrideId": "override-470-rm-5",
+      "reason": "WikiWiki(2025): 12.7cm連装砲C型改三 加成表为 変動(x1/x2)+改修分档+协同 完整结构；akashi 页面仅 2 组过时数据，移除重建。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w470.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/12.7cm%E9%80%A3%E8%A3%85%E7%A0%B2C%E5%9E%8B%E6%94%B9%E4%B8%89",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "removeRuleId",
+      "ruleId": "akashi-470-synergy-001",
+      "resolvesEquipmentIds": [
+        470
+      ]
+    },
+    {
+      "overrideId": "override-470-rm-6",
+      "reason": "WikiWiki(2025): 12.7cm連装砲C型改三 加成表为 変動(x1/x2)+改修分档+协同 完整结构；akashi 页面仅 2 组过时数据，移除重建。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w470.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/12.7cm%E9%80%A3%E8%A3%85%E7%A0%B2C%E5%9E%8B%E6%94%B9%E4%B8%89",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "removeRuleId",
+      "ruleId": "akashi-470-synergy-002",
+      "resolvesEquipmentIds": [
+        470
+      ]
+    },
+    {
+      "overrideId": "override-470-007",
+      "reason": "WikiWiki 単体: 雪風改二・丹陽 x1 火力+3 回避+2 命中+2 変動*4；x2 火力+7 回避+4 命中+2。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w470.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/12.7cm%E9%80%A3%E8%A3%85%E7%A0%B2C%E5%9E%8B%E6%94%B9%E4%B8%89",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "addRule",
+      "rule": {
+        "ruleId": "akashi-470-count-9x1",
+        "equipment": {
+          "ids": [
+            470
+          ],
+          "typeIds": []
+        },
+        "category": "count",
+        "shipCondition": {
+          "shipIds": [
+            651,
+            656
+          ],
+          "baseShipIds": [],
+          "classIds": [],
+          "shipTypeIds": [],
+          "nationalityIds": []
+        },
+        "equipmentCondition": {
+          "minImprovement": 0,
+          "maxImprovement": 10
+        },
+        "requires": [],
+        "effect": {
+          "mode": "countTable",
+          "increments": {
+            "1": {
+              "firepower": 3,
+              "torpedo": 0,
+              "antiAir": 0,
+              "evasion": 2,
+              "accuracy": 2,
+              "armor": 0,
+              "antiSubmarine": 0,
+              "lineOfSight": 0,
+              "bombing": 0,
+              "range": 0
+            },
+            "2": {
+              "firepower": 4,
+              "torpedo": 0,
+              "antiAir": 0,
+              "evasion": 2,
+              "accuracy": 0,
+              "armor": 0,
+              "antiSubmarine": 0,
+              "lineOfSight": 0,
+              "bombing": 0,
+              "range": 0
+            }
+          },
+          "byCount": {
+            "1": {
+              "firepower": 3,
+              "torpedo": 0,
+              "antiAir": 0,
+              "evasion": 2,
+              "accuracy": 2,
+              "armor": 0,
+              "antiSubmarine": 0,
+              "lineOfSight": 0,
+              "bombing": 0,
+              "range": 0
+            },
+            "2": {
+              "firepower": 7,
+              "torpedo": 0,
+              "evasion": 4,
+              "accuracy": 2
+            }
+          },
+          "overflow": "cap"
+        },
+        "notes": [
+          "override:w470-fix",
+          "verificationSource: wikiwiki.jp/kancolle 12.7cm連装砲C型改三"
+        ],
+        "source": {
+          "url": "https://akashi-list.me/detail/w470.html",
+          "pageName": "12.7cm連装砲C型改三",
+          "fetchedAt": "",
+          "httpLastModified": null,
+          "contentSha256": "",
+          "fragmentHash": "override",
+          "sourceGroupLabel": "雪風改二・丹陽",
+          "rawEffect": "火力+3,+4 回避+2,+2 命中+2,+0"
+        }
+      },
+      "resolvesEquipmentIds": [
+        470
+      ]
+    },
+    {
+      "overrideId": "override-470-008",
+      "reason": "WikiWiki 単体: 陽炎型改二(雪風・秋雲除く) x1 火力+3 回避+2 変動*5；x2 火力+7 回避+2。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w470.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/12.7cm%E9%80%A3%E8%A3%85%E7%A0%B2C%E5%9E%8B%E6%94%B9%E4%B8%89",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "addRule",
+      "rule": {
+        "ruleId": "akashi-470-count-9x2",
+        "equipment": {
+          "ids": [
+            470
+          ],
+          "typeIds": []
+        },
+        "category": "count",
+        "shipCondition": {
+          "shipIds": [
+            566,
+            567,
+            568,
+            915,
+            951
+          ],
+          "baseShipIds": [],
+          "classIds": [],
+          "shipTypeIds": [],
+          "nationalityIds": []
+        },
+        "equipmentCondition": {
+          "minImprovement": 0,
+          "maxImprovement": 10
+        },
+        "requires": [],
+        "effect": {
+          "mode": "countTable",
+          "increments": {
+            "1": {
+              "firepower": 3,
+              "torpedo": 0,
+              "antiAir": 0,
+              "evasion": 2,
+              "accuracy": 0,
+              "armor": 0,
+              "antiSubmarine": 0,
+              "lineOfSight": 0,
+              "bombing": 0,
+              "range": 0
+            },
+            "2": {
+              "firepower": 4,
+              "torpedo": 0,
+              "antiAir": 0,
+              "evasion": 0,
+              "accuracy": 0,
+              "armor": 0,
+              "antiSubmarine": 0,
+              "lineOfSight": 0,
+              "bombing": 0,
+              "range": 0
+            }
+          },
+          "byCount": {
+            "1": {
+              "firepower": 3,
+              "torpedo": 0,
+              "antiAir": 0,
+              "evasion": 2,
+              "accuracy": 0,
+              "armor": 0,
+              "antiSubmarine": 0,
+              "lineOfSight": 0,
+              "bombing": 0,
+              "range": 0
+            },
+            "2": {
+              "firepower": 7,
+              "torpedo": 0,
+              "evasion": 2,
+              "accuracy": 0
+            }
+          },
+          "overflow": "cap"
+        },
+        "notes": [
+          "override:w470-fix",
+          "verificationSource: wikiwiki.jp/kancolle 12.7cm連装砲C型改三"
+        ],
+        "source": {
+          "url": "https://akashi-list.me/detail/w470.html",
+          "pageName": "12.7cm連装砲C型改三",
+          "fetchedAt": "",
+          "httpLastModified": null,
+          "contentSha256": "",
+          "fragmentHash": "override",
+          "sourceGroupLabel": "陽炎型改二(除く雪風・秋雲)",
+          "rawEffect": "火力+3,+4 回避+2,+0"
+        }
+      },
+      "resolvesEquipmentIds": [
+        470
+      ]
+    },
+    {
+      "overrideId": "override-470-009",
+      "reason": "WikiWiki 単体: 時雨改二 x1 火力+2 回避+2 命中+2 変動*6；x2 火力+5 回避+4 命中+2。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w470.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/12.7cm%E9%80%A3%E8%A3%85%E7%A0%B2C%E5%9E%8B%E6%94%B9%E4%B8%89",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "addRule",
+      "rule": {
+        "ruleId": "akashi-470-count-9x3",
+        "equipment": {
+          "ids": [
+            470
+          ],
+          "typeIds": []
+        },
+        "category": "count",
+        "shipCondition": {
+          "shipIds": [
+            145
+          ],
+          "baseShipIds": [],
+          "classIds": [],
+          "shipTypeIds": [],
+          "nationalityIds": []
+        },
+        "equipmentCondition": {
+          "minImprovement": 0,
+          "maxImprovement": 10
+        },
+        "requires": [],
+        "effect": {
+          "mode": "countTable",
+          "increments": {
+            "1": {
+              "firepower": 2,
+              "torpedo": 0,
+              "antiAir": 0,
+              "evasion": 2,
+              "accuracy": 2,
+              "armor": 0,
+              "antiSubmarine": 0,
+              "lineOfSight": 0,
+              "bombing": 0,
+              "range": 0
+            },
+            "2": {
+              "firepower": 3,
+              "torpedo": 0,
+              "antiAir": 0,
+              "evasion": 2,
+              "accuracy": 0,
+              "armor": 0,
+              "antiSubmarine": 0,
+              "lineOfSight": 0,
+              "bombing": 0,
+              "range": 0
+            }
+          },
+          "byCount": {
+            "1": {
+              "firepower": 2,
+              "torpedo": 0,
+              "antiAir": 0,
+              "evasion": 2,
+              "accuracy": 2,
+              "armor": 0,
+              "antiSubmarine": 0,
+              "lineOfSight": 0,
+              "bombing": 0,
+              "range": 0
+            },
+            "2": {
+              "firepower": 5,
+              "torpedo": 0,
+              "evasion": 4,
+              "accuracy": 2
+            }
+          },
+          "overflow": "cap"
+        },
+        "notes": [
+          "override:w470-fix",
+          "verificationSource: wikiwiki.jp/kancolle 12.7cm連装砲C型改三"
+        ],
+        "source": {
+          "url": "https://akashi-list.me/detail/w470.html",
+          "pageName": "12.7cm連装砲C型改三",
+          "fetchedAt": "",
+          "httpLastModified": null,
+          "contentSha256": "",
+          "fragmentHash": "override",
+          "sourceGroupLabel": "時雨改二",
+          "rawEffect": "火力+2,+3 回避+2,+2 命中+2,+0"
+        }
+      },
+      "resolvesEquipmentIds": [
+        470
+      ]
+    },
+    {
+      "overrideId": "override-470-010",
+      "reason": "WikiWiki 単体: 時雨改三 x1 火力+5 回避+4 命中+5 変動*7；x2 火力+11 回避+8 命中+8。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w470.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/12.7cm%E9%80%A3%E8%A3%85%E7%A0%B2C%E5%9E%8B%E6%94%B9%E4%B8%89",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "addRule",
+      "rule": {
+        "ruleId": "akashi-470-count-9x4",
+        "equipment": {
+          "ids": [
+            470
+          ],
+          "typeIds": []
+        },
+        "category": "count",
+        "shipCondition": {
+          "shipIds": [
+            961
+          ],
+          "baseShipIds": [],
+          "classIds": [],
+          "shipTypeIds": [],
+          "nationalityIds": []
+        },
+        "equipmentCondition": {
+          "minImprovement": 0,
+          "maxImprovement": 10
+        },
+        "requires": [],
+        "effect": {
+          "mode": "countTable",
+          "increments": {
+            "1": {
+              "firepower": 5,
+              "torpedo": 0,
+              "antiAir": 0,
+              "evasion": 4,
+              "accuracy": 5,
+              "armor": 0,
+              "antiSubmarine": 0,
+              "lineOfSight": 0,
+              "bombing": 0,
+              "range": 0
+            },
+            "2": {
+              "firepower": 6,
+              "torpedo": 0,
+              "antiAir": 0,
+              "evasion": 4,
+              "accuracy": 3,
+              "armor": 0,
+              "antiSubmarine": 0,
+              "lineOfSight": 0,
+              "bombing": 0,
+              "range": 0
+            }
+          },
+          "byCount": {
+            "1": {
+              "firepower": 5,
+              "torpedo": 0,
+              "antiAir": 0,
+              "evasion": 4,
+              "accuracy": 5,
+              "armor": 0,
+              "antiSubmarine": 0,
+              "lineOfSight": 0,
+              "bombing": 0,
+              "range": 0
+            },
+            "2": {
+              "firepower": 11,
+              "torpedo": 0,
+              "evasion": 8,
+              "accuracy": 8
+            }
+          },
+          "overflow": "cap"
+        },
+        "notes": [
+          "override:w470-fix",
+          "verificationSource: wikiwiki.jp/kancolle 12.7cm連装砲C型改三"
+        ],
+        "source": {
+          "url": "https://akashi-list.me/detail/w470.html",
+          "pageName": "12.7cm連装砲C型改三",
+          "fetchedAt": "",
+          "httpLastModified": null,
+          "contentSha256": "",
+          "fragmentHash": "override",
+          "sourceGroupLabel": "時雨改三",
+          "rawEffect": "火力+5,+6 回避+4,+4 命中+5,+3"
+        }
+      },
+      "resolvesEquipmentIds": [
+        470
+      ]
+    },
+    {
+      "overrideId": "override-470-011",
+      "reason": "WikiWiki 改修ボーナス: 陽炎型改二(秋雲改二除く) ★0-5 回避+1；★8-9 回避+1 命中+1；★Max 回避+1 命中+2。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w470.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/12.7cm%E9%80%A3%E8%A3%85%E7%A0%B2C%E5%9E%8B%E6%94%B9%E4%B8%89",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "addRule",
+      "rule": {
+        "ruleId": "akashi-470-improvement-9x1",
+        "equipment": {
+          "ids": [
+            470
+          ],
+          "typeIds": []
+        },
+        "category": "improvement",
+        "shipCondition": {
+          "shipIds": [
+            566,
+            567,
+            568,
+            915,
+            951
+          ],
+          "baseShipIds": [],
+          "classIds": [],
+          "shipTypeIds": [],
+          "nationalityIds": []
+        },
+        "equipmentCondition": {
+          "minImprovement": 0,
+          "maxImprovement": 10
+        },
+        "requires": [],
+        "effect": {
+          "mode": "improvementTable",
+          "byStar": {
+            "0": {
+              "evasion": 1
+            },
+            "1": {
+              "evasion": 1
+            },
+            "2": {
+              "evasion": 1
+            },
+            "3": {
+              "evasion": 1
+            },
+            "4": {
+              "evasion": 1
+            },
+            "5": {
+              "evasion": 1
+            },
+            "8": {
+              "evasion": 1,
+              "accuracy": 1
+            },
+            "9": {
+              "evasion": 1,
+              "accuracy": 1
+            },
+            "10": {
+              "evasion": 1,
+              "accuracy": 2
+            }
+          }
+        },
+        "notes": [
+          "override:w470-fix",
+          "verificationSource: wikiwiki.jp/kancolle 12.7cm連装砲C型改三"
+        ],
+        "source": {
+          "url": "https://akashi-list.me/detail/w470.html",
+          "pageName": "12.7cm連装砲C型改三",
+          "fetchedAt": "",
+          "httpLastModified": null,
+          "contentSha256": "",
+          "fragmentHash": "override",
+          "sourceGroupLabel": "陽炎型改二(秋雲除く)改修",
+          "rawEffect": "回避+1(★0-5)/+1+1(★8-9)/+1+2(Max)"
+        }
+      },
+      "resolvesEquipmentIds": [
+        470
+      ]
+    },
+    {
+      "overrideId": "override-470-012",
+      "reason": "WikiWiki 改修ボーナス: 時雨改二/改三 ★0-5 回避+1；★8-9 回避+1 命中+1；★Max 回避+1 命中+2。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w470.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/12.7cm%E9%80%A3%E8%A3%85%E7%A0%B2C%E5%9E%8B%E6%94%B9%E4%B8%89",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "addRule",
+      "rule": {
+        "ruleId": "akashi-470-improvement-9x2",
+        "equipment": {
+          "ids": [
+            470
+          ],
+          "typeIds": []
+        },
+        "category": "improvement",
+        "shipCondition": {
+          "shipIds": [
+            145,
+            961
+          ],
+          "baseShipIds": [],
+          "classIds": [],
+          "shipTypeIds": [],
+          "nationalityIds": []
+        },
+        "equipmentCondition": {
+          "minImprovement": 0,
+          "maxImprovement": 10
+        },
+        "requires": [],
+        "effect": {
+          "mode": "improvementTable",
+          "byStar": {
+            "0": {
+              "evasion": 1
+            },
+            "1": {
+              "evasion": 1
+            },
+            "2": {
+              "evasion": 1
+            },
+            "3": {
+              "evasion": 1
+            },
+            "4": {
+              "evasion": 1
+            },
+            "5": {
+              "evasion": 1
+            },
+            "8": {
+              "evasion": 1,
+              "accuracy": 1
+            },
+            "9": {
+              "evasion": 1,
+              "accuracy": 1
+            },
+            "10": {
+              "evasion": 1,
+              "accuracy": 2
+            }
+          }
+        },
+        "notes": [
+          "override:w470-fix",
+          "verificationSource: wikiwiki.jp/kancolle 12.7cm連装砲C型改三"
+        ],
+        "source": {
+          "url": "https://akashi-list.me/detail/w470.html",
+          "pageName": "12.7cm連装砲C型改三",
+          "fetchedAt": "",
+          "httpLastModified": null,
+          "contentSha256": "",
+          "fragmentHash": "override",
+          "sourceGroupLabel": "時雨改二/改三改修",
+          "rawEffect": "回避+1(★0-5)/+1+1(★8-9)/+1+2(Max)"
+        }
+      },
+      "resolvesEquipmentIds": [
+        470
+      ]
+    },
+    {
+      "overrideId": "override-470-013",
+      "reason": "WikiWiki 相互シナジー(水上電探*8): 白露型・朝潮型 火力+1 雷装+3 回避+1 命中+1 ×。",
+      "primarySourceUrl": "https://akashi-list.me/detail/w470.html",
+      "verificationSourceUrl": "https://wikiwiki.jp/kancolle/12.7cm%E9%80%A3%E8%A3%85%E7%A0%B2C%E5%9E%8B%E6%94%B9%E4%B8%89",
+      "reviewedBy": "agent/manual",
+      "reviewedAt": "2026-08-05",
+      "kind": "addRule",
+      "rule": {
+        "ruleId": "akashi-470-synergy-9x1",
+        "equipment": {
+          "ids": [
+            470
+          ],
+          "typeIds": []
+        },
+        "category": "synergy",
+        "shipCondition": {
+          "shipIds": [],
+          "baseShipIds": [],
+          "classIds": [
+            18,
+            23
+          ],
+          "shipTypeIds": [],
+          "nationalityIds": []
+        },
+        "equipmentCondition": {
+          "minImprovement": 0,
+          "maxImprovement": 10
+        },
+        "requires": [
+          {
+            "kind": "equipmentPredicate",
+            "minCount": 1,
+            "predicate": {
+              "kind": "equipmentPredicate",
+              "lineOfSightGte": 5
+            },
+            "sourceLabel": "水上電探"
+          }
+        ],
+        "effect": {
+          "mode": "once",
+          "bonus": {
+            "firepower": 1,
+            "torpedo": 3,
+            "antiAir": 0,
+            "evasion": 1,
+            "accuracy": 1,
+            "armor": 0,
+            "antiSubmarine": 0,
+            "lineOfSight": 0,
+            "bombing": 0,
+            "range": 0
+          }
+        },
+        "notes": [
+          "override:w470-fix",
+          "verificationSource: wikiwiki.jp/kancolle 12.7cm連装砲C型改三"
+        ],
+        "source": {
+          "url": "https://akashi-list.me/detail/w470.html",
+          "pageName": "12.7cm連装砲C型改三",
+          "fetchedAt": "",
+          "httpLastModified": null,
+          "contentSha256": "",
+          "fragmentHash": "override",
+          "sourceGroupLabel": "白露型・朝潮型 +水上電探",
+          "rawEffect": "火力+1 雷装+3 回避+1 命中+1"
+        }
+      },
+      "resolvesEquipmentIds": [
+        470
+      ]
     }
   ]
 }
