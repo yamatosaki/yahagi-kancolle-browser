@@ -1,5 +1,6 @@
 ﻿import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_browser_controller.dart';
+import 'dart:async';
 import 'package:yahagi_kancolle_browser/src/browser/game_launch_config.dart';
 
 void main() {
@@ -92,6 +93,19 @@ void main() {
     expect(controller.errorMessage, '暂不支持的外部跳转：intent');
     expect(controller.errorMessage, isNot(contains('secret')));
   });
+
+  test('coalesces rapid reload taps into one in-flight request', () async {
+    final port = FakeGameBrowserPort()..reloadCompleter = Completer<void>();
+    final controller = GameBrowserController(port: port);
+
+    final first = controller.reload();
+    final second = controller.reload();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(port.reloadCalls, 1);
+    port.reloadCompleter!.complete();
+    await Future.wait(<Future<void>>[first, second]);
+  });
 }
 
 final class FakeGameBrowserPort implements GameBrowserPort {
@@ -102,6 +116,7 @@ final class FakeGameBrowserPort implements GameBrowserPort {
   var showLocalHomeCalls = 0;
   var reloadCalls = 0;
   var goBackCalls = 0;
+  Completer<void>? reloadCompleter;
 
   @override
   Future<bool> canGoBack() async => canGoBackResult;
@@ -119,6 +134,7 @@ final class FakeGameBrowserPort implements GameBrowserPort {
   @override
   Future<void> reload() async {
     reloadCalls++;
+    await reloadCompleter?.future;
   }
 
   @override

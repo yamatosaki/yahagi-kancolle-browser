@@ -15,6 +15,17 @@ Fonts License Agreement rather than the project's MIT License.
 License reference:
 https://gitee.com/openharmony/global_system_resources/blob/master/LICENSE_Fonts
 
+Noto Sans JP
+------------
+
+This repository bundles Noto Sans JP from the Google Fonts repository under
+`assets/fonts/NotoSansJP-wght.ttf`. It is licensed under the SIL Open Font
+License, Version 1.1. The complete license text is included at
+`assets/fonts/NotoSansJP-OFL.txt`.
+
+Source:
+https://github.com/google/fonts/tree/main/ofl/notosansjp
+
 Flutter and Dart dependencies
 -----------------------------
 
@@ -41,6 +52,37 @@ https://github.com/poooi/poi-plugin-ezexped
 MIT License
 
 Copyright (c) 2017 Javran Cheng
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+poi FCD map data
+----------------
+
+The bundled Fleet Compass Data map snapshot is sourced from the poi project:
+https://github.com/poooi/poi/tree/master/assets/data/fcd
+
+The application checks for newer copies directly from poi's public GitHub Raw
+or jsDelivr GitHub endpoints. It does not mirror or republish an update feed.
+
+The MIT License (MIT)
+
+Copyright (c) 2015-2021 poi contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

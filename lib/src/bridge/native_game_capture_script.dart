@@ -38,6 +38,13 @@
         for (const [key, value] of new URLSearchParams(body).entries()) {
           if (!sensitiveKeys.has(key)) output[key] = value;
         }
+      } else if (
+        typeof URLSearchParams !== 'undefined' &&
+        body instanceof URLSearchParams
+      ) {
+        for (const [key, value] of body.entries()) {
+          if (!sensitiveKeys.has(key)) output[key] = value;
+        }
       } else if (typeof FormData !== 'undefined' && body instanceof FormData) {
         for (const [key, value] of body.entries()) {
           if (!sensitiveKeys.has(key) && typeof value === 'string') {
@@ -96,17 +103,20 @@
             ? input.method
             : 'GET';
       const requestBody = init ? init.body : null;
+      const requestBodyPromise = requestBody !== null && requestBody !== undefined
+        ? Promise.resolve(requestBody)
+        : typeof Request !== 'undefined' && input instanceof Request
+          ? input.clone().text().catch(() => null)
+          : Promise.resolve(null);
       const path = targetPath(url);
 
       return originalFetch.apply(this, args).then((response) => {
         if (path !== null) {
-          response
-            .clone()
-            .text()
-            .then((responseBody) => publish({
+          Promise.all([response.clone().text(), requestBodyPromise])
+            .then(([responseBody, capturedRequestBody]) => publish({
               method,
               url,
-              requestBody,
+              requestBody: capturedRequestBody,
               responseBody,
               statusCode: response.status,
               transport: 'fetch',

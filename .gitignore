@@ -63,3 +63,6 @@ assets/empty.png
 
 # Wiki bonus dataset build cache (raw HTML, master data dumps)
 tool/wiki_bonus/cache/
+
+# Akashi bonus dataset build cache (raw HTML)
+tool/akashi_bonus/cache/

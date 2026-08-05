@@ -6,6 +6,7 @@ CapturedApiEvent kcsapiEvent(
   String path,
   Object? apiData, {
   int apiResult = 1,
+  bool includeApiData = true,
   int sequence = 1,
   Map<String, Object?> requestParams = const <String, Object?>{},
   DateTime? capturedAt,
@@ -14,7 +15,7 @@ CapturedApiEvent kcsapiEvent(
     path: path,
     responseBody: jsonEncode(<String, Object?>{
       'api_result': apiResult,
-      'api_data': apiData,
+      if (includeApiData) 'api_data': apiData,
     }),
     source: CaptureSource.xhr,
     sourceOrigin: 'https://w01y.kancolle-server.com',
@@ -132,6 +133,8 @@ final CapturedApiEvent portEvent = kcsapiEvent(
         'api_nowhp': 28,
         'api_maxhp': 30,
         'api_cond': 49,
+        'api_soku': 15,
+        'api_leng': 4,
         'api_fuel': 25,
         'api_bull': 35,
         'api_exp': <int>[45000, 1200, 0],

@@ -1,17 +1,53 @@
 import 'battle_models.dart';
 
+enum BattleStageKind {
+  landBaseJetAssault,
+  jetAssault,
+  landBaseAirAttack,
+  friendlyAirCombat,
+  aerialCombat,
+  secondAerialCombat,
+  support,
+  openingAntiSubmarine,
+  openingTorpedo,
+  shelling,
+  closingTorpedo,
+  nightSupport,
+  nightShelling,
+  friendlyNightBattle,
+}
+
+class BattleStageTrace {
+  const BattleStageTrace({required this.kind, required this.sourceKey});
+
+  final BattleStageKind kind;
+  final String sourceKey;
+}
+
+class BattleParseIssue {
+  const BattleParseIssue({required this.stage, required this.message});
+
+  final String stage;
+  final String message;
+}
+
 class BattleDamageResult {
   const BattleDamageResult({
     required this.friendMain,
     required this.friendEscort,
     required this.enemyMain,
     required this.enemyEscort,
+    this.stages = const <BattleStageTrace>[],
+    this.issues = const <BattleParseIssue>[],
   });
 
   final List<BattleShipSnapshot> friendMain;
   final List<BattleShipSnapshot> friendEscort;
   final List<BattleShipSnapshot> enemyMain;
   final List<BattleShipSnapshot> enemyEscort;
+  final List<BattleStageTrace> stages;
+  final List<BattleParseIssue> issues;
+  bool get isConfirmed => issues.isEmpty;
 }
 
 class BattleDamageParser {
@@ -30,79 +66,230 @@ class BattleDamageParser {
       enemyEscort: List<BattleShipSnapshot>.from(enemyEscort),
     );
     final activeDeck = _list(data['api_active_deck']);
-    _applySupport(
-      data['api_support_info'],
-      flag: _int(data['api_support_flag']),
-      battle: mutable,
-    );
-    _applySupport(
-      data['api_n_support_info'],
-      flag: _int(data['api_n_support_flag']),
-      battle: mutable,
-    );
-    _walk(
+    final friendRole = _activeRole(activeDeck, 0);
+    final enemyRole = _activeRole(activeDeck, 1);
+    final stages = <BattleStageTrace>[];
+    final nightFirst = path.contains('night_to_day');
+    if (nightFirst) {
+      _applyNightStages(
+        data,
+        mutable,
+        stages,
+        friendRole: friendRole,
+        enemyRole: enemyRole,
+      );
+    }
+    _applyDayStages(
       data,
       mutable,
-      keyPath: '',
-      friendActiveRole: _activeRole(activeDeck, 0),
-      enemyActiveRole: _activeRole(activeDeck, 1),
+      stages,
+      friendRole: friendRole,
+      enemyRole: enemyRole,
     );
+    if (!nightFirst) {
+      _applyNightStages(
+        data,
+        mutable,
+        stages,
+        friendRole: friendRole,
+        enemyRole: enemyRole,
+      );
+    }
     return BattleDamageResult(
       friendMain: List.unmodifiable(mutable.friendMain),
       friendEscort: List.unmodifiable(mutable.friendEscort),
       enemyMain: List.unmodifiable(mutable.enemyMain),
       enemyEscort: List.unmodifiable(mutable.enemyEscort),
+      stages: List.unmodifiable(stages),
+      issues: List.unmodifiable(mutable.issues),
     );
   }
 
-  void _walk(
-    Object? value,
-    _MutableBattle battle, {
-    required String keyPath,
-    required BattleFleetRole friendActiveRole,
-    required BattleFleetRole enemyActiveRole,
+  void _applyDayStages(
+    Map<String, Object?> data,
+    _MutableBattle battle,
+    List<BattleStageTrace> stages, {
+    required BattleFleetRole friendRole,
+    required BattleFleetRole enemyRole,
   }) {
-    if (value is Map) {
-      final map = value.map((key, child) => MapEntry(key.toString(), child));
-      if (map['api_df_list'] is List && map['api_damage'] is List) {
-        _applyShelling(
-          map,
-          battle,
-          friendActiveRole: friendActiveRole,
-          enemyActiveRole: enemyActiveRole,
+    void aerial(String key, BattleStageKind kind) {
+      final map = _asMap(data[key]);
+      if (map == null) return;
+      battle.currentStage = key;
+      stages.add(BattleStageTrace(kind: kind, sourceKey: key));
+      _applyAerial(map, battle, friendRole: friendRole, enemyRole: enemyRole);
+    }
+
+    aerial('api_air_base_injection', BattleStageKind.landBaseJetAssault);
+    aerial('api_injection_kouku', BattleStageKind.jetAssault);
+    final landBase = _list(data['api_air_base_attack']);
+    for (var index = 0; index < landBase.length; index++) {
+      final map = _asMap(landBase[index]);
+      if (map == null) continue;
+      battle.currentStage = 'api_air_base_attack[$index]';
+      stages.add(
+        BattleStageTrace(
+          kind: BattleStageKind.landBaseAirAttack,
+          sourceKey: 'api_air_base_attack[$index]',
+        ),
+      );
+      _applyAerial(map, battle, friendRole: friendRole, enemyRole: enemyRole);
+    }
+    aerial('api_friendly_kouku', BattleStageKind.friendlyAirCombat);
+    aerial('api_kouku', BattleStageKind.aerialCombat);
+    aerial('api_kouku2', BattleStageKind.secondAerialCombat);
+    if (data['api_stage3'] is Map || data['api_stage3_combined'] is Map) {
+      battle.currentStage = 'packet-stage3';
+      stages.add(
+        const BattleStageTrace(
+          kind: BattleStageKind.aerialCombat,
+          sourceKey: 'packet-stage3',
+        ),
+      );
+      _applyAerial(data, battle, friendRole: friendRole, enemyRole: enemyRole);
+    }
+
+    if (_asMap(data['api_support_info']) case final support?) {
+      final flag = _int(data['api_support_flag']);
+      if (flag > 0) {
+        battle.currentStage = 'api_support_info';
+        stages.add(
+          const BattleStageTrace(
+            kind: BattleStageKind.support,
+            sourceKey: 'api_support_info',
+          ),
         );
-      } else if (map['api_fdam'] is List || map['api_edam'] is List) {
-        _applyArrayDamage(
-          map,
-          battle,
-          escort: keyPath.contains('combined'),
-          friendActiveRole: friendActiveRole,
-          enemyActiveRole: enemyActiveRole,
-        );
+        _applySupport(support, flag: flag, battle: battle);
       }
-      for (final entry in map.entries) {
-        if (entry.key == 'api_support_info' ||
-            entry.key == 'api_n_support_info') {
-          continue;
-        }
-        _walk(
-          entry.value,
-          battle,
-          keyPath: keyPath.isEmpty ? entry.key : '$keyPath.${entry.key}',
-          friendActiveRole: friendActiveRole,
-          enemyActiveRole: enemyActiveRole,
+    }
+
+    void shelling(String key, BattleStageKind kind) {
+      final map = _asMap(data[key]);
+      if (map == null) return;
+      battle.currentStage = key;
+      stages.add(BattleStageTrace(kind: kind, sourceKey: key));
+      _applyShelling(
+        map,
+        battle,
+        friendActiveRole: friendRole,
+        enemyActiveRole: enemyRole,
+      );
+    }
+
+    shelling('api_opening_taisen', BattleStageKind.openingAntiSubmarine);
+    if (_asMap(data['api_opening_atack']) case final opening?) {
+      battle.currentStage = 'api_opening_atack';
+      stages.add(
+        const BattleStageTrace(
+          kind: BattleStageKind.openingTorpedo,
+          sourceKey: 'api_opening_atack',
+        ),
+      );
+      _applyArrayDamage(
+        opening,
+        battle,
+        escort: false,
+        friendActiveRole: friendRole,
+        enemyActiveRole: enemyRole,
+      );
+    }
+    shelling('api_hougeki1', BattleStageKind.shelling);
+    shelling('api_hougeki2', BattleStageKind.shelling);
+    shelling('api_hougeki3', BattleStageKind.shelling);
+    if (_asMap(data['api_raigeki']) case final closing?) {
+      battle.currentStage = 'api_raigeki';
+      stages.add(
+        const BattleStageTrace(
+          kind: BattleStageKind.closingTorpedo,
+          sourceKey: 'api_raigeki',
+        ),
+      );
+      _applyArrayDamage(
+        closing,
+        battle,
+        escort: false,
+        friendActiveRole: friendRole,
+        enemyActiveRole: enemyRole,
+      );
+    }
+  }
+
+  void _applyNightStages(
+    Map<String, Object?> data,
+    _MutableBattle battle,
+    List<BattleStageTrace> stages, {
+    required BattleFleetRole friendRole,
+    required BattleFleetRole enemyRole,
+  }) {
+    if (_asMap(data['api_n_support_info']) case final support?) {
+      final flag = _int(data['api_n_support_flag']);
+      if (flag > 0) {
+        battle.currentStage = 'api_n_support_info';
+        stages.add(
+          const BattleStageTrace(
+            kind: BattleStageKind.nightSupport,
+            sourceKey: 'api_n_support_info',
+          ),
         );
+        _applySupport(support, flag: flag, battle: battle);
       }
-    } else if (value is List) {
-      for (var index = 0; index < value.length; index++) {
-        _walk(
-          value[index],
-          battle,
-          keyPath: '$keyPath[$index]',
-          friendActiveRole: friendActiveRole,
-          enemyActiveRole: enemyActiveRole,
-        );
-      }
+    }
+
+    void shelling(Object? value, String key, BattleStageKind kind) {
+      final map = _asMap(value);
+      if (map == null) return;
+      battle.currentStage = key;
+      stages.add(BattleStageTrace(kind: kind, sourceKey: key));
+      _applyShelling(
+        map,
+        battle,
+        friendActiveRole: friendRole,
+        enemyActiveRole: enemyRole,
+      );
+    }
+
+    shelling(
+      data['api_n_hougeki1'],
+      'api_n_hougeki1',
+      BattleStageKind.nightShelling,
+    );
+    shelling(
+      data['api_n_hougeki2'],
+      'api_n_hougeki2',
+      BattleStageKind.nightShelling,
+    );
+    final friendlyBattle = _asMap(data['api_friendly_battle']);
+    shelling(
+      friendlyBattle?['api_hougeki'],
+      'api_friendly_battle.api_hougeki',
+      BattleStageKind.friendlyNightBattle,
+    );
+    shelling(data['api_hougeki'], 'api_hougeki', BattleStageKind.nightShelling);
+  }
+
+  void _applyAerial(
+    Map<String, Object?> map,
+    _MutableBattle battle, {
+    required BattleFleetRole friendRole,
+    required BattleFleetRole enemyRole,
+  }) {
+    if (_asMap(map['api_stage3']) case final stage3?) {
+      _applyArrayDamage(
+        stage3,
+        battle,
+        escort: false,
+        friendActiveRole: friendRole,
+        enemyActiveRole: enemyRole,
+      );
+    }
+    if (_asMap(map['api_stage3_combined']) case final combined?) {
+      _applyArrayDamage(
+        combined,
+        battle,
+        escort: true,
+        friendActiveRole: friendRole,
+        enemyActiveRole: enemyRole,
+      );
     }
   }
 
@@ -271,14 +458,13 @@ class BattleDamageParser {
     List<Object?> damages,
   ) {
     final values = _damageValues(damages);
-    final count = fleet.length < values.length ? fleet.length : values.length;
-    for (var index = 0; index < count; index++) {
-      final damage = _damage(values[index]);
+    for (var position = 0; position < values.length; position++) {
+      final damage = _damage(values[position]);
       if (damage > 0) {
-        fleet[index] = fleet[index].copyWith(
-          currentHp: (fleet[index].currentHp - damage).clamp(0, 9999),
-          damageReceived: fleet[index].damageReceived + damage,
-        );
+        final index = fleet.indexWhere((ship) => ship.position == position);
+        if (index >= 0) {
+          fleet[index] = _receiveDamage(fleet[index], damage);
+        }
       }
     }
   }
@@ -299,13 +485,12 @@ class BattleDamageParser {
       (BattleSide.enemy, false) => battle.enemyMain,
       (BattleSide.enemy, true) => battle.enemyEscort,
     };
-    if (index < 0 || index >= fleet.length) {
+    final fleetIndex = fleet.indexWhere((ship) => ship.position == index);
+    if (fleetIndex < 0) {
+      battle.issue('target $absolutePosition is outside the captured fleets');
       return;
     }
-    fleet[index] = fleet[index].copyWith(
-      currentHp: (fleet[index].currentHp - damage).clamp(0, 9999),
-      damageReceived: fleet[index].damageReceived + damage,
-    );
+    fleet[fleetIndex] = _receiveDamage(fleet[fleetIndex], damage);
   }
 
   void _addDamageDealt(
@@ -318,16 +503,60 @@ class BattleDamageParser {
     final escort = encodedEscort || roleHint == BattleFleetRole.escort;
     final index = encodedEscort ? absolutePosition - 6 : absolutePosition;
     final fleet = escort ? battle.friendEscort : battle.friendMain;
-    if (index < 0 || index >= fleet.length) {
+    final fleetIndex = fleet.indexWhere((ship) => ship.position == index);
+    if (fleetIndex < 0) {
+      battle.issue('attacker $absolutePosition is outside the captured fleets');
       return;
     }
-    fleet[index] = fleet[index].copyWith(
-      damageDealt: fleet[index].damageDealt + damage,
+    fleet[fleetIndex] = fleet[fleetIndex].copyWith(
+      damageDealt: fleet[fleetIndex].damageDealt + damage,
     );
+  }
+
+  BattleShipSnapshot _receiveDamage(BattleShipSnapshot ship, int damage) {
+    var hp = (ship.currentHp - damage).clamp(0, ship.maxHp);
+    final usedItems = List<int>.from(ship.usedDamageControlItemIds);
+    if (ship.side == BattleSide.friend && hp <= 0) {
+      final damageControl = _nextDamageControl(ship, usedItems);
+      if (damageControl == 42) {
+        hp = ship.maxHp ~/ 5;
+        usedItems.add(42);
+      } else if (damageControl == 43) {
+        hp = ship.maxHp;
+        usedItems.add(43);
+      }
+    }
+    return ship.copyWith(
+      currentHp: hp,
+      damageReceived: ship.damageReceived + damage,
+      usedDamageControlItemIds: usedItems,
+    );
+  }
+
+  int? _nextDamageControl(BattleShipSnapshot ship, List<int> usedItems) {
+    final usedCounts = <int, int>{};
+    for (final id in usedItems) {
+      usedCounts[id] = (usedCounts[id] ?? 0) + 1;
+    }
+    final seenCounts = <int, int>{};
+    for (final id in ship.equipmentMasterIds) {
+      if (id != 42 && id != 43) {
+        continue;
+      }
+      seenCounts[id] = (seenCounts[id] ?? 0) + 1;
+      if (seenCounts[id]! > (usedCounts[id] ?? 0)) {
+        return id;
+      }
+    }
+    return null;
   }
 
   List<Object?> _list(Object? value) =>
       value is List ? List<Object?>.from(value) : const <Object?>[];
+
+  Map<String, Object?>? _asMap(Object? value) => value is Map
+      ? value.map((key, child) => MapEntry(key.toString(), child))
+      : null;
 
   int _int(Object? value) => switch (value) {
     int number => number,
@@ -363,4 +592,10 @@ class _MutableBattle {
   final List<BattleShipSnapshot> friendEscort;
   final List<BattleShipSnapshot> enemyMain;
   final List<BattleShipSnapshot> enemyEscort;
+  final List<BattleParseIssue> issues = <BattleParseIssue>[];
+  String currentStage = 'unknown';
+
+  void issue(String message) {
+    issues.add(BattleParseIssue(stage: currentStage, message: message));
+  }
 }

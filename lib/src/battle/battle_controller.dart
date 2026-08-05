@@ -8,7 +8,9 @@ import '../game_state/game_api_decoder.dart';
 import '../game_state/game_state.dart';
 import 'battle_damage_parser.dart';
 import 'battle_models.dart';
+import 'battle_node_label_resolver.dart';
 import 'battle_rank.dart';
+import 'battle_session.dart';
 import '../logbook/logbook_database.dart';
 
 final class BattleController extends ChangeNotifier {
@@ -16,6 +18,7 @@ final class BattleController extends ChangeNotifier {
     required this.gameState,
     BattleDamageParser? damageParser,
     this.maxRecords = 100,
+    this.nodeLabelResolver = const EmptyBattleNodeLabelResolver(),
   }) : _damageParser = damageParser ?? BattleDamageParser(),
        assert(maxRecords > 0);
 
@@ -62,11 +65,14 @@ final class BattleController extends ChangeNotifier {
   final GameState Function() gameState;
   final BattleDamageParser _damageParser;
   final int maxRecords;
+  final BattleNodeLabelResolver nodeLabelResolver;
   final List<BattleRecord> _records = <BattleRecord>[];
   final Set<int> _acceptedSequences = <int>{};
+  final List<BattleSession> _recentSessions = <BattleSession>[];
 
   Future<void> _queue = Future<void>.value();
   BattleContext _context = const BattleContext();
+  BattleSession? _session;
   LiveBattle? _current;
   String? _lastError;
   bool _disposed = false;
@@ -75,7 +81,26 @@ final class BattleController extends ChangeNotifier {
   List<BattleRecord> get records => List.unmodifiable(_records);
   GameState get gameStateSnapshot => gameState();
   String? get lastError => _lastError;
+  BattleSession? get session => _session;
+  List<BattleSession> get recentSessions => List.unmodifiable(_recentSessions);
   Future<void> get idle => _queue;
+
+  void refreshNodeLabel() {
+    if (_disposed || _context.node <= 0) return;
+    final label = nodeLabelResolver
+        .resolve(
+          mapAreaId: _context.mapAreaId,
+          mapInfoNo: _context.mapInfoNo,
+          internalNodeId: _context.node,
+        )
+        ?.trim();
+    final normalized = label == null || label.isEmpty ? null : label;
+    if (_context.nodeDisplayLabel == normalized) return;
+    _context = _context.copyWith(nodeDisplayLabel: normalized);
+    final current = _current;
+    if (current != null) _current = current.copyWith(context: _context);
+    notifyListeners();
+  }
 
   void accept(CapturedApiEvent event) {
     if (_disposed || !_isSupported(event.path)) {
@@ -96,6 +121,7 @@ final class BattleController extends ChangeNotifier {
         _lastError = null;
         notifyListeners();
       } catch (error) {
+        _session?.markUnconfirmed(stage: event.path, message: error.toString());
         _lastError = '战斗数据暂时无法解析（${error.runtimeType}）';
         notifyListeners();
       }
@@ -113,6 +139,8 @@ final class BattleController extends ChangeNotifier {
     if (event.path == '/kcsapi/api_port/port' ||
         event.path == '/kcsapi/api_start2/getData') {
       _current = null;
+      _archiveSession();
+      _session = null;
       return;
     }
     final data = GameApiDecoder.decodeData(event.responseBody);
@@ -140,13 +168,43 @@ final class BattleController extends ChangeNotifier {
         phaseLabel: '航行中',
         displayStage: BattleDisplayStage.navigation,
       );
+      _archiveSession();
+      _session = BattleSession(
+        id: '${event.sequence}:${_context.mapAreaId}-${_context.mapInfoNo}-${_context.node}',
+        context: _context,
+        startedAt: event.capturedAt,
+        friendMain: _current!.friendMain,
+        friendEscort: _current!.friendEscort,
+      );
       return;
     }
     if (_battlePaths.contains(event.path)) {
+      _ensureSession(event);
+      _session!.appendPacket(
+        path: event.path,
+        sequence: event.sequence,
+        capturedAt: event.capturedAt,
+        data: map,
+      );
       _applyBattlePhase(map, event);
+      final battle = _current!;
+      _session!.updateFleets(
+        friendMain: battle.friendMain,
+        friendEscort: battle.friendEscort,
+        enemyMain: battle.enemyMain,
+        enemyEscort: battle.enemyEscort,
+      );
       return;
     }
     if (_resultPaths.contains(event.path)) {
+      if (_session != null) {
+        _session!.appendPacket(
+          path: event.path,
+          sequence: event.sequence,
+          capturedAt: event.capturedAt,
+          data: map,
+        );
+      }
       _applyResult(map, event);
     }
   }
@@ -155,15 +213,23 @@ final class BattleController extends ChangeNotifier {
     Map<String, Object?> data,
     CapturedApiEvent event,
   ) {
+    final mapAreaId = _positive(data['api_maparea_id'], _context.mapAreaId);
+    final mapInfoNo = _positive(data['api_mapinfo_no'], _context.mapInfoNo);
+    final node = _positive(data['api_no'], _context.node);
     return BattleContext(
-      mapAreaId: _positive(data['api_maparea_id'], _context.mapAreaId),
-      mapInfoNo: _positive(data['api_mapinfo_no'], _context.mapInfoNo),
-      node: _positive(data['api_no'], _context.node),
+      mapAreaId: mapAreaId,
+      mapInfoNo: mapInfoNo,
+      node: node,
       bossNode: _positive(data['api_bosscell_no'], _context.bossNode),
       deckId: _positive(event.requestParams['api_deck_id'], _context.deckId),
       combinedFleetType: gameState().combinedFleetType,
       eventId: _int(data['api_event_id']),
       eventKind: _int(data['api_event_kind']),
+      nodeDisplayLabel: nodeLabelResolver.resolve(
+        mapAreaId: mapAreaId,
+        mapInfoNo: mapInfoNo,
+        internalNodeId: node,
+      ),
     );
   }
 
@@ -178,13 +244,16 @@ final class BattleController extends ChangeNotifier {
     }
 
     final previous = _current;
+    final previousBattle = previous?.displayStage == BattleDisplayStage.battle
+        ? previous
+        : null;
     final friendMain = _friendFleet(
       state,
       deckId,
       BattleFleetRole.main,
       nowHp: _fleetArray(data['api_f_nowhps']),
       maxHp: _fleetArray(data['api_f_maxhps']),
-      previous: previous?.friendMain,
+      previous: previousBattle?.friendMain,
     );
     final combined =
         _context.combinedFleetType != CombinedFleetType.none ||
@@ -195,7 +264,7 @@ final class BattleController extends ChangeNotifier {
       BattleFleetRole.escort,
       nowHp: _fleetArray(data['api_f_nowhps_combined']),
       maxHp: _fleetArray(data['api_f_maxhps_combined']),
-      previous: previous?.friendEscort,
+      previous: previousBattle?.friendEscort,
       enabled: combined || (previous?.friendEscort.isNotEmpty ?? false),
     );
     final enemyMain = _enemyFleet(
@@ -204,7 +273,7 @@ final class BattleController extends ChangeNotifier {
       ids: _fleetArray(data['api_ship_ke']),
       nowHp: _fleetArray(data['api_e_nowhps']),
       maxHp: _fleetArray(data['api_e_maxhps']),
-      previous: previous?.enemyMain,
+      previous: previousBattle?.enemyMain,
     );
     final enemyEscort = _enemyFleet(
       state,
@@ -212,7 +281,7 @@ final class BattleController extends ChangeNotifier {
       ids: _fleetArray(data['api_ship_ke_combined']),
       nowHp: _fleetArray(data['api_e_nowhps_combined']),
       maxHp: _fleetArray(data['api_e_maxhps_combined']),
-      previous: previous?.enemyEscort,
+      previous: previousBattle?.enemyEscort,
     );
 
     final parsed = _damageParser.apply(
@@ -223,6 +292,9 @@ final class BattleController extends ChangeNotifier {
       enemyEscort: enemyEscort,
       path: event.path,
     );
+    for (final issue in parsed.issues) {
+      _session?.markUnconfirmed(stage: issue.stage, message: issue.message);
+    }
     final friendShips = <BattleShipSnapshot>[
       ...parsed.friendMain,
       ...parsed.friendEscort,
@@ -264,10 +336,29 @@ final class BattleController extends ChangeNotifier {
   }
 
   void _applyResult(Map<String, Object?> data, CapturedApiEvent event) {
+    if (_current == null ||
+        _current!.displayStage == BattleDisplayStage.navigation) {
+      _lastError = '收到结算数据时没有可匹配的战斗会话';
+      return;
+    }
     final enemyInfo = _optionalMap(data['api_enemy_info']);
     final getShip = _optionalMap(data['api_get_ship']);
     final getItem = _optionalMap(data['api_get_useitem']);
-    final rank = BattleRank.parse(data['api_win_rank']);
+    var rank = BattleRank.parse(data['api_win_rank']);
+    if (rank == BattleRank.s) {
+      final friendShips = _current!.friendShips;
+      final initialHp = friendShips.fold<int>(
+        0,
+        (sum, ship) => sum + ship.initialHp,
+      );
+      final currentHp = friendShips.fold<int>(
+        0,
+        (sum, ship) => sum + ship.currentHp,
+      );
+      if (currentHp >= initialHp) {
+        rank = BattleRank.ss;
+      }
+    }
     final mainMvp = _int(data['api_mvp']) - 1;
     final escortMvp = _int(data['api_mvp_combined']) - 1;
     final confirmed = (_current ?? LiveBattle(context: _context)).copyWith(
@@ -292,11 +383,36 @@ final class BattleController extends ChangeNotifier {
     if (_records.length > maxRecords) {
       _records.removeRange(maxRecords, _records.length);
     }
+    if (_session != null) {
+      _session!.completed = true;
+      _archiveSession();
+    }
 
     // Log to persistent database
     LogbookDatabase.instance.insertBattleRecord(record).catchError((error) {
       debugPrint('战斗记录写入失败: $error');
     });
+  }
+
+  void _ensureSession(CapturedApiEvent event) {
+    _session ??= BattleSession(
+      id: '${event.sequence}:${_context.mapAreaId}-${_context.mapInfoNo}-${_context.node}',
+      context: _context,
+      startedAt: event.capturedAt,
+    );
+  }
+
+  void _archiveSession() {
+    final session = _session;
+    if (session == null ||
+        session.packets.isEmpty ||
+        _recentSessions.contains(session)) {
+      return;
+    }
+    _recentSessions.insert(0, session);
+    if (_recentSessions.length > 10) {
+      _recentSessions.removeRange(10, _recentSessions.length);
+    }
   }
 
   List<BattleShipSnapshot> _friendFleet(
@@ -311,8 +427,8 @@ final class BattleController extends ChangeNotifier {
     if (!enabled) {
       return const <BattleShipSnapshot>[];
     }
-    if (nowHp.isEmpty && previous != null) {
-      return _withHp(previous, nowHp, maxHp);
+    if (previous != null) {
+      return previous;
     }
     final ownedShips = state.shipsForFleet(deckId);
     if (ownedShips.isEmpty && previous != null) {
@@ -329,9 +445,9 @@ final class BattleController extends ChangeNotifier {
           side: BattleSide.friend,
           fleetRole: role,
           position: index,
-          initialHp: _atPositive(nowHp, index, ownedShips[index].currentHp),
+          initialHp: _atNonNegative(nowHp, index, ownedShips[index].currentHp),
           maxHp: _atPositive(maxHp, index, ownedShips[index].maxHp),
-          currentHp: _atPositive(nowHp, index, ownedShips[index].currentHp),
+          currentHp: _atNonNegative(nowHp, index, ownedShips[index].currentHp),
           damageDealt: index < (previous?.length ?? 0)
               ? previous![index].damageDealt
               : 0,
@@ -339,6 +455,10 @@ final class BattleController extends ChangeNotifier {
               ? previous![index].damageReceived
               : 0,
           condition: ownedShips[index].condition,
+          equipmentMasterIds: <int>[
+            for (final equipment in state.equipmentForShip(ownedShips[index]))
+              equipment.owned.masterId,
+          ],
         ),
     ];
   }
@@ -351,8 +471,8 @@ final class BattleController extends ChangeNotifier {
     required List<Object?> maxHp,
     List<BattleShipSnapshot>? previous,
   }) {
-    if (ids.isEmpty && previous != null) {
-      return _withHp(previous, nowHp, maxHp);
+    if (previous != null) {
+      return previous;
     }
     final result = <BattleShipSnapshot>[];
     for (var index = 0; index < ids.length; index++) {
@@ -360,14 +480,14 @@ final class BattleController extends ChangeNotifier {
       if (masterId <= 0) {
         continue;
       }
-      final hp = _atPositive(nowHp, index, _atPositive(maxHp, index, 1));
+      final hp = _atNonNegative(nowHp, index, _atPositive(maxHp, index, 1));
       result.add(
         BattleShipSnapshot(
           masterId: masterId,
           name: state.masterShips[masterId]?.name ?? '敌舰 $masterId',
           side: BattleSide.enemy,
           fleetRole: role,
-          position: result.length,
+          position: index,
           initialHp: hp,
           maxHp: _atPositive(maxHp, index, hp),
           currentHp: hp,
@@ -464,9 +584,19 @@ final class BattleController extends ChangeNotifier {
       ? _positive(values[index], fallback)
       : fallback;
 
+  int _atNonNegative(List<Object?> values, int index, int fallback) =>
+      index >= 0 && index < values.length
+      ? _nonNegative(values[index], fallback)
+      : fallback;
+
   int _positive(Object? value, int fallback) {
     final number = _int(value);
     return number > 0 ? number : fallback;
+  }
+
+  int _nonNegative(Object? value, int fallback) {
+    final number = _int(value);
+    return number >= 0 ? number : fallback;
   }
 
   int _int(Object? value) => switch (value) {

@@ -48,7 +48,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get infoPanelWidth => '情報パネルの幅';
 
   @override
-  String get autoZoom => '自動ズーム (推奨)';
+  String get autoZoom => 'ゲーム画面を自動ズーム（既定の推奨比率 65：35）';
 
   @override
   String get language => '言語 (Language)';
@@ -235,10 +235,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get aboutApp => 'ヤハギ について';
 
   @override
-  String get aboutSubtitle => 'バージョン 學習版 1.0.1 · 免責事項 · 更新の確認';
+  String get aboutSubtitle => 'バージョン 學習版 1.0.2 · 免責事項 · 更新の確認';
 
   @override
-  String get version => 'バージョン 學習版 1.0.1';
+  String get version => 'バージョン 學習版 1.0.2';
 
   @override
   String get disclaimerTitle => '免責事項 (DISCLAIMER)';
@@ -677,4 +677,368 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get fatigue => '疲労';
+
+  @override
+  String get startupUpdateTitle => '新しいバージョン';
+
+  @override
+  String get backgroundAudio => 'バックグラウンドで音声を再生';
+
+  @override
+  String get backgroundAudioDesc => 'オンにすると、アプリがバックグラウンドに移動してもゲーム音声を再生します。';
+
+  @override
+  String get screenAwake => '画面を常にオン';
+
+  @override
+  String get screenAwakeDesc => 'オンにすると、アプリの使用中は画面が自動消灯しません。電池消費が増える場合があります。';
+
+  @override
+  String get gameToolbar => 'ゲームツールバー';
+
+  @override
+  String get toolbarAutoHide => '自動的に隠す';
+
+  @override
+  String get toolbarPersistent => '常に表示';
+
+  @override
+  String get back => '戻る';
+
+  @override
+  String get reload => '再読み込み';
+
+  @override
+  String get home => 'ホームに戻る';
+
+  @override
+  String get enterDmm => 'DMM ログインへ';
+
+  @override
+  String get enableGameAudio => 'ゲーム音声をオン';
+
+  @override
+  String get disableGameAudio => 'ゲーム音声をオフ';
+
+  @override
+  String get takeScreenshot => 'スクリーンショット';
+
+  @override
+  String get screenshotSaving => 'ゲーム画面を保存しています…';
+
+  @override
+  String get fitGameScreen => '表示を画面に合わせる';
+
+  @override
+  String get collapseToolbar => 'ツールバーを閉じる';
+
+  @override
+  String get editDone => '編集を完了';
+
+  @override
+  String get retryWithSystemNetwork => 'システムネットワークで再試行';
+
+  @override
+  String get displayMode => '表示モード';
+
+  @override
+  String get displayAuto => '自動';
+
+  @override
+  String get displayLandscape => '横画面';
+
+  @override
+  String get displayPortrait => '縦画面';
+
+  @override
+  String get allRanks => 'すべての評価';
+
+  @override
+  String battleFleetSummary(
+    int friendAlive,
+    int friendTotal,
+    int enemyAlive,
+    int enemyTotal,
+  ) {
+    return '味方 $friendAlive/$friendTotal　敵 $enemyAlive/$enemyTotal';
+  }
+
+  @override
+  String dropLabel(String name) {
+    return 'ドロップ：$name';
+  }
+
+  @override
+  String get item => 'アイテム';
+
+  @override
+  String get friendFinalStatus => '味方艦隊の最終状態';
+
+  @override
+  String get enemyFinalStatus => '敵艦隊の最終状態';
+
+  @override
+  String airStateLabel(String label) {
+    return '制空：$label';
+  }
+
+  @override
+  String get postBattleWarningTitle => '戦闘後の安全警告';
+
+  @override
+  String get postBattleWarningHeadline => '出撃艦隊に大破艦がいます！';
+
+  @override
+  String get postBattleWarningBody =>
+      '次の選択画面では必ず「撤退」を選んでください。轟沈を防ぐため、進撃しないでください！';
+
+  @override
+  String get acknowledgeAndRetreat => '確認して撤退';
+
+  @override
+  String get postBattleWarningBanner => '戦闘後の安全警告：出撃艦隊に大破艦がいます。撤退してください！';
+
+  @override
+  String get noActiveExpedition => '遠征中の艦隊はありません';
+
+  @override
+  String get noSortieWarnings => '出撃警告はありません';
+
+  @override
+  String preSortieCriticalWarning(String fleetName) {
+    return '$fleetName に大破艦がいます。出撃を中止してください！';
+  }
+
+  @override
+  String preSortieSupplyWarning(String fleetName) {
+    return '$fleetName に未補給の艦娘があります';
+  }
+
+  @override
+  String preSortieFatigueWarning(String fleetName) {
+    return '$fleetName に疲労が回復していない艦娘がいます';
+  }
+
+  @override
+  String preSortieMainEquipmentWarning(String fleetName, String shipNames) {
+    return '$fleetName 装備不足（主スロット）：$shipNames';
+  }
+
+  @override
+  String preSortieExtraEquipmentWarning(String fleetName, String shipNames) {
+    return '$fleetName 装備不足（補強増設スロット）：$shipNames';
+  }
+
+  @override
+  String get noPinnedQuests => '進行中の任務はありません';
+
+  @override
+  String get waitingQuestData => '任務データ待機中';
+
+  @override
+  String get waitingQuestDataDesc => 'ゲーム内の任務一覧を開くと、受注中の任務が自動的に同期されます';
+
+  @override
+  String get diagnosticsAndAbout => '診断とアプリ情報';
+
+  @override
+  String get safetyBoundary => '安全上の制限';
+
+  @override
+  String get applyingNetworkSettings => 'ネットワーク設定を適用しています…';
+
+  @override
+  String networkSettingsApplied(String message) {
+    return 'ネットワーク設定を適用しました：$message';
+  }
+
+  @override
+  String get clearingProxy => 'アプリ内プロキシを解除しています…';
+
+  @override
+  String get systemNetworkRestored => 'システムネットワークに戻しました。';
+
+  @override
+  String screenshotSaved(String path) {
+    return 'ゲーム画面をギャラリーに保存しました：$path';
+  }
+
+  @override
+  String get screenshotFailed => 'ゲーム画面の保存に失敗しました。しばらくしてからもう一度お試しください。';
+
+  @override
+  String startupUpdateMessage(String version) {
+    return 'ヤハギ $version がリリースされました。';
+  }
+
+  @override
+  String get gameStatusError => 'ゲーム状態エラー';
+
+  @override
+  String get gameStatusErrorDesc => 'Web ページまたは取得状態に異常があります。設定の診断情報を確認してください。';
+
+  @override
+  String get browserOnlyCaptureOff => '閲覧専用モード · データ取得オフ';
+
+  @override
+  String get browserOnlyCaptureOffDesc => 'ゲームは動作を続けますが、艦隊・任務・戦闘情報の更新は停止します。';
+
+  @override
+  String capturedCount(int count) {
+    return '$count 件取得済み';
+  }
+
+  @override
+  String get waitingKcsapi => '/kcsapi/ の応答を待機中';
+
+  @override
+  String get ignoredNonTargetMessage => '対象外メッセージを無視しました';
+
+  @override
+  String get readOnlyNoActions => '読み取り専用';
+
+  @override
+  String get readOnlyNoActionsDesc => 'クリック、補給、編成、出撃、任務受領を自動実行しません。';
+
+  @override
+  String get noCookieRead => 'Cookie を読み取りません';
+
+  @override
+  String get noCookieReadDesc => 'JS ブリッジのメッセージは API パス、応答本文、時刻のみを含みます。';
+
+  @override
+  String get browserIdle => 'Web ページ待機中';
+
+  @override
+  String get browserLoading => 'Web ページ読み込み中';
+
+  @override
+  String get browserReady => 'Web ページ準備完了';
+
+  @override
+  String get browserFailed => 'Web ページ読み込み失敗';
+
+  @override
+  String get capturePreparing => 'ゲーム API 取得を準備中';
+
+  @override
+  String get captureReady => '取得準備完了';
+
+  @override
+  String get captureActive => 'ゲーム API を取得中';
+
+  @override
+  String get captureUnsupported => '現在の WebView はフレーム間取得に対応していません';
+
+  @override
+  String get captureFailed => 'ゲーム API 取得の起動に失敗しました';
+
+  @override
+  String get captureCheckingDesc => 'Android WebView の取得能力を確認しています。';
+
+  @override
+  String get captureReadyDesc => '/kcsapi/ の応答待機中です。ゲームは通常どおり操作できます。';
+
+  @override
+  String get portCaptureVerified => '母港 API の確認に成功しました';
+
+  @override
+  String get captureReceived => 'ゲーム API を受信しました。';
+
+  @override
+  String captureLatest(String path) {
+    return '最新の取得：$path';
+  }
+
+  @override
+  String get captureUnsupportedDesc => 'ゲームは動作しますが、現在の端末では Web 閲覧のみ利用できます。';
+
+  @override
+  String get captureFailedDesc => 'ゲームは動作します。ページを再読み込みして再試行できます。';
+
+  @override
+  String networkApplyFailed(String code, String message) {
+    return '設定に失敗しました [$code]：$message';
+  }
+
+  @override
+  String networkRestoreFailed(String code, String message) {
+    return '復元に失敗しました [$code]：$message';
+  }
+
+  @override
+  String get tcpConnection => 'TCP 接続';
+
+  @override
+  String get gameService => 'ゲームサービス';
+
+  @override
+  String get externalNetwork => 'Google（外部ネットワーク）';
+
+  @override
+  String get statusUnknown => '不明';
+
+  @override
+  String get statusSuccess => '成功';
+
+  @override
+  String get statusFailed => '失敗';
+
+  @override
+  String get statusSkipped => 'スキップ';
+
+  @override
+  String get formula33 => '33式';
+
+  @override
+  String fatigueValue(int value) {
+    return '疲労 $value';
+  }
+
+  @override
+  String get fcdMapSectionTitle => 'データ更新';
+
+  @override
+  String get fcdMapDataTitle => '予知マップデータ';
+
+  @override
+  String fcdMapDataVersion(String version) {
+    return 'データバージョン：$version';
+  }
+
+  @override
+  String fcdMapLastChecked(String time) {
+    return '最終確認：$time';
+  }
+
+  @override
+  String get fcdMapNeverChecked => '最終確認：未確認';
+
+  @override
+  String fcdMapSource(String source) {
+    return '更新元：$source';
+  }
+
+  @override
+  String get fcdMapAttribution => 'データ提供：poi FCD（MIT）';
+
+  @override
+  String get fcdMapCheckUpdates => '予知マップデータを更新';
+
+  @override
+  String get fcdMapUpToDate => '予知マップデータは最新です。';
+
+  @override
+  String fcdMapUpdated(String oldVersion, String newVersion) {
+    return '予知マップデータを $oldVersion から $newVersion に更新し、すぐに適用しました。';
+  }
+
+  @override
+  String get fcdMapNetworkError => 'データ更新元に接続できません。しばらくしてから再試行してください。';
+
+  @override
+  String get fcdMapValidationError => 'ダウンロードしたデータを検証できなかったため、現在のバージョンを保持しました。';
+
+  @override
+  String get fcdMapStorageError => 'データを保存できなかったため、現在のバージョンを保持しました。';
 }

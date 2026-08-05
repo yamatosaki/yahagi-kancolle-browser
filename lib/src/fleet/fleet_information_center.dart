@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
+
 import '../game_state/fleet_metrics.dart';
 import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
@@ -9,8 +10,12 @@ import 'equipment_display.dart';
 import 'fleet_status_visual.dart';
 import 'operation_status_views.dart';
 import 'ship_portrait.dart';
+import 'ship_speed_visual.dart';
 import 'ship_status_style.dart';
 import 'status_density.dart';
+
+AppLocalizations _fleetL10n(BuildContext context) =>
+    AppLocalizations.of(context) ?? lookupAppLocalizations(const Locale('zh'));
 
 enum FleetInformationPage { fleet, expedition, repair, construction }
 
@@ -181,6 +186,39 @@ class _FleetViewState extends State<_FleetView> {
   List<Fleet>? _cachedFleetButtons;
   int? _selectedShipId;
   int? _selectedEquipmentIndex;
+
+  @override
+  void didUpdateWidget(_FleetView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedFleetId != widget.selectedFleetId) {
+      _selectedShipId = null;
+      _selectedEquipmentIndex = null;
+      return;
+    }
+    final selectedShipId = _selectedShipId;
+    if (selectedShipId == null || identical(oldWidget.state, widget.state)) {
+      return;
+    }
+    final oldFleet = _selectedFleet(
+      oldWidget.state.fleets,
+      oldWidget.selectedFleetId,
+    );
+    final nextFleet = _selectedFleet(
+      widget.state.fleets,
+      widget.selectedFleetId,
+    );
+    final selectedPosition = oldFleet?.shipIds.indexOf(selectedShipId) ?? -1;
+    final nextShipId =
+        selectedPosition >= 0 &&
+            nextFleet != null &&
+            selectedPosition < nextFleet.shipIds.length
+        ? nextFleet.shipIds[selectedPosition]
+        : null;
+    if (nextShipId != selectedShipId) {
+      _selectedShipId = nextShipId;
+      _selectedEquipmentIndex = null;
+    }
+  }
 
   FleetMetrics _metricsFor(GameState state, Fleet fleet) {
     if (_cachedMetrics == null ||
@@ -710,10 +748,15 @@ class _FleetFocusPanel extends StatelessWidget {
                                         ),
                                         const SizedBox(width: 4),
                                         _MiniBadge(
-                                          text: (master?.speed ?? 0) >= 10
-                                              ? '高速'
-                                              : '低速',
-                                          color: const Color(0xff6dd1c5),
+                                          key: Key(
+                                            'fleet-focus-speed-${ship.id}',
+                                          ),
+                                          text: ShipSpeedVisual.fromSpeed(
+                                            ship.effectiveSpeed(master),
+                                          ).label,
+                                          color: ShipSpeedVisual.fromSpeed(
+                                            ship.effectiveSpeed(master),
+                                          ).foreground,
                                         ),
                                         for (final mechanism in mechanisms.take(
                                           1,
@@ -803,10 +846,10 @@ class _FleetFocusPanel extends StatelessWidget {
               Expanded(
                 key: const Key('fleet-equipment-list'),
                 child: equipment.isEmpty
-                    ? const Center(
+                    ? Center(
                         child: Text(
-                          '装备数据等待更新',
-                          style: TextStyle(color: Color(0xff8197a5)),
+                          _fleetL10n(context).equipmentDataWaiting,
+                          style: const TextStyle(color: Color(0xff8197a5)),
                         ),
                       )
                     : ListView.separated(
@@ -831,7 +874,7 @@ class _FleetFocusPanel extends StatelessWidget {
 }
 
 class _MiniBadge extends StatelessWidget {
-  const _MiniBadge({required this.text, required this.color});
+  const _MiniBadge({super.key, required this.text, required this.color});
 
   final String text;
   final Color color;
@@ -1071,9 +1114,9 @@ class _ShipParameterDetails extends StatelessWidget {
       ('对空', '${ship.antiAir}'),
       ('搭载', '${ship.onSlot.fold<int>(0, (sum, value) => sum + value)}'),
       ('对潜', '${ship.antiSub}'),
-      ('速力', (master?.speed ?? 0) >= 10 ? '高速' : '低速'),
+      ('速力', ShipSpeedVisual.fromSpeed(ship.effectiveSpeed(master)).label),
       ('索敌', '${ship.lineOfSight}'),
-      ('射程', _rangeText(master?.range ?? 0)),
+      ('射程', _rangeText(ship.effectiveRange(master))),
       ('运', '${ship.luck}'),
     ];
     return Column(
@@ -1284,12 +1327,12 @@ class FleetSwitcherBar extends StatelessWidget {
     final visibleFleets = fleets.take(4).toList(growable: false);
     return Row(
       children: [
-        const SizedBox(
+        SizedBox(
           key: Key('workspace-title-fleet'),
           width: 72,
           child: Text(
-            '舰队',
-            style: TextStyle(
+            _fleetL10n(context).fleet,
+            style: const TextStyle(
               color: Color(0xffe0b25c),
               fontSize: 17,
               fontWeight: FontWeight.w800,
@@ -1542,13 +1585,13 @@ class _MetricsBar extends StatelessWidget {
               value: '${metrics.lineOfSight}',
             ),
             const Divider(color: Color(0xff294052)),
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
               child: Padding(
-                padding: EdgeInsets.only(bottom: 3),
+                padding: const EdgeInsets.only(bottom: 3),
                 child: Text(
-                  '33式',
-                  style: TextStyle(
+                  _fleetL10n(context).formula33,
+                  style: const TextStyle(
                     color: Color(0xffdce6eb),
                     fontWeight: FontWeight.w700,
                   ),
@@ -1678,6 +1721,9 @@ class _ShipRow extends StatelessWidget {
             title: LayoutBuilder(
               builder: (context, constraints) {
                 final available = constraints.maxWidth;
+                final speedVisual = ShipSpeedVisual.fromSpeed(
+                  ship.effectiveSpeed(master),
+                );
                 final maxCompactPortraitWidth = (available * 0.30).clamp(
                   56.0,
                   180.0,
@@ -1781,29 +1827,17 @@ class _ShipRow extends StatelessWidget {
                                             vertical: 1,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: (master?.speed ?? 0) >= 10
-                                                ? const Color(0xff164c48)
-                                                : const Color(0xff3b4650),
+                                            color: speedVisual.background,
                                             borderRadius: BorderRadius.circular(
                                               4,
                                             ),
                                           ),
                                           child: Text(
-                                            (master?.speed ?? 0) >= 10
-                                                ? (AppLocalizations.of(
-                                                        context,
-                                                      )?.highSpeed ??
-                                                      '高速')
-                                                : (AppLocalizations.of(
-                                                        context,
-                                                      )?.lowSpeed ??
-                                                      '低速'),
+                                            speedVisual.label,
                                             maxLines: 1,
                                             softWrap: false,
                                             style: TextStyle(
-                                              color: (master?.speed ?? 0) >= 10
-                                                  ? const Color(0xff7ed8cf)
-                                                  : const Color(0xffc1ccd2),
+                                              color: speedVisual.foreground,
                                               fontSize: 10,
                                               fontWeight: FontWeight.w800,
                                             ),
@@ -1841,7 +1875,9 @@ class _ShipRow extends StatelessWidget {
                                             ),
                                           ),
                                           child: Text(
-                                            '疲劳 ${ship.condition}',
+                                            _fleetL10n(
+                                              context,
+                                            ).fatigueValue(ship.condition),
                                             maxLines: 1,
                                             softWrap: false,
                                             style: TextStyle(
@@ -2120,7 +2156,8 @@ class _ShipRow extends StatelessWidget {
                                           ),
                                           const SizedBox(width: 5),
                                           _SpeedBadge(
-                                            speed: master?.speed ?? 0,
+                                            key: Key('ship-speed-${ship.id}'),
+                                            speed: ship.effectiveSpeed(master),
                                           ),
                                           for (final mechanism
                                               in mechanisms) ...[
@@ -2399,27 +2436,25 @@ class _ShipRow extends StatelessWidget {
 }
 
 class _SpeedBadge extends StatelessWidget {
-  const _SpeedBadge({required this.speed});
+  const _SpeedBadge({super.key, required this.speed});
 
   final int speed;
 
   @override
   Widget build(BuildContext context) {
-    final isFast = speed >= 10;
+    final visual = ShipSpeedVisual.fromSpeed(speed);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        color: isFast ? const Color(0xff164c48) : const Color(0xff3b4650),
+        color: visual.background,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
-        isFast
-            ? AppLocalizations.of(context)?.highSpeed ?? '高速'
-            : AppLocalizations.of(context)?.lowSpeed ?? '低速',
+        visual.label,
         maxLines: 1,
         softWrap: false,
         style: TextStyle(
-          color: isFast ? const Color(0xff7ed8cf) : const Color(0xffc1ccd2),
+          color: visual.foreground,
           fontSize: 13,
           fontWeight: FontWeight.w800,
         ),

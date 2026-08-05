@@ -72,8 +72,124 @@ void main() {
     expect(statusWidths.toSet(), hasLength(1));
 
     expect(find.byKey(const Key('fleet-equipment-list')), findsOneWidget);
+    final speedBadge = find.byKey(const Key('fleet-focus-speed-9001'));
+    expect(speedBadge, findsOneWidget);
+    final speedText = find.descendant(
+      of: speedBadge,
+      matching: find.text('高速+'),
+    );
+    expect(speedText, findsOneWidget);
+    expect(
+      tester.widget<Text>(speedText).style?.color,
+      const Color(0xff7ed8cf),
+    );
+    expect(find.text('超长'), findsOneWidget);
     expect(find.byType(ExpansionTile), findsNothing);
     expect(find.textContaining('更新于'), findsNothing);
+  });
+
+  testWidgets('编成预设换走当前舰娘后详情立即切换', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1180, 720);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(
+        kcsapiEvent('/kcsapi/api_get_member/deck', <Object?>[
+          <String, Object?>{
+            'api_id': 1,
+            'api_name': '第一舰队',
+            'api_ship': <int>[9001, -1, -1, -1, -1, -1],
+            'api_mission': <int>[0, 0, 0, 0],
+          },
+          <String, Object?>{
+            'api_id': 2,
+            'api_name': '第二舰队',
+            'api_ship': <int>[9002, -1, -1, -1, -1, -1],
+            'api_mission': <int>[0, 0, 0, 0],
+          },
+        ]),
+      );
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: FleetInformationCenter(controller: controller)),
+      ),
+    );
+    expect(find.byKey(const Key('fleet-focus-ship-9001')), findsOneWidget);
+
+    controller.accept(
+      kcsapiEvent('/kcsapi/api_req_hensei/preset_select', <String, Object?>{
+        'api_id': 1,
+        'api_name': '第一舰队',
+        'api_ship': <int>[9002, -1, -1, -1, -1, -1],
+        'api_mission': <int>[0, 0, 0, 0],
+      }),
+    );
+    await controller.idle;
+    await tester.pump();
+
+    expect(find.byKey(const Key('fleet-focus-ship-9002')), findsOneWidget);
+    expect(find.byKey(const Key('fleet-focus-ship-9001')), findsNothing);
+  });
+
+  testWidgets('游戏内用后备舰替换后详情跟随原选中编队位置', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1180, 720);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(
+        kcsapiEvent('/kcsapi/api_get_member/deck', <Object?>[
+          <String, Object?>{
+            'api_id': 1,
+            'api_name': '第一舰队',
+            'api_ship': <int>[9001, -1, -1, -1, -1, -1],
+            'api_mission': <int>[0, 0, 0, 0],
+          },
+          <String, Object?>{
+            'api_id': 2,
+            'api_name': '第二舰队',
+            'api_ship': <int>[-1, -1, -1, -1, -1, -1],
+            'api_mission': <int>[0, 0, 0, 0],
+          },
+        ]),
+      );
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: FleetInformationCenter(controller: controller)),
+      ),
+    );
+    expect(find.byKey(const Key('fleet-focus-ship-9001')), findsOneWidget);
+
+    controller.accept(
+      kcsapiEvent(
+        '/kcsapi/api_req_hensei/change',
+        null,
+        includeApiData: false,
+        requestParams: const <String, Object?>{
+          'api_id': '1',
+          'api_ship_idx': '0',
+          'api_ship_id': '9002',
+        },
+      ),
+    );
+    await controller.idle;
+    await tester.pump();
+
+    expect(find.byKey(const Key('fleet-focus-ship-9002')), findsOneWidget);
+    expect(find.byKey(const Key('fleet-focus-ship-9001')), findsNothing);
   });
 
   testWidgets('keeps all three fleet panels inside the compact viewport', (
@@ -860,7 +976,7 @@ void main() {
     final shipType = tester.widget<Text>(find.text('軽巡洋艦'));
     final identityTop = find.byKey(const Key('ship-identity-top-9001'));
     final shipSpeed = tester.widget<Text>(
-      find.descendant(of: identityTop, matching: find.text('高速')),
+      find.descendant(of: identityTop, matching: find.text('高速+')),
     );
     final openingAsw = tester.widget<Text>(find.text('先制对潜'));
     final fatigue = tester.widget<Text>(find.text('疲劳 49'));
@@ -897,7 +1013,7 @@ void main() {
     final identityName = find.byKey(const Key('ship-identity-name-9001'));
     final identityNext = find.byKey(const Key('ship-identity-next-9001'));
     expect(
-      find.descendant(of: identityTop, matching: find.text('高速')),
+      find.descendant(of: identityTop, matching: find.text('高速+')),
       findsOneWidget,
     );
     expect(
@@ -911,7 +1027,7 @@ void main() {
       find.descendant(of: identityTop, matching: find.text('軽巡洋艦')),
     );
     final speedPosition = tester.getTopLeft(
-      find.descendant(of: identityTop, matching: find.text('高速')),
+      find.descendant(of: identityTop, matching: find.text('高速+')),
     );
     final openingAswPosition = tester.getTopLeft(
       find.descendant(of: identityTop, matching: find.text('先制对潜')),

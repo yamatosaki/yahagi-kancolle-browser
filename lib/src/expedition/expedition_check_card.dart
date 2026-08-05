@@ -45,7 +45,6 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
         icon: const Icon(Icons.fact_check_outlined),
         collapsed: widget.collapsed,
         onToggleCollapse: widget.onToggleCollapse,
-        borderColor: const Color(0xffb98a28),
         collapseButtonKey: const Key('expedition-check-collapse'),
         trailing: phone ? _detailsPageButton(strings) : null,
         child: _buildContent(context, widget.controller.state, strings),
@@ -342,27 +341,42 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
     GameState state,
     int current,
     ExpeditionStrings strings,
-  ) => DropdownButtonFormField<int>(
-    initialValue: current,
-    isExpanded: true,
-    decoration: InputDecoration(
-      labelText: strings.selectExpedition,
-      isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      border: const OutlineInputBorder(),
-    ),
-    items: [
-      for (final id in expeditionRules.keys)
-        DropdownMenuItem(
-          value: id,
-          child: Text(
-            '${_displayId(id)} · ${state.masterMissions[id]?.name ?? '远征'}',
-            overflow: TextOverflow.ellipsis,
+  ) => LayoutBuilder(
+    builder: (context, constraints) {
+      final textSize = _expeditionSummaryTextSize(constraints.maxWidth);
+      return DropdownButtonFormField<int>(
+        initialValue: current,
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: strings.selectExpedition,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 9,
           ),
+          border: const OutlineInputBorder(),
         ),
-    ],
-    onChanged: (value) {
-      if (value != null) setState(() => _missionId = value);
+        items: [
+          for (final id in expeditionRules.keys)
+            DropdownMenuItem(
+              value: id,
+              child: Text(
+                '${_displayId(id)} · ${state.masterMissions[id]?.name ?? '远征'}',
+                key: const Key('expedition-mission-name'),
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: textSize,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+        ],
+        onChanged: (value) {
+          if (value != null) setState(() => _missionId = value);
+        },
+      );
     },
   );
 
@@ -372,27 +386,36 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
         : passed
         ? const Color(0xff258a52)
         : const Color(0xffc43f4b);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(5),
-      ),
-      child: Text(
-        '${neutral
-            ? '•'
-            : passed
-            ? '☑'
-            : '☒'} $text',
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: Colors.white,
+    return LayoutBuilder(
+      builder: (context, constraints) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(5),
+        ),
+        child: Text(
+          '${neutral
+              ? '•'
+              : passed
+              ? '☑'
+              : '☒'} $text',
+          key: const Key('expedition-status-text'),
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: _expeditionSummaryTextSize(constraints.maxWidth),
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
         ),
       ),
     );
   }
 }
+
+double _expeditionSummaryTextSize(double availableWidth) =>
+    availableWidth < 340 ? 11 : 12;
 
 Widget _sectionTitle(String text) => Text(
   text,

@@ -4,6 +4,7 @@ import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import '../audio/game_audio_controller.dart';
 import '../browser/gadget_bypass_controller.dart';
 import '../browser/game_browser_controller.dart';
+import '../browser/game_toolbar_display_controller.dart';
 import '../capture/capture_mode_controller.dart';
 import '../capture/capture_mode_selector.dart';
 import '../capture/game_capture_controller.dart';
@@ -20,6 +21,10 @@ import 'about_dialog.dart';
 import 'network_settings_controller.dart';
 import 'network_settings_section.dart';
 import 'gadget_bypass_section.dart';
+import 'release_check_service.dart';
+import 'screen_awake_controller.dart';
+import '../battle/fcd_map_controller.dart';
+import 'fcd_map_update_section.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({
@@ -35,7 +40,13 @@ class SettingsPage extends StatelessWidget {
     required this.networkSettingsController,
     required this.gadgetBypassController,
     required this.displayModeController,
+    this.currentVersion = '1.0.2',
+    this.releaseChecker,
+    this.screenAwakeController,
+    this.toolbarDisplayController,
+    this.fcdMapController,
     this.showTitle = true,
+    this.showDeveloperDiagnostics = false,
   });
 
   final LayoutSettingsController layoutSettingsController;
@@ -50,15 +61,24 @@ class SettingsPage extends StatelessWidget {
   final GameStateController gameStateController;
   final SafetySettingsController safetySettingsController;
   final bool showTitle;
+  final String currentVersion;
+  final ReleaseChecker? releaseChecker;
+  final ScreenAwakeController? screenAwakeController;
+  final GameToolbarDisplayController? toolbarDisplayController;
+  final FcdMapController? fcdMapController;
+  final bool showDeveloperDiagnostics;
 
   @override
   Widget build(BuildContext context) {
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: showTitle
           ? AppBar(
               title: Text(
-                AppLocalizations.of(context)?.settingsTitle ?? '设置',
+                l10n.settingsTitle,
                 style: const TextStyle(fontSize: 16),
               ),
               backgroundColor: const Color(0xff0d1a26),
@@ -73,9 +93,7 @@ class SettingsPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildSectionTitle(
-                AppLocalizations.of(context)?.layoutSettings ?? '显示与布局',
-              ),
+              _buildSectionTitle(l10n.layoutSettings),
               _buildCard(
                 child: AnimatedBuilder(
                   animation: Listenable.merge([
@@ -93,8 +111,8 @@ class SettingsPage extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              AppLocalizations.of(context)?.language ??
-                                  '语言 (Language)',
+                              l10n.language,
+                              key: const Key('settings-language-label'),
                             ),
                             DropdownButton<String>(
                               value:
@@ -103,24 +121,15 @@ class SettingsPage extends StatelessWidget {
                               items: [
                                 DropdownMenuItem(
                                   value: 'zh',
-                                  child: Text(
-                                    AppLocalizations.of(context)?.langZh ??
-                                        '简体中文',
-                                  ),
+                                  child: Text(l10n.langZh),
                                 ),
                                 DropdownMenuItem(
                                   value: 'zh_Hant',
-                                  child: Text(
-                                    AppLocalizations.of(context)?.langZhHant ??
-                                        '繁體中文',
-                                  ),
+                                  child: Text(l10n.langZhHant),
                                 ),
                                 DropdownMenuItem(
                                   value: 'ja',
-                                  child: Text(
-                                    AppLocalizations.of(context)?.langJa ??
-                                        '日本語',
-                                  ),
+                                  child: Text(l10n.langJa),
                                 ),
                               ],
                               onChanged: (value) {
@@ -132,18 +141,15 @@ class SettingsPage extends StatelessWidget {
                       ),
                       const Divider(color: Color(0xff294052), height: 1),
                       _buildSwitchTile(
-                        title:
-                            AppLocalizations.of(context)?.autoZoom ??
-                            '自动适应游戏缩放',
+                        title: l10n.autoZoom,
+                        titleKey: const Key('settings-auto-zoom-label'),
                         value: layoutSettingsController.autoZoom,
                         onChanged: (v) =>
                             layoutSettingsController.setAutoZoom(v),
                       ),
                       const Divider(color: Color(0xff294052), height: 1),
                       _buildSliderTile(
-                        title:
-                            AppLocalizations.of(context)?.infoPanelWidth ??
-                            '横屏信息区比例',
+                        title: l10n.infoPanelWidth,
                         value: 1.0 - layoutSettingsController.gameAreaRatio,
                         min: 0.25,
                         max: 0.5,
@@ -152,32 +158,89 @@ class SettingsPage extends StatelessWidget {
                       ),
                       const Divider(color: Color(0xff294052), height: 1),
                       DisplayModeSection(controller: displayModeController),
+                      if (toolbarDisplayController != null) ...<Widget>[
+                        const Divider(color: Color(0xff294052), height: 1),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          child: Row(
+                            children: <Widget>[
+                              Expanded(child: Text(l10n.gameToolbar)),
+                              SegmentedButton<GameToolbarDisplayMode>(
+                                segments:
+                                    <ButtonSegment<GameToolbarDisplayMode>>[
+                                      ButtonSegment<GameToolbarDisplayMode>(
+                                        value: GameToolbarDisplayMode.autoHide,
+                                        label: Text(l10n.toolbarAutoHide),
+                                      ),
+                                      ButtonSegment<GameToolbarDisplayMode>(
+                                        value:
+                                            GameToolbarDisplayMode.persistent,
+                                        label: Text(l10n.toolbarPersistent),
+                                      ),
+                                    ],
+                                selected: <GameToolbarDisplayMode>{
+                                  toolbarDisplayController!.mode,
+                                },
+                                onSelectionChanged: (selection) {
+                                  toolbarDisplayController!.setMode(
+                                    selection.single,
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              if (screenAwakeController != null) ...<Widget>[
+                const SizedBox(height: 12),
+                _buildCard(
+                  child: AnimatedBuilder(
+                    animation: screenAwakeController!,
+                    builder: (context, _) => _buildSwitchTile(
+                      title: l10n.screenAwake,
+                      subtitle: l10n.screenAwakeDesc,
+                      value: screenAwakeController!.enabled,
+                      onChanged: screenAwakeController!.setEnabled,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
+              _buildSectionTitle(l10n.gameAndSound),
+              _buildCard(
+                child: AnimatedBuilder(
+                  animation: audioController,
+                  builder: (context, _) => Column(
+                    children: <Widget>[
+                      _buildSwitchTile(
+                        title: l10n.gameSound,
+                        value: !audioController.isMuted,
+                        onChanged: (v) {
+                          if (audioController.canToggle) {
+                            audioController.toggleMuted();
+                          }
+                        },
+                      ),
+                      const Divider(color: Color(0xff294052), height: 1),
+                      _buildSwitchTile(
+                        title: l10n.backgroundAudio,
+                        subtitle: l10n.backgroundAudioDesc,
+                        value: audioController.backgroundPlaybackEnabled,
+                        onChanged: audioController.setBackgroundPlaybackEnabled,
+                      ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              _buildSectionTitle(
-                AppLocalizations.of(context)?.gameAndSound ?? '游戏与声音',
-              ),
-              _buildCard(
-                child: AnimatedBuilder(
-                  animation: audioController,
-                  builder: (context, _) => _buildSwitchTile(
-                    title: AppLocalizations.of(context)?.gameSound ?? '游戏声音',
-                    value: !audioController.isMuted,
-                    onChanged: (v) {
-                      if (audioController.canToggle) {
-                        audioController.toggleMuted();
-                      }
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              _buildSectionTitle(
-                AppLocalizations.of(context)?.captureMode ?? '数据捕获模式',
-              ),
+              _buildSectionTitle(l10n.captureMode),
               _buildCard(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
@@ -185,9 +248,7 @@ class SettingsPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              _buildSectionTitle(
-                AppLocalizations.of(context)?.gameSafety ?? '出击前安全检查',
-              ),
+              _buildSectionTitle(l10n.gameSafety),
               _buildCard(
                 child: AnimatedBuilder(
                   animation: safetySettingsController,
@@ -201,40 +262,22 @@ class SettingsPage extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              AppLocalizations.of(context)?.blockSortieTitle ??
-                                  '战后大破提醒模式',
-                            ),
+                            Text(l10n.blockSortieTitle),
                             DropdownButton<BattleWarningMode>(
                               value: safetySettingsController.battleWarningMode,
                               underline: const SizedBox(),
                               items: [
                                 DropdownMenuItem(
                                   value: BattleWarningMode.off,
-                                  child: Text(
-                                    AppLocalizations.of(
-                                          context,
-                                        )?.battleWarningOff ??
-                                        '关闭',
-                                  ),
+                                  child: Text(l10n.battleWarningOff),
                                 ),
                                 DropdownMenuItem(
                                   value: BattleWarningMode.reminder,
-                                  child: Text(
-                                    AppLocalizations.of(
-                                          context,
-                                        )?.battleWarningReminder ??
-                                        '闪烁提醒',
-                                  ),
+                                  child: Text(l10n.battleWarningReminder),
                                 ),
                                 DropdownMenuItem(
                                   value: BattleWarningMode.confirm,
-                                  child: Text(
-                                    AppLocalizations.of(
-                                          context,
-                                        )?.battleWarningConfirm ??
-                                        '弹框确认',
-                                  ),
+                                  child: Text(l10n.battleWarningConfirm),
                                 ),
                               ],
                               onChanged: (value) {
@@ -253,9 +296,7 @@ class SettingsPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              _buildSectionTitle(
-                AppLocalizations.of(context)?.networkSettings ?? '网络设置',
-              ),
+              _buildSectionTitle(l10n.networkSettings),
               _buildCard(
                 child: NetworkSettingsSection(
                   controller: networkSettingsController,
@@ -266,9 +307,7 @@ class SettingsPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              _buildSectionTitle(
-                AppLocalizations.of(context)?.gadgetBypass ?? '游戏客户端绕行',
-              ),
+              _buildSectionTitle(l10n.gadgetBypass),
               _buildCard(
                 child: GadgetBypassSection(
                   controller: gadgetBypassController,
@@ -276,21 +315,18 @@ class SettingsPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              _buildSectionTitle(
-                AppLocalizations.of(context)?.storageAndCache ?? '存储与缓存',
-              ),
+              _buildSectionTitle(l10n.storageAndCache),
               _buildCard(
                 child: Column(
                   children: [
                     ListTile(
                       title: Text(
-                        AppLocalizations.of(context)?.logoutAndClear ??
-                            '退出登录 / 清除账号信息',
+                        l10n.logoutAndClear,
+                        key: const Key('settings-logout-label'),
                         style: const TextStyle(fontSize: 15),
                       ),
                       subtitle: Text(
-                        AppLocalizations.of(context)?.logoutAndClearDesc ??
-                            '清除游戏登录状态，下次打开需要重新登录。',
+                        l10n.logoutAndClearDesc,
                         style: const TextStyle(color: Color(0xff8197a5)),
                       ),
                       trailing: const Icon(
@@ -300,12 +336,7 @@ class SettingsPage extends StatelessWidget {
                       onTap: () {
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                AppLocalizations.of(context)?.logoutSnackbar ??
-                                    '退出登录功能已准备就绪，当前为保护您的测试账号暂未执行清除。',
-                              ),
-                            ),
+                            SnackBar(content: Text(l10n.logoutSnackbar)),
                           );
                         }
                       },
@@ -313,13 +344,11 @@ class SettingsPage extends StatelessWidget {
                     const Divider(color: Color(0xff294052), height: 1),
                     ListTile(
                       title: Text(
-                        AppLocalizations.of(context)?.clearQuestCache ??
-                            '清理任务数据缓存',
+                        l10n.clearQuestCache,
                         style: const TextStyle(fontSize: 15),
                       ),
                       subtitle: Text(
-                        AppLocalizations.of(context)?.clearQuestCacheDesc ??
-                            '清除本地缓存的脱敏任务数据，重启应用后需进入游戏内任务面板重新获取',
+                        l10n.clearQuestCacheDesc,
                         style: const TextStyle(color: Color(0xff8197a5)),
                       ),
                       trailing: const Icon(
@@ -330,14 +359,7 @@ class SettingsPage extends StatelessWidget {
                         await gameStateController.clearQuestsCache();
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                AppLocalizations.of(
-                                      context,
-                                    )?.questCacheCleared ??
-                                    '已清除任务数据本地缓存',
-                              ),
-                            ),
+                            SnackBar(content: Text(l10n.questCacheCleared)),
                           );
                         }
                       },
@@ -345,13 +367,11 @@ class SettingsPage extends StatelessWidget {
                     const Divider(color: Color(0xff294052), height: 1),
                     ListTile(
                       title: Text(
-                        AppLocalizations.of(context)?.clearWebCache ??
-                            '清理游戏 Web 缓存',
+                        l10n.clearWebCache,
                         style: const TextStyle(fontSize: 15),
                       ),
                       subtitle: Text(
-                        AppLocalizations.of(context)?.clearWebCacheDesc ??
-                            '清除游戏加载的图片、音频等静态资源缓存。',
+                        l10n.clearWebCacheDesc,
                         style: const TextStyle(color: Color(0xff8197a5)),
                       ),
                       trailing: const Icon(
@@ -363,17 +383,11 @@ class SettingsPage extends StatelessWidget {
                           context: context,
                           builder: (context) => AlertDialog(
                             title: Text(
-                              AppLocalizations.of(
-                                    context,
-                                  )?.clearWebCacheConfirmTitle ??
-                                  '清理游戏 Web 缓存',
+                              l10n.clearWebCacheConfirmTitle,
                               style: const TextStyle(fontSize: 18),
                             ),
                             content: Text(
-                              AppLocalizations.of(
-                                    context,
-                                  )?.clearWebCacheConfirmDesc ??
-                                  '确定要清除游戏缓存吗？这将会删除已下载的图片、音频等静态资源，下次进入游戏或加载立绘时可能会消耗较多流量和时间。',
+                              l10n.clearWebCacheConfirmDesc,
                               style: const TextStyle(height: 1.5, fontSize: 14),
                             ),
                             backgroundColor: const Color(0xff142735),
@@ -385,7 +399,7 @@ class SettingsPage extends StatelessWidget {
                                 onPressed: () =>
                                     Navigator.of(context).pop(false),
                                 child: Text(
-                                  AppLocalizations.of(context)?.cancel ?? '取消',
+                                  l10n.cancel,
                                   style: const TextStyle(
                                     color: Color(0xff8197a5),
                                   ),
@@ -395,8 +409,7 @@ class SettingsPage extends StatelessWidget {
                                 onPressed: () =>
                                     Navigator.of(context).pop(true),
                                 child: Text(
-                                  AppLocalizations.of(context)?.confirmClear ??
-                                      '确定清除',
+                                  l10n.confirmClear,
                                   style: const TextStyle(
                                     color: Color(0xffd4a85f),
                                   ),
@@ -410,14 +423,7 @@ class SettingsPage extends StatelessWidget {
                           await browserController.clearCache();
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  AppLocalizations.of(
-                                        context,
-                                      )?.webCacheCleared ??
-                                      '已清理游戏 Web 缓存',
-                                ),
-                              ),
+                              SnackBar(content: Text(l10n.webCacheCleared)),
                             );
                           }
                         }
@@ -426,13 +432,11 @@ class SettingsPage extends StatelessWidget {
                     const Divider(color: Color(0xff294052), height: 1),
                     ListTile(
                       title: Text(
-                        AppLocalizations.of(context)?.clearLogbook ??
-                            '清理航海日志数据',
+                        l10n.clearLogbook,
                         style: const TextStyle(fontSize: 15),
                       ),
                       subtitle: Text(
-                        AppLocalizations.of(context)?.clearLogbookDesc ??
-                            '清除本地保存的所有历史战果、资源与远征记录。此操作不可逆。',
+                        l10n.clearLogbookDesc,
                         style: const TextStyle(color: Color(0xff8197a5)),
                       ),
                       trailing: const Icon(
@@ -444,17 +448,11 @@ class SettingsPage extends StatelessWidget {
                           context: context,
                           builder: (context) => AlertDialog(
                             title: Text(
-                              AppLocalizations.of(
-                                    context,
-                                  )?.clearLogbookConfirmTitle ??
-                                  '清理航海日志数据',
+                              l10n.clearLogbookConfirmTitle,
                               style: const TextStyle(fontSize: 18),
                             ),
                             content: Text(
-                              AppLocalizations.of(
-                                    context,
-                                  )?.clearLogbookConfirmDesc ??
-                                  '确定要清空所有航海日志数据吗？这将会删除您积攒的历史战果和资源统计记录。此操作无法撤销。',
+                              l10n.clearLogbookConfirmDesc,
                               style: const TextStyle(height: 1.5, fontSize: 14),
                             ),
                             backgroundColor: const Color(0xff142735),
@@ -466,7 +464,7 @@ class SettingsPage extends StatelessWidget {
                                 onPressed: () =>
                                     Navigator.of(context).pop(false),
                                 child: Text(
-                                  AppLocalizations.of(context)?.cancel ?? '取消',
+                                  l10n.cancel,
                                   style: const TextStyle(
                                     color: Color(0xff8197a5),
                                   ),
@@ -476,8 +474,7 @@ class SettingsPage extends StatelessWidget {
                                 onPressed: () =>
                                     Navigator.of(context).pop(true),
                                 child: Text(
-                                  AppLocalizations.of(context)?.confirmClear ??
-                                      '确定清除',
+                                  l10n.confirmClear,
                                   style: const TextStyle(
                                     color: Color(0xffd4a85f),
                                   ),
@@ -495,14 +492,7 @@ class SettingsPage extends StatelessWidget {
                           }
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  AppLocalizations.of(
-                                        context,
-                                      )?.logbookCleared ??
-                                      '已清除所有航海日志数据',
-                                ),
-                              ),
+                              SnackBar(content: Text(l10n.logbookCleared)),
                             );
                           }
                         }
@@ -511,19 +501,24 @@ class SettingsPage extends StatelessWidget {
                   ],
                 ),
               ),
+              if (fcdMapController case final controller?) ...[
+                const SizedBox(height: 24),
+                _buildSectionTitle(l10n.fcdMapSectionTitle),
+                _buildCard(child: FcdMapUpdateSection(controller: controller)),
+              ],
               const SizedBox(height: 24),
-              _buildSectionTitle(
-                AppLocalizations.of(context)?.aboutApp ?? '关于 ヤハギ',
-              ),
+              _buildSectionTitle(l10n.aboutApp),
               _buildCard(
                 child: ListTile(
                   title: Text(
-                    AppLocalizations.of(context)?.aboutApp ?? '关于 ヤハギ',
+                    l10n.aboutApp,
                     style: const TextStyle(fontSize: 15),
                   ),
                   subtitle: Text(
-                    AppLocalizations.of(context)?.aboutSubtitle ??
-                        '版本 学习版 1.0.1 · 免责声明 · 检查更新',
+                    (l10n.aboutSubtitle).replaceFirst(
+                      RegExp(r'\d+(?:\.\d+){1,2}'),
+                      currentVersion,
+                    ),
                     style: const TextStyle(color: Color(0xff8197a5)),
                   ),
                   trailing: const Icon(
@@ -533,18 +528,23 @@ class SettingsPage extends StatelessWidget {
                   onTap: () {
                     showDialog(
                       context: context,
-                      builder: (context) => const AboutDialogWidget(),
+                      builder: (context) => AboutDialogWidget(
+                        currentVersion: currentVersion,
+                        releaseChecker: releaseChecker,
+                      ),
                     );
                   },
                 ),
               ),
-              const SizedBox(height: 24),
-              DiagnosticsSection(
-                browserController: browserController,
-                captureModeController: captureModeController,
-                gameCaptureController: gameCaptureController,
-                prototypeStatusController: prototypeStatusController,
-              ),
+              if (showDeveloperDiagnostics) ...[
+                const SizedBox(height: 24),
+                DiagnosticsSection(
+                  browserController: browserController,
+                  captureModeController: captureModeController,
+                  gameCaptureController: gameCaptureController,
+                  prototypeStatusController: prototypeStatusController,
+                ),
+              ],
               const SizedBox(height: 40),
             ],
           ),
@@ -572,25 +572,54 @@ class SettingsPage extends StatelessWidget {
       color: const Color(0xff142735),
       borderRadius: BorderRadius.circular(12),
       clipBehavior: Clip.antiAlias,
-      child: child,
+      child: ListTileTheme(
+        data: const ListTileThemeData(
+          contentPadding: EdgeInsets.symmetric(horizontal: 16),
+          minLeadingWidth: 0,
+        ),
+        child: child,
+      ),
     );
   }
 
   Widget _buildSwitchTile({
     required String title,
+    Key? titleKey,
     String? subtitle,
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
-    return SwitchListTile(
-      title: Text(title, style: const TextStyle(fontSize: 15)),
-      subtitle: subtitle != null
-          ? Text(subtitle, style: const TextStyle(color: Color(0xff8197a5)))
-          : null,
-      value: value,
-      onChanged: onChanged,
-      activeThumbColor: const Color(0xffd4a85f),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  title,
+                  key: titleKey,
+                  style: const TextStyle(fontSize: 15),
+                ),
+                if (subtitle != null) ...<Widget>[
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(color: Color(0xff8197a5)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: const Color(0xffd4a85f),
+          ),
+        ],
+      ),
     );
   }
 

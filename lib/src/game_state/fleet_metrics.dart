@@ -93,8 +93,8 @@ class FleetMetrics {
       }
       formula33Ship += math.sqrt(math.max(0, shipPureLineOfSight));
 
-      final speed = state.masterForShip(ship)?.speed;
-      if (speed != null && speed > 0) {
+      final speed = ship.effectiveSpeed(state.masterForShip(ship));
+      if (speed > 0) {
         slowestSpeed = slowestSpeed == null
             ? speed
             : math.min(slowestSpeed, speed);

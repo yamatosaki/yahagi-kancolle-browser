@@ -199,7 +199,12 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
               child: _infoRow(
                 s.fuelCost,
                 mission == null ? '--' : '${mission.fuelConsumptionPercent}%',
-                icon: Image.asset('assets/images/material/01.png', width: 17, height: 17, filterQuality: FilterQuality.medium),
+                icon: Image.asset(
+                  'assets/images/material/01.png',
+                  width: 17,
+                  height: 17,
+                  filterQuality: FilterQuality.medium,
+                ),
               ),
             ),
             const SizedBox(width: 6),
@@ -209,7 +214,12 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
                 mission == null
                     ? '--'
                     : '${mission.ammunitionConsumptionPercent}%',
-                icon: Image.asset('assets/images/material/02.png', width: 17, height: 17, filterQuality: FilterQuality.medium),
+                icon: Image.asset(
+                  'assets/images/material/02.png',
+                  width: 17,
+                  height: 17,
+                  filterQuality: FilterQuality.medium,
+                ),
               ),
             ),
           ],
@@ -274,10 +284,7 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
     ),
     child: Row(
       children: [
-        if (icon != null) ...[
-          icon,
-          const SizedBox(width: 6),
-        ],
+        if (icon != null) ...[icon, const SizedBox(width: 6)],
         Text(label, style: const TextStyle(color: Color(0xff8fa8b6))),
         const Spacer(),
         Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
@@ -308,7 +315,7 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = (constraints.maxWidth - 6) / 2;
-        
+
         Widget buildTile(Widget iconOrText, int value) => SizedBox(
           width: width,
           child: Container(
@@ -347,37 +354,75 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
           String assetId;
           String? label;
           switch (item.id) {
-            case 1: assetId = '06'; break; // Bucket
-            case 2: assetId = '05'; break; // Flamethrower
-            case 3: assetId = '07'; break; // Dev mat
-            case 4: assetId = '08'; break; // Screw
-            case 10: assetId = '10'; label = '家具箱(小)'; break;
-            case 11: assetId = '11'; label = '家具箱(中)'; break;
-            case 12: assetId = '12'; label = '家具箱(大)'; break;
-            case 59: assetId = '59'; label = '礼物箱'; break;
-            default: assetId = 'unknown'; label = '道具 ${item.id}'; break;
+            case 1:
+              assetId = '06';
+              break; // Bucket
+            case 2:
+              assetId = '05';
+              break; // Flamethrower
+            case 3:
+              assetId = '07';
+              break; // Dev mat
+            case 4:
+              assetId = '08';
+              break; // Screw
+            case 10:
+              assetId = '10';
+              label = '家具箱(小)';
+              break;
+            case 11:
+              assetId = '11';
+              label = '家具箱(中)';
+              break;
+            case 12:
+              assetId = '12';
+              label = '家具箱(大)';
+              break;
+            case 59:
+              assetId = '59';
+              label = '礼物箱';
+              break;
+            default:
+              assetId = 'unknown';
+              label = '道具 ${item.id}';
+              break;
           }
 
-          final iconOrText = ['05', '06', '07', '08', '10', '11', '12'].contains(assetId)
+          final iconOrText =
+              ['05', '06', '07', '08', '10', '11', '12'].contains(assetId)
               ? Image.asset(
                   'assets/images/material/$assetId.png',
                   width: 17,
                   height: 17,
                   filterQuality: FilterQuality.medium,
                 )
-              : Text(label ?? '道具', style: const TextStyle(color: Color(0xffa8bbc5), fontSize: 12));
+              : Text(
+                  label ?? '道具',
+                  style: const TextStyle(
+                    color: Color(0xffa8bbc5),
+                    fontSize: 12,
+                  ),
+                );
 
-          String kindText = item.kind == ExpeditionRewardKind.greatSuccess ? '(大成功获得)' : '(有几率获得)';
+          String kindText = item.kind == ExpeditionRewardKind.greatSuccess
+              ? '(大成功获得)'
+              : '(有几率获得)';
           return buildTile(
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 iconOrText,
                 const SizedBox(width: 4),
-                Text(kindText, style: const TextStyle(color: Color(0xff7792a3), fontSize: 11)),
-              ]
+                Text(
+                  kindText,
+                  style: const TextStyle(
+                    color: Color(0xff7792a3),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ),
-            item.count
+            item.count,
           );
         }
 
@@ -389,8 +434,7 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
             buildResource(2, income.values[1]),
             buildResource(3, income.values[2]),
             buildResource(4, income.values[3]),
-            for (final item in income.items)
-              buildItem(item),
+            for (final item in income.items) buildItem(item),
           ],
         );
       },

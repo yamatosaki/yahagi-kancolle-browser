@@ -36,6 +36,7 @@ final class GameBrowserController extends ChangeNotifier {
   GamePageLoadState _loadState = GamePageLoadState.idle;
   String _displayAddress = GameLaunchConfig.dmmGameEntry.toString();
   String? _errorMessage;
+  Future<void>? _reloadInFlight;
 
   GameBrowserMode get mode => _mode;
   GamePageLoadState get loadState => _loadState;
@@ -62,9 +63,21 @@ final class GameBrowserController extends ChangeNotifier {
   }
 
   Future<void> reload() async {
+    final inFlight = _reloadInFlight;
+    if (inFlight != null) {
+      return inFlight;
+    }
     final port = _readyPort();
     if (port != null) {
-      await port.reload();
+      final pending = port.reload();
+      _reloadInFlight = pending;
+      try {
+        await pending;
+      } finally {
+        if (identical(_reloadInFlight, pending)) {
+          _reloadInFlight = null;
+        }
+      }
     }
   }
 

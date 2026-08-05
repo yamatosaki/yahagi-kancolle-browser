@@ -545,20 +545,27 @@ class _WaitingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.assignment_outlined, color: Color(0xffd4a85f), size: 42),
-          SizedBox(height: 14),
-          Text(
-            '等待任务数据',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          const Icon(
+            Icons.assignment_outlined,
+            color: Color(0xffd4a85f),
+            size: 42,
           ),
-          SizedBox(height: 7),
+          const SizedBox(height: 14),
           Text(
-            '打开游戏任务列表后，这里会自动同步当前已接受任务',
-            style: TextStyle(color: Color(0xff8197a5)),
+            l10n.waitingQuestData,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            l10n.waitingQuestDataDesc,
+            style: const TextStyle(color: Color(0xff8197a5)),
           ),
         ],
       ),

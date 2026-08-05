@@ -1,9 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:http/http.dart' as http;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import 'src/battle/battle_controller.dart';
+import 'src/battle/fcd_map_controller.dart';
+import 'src/battle/fcd_map_store.dart';
+import 'src/battle/fcd_map_update_service.dart';
 import 'src/logbook/logbook_page.dart';
 import 'src/battle/live_battle_card.dart';
 import 'src/audio/game_audio_controller.dart';
@@ -14,6 +21,8 @@ import 'src/browser/gadget_bypass_store.dart';
 import 'src/browser/game_browser_overlay.dart';
 import 'src/browser/game_browser_toolbar.dart';
 import 'src/browser/game_toolbar_controller.dart';
+import 'src/browser/game_toolbar_display_controller.dart';
+import 'src/browser/game_screenshot_controller.dart';
 import 'src/capture/battle_result_warning_overlay.dart';
 import 'src/capture/capture_mode_controller.dart';
 import 'src/capture/capture_mode_store.dart';
@@ -47,6 +56,9 @@ import 'src/settings/orientation_policy.dart';
 import 'src/settings/safety_settings_controller.dart';
 import 'src/settings/safety_settings_store.dart';
 import 'src/settings/settings_page.dart';
+import 'src/settings/release_check_service.dart';
+import 'src/settings/startup_update_notice.dart';
+import 'src/settings/screen_awake_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,6 +66,9 @@ Future<void> main() async {
 
   final layoutSettingsController = await LayoutSettingsController.load(
     SharedPreferencesLayoutSettingsStore(),
+    systemLocaleCode: _localeStorageCode(
+      WidgetsBinding.instance.platformDispatcher.locale,
+    ),
   );
   final networkSettingsController = NetworkSettingsController(
     store: SharedPreferencesNetworkSettingsStore(),
@@ -83,21 +98,62 @@ Future<void> main() async {
     SharedPreferencesGameAudioStore(),
   );
   final toolbarController = GameToolbarController();
+  final toolbarDisplayController = await GameToolbarDisplayController.load(
+    SharedPreferencesGameToolbarDisplayStore(),
+  );
+  final gameScreenshotController = GameScreenshotController(
+    const MethodChannelGameScreenshotPort(),
+  );
   final questStore = SharedPreferencesQuestStore();
   final gameStateStore = GameStateStore();
   final gameStateController = GameStateController(
     questStore: questStore,
     gameStateStore: gameStateStore,
   );
+  final currentVersion = (await PackageInfo.fromPlatform()).version;
+  FcdMapStorage fcdMapStorage;
+  try {
+    fcdMapStorage = await ApplicationFcdMapStorage.create();
+  } catch (error) {
+    debugPrint('FCD 数据目录不可用，改用内置数据: $error');
+    fcdMapStorage = const BundledOnlyFcdMapStorage();
+  }
+  final fcdMapStore = FcdMapStore(fcdMapStorage);
+  final loadedFcdMap = await fcdMapStore.loadBestAvailable();
+  if (loadedFcdMap.diagnosticError case final error?) {
+    debugPrint('FCD 本地数据降级: $error');
+  }
+  final loadedFcdMapState = await fcdMapStore.loadState();
+  final fcdMapState =
+      loadedFcdMapState?.version == loadedFcdMap.dataset.version.toString()
+      ? loadedFcdMapState
+      : null;
+  final fcdMapController = FcdMapController(
+    dataset: loadedFcdMap.dataset,
+    updater: FcdMapUpdateService(
+      client: http.Client(),
+      store: fcdMapStore,
+      appVersion: currentVersion,
+    ),
+    lastCheckedAt: fcdMapState?.lastCheckedAt,
+    sourceHost: fcdMapState?.source ?? '',
+  );
   final battleController = BattleController(
     gameState: () => gameStateController.state,
+    nodeLabelResolver: fcdMapController,
   );
+  fcdMapController.addListener(battleController.refreshNodeLabel);
   final gameCaptureController = GameCaptureController(
     onAcceptedEvent: (event) {
       gameStateController.accept(event);
       battleController.accept(event);
     },
   );
+  final releaseChecker = GitHubReleaseChecker();
+  final screenAwakeController = await ScreenAwakeController.load(
+    SharedPreferencesScreenAwakeStore(),
+  );
+  await screenAwakeController.attachPort(const MethodChannelScreenAwakePort());
   runApp(
     YahagiApp(
       layoutSettingsController: layoutSettingsController,
@@ -110,11 +166,20 @@ Future<void> main() async {
       captureModeController: captureModeController,
       audioController: audioController,
       toolbarController: toolbarController,
+      toolbarDisplayController: toolbarDisplayController,
+      gameScreenshotController: gameScreenshotController,
       gameCaptureController: gameCaptureController,
       gameStateController: gameStateController,
       battleController: battleController,
+      fcdMapController: fcdMapController,
+      currentVersion: currentVersion,
+      releaseChecker: releaseChecker,
+      screenAwakeController: screenAwakeController,
     ),
   );
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(fcdMapController.checkForUpdates());
+  });
 }
 
 class YahagiApp extends StatelessWidget {
@@ -133,7 +198,14 @@ class YahagiApp extends StatelessWidget {
     required this.gameCaptureController,
     required this.gameStateController,
     required this.battleController,
+    this.fcdMapController,
     this.gameSurface,
+    this.currentVersion = '1.0.2',
+    this.releaseChecker,
+    this.screenAwakeController,
+    this.toolbarDisplayController,
+    this.gameScreenshotController,
+    this.showDeveloperDiagnostics = false,
   });
 
   final LayoutSettingsController layoutSettingsController;
@@ -149,12 +221,22 @@ class YahagiApp extends StatelessWidget {
   final GameCaptureController gameCaptureController;
   final GameStateController gameStateController;
   final BattleController battleController;
+  final FcdMapController? fcdMapController;
   final Widget? gameSurface;
+  final String currentVersion;
+  final ReleaseChecker? releaseChecker;
+  final ScreenAwakeController? screenAwakeController;
+  final GameToolbarDisplayController? toolbarDisplayController;
+  final GameScreenshotController? gameScreenshotController;
+  final bool showDeveloperDiagnostics;
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: layoutSettingsController,
+      animation: Listenable.merge(<Listenable>[
+        layoutSettingsController,
+        ?toolbarDisplayController,
+      ]),
       builder: (context, _) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
@@ -177,6 +259,7 @@ class YahagiApp extends StatelessWidget {
           theme: ThemeData(
             brightness: Brightness.dark,
             fontFamily: layoutSettingsController.fontFamily,
+            fontFamilyFallback: layoutSettingsController.fontFamilyFallback,
             colorScheme: ColorScheme.fromSeed(
               seedColor: const Color(0xffd4a85f),
               brightness: Brightness.dark,
@@ -184,43 +267,63 @@ class YahagiApp extends StatelessWidget {
             scaffoldBackgroundColor: const Color(0xff0a1823),
             useMaterial3: true,
           ),
-          home: YahagiShell(
-            layoutSettingsController: layoutSettingsController,
-            networkSettingsController: networkSettingsController,
-            gadgetBypassController: gadgetBypassController,
-            safetySettingsController: safetySettingsController,
-            displayModeController: displayModeController,
-            controller: controller,
-            browserController: browserController,
-            captureModeController: captureModeController,
-            audioController: audioController,
-            toolbarController: toolbarController,
-            gameCaptureController: gameCaptureController,
-            gameStateController: gameStateController,
-            battleController: battleController,
-            gameSurface: BattleResultWarningOverlay(
-              gameCaptureController: gameCaptureController,
-              battleController: battleController,
+          home: StartupUpdateNotice(
+            checker: releaseChecker ?? GitHubReleaseChecker(),
+            currentVersion: currentVersion,
+            enabled: releaseChecker != null,
+            child: YahagiShell(
+              layoutSettingsController: layoutSettingsController,
+              networkSettingsController: networkSettingsController,
+              gadgetBypassController: gadgetBypassController,
               safetySettingsController: safetySettingsController,
-              child:
-                  gameSurface ??
-                  GameWebView(
-                    key: const GlobalObjectKey('yahagi_game_webview'),
-                    networkSettingsController: networkSettingsController,
-                    safetySettingsController: safetySettingsController,
-                    controller: controller,
-                    browserController: browserController,
-                    captureModeController: captureModeController,
-                    audioController: audioController,
-                    toolbarController: toolbarController,
-                    gameCaptureController: gameCaptureController,
-                  ),
+              displayModeController: displayModeController,
+              controller: controller,
+              browserController: browserController,
+              captureModeController: captureModeController,
+              audioController: audioController,
+              toolbarController: toolbarController,
+              gameCaptureController: gameCaptureController,
+              gameStateController: gameStateController,
+              battleController: battleController,
+              fcdMapController: fcdMapController,
+              currentVersion: currentVersion,
+              releaseChecker: releaseChecker,
+              screenAwakeController: screenAwakeController,
+              toolbarDisplayController: toolbarDisplayController,
+              gameScreenshotController: gameScreenshotController,
+              showDeveloperDiagnostics: showDeveloperDiagnostics,
+              gameSurface: BattleResultWarningOverlay(
+                gameCaptureController: gameCaptureController,
+                battleController: battleController,
+                safetySettingsController: safetySettingsController,
+                child:
+                    gameSurface ??
+                    GameWebView(
+                      key: const GlobalObjectKey('yahagi_game_webview'),
+                      networkSettingsController: networkSettingsController,
+                      safetySettingsController: safetySettingsController,
+                      controller: controller,
+                      browserController: browserController,
+                      captureModeController: captureModeController,
+                      audioController: audioController,
+                      toolbarController: toolbarController,
+                      gameCaptureController: gameCaptureController,
+                    ),
+              ),
             ),
           ),
         );
       },
     );
   }
+}
+
+String _localeStorageCode(Locale locale) {
+  if (locale.languageCode == 'ja') return 'ja';
+  if (locale.languageCode == 'zh' && locale.scriptCode == 'Hant') {
+    return 'zh_Hant';
+  }
+  return 'zh';
 }
 
 class YahagiShell extends StatefulWidget {
@@ -240,6 +343,13 @@ class YahagiShell extends StatefulWidget {
     required this.gameCaptureController,
     required this.gameStateController,
     required this.battleController,
+    required this.currentVersion,
+    this.releaseChecker,
+    this.screenAwakeController,
+    this.toolbarDisplayController,
+    this.gameScreenshotController,
+    this.fcdMapController,
+    this.showDeveloperDiagnostics = false,
   });
 
   final LayoutSettingsController layoutSettingsController;
@@ -256,6 +366,13 @@ class YahagiShell extends StatefulWidget {
   final GameCaptureController gameCaptureController;
   final GameStateController gameStateController;
   final BattleController battleController;
+  final FcdMapController? fcdMapController;
+  final String currentVersion;
+  final ReleaseChecker? releaseChecker;
+  final ScreenAwakeController? screenAwakeController;
+  final GameToolbarDisplayController? toolbarDisplayController;
+  final GameScreenshotController? gameScreenshotController;
+  final bool showDeveloperDiagnostics;
 
   @override
   State<YahagiShell> createState() => _YahagiShellState();
@@ -271,14 +388,24 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     widget.displayModeController.addListener(_applyOrientationPolicy);
+    widget.layoutSettingsController.addListener(_onLayoutSettingsChanged);
     _applyOrientationPolicy();
   }
 
   @override
   void dispose() {
     widget.displayModeController.removeListener(_applyOrientationPolicy);
+    widget.layoutSettingsController.removeListener(_onLayoutSettingsChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _onLayoutSettingsChanged() {
+    widget.browserController
+        .runJavaScript(
+          'if(window.__yahagiMobileAlignGame) window.__yahagiMobileAlignGame();',
+        )
+        .catchError((Object _) {});
   }
 
   @override
@@ -289,6 +416,12 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
           'if(window.__yahagiMobileAlignGame) window.__yahagiMobileAlignGame();',
         )
         .catchError((Object _) {});
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    widget.audioController.handleLifecycleState(state);
+    widget.screenAwakeController?.handleLifecycleState(state);
   }
 
   void _applyOrientationPolicy() {
@@ -371,50 +504,133 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                   constraints.maxHeight,
                                 ),
                               );
-                              final gameWidget = GameBrowserOverlay(
-                                controller: widget.toolbarController,
-                                gameSurface: isLandscape
-                                    ? ColoredBox(
-                                        color: const Color(0xff0a1823),
-                                        child: Center(
-                                          child: AspectRatio(
-                                            aspectRatio: 1200 / 720,
-                                            child: widget.gameSurface,
-                                          ),
+                              final gameAreaRatio =
+                                  widget.layoutSettingsController.autoZoom
+                                  ? 0.65
+                                  : widget
+                                        .layoutSettingsController
+                                        .gameAreaRatio
+                                        .clamp(0.5, 0.75);
+                              final gameFlex = (gameAreaRatio * 1000).round();
+                              final informationFlex = 1000 - gameFlex;
+                              final persistentToolbar =
+                                  widget.toolbarDisplayController?.mode ==
+                                  GameToolbarDisplayMode.persistent;
+                              final gameSurface = isLandscape
+                                  ? ColoredBox(
+                                      color: const Color(0xff0a1823),
+                                      child: Center(
+                                        child: AspectRatio(
+                                          aspectRatio: 1200 / 720,
+                                          child: widget.gameSurface,
                                         ),
-                                      )
-                                    : widget.gameSurface,
-                                toolbar: AnimatedBuilder(
-                                  animation: Listenable.merge([
-                                    widget.browserController,
-                                    widget.audioController,
-                                  ]),
-                                  builder: (context, _) => GameBrowserToolbar(
-                                    mode: widget.browserController.mode,
-                                    loadState:
-                                        widget.browserController.loadState,
-                                    displayAddress:
-                                        widget.browserController.displayAddress,
-                                    onBack: widget.browserController.goBack,
-                                    onReload: widget.browserController.reload,
-                                    onHome: widget.browserController.goHome,
-                                    onEnterDmm: widget
-                                        .browserController
-                                        .enterDmmLoginTest,
-                                    isMuted: widget.audioController.isMuted,
-                                    audioEnabled:
-                                        widget.audioController.canToggle,
-                                    onToggleMuted:
-                                        widget.audioController.toggleMuted,
-                                    onCollapse:
-                                        widget.toolbarController.collapse,
-                                    onFitScreen: () =>
-                                        widget.browserController.runJavaScript(
-                                          'if(window.__yahagiMobileAlignGame) window.__yahagiMobileAlignGame();',
-                                        ),
-                                  ),
+                                      ),
+                                    )
+                                  : widget.gameSurface;
+                              Widget buildToolbar(
+                                bool persistent,
+                              ) => AnimatedBuilder(
+                                animation: Listenable.merge([
+                                  widget.browserController,
+                                  widget.audioController,
+                                ]),
+                                builder: (context, _) => GameBrowserToolbar(
+                                  mode: widget.browserController.mode,
+                                  loadState: widget.browserController.loadState,
+                                  displayAddress:
+                                      widget.browserController.displayAddress,
+                                  onBack: widget.browserController.goBack,
+                                  onReload: widget.browserController.reload,
+                                  onHome: widget.browserController.goHome,
+                                  onEnterDmm: widget
+                                      .browserController
+                                      .enterDmmLoginTest,
+                                  isMuted: widget.audioController.isMuted,
+                                  audioEnabled:
+                                      widget.audioController.canToggle,
+                                  onToggleMuted:
+                                      widget.audioController.toggleMuted,
+                                  onCollapse: widget.toolbarController.collapse,
+                                  onFitScreen: () =>
+                                      widget.browserController.runJavaScript(
+                                        'if(window.__yahagiMobileAlignGame) window.__yahagiMobileAlignGame();',
+                                      ),
+                                  onScreenshot:
+                                      widget.gameScreenshotController == null
+                                      ? null
+                                      : () async {
+                                          final l10n = AppLocalizations.of(
+                                            context,
+                                          )!;
+                                          final messenger =
+                                              ScaffoldMessenger.of(context);
+                                          messenger
+                                            ..hideCurrentSnackBar()
+                                            ..showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  l10n.screenshotSaving,
+                                                ),
+                                              ),
+                                            );
+                                          await WidgetsBinding
+                                              .instance
+                                              .endOfFrame;
+                                          if (!context.mounted) return;
+                                          final result = await widget
+                                              .gameScreenshotController!
+                                              .capture();
+                                          if (!context.mounted) return;
+                                          final message = result.path != null
+                                              ? l10n.screenshotSaved(
+                                                  result.path!,
+                                                )
+                                              : result.errorMessage == null
+                                              ? l10n.screenshotFailed
+                                              : '${l10n.screenshotFailed}\n'
+                                                    '${result.errorMessage}';
+                                          messenger
+                                            ..hideCurrentSnackBar()
+                                            ..showSnackBar(
+                                              SnackBar(content: Text(message)),
+                                            );
+                                        },
+                                  persistent: persistent,
                                 ),
                               );
+                              final gameWidget = persistentToolbar
+                                  ? Column(
+                                      key: const Key(
+                                        'persistent-game-toolbar-layout',
+                                      ),
+                                      children: <Widget>[
+                                        SizedBox(
+                                          height: 42,
+                                          child: buildToolbar(true),
+                                        ),
+                                        if (isLandscape)
+                                          Expanded(child: gameSurface)
+                                        else
+                                          AspectRatio(
+                                            aspectRatio: 1200 / 720,
+                                            child: gameSurface,
+                                          ),
+                                      ],
+                                    )
+                                  : isLandscape
+                                  ? GameBrowserOverlay(
+                                      controller: widget.toolbarController,
+                                      gameSurface: gameSurface,
+                                      toolbar: buildToolbar(false),
+                                    )
+                                  : AspectRatio(
+                                      aspectRatio: 1200 / 720,
+                                      child: GameBrowserOverlay(
+                                        controller: widget.toolbarController,
+                                        gameSurface: gameSurface,
+                                        toolbar: buildToolbar(false),
+                                      ),
+                                    );
 
                               final infoWidget = _InformationPanel(
                                 layoutSettingsController:
@@ -457,7 +673,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                   ? Row(
                                       children: [
                                         Expanded(
-                                          flex: 65,
+                                          flex: gameFlex,
                                           child: DecoratedBox(
                                             decoration: const BoxDecoration(
                                               boxShadow: [
@@ -477,7 +693,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                           color: Color(0xff294052),
                                         ),
                                         Expanded(
-                                          flex: 35,
+                                          flex: informationFlex,
                                           child: Padding(
                                             padding: const EdgeInsets.only(
                                               left: 4,
@@ -499,10 +715,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                               ),
                                             ],
                                           ),
-                                          child: AspectRatio(
-                                            aspectRatio: 1200 / 720,
-                                            child: gameWidget,
-                                          ),
+                                          child: gameWidget,
                                         ),
                                         const Divider(
                                           height: 1,
@@ -575,7 +788,15 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                             safetySettingsController:
                                 widget.safetySettingsController,
                             displayModeController: widget.displayModeController,
+                            currentVersion: widget.currentVersion,
+                            releaseChecker: widget.releaseChecker,
+                            screenAwakeController: widget.screenAwakeController,
+                            toolbarDisplayController:
+                                widget.toolbarDisplayController,
+                            fcdMapController: widget.fcdMapController,
                             showTitle: false,
+                            showDeveloperDiagnostics:
+                                widget.showDeveloperDiagnostics,
                           ),
                         if (_workspaceIndex == 8)
                           ExpeditionCheckPage(
@@ -855,6 +1076,7 @@ class _InformationPanelState extends State<_InformationPanel> {
                 controller: widget.gameStateController,
                 collapsed: isCollapsed,
                 onToggleCollapse: toggle,
+                onOpenFleet: widget.onOpenFleet,
               ),
               _ => const SizedBox.shrink(),
             };
@@ -926,7 +1148,7 @@ class _InformationPanelState extends State<_InformationPanel> {
                         alignment: Alignment.centerRight,
                         child: IconButton(
                           key: const Key('dashboard-edit-done'),
-                          tooltip: '完成编辑',
+                          tooltip: AppLocalizations.of(context)?.editDone,
                           onPressed: () => setState(() => _isEditing = false),
                           icon: const Icon(Icons.check_rounded),
                           color: const Color(0xffd4a85f),
@@ -957,11 +1179,15 @@ class _InformationPanelState extends State<_InformationPanel> {
                           key: const ValueKey('error_card'),
                           padding: const EdgeInsets.only(bottom: 6),
                           child: _InfoCard(
-                            title: '游戏状态异常',
+                            title: AppLocalizations.of(
+                              context,
+                            )!.gameStatusError,
                             subtitle:
                                 widget.gameCaptureController.errorMessage ??
                                 widget.browserController.errorMessage ??
-                                '网页或捕获状态异常，请在设置中查看诊断信息。',
+                                AppLocalizations.of(
+                                  context,
+                                )!.gameStatusErrorDesc,
                             warning: true,
                           ),
                         ),

@@ -213,8 +213,6 @@ class _BattleStatsTab extends StatelessWidget {
   }
 }
 
-
-
 class _ExpeditionStatsTab extends StatelessWidget {
   const _ExpeditionStatsTab();
 

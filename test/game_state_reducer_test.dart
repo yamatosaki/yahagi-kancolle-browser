@@ -45,6 +45,7 @@ void main() {
       expect(state.ships[9001]?.armor, 46);
       expect(state.ships[9001]?.evasion, 80);
       expect(state.ships[9001]?.luck, 41);
+      expect(state.ships[9001]?.speed, 15);
       expect(state.repairDocks.first.fuelCost, 24);
       expect(state.repairDocks.first.steelCost, 46);
       expect(state.constructionDocks, hasLength(4));
@@ -52,6 +53,7 @@ void main() {
       expect(state.constructionDocks[2].isLargeConstruction, isTrue);
       expect(state.constructionDocks[3].isLocked, isTrue);
       expect(state.serverOrigin, 'https://w01y.kancolle-server.com');
+      expect(state.ships[9001]?.range, 4);
     });
 
     test('material update changes only resources', () {
@@ -87,6 +89,7 @@ void main() {
           kcsapiEvent(
             '/kcsapi/api_req_hensei/change',
             null,
+            includeApiData: false,
             requestParams: const <String, Object?>{
               'api_id': '1',
               'api_ship_idx': '1',
@@ -130,6 +133,7 @@ void main() {
           kcsapiEvent(
             '/kcsapi/api_req_hensei/change',
             null,
+            includeApiData: false,
             requestParams: const <String, Object?>{
               'api_id': '1',
               'api_ship_idx': '0',
@@ -142,6 +146,26 @@ void main() {
         expect(state.fleets[1].shipIds, <int>[9001]);
       },
     );
+
+    test('formation preset replaces its fleet immediately', () {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(
+        reducer.reduce(GameState.empty, start2Event),
+        portEvent,
+      );
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent('/kcsapi/api_req_hensei/preset_select', <String, Object?>{
+          'api_id': 1,
+          'api_name': '第一舰队',
+          'api_ship': <int>[9002, -1, -1, -1, -1, -1],
+          'api_mission': <int>[0, 0, 0, 0],
+        }),
+      );
+
+      expect(state.fleets.first.shipIds, <int>[9002]);
+    });
 
     test(
       'incremental member endpoints replace only their owned collection',

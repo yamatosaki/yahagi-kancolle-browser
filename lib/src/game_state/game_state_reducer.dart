@@ -27,6 +27,7 @@ class GameStateReducer {
     '/kcsapi/api_req_kousyou/getship',
     '/kcsapi/api_req_hensei/change',
     '/kcsapi/api_req_hensei/combined',
+    '/kcsapi/api_req_hensei/preset_select',
     '/kcsapi/api_req_nyukyo/start',
     '/kcsapi/api_req_nyukyo/speedchange',
     '/kcsapi/api_req_quest/clearitemget',
@@ -44,7 +45,12 @@ class GameStateReducer {
       return state;
     }
 
-    final data = GameApiDecoder.decodeData(event.responseBody);
+    final data = GameApiDecoder.decodeData(
+      event.responseBody,
+      // The formation change response only contains api_result and
+      // api_result_msg. Its state transition is driven by request parameters.
+      allowMissingData: event.path == '/kcsapi/api_req_hensei/change',
+    );
     final origin = event.sourceOrigin.isEmpty
         ? state.serverOrigin
         : event.sourceOrigin;
@@ -147,6 +153,12 @@ class GameStateReducer {
         ),
         serverOrigin: origin,
         updatedAt: event.capturedAt,
+      ),
+      '/kcsapi/api_req_hensei/preset_select' => _formationPresetSelect(
+        state,
+        _requiredMap(data, 'formation preset'),
+        event,
+        origin,
       ),
       '/kcsapi/api_req_nyukyo/speedchange' => _repairSpeedChange(
         state,
@@ -595,6 +607,32 @@ class GameStateReducer {
     );
   }
 
+  GameState _formationPresetSelect(
+    GameState state,
+    Map<String, Object?> data,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final parsed = _parseFleets(<Object?>[data]);
+    if (parsed.isEmpty) {
+      return state;
+    }
+    final replacement = parsed.single;
+    final fleets = <Fleet>[
+      for (final fleet in state.fleets)
+        if (fleet.id == replacement.id) replacement else fleet,
+    ];
+    if (!fleets.any((fleet) => fleet.id == replacement.id)) {
+      fleets.add(replacement);
+      fleets.sort((a, b) => a.id.compareTo(b.id));
+    }
+    return state.copyWith(
+      fleets: fleets,
+      serverOrigin: origin,
+      updatedAt: event.capturedAt,
+    );
+  }
+
   Fleet _setFleetShip(Fleet fleet, int position, int shipId) {
     final slots = List<int>.generate(
       fleet.slotCount,
@@ -872,6 +910,8 @@ class GameStateReducer {
       armor: ship.armor,
       evasion: ship.evasion,
       luck: ship.luck,
+      speed: ship.speed,
+      range: ship.range,
       slotIds: ship.slotIds,
       onSlot: onSlot ?? ship.onSlot,
       extraSlotId: ship.extraSlotId,
@@ -976,6 +1016,8 @@ class GameStateReducer {
         armor: _currentStat(item['api_soukou']),
         evasion: _currentStat(item['api_kaihi']),
         luck: _currentStat(item['api_lucky']),
+        speed: _asInt(item['api_soku']),
+        range: _asInt(item['api_leng']),
         slotIds: _intList(item['api_slot']),
         onSlot: _intList(item['api_onslot'], includeNonPositive: true),
         extraSlotId: _asInt(item['api_slot_ex'], -1),

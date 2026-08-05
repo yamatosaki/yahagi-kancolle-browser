@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/expedition/expedition_check_card.dart';
+import 'package:yahagi_kancolle_browser/src/fleet/dashboard_card.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_store.dart';
@@ -9,6 +10,27 @@ import 'package:yahagi_kancolle_browser/src/game_state/game_state_reducer.dart';
 import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
+  testWidgets('远征检查默认状态不绘制独有边框', (tester) async {
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ExpeditionCheckCard(
+          controller: controller,
+          collapsed: false,
+          onToggleCollapse: () {},
+          onOpenDetails: () {},
+        ),
+      ),
+    );
+
+    expect(
+      tester.widget<DashboardCard>(find.byType(DashboardCard)).borderColor,
+      isNull,
+    );
+  });
+
   testWidgets('首页卡片具有折叠箭头、模式切换和独立详情页按钮', (tester) async {
     final controller = GameStateController();
     addTearDown(controller.dispose);
@@ -143,6 +165,18 @@ void main() {
       expect(text.style?.fontSize, 10);
       expect(text.style?.fontWeight, FontWeight.w700);
     }
+    final missionTexts = tester.widgetList<Text>(
+      find.byKey(const Key('expedition-mission-name')),
+    );
+    expect(missionTexts, isNotEmpty);
+    expect(missionTexts.every((text) => text.style?.fontSize == 12), isTrue);
+    expect(
+      tester
+          .widget<Text>(find.byKey(const Key('expedition-status-text')))
+          .style
+          ?.fontSize,
+      12,
+    );
     await tester.tap(find.text('大成功'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('详细'));
@@ -200,6 +234,51 @@ void main() {
     final nameText = tester.widget<Text>(find.text('第十一驱逐舰队'));
     expect(nameText.maxLines, 1);
     expect(nameText.softWrap, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('窄卡片的远征名称与常规检查统一使用紧凑自适应字号', (tester) async {
+    tester.view.physicalSize = const Size(320, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            child: ExpeditionCheckCard(
+              controller: controller,
+              collapsed: false,
+              onToggleCollapse: () {},
+              onOpenDetails: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final missionTexts = tester.widgetList<Text>(
+      find.byKey(const Key('expedition-mission-name')),
+    );
+    expect(missionTexts, isNotEmpty);
+    expect(missionTexts.every((text) => text.style?.fontSize == 11), isTrue);
+    expect(missionTexts.every((text) => text.maxLines == 1), isTrue);
+
+    final status = tester.widget<Text>(
+      find.byKey(const Key('expedition-status-text')),
+    );
+    expect(status.style?.fontSize, 11);
+    expect(status.maxLines, 1);
     expect(tester.takeException(), isNull);
   });
 }
