@@ -63,6 +63,11 @@ void main() {
       'httpProxy',
       'socks5Proxy',
       'hostHint',
+      // These repair mode names and the active-repair status use the same
+      // established game terminology in Simplified and Traditional Chinese.
+      'repairDockMode',
+      'anchorageRepairMode',
+      'repairing',
       'forecast',
       'detailed',
       'accepted',
@@ -113,6 +118,9 @@ void main() {
       'appTitle',
       'repair',
       'construction',
+      // 入渠 and 泊地 are the established Japanese in-game repair mode names.
+      'repairDockMode',
+      'anchorageRepairMode',
       'firepower',
       'torpedo',
       'airPower',

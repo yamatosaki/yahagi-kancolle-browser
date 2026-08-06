@@ -9,25 +9,21 @@ import 'expedition_income_calculator.dart';
 import 'expedition_rule_catalog.dart';
 import 'expedition_strings.dart';
 
-class ExpeditionCheckCard extends StatefulWidget {
-  const ExpeditionCheckCard({
+class ExpeditionCheckContent extends StatefulWidget {
+  const ExpeditionCheckContent({
     super.key,
     required this.controller,
-    required this.collapsed,
-    required this.onToggleCollapse,
     required this.onOpenDetails,
   });
 
   final GameStateController controller;
-  final bool collapsed;
-  final VoidCallback onToggleCollapse;
-  final VoidCallback onOpenDetails;
+  final ValueChanged<int> onOpenDetails;
 
   @override
-  State<ExpeditionCheckCard> createState() => _ExpeditionCheckCardState();
+  State<ExpeditionCheckContent> createState() => _ExpeditionCheckContentState();
 }
 
-class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
+class _ExpeditionCheckContentState extends State<ExpeditionCheckContent> {
   bool _detailed = false;
   bool _greatSuccess = false;
   int _target = 100;
@@ -37,18 +33,9 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
   @override
   Widget build(BuildContext context) {
     final strings = ExpeditionStrings.of(context);
-    final phone = isPhoneDensity(context);
     return AnimatedBuilder(
       animation: widget.controller,
-      builder: (context, _) => DashboardCard(
-        title: strings.title,
-        icon: const Icon(Icons.fact_check_outlined),
-        collapsed: widget.collapsed,
-        onToggleCollapse: widget.onToggleCollapse,
-        collapseButtonKey: const Key('expedition-check-collapse'),
-        trailing: phone ? _detailsPageButton(strings) : null,
-        child: _buildContent(context, widget.controller.state, strings),
-      ),
+      builder: (context, _) => _buildContent(context, widget.controller.state, strings),
     );
   }
 
@@ -63,7 +50,7 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
         children: [
           _controls(strings),
           const SizedBox(height: 10),
-          _statusBox(strings.waiting, false, neutral: true),
+          _statusBox(strings.waiting, false, neutral: true, onTap: () => widget.onOpenDetails(_fleetId)),
         ],
       );
     }
@@ -71,7 +58,7 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
         .where((fleet) => fleet.shipIds.isNotEmpty)
         .toList();
     if (fleets.isEmpty) {
-      return _statusBox(strings.waiting, false, neutral: true);
+      return _statusBox(strings.waiting, false, neutral: true, onTap: () => widget.onOpenDetails(_fleetId));
     }
     final fleet = fleets.cast<Fleet?>().firstWhere(
       (item) => item!.id == _fleetId,
@@ -110,6 +97,7 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
                 child: _statusBox(
                   '${strings.normalCheck}：${evaluation.normalPassed ? strings.passed : strings.failed}',
                   evaluation.normalPassed,
+                  onTap: () => widget.onOpenDetails(_fleetId),
                 ),
               ),
               const SizedBox(width: 6),
@@ -117,6 +105,7 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
                 child: _statusBox(
                   '${strings.greatSuccess}：${evaluation.greatSuccessPassed ? strings.passed : strings.failed} (${evaluation.greatSuccessRate.toStringAsFixed(2)}%)',
                   evaluation.greatSuccessPassed,
+                  onTap: () => widget.onOpenDetails(_fleetId),
                 ),
               ),
             ],
@@ -125,6 +114,7 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
           _statusBox(
             '${strings.normalCheck}：${evaluation.normalPassed ? strings.passed : strings.failed}',
             evaluation.normalPassed,
+            onTap: () => widget.onOpenDetails(_fleetId),
           ),
         if (_detailed) ...[
           const SizedBox(height: 10),
@@ -181,9 +171,6 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
         ),
         if (_greatSuccess) _targetMenu(),
       ];
-      final detailsButton = showDetailsInControls
-          ? _detailsPageButton(strings)
-          : null;
       if (constraints.maxWidth >= 440) {
         return Row(
           children: [
@@ -192,7 +179,6 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
               controlGroups[index],
             ],
             const Spacer(),
-            ?detailsButton,
           ],
         );
       }
@@ -200,21 +186,9 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
         spacing: 8,
         runSpacing: 6,
         crossAxisAlignment: WrapCrossAlignment.center,
-        children: [...controlGroups, ?detailsButton],
+        children: [...controlGroups],
       );
     },
-  );
-
-  Widget _detailsPageButton(ExpeditionStrings strings) => _segmentGroup(
-    key: const Key('expedition-details-segment'),
-    children: [
-      _segmentButton(
-        label: strings.detailsPage,
-        selected: false,
-        command: true,
-        onTap: widget.onOpenDetails,
-      ),
-    ],
   );
 
   Widget _segmentGroup({
@@ -247,7 +221,7 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
     bool command = false,
   }) => Material(
     key: key,
-    color: selected ? const Color(0xff5b4829) : Colors.transparent,
+    color: selected ? const Color(0xff8a6628) : Colors.transparent,
     borderRadius: BorderRadius.circular(5),
     child: InkWell(
       borderRadius: BorderRadius.circular(5),
@@ -263,7 +237,7 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
               softWrap: false,
               style: TextStyle(
                 color: selected
-                    ? const Color(0xffffcf67)
+                    ? const Color(0xffffdc88)
                     : command
                     ? const Color(0xffd4a85f)
                     : const Color(0xff8197a5),
@@ -380,33 +354,37 @@ class _ExpeditionCheckCardState extends State<ExpeditionCheckCard> {
     },
   );
 
-  Widget _statusBox(String text, bool passed, {bool neutral = false}) {
+  Widget _statusBox(String text, bool passed, {bool neutral = false, VoidCallback? onTap}) {
     final color = neutral
         ? const Color(0xff244457)
         : passed
         ? const Color(0xff258a52)
         : const Color(0xffc43f4b);
     return LayoutBuilder(
-      builder: (context, constraints) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-        decoration: BoxDecoration(
-          color: color,
+      builder: (context, constraints) => Material(
+        color: color,
+        borderRadius: BorderRadius.circular(5),
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(5),
-        ),
-        child: Text(
-          '${neutral
-              ? '•'
-              : passed
-              ? '☑'
-              : '☒'} $text',
-          key: const Key('expedition-status-text'),
-          maxLines: 1,
-          softWrap: false,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: _expeditionSummaryTextSize(constraints.maxWidth),
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            child: Text(
+              '${neutral
+                  ? '•'
+                  : passed
+                  ? '☑'
+                  : '☒'} $text',
+              key: const Key('expedition-status-text'),
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: _expeditionSummaryTextSize(constraints.maxWidth),
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
           ),
         ),
       ),

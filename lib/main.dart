@@ -16,6 +16,7 @@ import 'src/battle/live_battle_card.dart';
 import 'src/audio/game_audio_controller.dart';
 import 'src/audio/game_audio_store.dart';
 import 'src/browser/game_browser_controller.dart';
+import 'src/fleet/expedition_summary_card.dart' show ExpeditionSummaryMode;
 import 'src/browser/gadget_bypass_controller.dart';
 import 'src/browser/gadget_bypass_store.dart';
 import 'src/browser/game_browser_overlay.dart';
@@ -29,12 +30,12 @@ import 'src/capture/capture_mode_store.dart';
 import 'src/capture/game_capture_controller.dart';
 import 'src/capture/game_capture_port.dart';
 import 'src/fleet/fleet_information_center.dart';
+import 'src/fleet/anchorage_repair_view.dart';
 import 'src/fleet/fleet_summary_card.dart';
 import 'src/fleet/expedition_summary_card.dart';
 import 'src/fleet/repair_summary_card.dart';
 import 'src/fleet/construction_summary_card.dart';
 import 'src/fleet/pre_sortie_check_summary.dart';
-import 'src/expedition/expedition_check_card.dart';
 import 'src/expedition/expedition_check_page.dart';
 
 import 'src/game_webview.dart';
@@ -42,6 +43,7 @@ import 'src/game_state/game_state_controller.dart';
 import 'src/game_state/game_state_store.dart';
 import 'src/layout/adaptive_layout.dart';
 import 'src/layout/workspace_context_header.dart';
+import 'src/inventory/owned_inventory_page.dart';
 import 'src/prototype_status_controller.dart';
 import 'src/quest/pinned_quests_summary.dart';
 import 'src/quest/quest_center_page.dart';
@@ -380,8 +382,14 @@ class YahagiShell extends StatefulWidget {
 
 class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   int _workspaceIndex = 0;
+  int? _expeditionCheckFleetId;
   int? _fleetCenterInitialFleetId;
+  int? _repairCenterInitialFleetId;
   int? _questCenterInitialQuestId;
+  bool _inventoryShowShips = true;
+  int _logbookTabIndex = 0;
+  RepairCenterMode _repairCenterMode = RepairCenterMode.dock;
+  ExpeditionSummaryMode _expeditionCenterMode = ExpeditionSummaryMode.summary;
 
   @override
   void initState() {
@@ -473,6 +481,22 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                           setState(() {
                             _fleetCenterInitialFleetId = fleetId;
                           });
+                        },
+                        inventoryShowShips: _inventoryShowShips,
+                        onInventorySectionChanged: (value) {
+                          setState(() => _inventoryShowShips = value);
+                        },
+                        logbookTabIndex: _logbookTabIndex,
+                        onLogbookTabChanged: (value) {
+                          setState(() => _logbookTabIndex = value);
+                        },
+                        repairMode: _repairCenterMode,
+                        onRepairModeChanged: (mode) {
+                          setState(() => _repairCenterMode = mode);
+                        },
+                        expeditionMode: _expeditionCenterMode,
+                        onExpeditionModeChanged: (mode) {
+                          setState(() => _expeditionCenterMode = mode);
                         },
                       ),
                     ),
@@ -649,8 +673,13 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                     _workspaceIndex = 1;
                                   });
                                 },
-                                onOpenRepair: () {
-                                  setState(() => _workspaceIndex = 3);
+                                onOpenRepair: (destination) {
+                                  setState(() {
+                                    _repairCenterMode = destination.mode;
+                                    _repairCenterInitialFleetId =
+                                        destination.fleetId;
+                                    _workspaceIndex = 3;
+                                  });
                                 },
                                 onOpenConstruction: () {
                                   setState(() => _workspaceIndex = 4);
@@ -664,8 +693,11 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                     _workspaceIndex = 5;
                                   });
                                 },
-                                onOpenExpeditionCheck: () {
-                                  setState(() => _workspaceIndex = 8);
+                                onOpenExpeditionCheck: (fleetId) {
+                                  setState(() {
+                                    _expeditionCheckFleetId = fleetId;
+                                    _workspaceIndex = 9;
+                                  });
                                 },
                               );
 
@@ -748,12 +780,27 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                             controller: widget.gameStateController,
                             page: FleetInformationPage.expedition,
                             showContextHeader: false,
+                            expeditionMode: _expeditionCenterMode,
+                            onExpeditionModeChanged: (mode) {
+                              setState(() => _expeditionCenterMode = mode);
+                            },
                           ),
                         if (_workspaceIndex == 3)
                           FleetInformationCenter(
                             controller: widget.gameStateController,
                             page: FleetInformationPage.repair,
+                            initialFleetId: _repairCenterInitialFleetId,
+                            onFleetSelected: (fleetId) {
+                              setState(() {
+                                _repairCenterInitialFleetId = fleetId;
+                              });
+                            },
                             showContextHeader: false,
+                            repairMode: _repairCenterMode,
+                            onRepairModeChanged: (mode) {
+                              setState(() => _repairCenterMode = mode);
+                            },
+                            showRepairModeTabs: false,
                           ),
                         if (_workspaceIndex == 4)
                           FleetInformationCenter(
@@ -770,8 +817,21 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                         if (_workspaceIndex == 6)
                           LogbookPage(
                             battleController: widget.battleController,
+                            selectedTabIndex: _logbookTabIndex,
+                            onTabChanged: (value) {
+                              setState(() => _logbookTabIndex = value);
+                            },
                           ),
                         if (_workspaceIndex == 7)
+                          OwnedInventoryPage(
+                            controller: widget.gameStateController,
+                            showShips: _inventoryShowShips,
+                            onSectionChanged: (value) {
+                              setState(() => _inventoryShowShips = value);
+                            },
+                            showSectionControl: false,
+                          ),
+                        if (_workspaceIndex == 8)
                           SettingsPage(
                             layoutSettingsController:
                                 widget.layoutSettingsController,
@@ -798,9 +858,10 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                             showDeveloperDiagnostics:
                                 widget.showDeveloperDiagnostics,
                           ),
-                        if (_workspaceIndex == 8)
+                        if (_workspaceIndex == 9)
                           ExpeditionCheckPage(
                             controller: widget.gameStateController,
+                            initialFleetId: _expeditionCheckFleetId,
                             onBack: () {
                               setState(() => _workspaceIndex = 0);
                             },
@@ -900,13 +961,24 @@ class _WorkspaceNavigation extends StatelessWidget {
                       selected: selectedIndex == 6,
                       onTap: () => onSelected(6),
                     ),
+                    const SizedBox(height: 8),
+                    _NavigationButton(
+                      key: const Key('workspace-nav-owned-inventory'),
+                      icon: Icons.inventory_2_outlined,
+                      label:
+                          Localizations.localeOf(context).languageCode == 'ja'
+                          ? '保有一覧'
+                          : '持有一览',
+                      selected: selectedIndex == 7,
+                      onTap: () => onSelected(7),
+                    ),
                     const Spacer(),
                     _NavigationButton(
                       key: const Key('workspace-nav-settings'),
                       icon: Icons.settings_outlined,
                       label: AppLocalizations.of(context)?.settings ?? '设置',
-                      selected: selectedIndex == 7,
-                      onTap: () => onSelected(7),
+                      selected: selectedIndex == 8,
+                      onTap: () => onSelected(8),
                     ),
                     const SizedBox(height: 10),
                   ],
@@ -981,11 +1053,11 @@ class _InformationPanel extends StatefulWidget {
   final GameStateController gameStateController;
   final BattleController battleController;
   final ValueChanged<int> onOpenFleet;
-  final VoidCallback onOpenRepair;
+  final ValueChanged<RepairDestination> onOpenRepair;
   final VoidCallback onOpenConstruction;
   final VoidCallback onOpenExpedition;
   final ValueChanged<int> onOpenQuest;
-  final VoidCallback onOpenExpeditionCheck;
+  final ValueChanged<int> onOpenExpeditionCheck;
 
   @override
   State<_InformationPanel> createState() => _InformationPanelState();
@@ -1019,15 +1091,18 @@ class _InformationPanelState extends State<_InformationPanel> {
               widget.layoutSettingsController.dashboardCardCollapsed;
           final hiddenIds = widget.layoutSettingsController.dashboardCardHidden;
           final cardOrder = widget.layoutSettingsController.dashboardCardOrder;
-          final visibleOrder = cardOrder
+          final validCards = cardOrder
+              .where((id) => LayoutSettingsStore.defaultDashboardCardOrder.contains(id))
+              .toList();
+          final visibleOrder = validCards
               .where((id) => !hiddenIds.contains(id))
               .toList();
           final cardIndexes = <String, int>{
-            for (var index = 0; index < cardOrder.length; index++)
-              cardOrder[index]: index,
+            for (var index = 0; index < validCards.length; index++)
+              validCards[index]: index,
           };
           Widget buildCard(String id) {
-            final isCollapsed = collapsedIds.contains(id);
+            final isCollapsed = _isEditing || collapsedIds.contains(id);
             void toggle() => widget.layoutSettingsController
                 .toggleDashboardCardCollapsed(id);
             final child = switch (id) {
@@ -1042,13 +1117,9 @@ class _InformationPanelState extends State<_InformationPanel> {
                 collapsed: isCollapsed,
                 onToggleCollapse: toggle,
                 onOpenExpedition: widget.onOpenExpedition,
+                onOpenExpeditionCheck: widget.onOpenExpeditionCheck,
               ),
-              'expedition_check' => ExpeditionCheckCard(
-                controller: widget.gameStateController,
-                collapsed: isCollapsed,
-                onToggleCollapse: toggle,
-                onOpenDetails: widget.onOpenExpeditionCheck,
-              ),
+
               'repair' => RepairSummaryCard(
                 controller: widget.gameStateController,
                 collapsed: isCollapsed,
@@ -1112,19 +1183,7 @@ class _InformationPanelState extends State<_InformationPanel> {
                           child: Container(
                             key: Key('dashboard-drag-region-$id'),
                             color: Colors.transparent,
-                            child: Row(
-                              children: [
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 12),
-                                  child: Icon(
-                                    Icons.drag_handle,
-                                    color: Color(0xff8fa8b6),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(child: IgnorePointer(child: child)),
-                              ],
-                            ),
+                            child: IgnorePointer(child: child),
                           ),
                         ),
                       ),
@@ -1144,28 +1203,42 @@ class _InformationPanelState extends State<_InformationPanel> {
             child: _isEditing
                 ? Column(
                     children: [
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: IconButton(
-                          key: const Key('dashboard-edit-done'),
-                          tooltip: AppLocalizations.of(context)?.editDone,
-                          onPressed: () => setState(() => _isEditing = false),
-                          icon: const Icon(Icons.check_rounded),
-                          color: const Color(0xffd4a85f),
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          IconButton(
+                            key: const Key('dashboard-edit-reset'),
+                            tooltip: '还原默认排序',
+                            onPressed: () {
+                              widget.layoutSettingsController.resetDashboardCardOrder();
+                            },
+                            icon: const Icon(Icons.settings_backup_restore_rounded),
+                            color: const Color(0xff8197a5),
+                          ),
+                          IconButton(
+                            key: const Key('dashboard-edit-done'),
+                            tooltip: AppLocalizations.of(context)?.editDone,
+                            onPressed: () => setState(() => _isEditing = false),
+                            icon: const Icon(Icons.check_rounded),
+                            color: const Color(0xffd4a85f),
+                          ),
+                        ],
                       ),
                       Expanded(
                         child: ReorderableListView(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           buildDefaultDragHandles: false,
                           onReorderItem: (oldIndex, newIndex) {
-                            final order = List<String>.from(cardOrder);
+                            final order = List<String>.from(validCards);
                             final item = order.removeAt(oldIndex);
+                            if (newIndex > oldIndex) {
+                              newIndex -= 1;
+                            }
                             order.insert(newIndex, item);
                             widget.layoutSettingsController
                                 .setDashboardCardOrder(order);
                           },
-                          children: [for (final id in cardOrder) buildCard(id)],
+                          children: [for (final id in validCards) buildCard(id)],
                         ),
                       ),
                     ],

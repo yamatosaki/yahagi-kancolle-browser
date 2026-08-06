@@ -82,6 +82,44 @@ void main() {
     expect(openedFleetId, 2);
   });
 
+  testWidgets('sortie fleet stays active until the next port snapshot', (
+    tester,
+  ) async {
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(mapStartEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: FleetSummaryCard(
+            controller: controller,
+            collapsed: false,
+            onToggleCollapse: () {},
+            onOpenFleet: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(controller.state.combatState.sortieFleetId, 1);
+    expect(find.text('出击中'), findsOneWidget);
+
+    controller.accept(portEvent);
+    await controller.idle;
+    await tester.pump();
+
+    expect(controller.state.combatState.isActive, isFalse);
+    expect(controller.state.combatState.sortieFleetId, 0);
+    expect(find.text('出击中'), findsNothing);
+    expect(find.text('母港待命'), findsWidgets);
+  });
+
   testWidgets('expedition changes to returned when countdown completes', (
     tester,
   ) async {

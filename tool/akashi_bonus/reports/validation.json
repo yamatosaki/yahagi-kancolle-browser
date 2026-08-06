@@ -3216,6 +3216,16 @@
         "checkedAt": "2026-08-06",
         "checkedBy": "agent/manual",
         "diffClass": "format_difference"
+      },
+      {
+        "equipmentId": 297,
+        "ruleId": "akashi-297-*",
+        "checkType": "round2-fix",
+        "status": "difference-fixed",
+        "detail": "WikiWiki 12.7cm連装砲A型: 吹雪型 回避+2、綾波型・暁型 回避+1（舰名记载=适用最低改造阶段，含改/改二形态）。akashi tipbody 綾波型组仅列未改形态且错误混入 天津風・巻雲 系（属陽炎型）。override-297-001/002 重建 綾波型・暁型 26 舰（含 暁改二/響改/ヴェールヌイ 等全形态）。同时修复：他・その他 全集展开混入敌舰(1500+)的系统性缺陷（37 条规则）。",
+        "checkedAt": "2026-08-06",
+        "checkedBy": "agent/manual",
+        "diffClass": "source_conflict"
       }
     ]
   }

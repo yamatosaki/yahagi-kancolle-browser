@@ -157,13 +157,18 @@ class OwnedShip {
     this.currentAmmo = 0,
     this.nextExperience = 0,
     this.firepower = 0,
+    this.firepowerMax = 0,
     this.torpedo = 0,
+    this.torpedoMax = 0,
     this.antiAir = 0,
+    this.antiAirMax = 0,
     this.antiSub = 0,
     this.lineOfSight = 0,
     this.armor = 0,
+    this.armorMax = 0,
     this.evasion = 0,
     this.luck = 0,
+    this.luckMax = 0,
     this.speed = 0,
     this.range = 0,
     this.slotIds = const <int>[],
@@ -172,6 +177,7 @@ class OwnedShip {
     this.repairDurationMilliseconds = 0,
     this.repairFuelCost = 0,
     this.repairSteelCost = 0,
+    this.locked = false,
   });
 
   final int id;
@@ -184,13 +190,18 @@ class OwnedShip {
   final int currentAmmo;
   final int nextExperience;
   final int firepower;
+  final int firepowerMax;
   final int torpedo;
+  final int torpedoMax;
   final int antiAir;
+  final int antiAirMax;
   final int antiSub;
   final int lineOfSight;
   final int armor;
+  final int armorMax;
   final int evasion;
   final int luck;
+  final int luckMax;
   final int speed;
   final int range;
   final List<int> slotIds;
@@ -199,6 +210,7 @@ class OwnedShip {
   final int repairDurationMilliseconds;
   final int repairFuelCost;
   final int repairSteelCost;
+  final bool locked;
 
   int effectiveSpeed(MasterShip? master) =>
       speed > 0 ? speed : master?.speed ?? 0;
@@ -213,12 +225,14 @@ class OwnedSlotItem {
     required this.masterId,
     this.level = 0,
     this.proficiency = 0,
+    this.locked = false,
   });
 
   final int id;
   final int masterId;
   final int level;
   final int proficiency;
+  final bool locked;
 }
 
 class FleetMission {

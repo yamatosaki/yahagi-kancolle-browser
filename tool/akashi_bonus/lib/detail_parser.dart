@@ -121,11 +121,14 @@ class BonusTitleNotes {
   bool countByComma;
   bool synergyNoStack;
   bool repeatable;
+  /// 重複不可: single-equipment bonuses apply once (not per slot).
+  bool singleNoStack;
   List<BonusIcon> legendIcons;
   BonusTitleNotes({
     this.countByComma = false,
     this.synergyNoStack = false,
     this.repeatable = false,
+    this.singleNoStack = false,
     this.legendIcons = const [],
   });
 }
@@ -264,6 +267,9 @@ BonusTitleNotes _parseTitleNotes(Element? bc) {
   notes.countByComma = text.contains('カンマ') || text.contains('カンマ区切り');
   notes.synergyNoStack = text.contains('シナジー重複不可');
   notes.repeatable = text.contains('重複可');
+  // `重複可` wins over `重複不可`: the latter also appears inside
+  // `シナジー重複不可`, which only restricts synergy stacking.
+  notes.singleNoStack = !text.contains('重複可') && text.contains('重複不可');
   final icons = <BonusIcon>[];
   for (final i in th.querySelectorAll('i')) {
     icons.add(BonusIcon(i.attributes['class'] ?? '', i.attributes['title'] ?? ''));

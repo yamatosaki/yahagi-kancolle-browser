@@ -9,6 +9,20 @@ import '../settings/safety_settings_controller.dart';
 import '../settings/safety_settings_store.dart';
 import 'game_capture_controller.dart';
 
+bool shouldShowPostBattleWarning(LiveBattle? battle) {
+  if (battle == null || battle.displayStage != BattleDisplayStage.result) {
+    return false;
+  }
+  final context = battle.context;
+  final isBossNode =
+      (context.bossNode > 0 && context.node == context.bossNode) ||
+      context.nodeTypeLabel == 'Boss 战';
+  if (isBossNode) {
+    return false;
+  }
+  return battle.friendShips.any((ship) => ship.isHeavilyDamaged);
+}
+
 class BattleResultWarningOverlay extends StatefulWidget {
   const BattleResultWarningOverlay({
     super.key,
@@ -107,17 +121,7 @@ class _BattleResultWarningOverlayState
 
   void _checkWarning() {
     final battle = widget.battleController.current;
-    if (battle == null) return;
-
-    bool hasDamaged = false;
-    for (final ship in battle.friendShips) {
-      if (ship.isHeavilyDamaged) {
-        hasDamaged = true;
-        break;
-      }
-    }
-
-    if (hasDamaged) {
+    if (shouldShowPostBattleWarning(battle)) {
       final mode = widget.safetySettingsController.battleWarningMode;
       if (mode == BattleWarningMode.confirm) {
         _showWarningDialog();

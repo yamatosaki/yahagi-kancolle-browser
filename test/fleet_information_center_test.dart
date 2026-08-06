@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/fleet_information_center.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/operation_status_views.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/ship_portrait.dart';
+import 'package:yahagi_kancolle_browser/src/fleet/ship_status_style.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
 
@@ -50,12 +51,12 @@ void main() {
 
     final rosterShip = find.byKey(const Key('fleet-roster-ship-9001'));
     expect(rosterShip, findsOneWidget);
-    final rosterDecoration = tester.widget<Container>(rosterShip).decoration;
-    expect(rosterDecoration, isA<BoxDecoration>());
-    expect(
-      ((rosterDecoration! as BoxDecoration).border! as Border).top.width,
-      4,
+    final rosterRect = tester.getRect(rosterShip);
+    final portraitRect = tester.getRect(
+      find.byKey(const Key('fleet-roster-portrait-9001')),
     );
+    expect(portraitRect.left - rosterRect.left, closeTo(0, 0.1));
+    expect(portraitRect.top - rosterRect.top, closeTo(0, 0.1));
 
     final focusShip = find.byKey(const Key('fleet-focus-ship-9001'));
     expect(focusShip, findsOneWidget);
@@ -86,6 +87,221 @@ void main() {
     expect(find.text('超长'), findsOneWidget);
     expect(find.byType(ExpansionTile), findsNothing);
     expect(find.textContaining('更新于'), findsNothing);
+  });
+
+  testWidgets('ship3 equipment speed refresh updates the fleet label', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1180, 720);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1180,
+            height: 720,
+            child: FleetInformationCenter(controller: controller),
+          ),
+        ),
+      ),
+    );
+
+    final fleetSpeed = find.byKey(const Key('fleet-speed-metric'));
+    expect(
+      find.descendant(of: fleetSpeed, matching: find.text('高速')),
+      findsOneWidget,
+    );
+
+    final previous = controller.state.ships[9002]!;
+    controller.accept(
+      kcsapiEvent('/kcsapi/api_get_member/ship3', <String, Object?>{
+        'api_ship_data': <Object?>[
+          <String, Object?>{
+            'api_id': previous.id,
+            'api_ship_id': previous.masterId,
+            'api_lv': previous.level,
+            'api_nowhp': previous.currentHp,
+            'api_maxhp': previous.maxHp,
+            'api_cond': previous.condition,
+            'api_fuel': previous.currentFuel,
+            'api_bull': previous.currentAmmo,
+            'api_soku': 15,
+            'api_slot': previous.slotIds,
+            'api_onslot': previous.onSlot,
+            'api_slot_ex': previous.extraSlotId,
+          },
+        ],
+      }),
+    );
+    await controller.idle;
+    await tester.pump();
+
+    expect(
+      find.descendant(of: fleetSpeed, matching: find.text('高速+')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('equipment title keeps bonuses after the name and can wrap', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(590, 700);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(
+        kcsapiEvent('/kcsapi/api_get_member/slot_item', <Object?>[
+          <String, Object?>{
+            'api_id': 7001,
+            'api_slotitem_id': 201,
+            'api_level': 4,
+            'api_alv': 0,
+          },
+          <String, Object?>{
+            'api_id': 7002,
+            'api_slotitem_id': 202,
+            'api_level': 5,
+            'api_alv': 6,
+          },
+          <String, Object?>{
+            'api_id': 7004,
+            'api_slotitem_id': 203,
+            'api_level': 1,
+            'api_alv': 0,
+          },
+        ]),
+      );
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: FleetInformationCenter(controller: controller)),
+      ),
+    );
+    final titleFlow = find.byKey(
+      const Key('fleet-equipment-title-flow-9001-1'),
+    );
+    final name = find.byKey(const Key('fleet-equipment-name-9001-1'));
+    final improvement = find.byKey(
+      const Key('fleet-equipment-improvement-9001-1'),
+    );
+    final proficiency = find.byKey(
+      const Key('fleet-equipment-proficiency-9001-1'),
+    );
+    expect(titleFlow, findsOneWidget);
+    expect(name, findsOneWidget);
+    expect(improvement, findsOneWidget);
+    expect(proficiency, findsOneWidget);
+    expect(tester.widget(titleFlow), isA<Wrap>());
+    expect(
+      tester.getTopLeft(improvement).dx,
+      greaterThanOrEqualTo(tester.getTopRight(name).dx),
+    );
+    expect(
+      tester.getTopLeft(proficiency).dx,
+      greaterThanOrEqualTo(tester.getTopRight(improvement).dx),
+    );
+    final nameText = tester.widget<Text>(name);
+    expect(nameText.maxLines, isNull);
+    expect(nameText.softWrap, isNot(false));
+    expect(nameText.overflow, isNot(TextOverflow.ellipsis));
+  });
+
+  testWidgets('fleet air power marks an unknown proficiency upper bound', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1180, 720);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(
+        kcsapiEvent('/kcsapi/api_start2/getData', <String, Object?>{
+          'api_mst_ship': <Object?>[
+            <String, Object?>{
+              'api_id': 101,
+              'api_name': '测试航母',
+              'api_stype': 11,
+              'api_soku': 10,
+              'api_slot_num': 1,
+            },
+          ],
+          'api_mst_slotitem': <Object?>[
+            <String, Object?>{
+              'api_id': 201,
+              'api_name': '测试舰战',
+              'api_tyku': 10,
+              'api_type': <int>[0, 0, 6, 6, 0],
+            },
+          ],
+        }),
+      )
+      ..accept(
+        kcsapiEvent('/kcsapi/api_port/port', <String, Object?>{
+          'api_basic': <String, Object?>{'api_level': 120},
+          'api_ship': <Object?>[
+            <String, Object?>{
+              'api_id': 9001,
+              'api_ship_id': 101,
+              'api_lv': 1,
+              'api_nowhp': 30,
+              'api_maxhp': 30,
+              'api_slot': <int>[7001],
+              'api_onslot': <int>[18],
+            },
+          ],
+          'api_deck_port': <Object?>[
+            <String, Object?>{
+              'api_id': 1,
+              'api_name': '第一舰队',
+              'api_ship': <int>[9001, -1, -1, -1, -1, -1],
+              'api_mission': <int>[0, 0, 0, 0],
+            },
+          ],
+        }),
+      )
+      ..accept(
+        kcsapiEvent('/kcsapi/api_get_member/slot_item', <Object?>[
+          <String, Object?>{
+            'api_id': 7001,
+            'api_slotitem_id': 201,
+            'api_level': 0,
+            'api_alv': 0,
+          },
+        ]),
+      );
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1180,
+            height: 720,
+            child: FleetInformationCenter(controller: controller),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('42+'), findsOneWidget);
   });
 
   testWidgets('编成预设换走当前舰娘后详情立即切换', (tester) async {
@@ -581,7 +797,7 @@ void main() {
     expect(find.text('舰娘详情'), findsNothing);
     expect(find.text('全部装备'), findsNothing);
     await tester.tap(find.byKey(const Key('fleet-equipment-row-9001-0')));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('装备详情'), findsNothing);
     expect(
       find.byKey(const Key('fleet-detail-equipment-icon-9001-0')),
@@ -616,7 +832,7 @@ void main() {
       findsNothing,
     );
     await tester.tap(find.byKey(const Key('fleet-equipment-row-9001-0')));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('装备详情'), findsNothing);
     expect(
       find.byKey(const Key('fleet-detail-equipment-icon-9001-0')),
@@ -631,11 +847,11 @@ void main() {
           )
           .first,
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('舰娘详情'), findsNothing);
 
     await tester.tap(find.byKey(const Key('fleet-roster-ship-9002')));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.byKey(const Key('fleet-focus-ship-9002')), findsOneWidget);
   });
 
@@ -715,50 +931,146 @@ void main() {
       ),
     );
     await tester.tap(find.byKey(const Key('fleet-equipment-row-9001-0')));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.byKey(const Key('fleet-equipment-bonus-0')), findsNothing);
   });
 
-  testWidgets('renders static sparkle and redesigned fatigue face markers', (
-    tester,
-  ) async {
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(1180, 720);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    addTearDown(tester.view.resetPhysicalSize);
-    final envelope = jsonDecode(portEvent.responseBody) as Map<String, Object?>;
-    final data =
-        jsonDecode(jsonEncode(envelope['api_data'])) as Map<String, Object?>;
-    final ships = data['api_ship']! as List<Object?>;
-    (ships[0]! as Map<String, Object?>)['api_cond'] = 60;
-    (ships[1]! as Map<String, Object?>)
-      ..['api_cond'] = 18
-      ..['api_nowhp'] = 2;
-    final controller = GameStateController();
-    addTearDown(controller.dispose);
-    controller
-      ..accept(start2Event)
-      ..accept(kcsapiEvent('/kcsapi/api_port/port', data))
-      ..accept(slotItemEvent);
-    await controller.idle;
+  testWidgets(
+    'fleet roster shows outward hp frames and synchronized status animations',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1180, 720);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final envelope =
+          jsonDecode(portEvent.responseBody) as Map<String, Object?>;
+      final data =
+          jsonDecode(jsonEncode(envelope['api_data'])) as Map<String, Object?>;
+      final ships = data['api_ship']! as List<Object?>;
+      final template = Map<String, Object?>.from(
+        ships.first! as Map<String, Object?>,
+      );
+      ships
+        ..clear()
+        ..addAll(<Object?>[
+          for (final values in <(int, int, int)>[
+            (9101, 90, 60),
+            (9102, 70, 60),
+            (9103, 45, 18),
+            (9104, 20, 49),
+            (9105, 0, 49),
+          ])
+            <String, Object?>{
+              ...template,
+              'api_id': values.$1,
+              'api_nowhp': values.$2,
+              'api_maxhp': 100,
+              'api_cond': values.$3,
+              'api_slot': <int>[-1, -1, -1, -1],
+            },
+        ]);
+      final decks = data['api_deck_port']! as List<Object?>;
+      (decks.first! as Map<String, Object?>)['api_ship'] = <int>[
+        9101,
+        9102,
+        9103,
+        9104,
+        9105,
+        -1,
+      ];
+      final controller = GameStateController();
+      addTearDown(controller.dispose);
+      controller
+        ..accept(start2Event)
+        ..accept(kcsapiEvent('/kcsapi/api_port/port', data))
+        ..accept(slotItemEvent);
+      await controller.idle;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(body: FleetInformationCenter(controller: controller)),
-      ),
-    );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: FleetInformationCenter(controller: controller)),
+        ),
+      );
 
-    expect(find.byKey(const Key('fleet-morale-stars-60')), findsOneWidget);
-    expect(find.byKey(const Key('fleet-fatigue-face-18')), findsOneWidget);
-    final dangerCapsule = tester.widget<Container>(
-      find.byKey(const Key('fleet-roster-ship-9002')),
-    );
-    final border =
-        (dangerCapsule.decoration! as BoxDecoration).border! as Border;
-    expect(border.top.width, 4);
-    expect(border.top.color, const Color(0xffd33d17));
-  });
+      for (final id in <int>[9101, 9102, 9103, 9104, 9105]) {
+        expect(find.byKey(Key('fleet-fatigue-badge-$id')), findsOneWidget);
+        final capsule = tester.getRect(
+          find.byKey(Key('fleet-roster-ship-$id')),
+        );
+        final portrait = tester.getRect(
+          find.byKey(Key('fleet-roster-portrait-$id')),
+        );
+        expect(portrait.left - capsule.left, closeTo(0, 0.1));
+        expect(portrait.top - capsule.top, closeTo(0, 0.1));
+        expect(capsule.right - portrait.right, closeTo(0, 0.1));
+        expect(capsule.bottom - portrait.bottom, closeTo(0, 0.1));
+        expect(find.byKey(Key('fleet-hp-outer-frame-$id')), findsOneWidget);
+      }
+
+      final dimOpacity = tester
+          .widget<Opacity>(find.byKey(const Key('fleet-damage-pulse-9102')))
+          .opacity;
+      await tester.pump(const Duration(milliseconds: 600));
+      final pulseOpacities = <double>[
+        for (final id in <int>[9102, 9103, 9104])
+          tester
+              .widget<Opacity>(find.byKey(Key('fleet-damage-pulse-$id')))
+              .opacity,
+      ];
+      expect(pulseOpacities.toSet(), hasLength(1));
+      expect(pulseOpacities.first - dimOpacity, greaterThan(0.25));
+      expect(find.byKey(const Key('fleet-damage-pulse-9101')), findsNothing);
+      expect(find.byKey(const Key('fleet-damage-pulse-9105')), findsNothing);
+
+      for (final shipId in <int>[9101, 9102]) {
+        expect(find.byKey(Key('fleet-morale-stars-$shipId')), findsOneWidget);
+        for (var index = 0; index < 6; index++) {
+          expect(
+            find.byKey(Key('fleet-sparkle-$shipId-$index')),
+            findsOneWidget,
+          );
+        }
+      }
+      final firstCapsule = tester.getRect(
+        find.byKey(const Key('fleet-roster-ship-9101')),
+      );
+      final secondCapsule = tester.getRect(
+        find.byKey(const Key('fleet-roster-ship-9102')),
+      );
+      expect(
+        secondCapsule.top - firstCapsule.bottom,
+        greaterThanOrEqualTo(10),
+        reason: 'Two 4 dp outward frames need an additional 2 dp visible gap.',
+      );
+      for (var index = 0; index < 6; index++) {
+        final first = tester.getRect(
+          find.byKey(Key('fleet-sparkle-9101-$index')),
+        );
+        final second = tester.getRect(
+          find.byKey(Key('fleet-sparkle-9102-$index')),
+        );
+        expect(
+          first.left - firstCapsule.left,
+          closeTo(second.left - secondCapsule.left, 0.1),
+        );
+        expect(
+          first.top - firstCapsule.top,
+          closeTo(second.top - secondCapsule.top, 0.1),
+        );
+      }
+      expect(find.byKey(const Key('fleet-fatigue-face-18')), findsOneWidget);
+      final fatigueText = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(const Key('fleet-fatigue-badge-9103')),
+          matching: find.byType(Text),
+        ),
+      );
+      final fatigueSpans = (fatigueText.textSpan! as TextSpan).children!;
+      expect((fatigueSpans[0] as TextSpan).style?.color, shipFatigueColor(18));
+      expect((fatigueSpans[1] as TextSpan).style?.color, shipFatigueColor(18));
+    },
+  );
 
   testWidgets('fixed status pages do not render the old secondary tabs', (
     tester,
@@ -956,7 +1268,7 @@ void main() {
     expect(statusColumnGap, inInclusiveRange(30, 40));
 
     await tester.tap(find.byKey(const Key('fleet-los-metric')));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('总索敌'), findsOneWidget);
     expect(find.text('33式'), findsOneWidget);
     expect(find.text('40'), findsOneWidget);
@@ -969,7 +1281,7 @@ void main() {
     expect(find.text('× 4'), findsOneWidget);
     expect(find.text('-7.63'), findsOneWidget);
     await tester.tap(find.text('关闭'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
 
     final shipName = tester.widget<Text>(find.text('夕張'));
     final shipLevel = tester.widget<Text>(find.text('Lv. 50'));
@@ -1101,7 +1413,7 @@ void main() {
     );
 
     await tester.tap(find.text('夕張'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('12.7cm 连装炮'), findsOneWidget);
     expect(find.byKey(const Key('equipment-card-9001-0')), findsOneWidget);
@@ -1190,7 +1502,7 @@ void main() {
     await tester.tap(
       find.descendant(of: identityTop, matching: find.text('先制对潜')),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('先制对潜'), findsNWidgets(2));
     expect(find.textContaining('开幕雷击前'), findsOneWidget);
   }, skip: true);
@@ -1223,7 +1535,7 @@ void main() {
     );
 
     await tester.tap(find.text('夕張'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
 
     final firstCard = find.byKey(const Key('equipment-card-9001-0'));
     final secondCard = find.byKey(const Key('equipment-card-9001-1'));
@@ -1352,6 +1664,13 @@ void main() {
       expect(
         (steelCost.image as AssetImage).assetName,
         'assets/images/material/03.png',
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('repair-dock-row-1')),
+          matching: find.text('46'),
+        ),
+        findsOneWidget,
       );
       final hpRight = tester.getTopRight(find.byKey(const Key('repair-hp-1')));
       final progressLeft = tester.getTopLeft(
@@ -1500,7 +1819,7 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
       final rowLeft = tester
           .getTopLeft(find.byKey(const Key('ship-row-9001')))
           .dx;
@@ -1549,7 +1868,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.byKey(const Key('ship-identity-top-9001')), findsOneWidget);
     final metricsBottom = tester
@@ -1559,7 +1878,7 @@ void main() {
         .getTopLeft(find.byKey(const Key('ship-row-9001')))
         .dy;
     expect(firstShipTop - metricsBottom, closeTo(10, 1));
-    expect(find.text('平均疲劳'), findsOneWidget);
+    expect(find.text('最低疲劳'), findsOneWidget);
 
     final firstFleet = find.byKey(const Key('fleet-button-1'));
     final firstNameCell = find.descendant(
@@ -1617,7 +1936,7 @@ void main() {
         home: Scaffold(body: FleetInformationCenter(controller: controller)),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.byKey(const Key('ship-identity-9001')), findsNothing);
     final shipRow = tester.getRect(find.byKey(const Key('ship-row-9001')));
@@ -1628,7 +1947,7 @@ void main() {
     }
 
     await tester.tap(find.text('夕張'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
 
     final firstCard = find.byKey(const Key('equipment-card-9001-0'));
     final secondCard = find.byKey(const Key('equipment-card-9001-1'));
@@ -1714,7 +2033,7 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 300));
       expect(tester.takeException(), isNull);
     }
   });
@@ -1743,7 +2062,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
 
     for (final keyName in <String>['hp', 'fuel', 'ammo']) {
       final bar = find.byKey(Key('ship-status-$keyName-9001'));

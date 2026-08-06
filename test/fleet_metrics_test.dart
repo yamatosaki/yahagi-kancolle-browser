@@ -1,4 +1,4 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/fleet_metrics.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 
@@ -42,7 +42,7 @@ void main() {
     expect(metrics.firepower, 98);
     expect(metrics.torpedo, 100);
     expect(metrics.speedLabel, '高速');
-    expect(metrics.averageCondition, 42);
+    expect(metrics.minimumCondition, 35);
   });
 
   test('returns unknown air power when an equipped item is unresolved', () {
@@ -63,6 +63,76 @@ void main() {
     );
 
     expect(FleetMetrics.fromState(state, fleet).airPower, isNull);
+  });
+
+  test('includes carrier fighter proficiency in fleet air power', () {
+    const fleet = Fleet(id: 1, name: '第一舰队', shipIds: <int>[9001]);
+    const state = GameState(
+      masterShips: <int, MasterShip>{
+        101: MasterShip(id: 101, name: '甲', shipTypeId: 11),
+      },
+      masterSlotItems: <int, MasterSlotItem>{
+        201: MasterSlotItem(
+          id: 201,
+          name: '烈风',
+          antiAir: 10,
+          type: <int>[0, 0, 6, 6, 0],
+        ),
+      },
+      slotItems: <int, OwnedSlotItem>{
+        7001: OwnedSlotItem(id: 7001, masterId: 201, proficiency: 7),
+      },
+      ships: <int, OwnedShip>{
+        9001: OwnedShip(
+          id: 9001,
+          masterId: 101,
+          level: 1,
+          slotIds: <int>[7001],
+          onSlot: <int>[18],
+        ),
+      },
+    );
+
+    final metrics = FleetMetrics.fromState(state, fleet);
+
+    // floor(sqrt(18) * 10 + sqrt(100 / 10) + 22)
+    expect(metrics.airPower, 67);
+    expect(metrics.airPowerMaximum, 67);
+  });
+
+  test('matches poi carrier aircraft improvement air power bonus', () {
+    const fleet = Fleet(id: 1, name: '第一舰队', shipIds: <int>[9001]);
+    const state = GameState(
+      masterShips: <int, MasterShip>{
+        101: MasterShip(id: 101, name: '甲', shipTypeId: 11),
+      },
+      masterSlotItems: <int, MasterSlotItem>{
+        201: MasterSlotItem(
+          id: 201,
+          name: '烈风改修型',
+          antiAir: 10,
+          type: <int>[0, 0, 6, 6, 0],
+        ),
+      },
+      slotItems: <int, OwnedSlotItem>{
+        7001: OwnedSlotItem(id: 7001, masterId: 201, level: 10, proficiency: 7),
+      },
+      ships: <int, OwnedShip>{
+        9001: OwnedShip(
+          id: 9001,
+          masterId: 101,
+          level: 1,
+          slotIds: <int>[7001],
+          onSlot: <int>[18],
+        ),
+      },
+    );
+
+    final metrics = FleetMetrics.fromState(state, fleet);
+
+    // POI: floor(sqrt(18) * (10 + 10 * 0.2) + sqrt(100 / 10) + 22)
+    expect(metrics.airPower, 76);
+    expect(metrics.airPowerMaximum, 76);
   });
 
   test('uses equipment-modified owned ship speed before master speed', () {

@@ -287,42 +287,45 @@ void main() {
     expect(controller.current!.mvpPositions, <int>[0, 6]);
   });
 
-  test('uses air-raid rank rules only for long-distance air battles', () async {
-    final reducer = GameStateReducer();
-    var state = reducer.reduce(GameState.empty, start2Event);
-    state = reducer.reduce(state, portEvent);
-    final controller = BattleController(gameState: () => state);
-    addTearDown(controller.dispose);
+  test(
+    'waits for the official result rank for every battle node type',
+    () async {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(GameState.empty, start2Event);
+      state = reducer.reduce(state, portEvent);
+      final controller = BattleController(gameState: () => state);
+      addTearDown(controller.dispose);
 
-    Map<String, Object?> untouchedBattle() => <String, Object?>{
-      'api_deck_id': 1,
-      'api_f_nowhps': <int>[-1, 30, 15],
-      'api_f_maxhps': <int>[-1, 30, 15],
-      'api_e_nowhps': <int>[-1, 20, 10],
-      'api_e_maxhps': <int>[-1, 20, 10],
-      'api_ship_ke': <int>[-1, 501, 502],
-    };
+      Map<String, Object?> untouchedBattle() => <String, Object?>{
+        'api_deck_id': 1,
+        'api_f_nowhps': <int>[-1, 30, 15],
+        'api_f_maxhps': <int>[-1, 30, 15],
+        'api_e_nowhps': <int>[-1, 20, 10],
+        'api_e_maxhps': <int>[-1, 20, 10],
+        'api_ship_ke': <int>[-1, 501, 502],
+      };
 
-    controller.accept(
-      kcsapiEvent(
-        '/kcsapi/api_req_sortie/ld_airbattle',
-        untouchedBattle(),
-        sequence: 33,
-      ),
-    );
-    await controller.idle;
-    expect(controller.current!.rank, BattleRank.ss);
+      controller.accept(
+        kcsapiEvent(
+          '/kcsapi/api_req_sortie/ld_airbattle',
+          untouchedBattle(),
+          sequence: 33,
+        ),
+      );
+      await controller.idle;
+      expect(controller.current!.rank, BattleRank.unknown);
 
-    controller.accept(
-      kcsapiEvent(
-        '/kcsapi/api_req_sortie/airbattle',
-        untouchedBattle(),
-        sequence: 34,
-      ),
-    );
-    await controller.idle;
-    expect(controller.current!.rank, BattleRank.d);
-  });
+      controller.accept(
+        kcsapiEvent(
+          '/kcsapi/api_req_sortie/airbattle',
+          untouchedBattle(),
+          sequence: 34,
+        ),
+      );
+      await controller.idle;
+      expect(controller.current!.rank, BattleRank.unknown);
+    },
+  );
 
   test('a sunk daytime enemy is not recreated by the night packet', () async {
     final reducer = GameStateReducer();
@@ -389,7 +392,7 @@ void main() {
   });
 
   test(
-    'upgrades an authoritative S to SS only when friend hp is untouched',
+    'keeps the authoritative result rank without local reinterpretation',
     () async {
       final reducer = GameStateReducer();
       var state = reducer.reduce(GameState.empty, start2Event);
@@ -416,7 +419,7 @@ void main() {
         );
       await controller.idle;
 
-      expect(controller.current!.rank, BattleRank.ss);
+      expect(controller.current!.rank, BattleRank.s);
     },
   );
 

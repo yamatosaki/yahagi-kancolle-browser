@@ -130,6 +130,12 @@ class LayoutSettingsController extends ChangeNotifier {
     await _store.saveDashboardCardHidden(hidden);
   }
 
+  Future<void> resetDashboardCardOrder() async {
+    _dashboardCardOrder = List<String>.from(LayoutSettingsStore.defaultDashboardCardOrder);
+    notifyListeners();
+    await _store.saveDashboardCardOrder(_dashboardCardOrder);
+  }
+
   Future<void> setFontFamily(String? fontFamily) async {
     if (_fontFamily == fontFamily) {
       return;

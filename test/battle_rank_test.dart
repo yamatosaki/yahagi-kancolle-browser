@@ -122,6 +122,32 @@ void main() {
     expect(rank, BattleRank.d);
   });
 
+  test('returns C after damaging at least half the enemy without a sink', () {
+    final rank = estimateBattleRank(
+      friendShips: <BattleShipSnapshot>[
+        ship(side: BattleSide.friend, initialHp: 100, currentHp: 40),
+      ],
+      enemyShips: <BattleShipSnapshot>[
+        ship(side: BattleSide.enemy, initialHp: 100, currentHp: 50),
+      ],
+    );
+
+    expect(rank, BattleRank.c);
+  });
+
+  test('returns D when sub-half enemy damage is lower than friend damage', () {
+    final rank = estimateBattleRank(
+      friendShips: <BattleShipSnapshot>[
+        ship(side: BattleSide.friend, initialHp: 100, currentHp: 80),
+      ],
+      enemyShips: <BattleShipSnapshot>[
+        ship(side: BattleSide.enemy, initialHp: 100, currentHp: 81),
+      ],
+    );
+
+    expect(rank, BattleRank.d);
+  });
+
   test('returns E when only one friend ship remains afloat', () {
     final rank = estimateBattleRank(
       friendShips: <BattleShipSnapshot>[

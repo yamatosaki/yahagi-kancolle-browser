@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:yahagi_kancolle_browser/src/bridge/captured_api_event.dart';
 
@@ -205,7 +205,9 @@ final CapturedApiEvent portEvent = kcsapiEvent(
         'api_ship_id': 9002,
         'api_complete_time': 1785411000000,
         'api_item1': 24,
-        'api_item2': 46,
+        'api_item2': 0,
+        'api_item3': 46,
+        'api_item4': 0,
       },
       <String, Object?>{
         'api_id': 2,
@@ -214,6 +216,8 @@ final CapturedApiEvent portEvent = kcsapiEvent(
         'api_complete_time': 0,
         'api_item1': 0,
         'api_item2': 0,
+        'api_item3': 0,
+        'api_item4': 0,
       },
       <String, Object?>{
         'api_id': 3,

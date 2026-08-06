@@ -7,6 +7,52 @@ import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dar
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_store.dart';
 
 void main() {
+  testWidgets('extra slot warning only includes unlocked empty slots', (
+    tester,
+  ) async {
+    const state = GameState(
+      masterShips: <int, MasterShip>{
+        101: MasterShip(id: 101, name: '未开孔', shipTypeId: 2),
+        102: MasterShip(id: 102, name: '已开孔为空', shipTypeId: 2),
+        103: MasterShip(id: 103, name: '增设已装备', shipTypeId: 2),
+      },
+      ships: <int, OwnedShip>{
+        1001: OwnedShip(id: 1001, masterId: 101, level: 1, extraSlotId: 0),
+        1002: OwnedShip(id: 1002, masterId: 102, level: 1, extraSlotId: -1),
+        1003: OwnedShip(id: 1003, masterId: 103, level: 1, extraSlotId: 7001),
+      },
+      fleets: <Fleet>[
+        Fleet(id: 1, name: '第1舰队', shipIds: <int>[1001, 1002, 1003]),
+      ],
+      hasMasterData: true,
+      hasPortData: true,
+    );
+    final controller = GameStateController(gameStateStore: _StaticStore(state));
+    addTearDown(controller.dispose);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: PreSortieCheckSummary(
+            controller: controller,
+            collapsed: false,
+            onToggleCollapse: () {},
+            onOpenFleet: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('第1舰队 装备缺失（增设槽）：已开孔为空'), findsOneWidget);
+    expect(find.textContaining('未开孔'), findsNothing);
+    expect(find.textContaining('增设已装备'), findsNothing);
+  });
+
   testWidgets('five warning pills use agreed copy colors and fleet links', (
     tester,
   ) async {
@@ -87,7 +133,7 @@ void main() {
     expect(find.text('第1舰队 舰娘未补给'), findsOneWidget);
     expect(find.text('第1舰队 舰娘疲劳未恢复'), findsOneWidget);
     expect(find.text('第1舰队 装备缺失（主装备槽）：瑞鹤改二甲、雪风改'), findsOneWidget);
-    expect(find.text('第1舰队 装备缺失（增设槽）：瑞鹤改二甲'), findsOneWidget);
+    expect(find.text('第1舰队 装备缺失（增设槽）：雪风改'), findsOneWidget);
 
     const kinds = <String>[
       'critical',

@@ -150,7 +150,28 @@ class AppLocalizationsJa extends AppLocalizations {
   String get expeditionBrief => '遠征情報';
 
   @override
-  String get repairBrief => '入渠情報';
+  String get repairBrief => '修理概要';
+
+  @override
+  String get repairDockMode => '入渠';
+
+  @override
+  String get anchorageRepairMode => '泊地';
+
+  @override
+  String get idle => '空き';
+
+  @override
+  String get inactive => '待機';
+
+  @override
+  String get repairing => '修理中';
+
+  @override
+  String get outOfRepairRange => '修理範囲外';
+
+  @override
+  String get unableToRepair => '修理不可';
 
   @override
   String get constructionBrief => '建造情報';
@@ -390,7 +411,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get los => '索敵';
 
   @override
-  String get avgCondition => '平均疲労';
+  String get avgCondition => '最低疲労';
 
   @override
   String get losDetail => '索敵詳細';
@@ -649,7 +670,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get lineOfSight => '索敵';
 
   @override
-  String get averageCondition => '平均疲労';
+  String get averageCondition => '最低疲労';
 
   @override
   String get losDetails => '索敵詳細';

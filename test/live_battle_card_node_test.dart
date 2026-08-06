@@ -784,6 +784,27 @@ void main() {
     expect(find.byKey(const Key('battle-mvp-friend-0')), findsOneWidget);
   });
 
+  testWidgets('forecast hides rank until the official battle result', (
+    tester,
+  ) async {
+    final controller = _createController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(mapStartEvent)
+      ..accept(dayBattleEvent);
+    await controller.idle;
+
+    await _pumpCard(tester, controller);
+    expect(find.byKey(const Key('battle-rank-badge')), findsNothing);
+
+    controller.accept(battleResultEvent);
+    await controller.idle;
+    await tester.pump();
+
+    expect(find.byKey(const Key('battle-rank-badge')), findsOneWidget);
+    expect(find.text('S'), findsOneWidget);
+  });
+
   testWidgets('boss node pill uses red text in battle', (tester) async {
     final controller = _createController();
     addTearDown(controller.dispose);

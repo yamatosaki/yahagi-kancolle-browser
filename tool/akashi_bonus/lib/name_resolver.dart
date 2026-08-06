@@ -191,6 +191,7 @@ class TargetGroupResolver {
       {this.nationalities = const {}});
 
   /// All player ships minus every foreign ship listed in [nationalities].
+  /// Enemy ships (id >= 1500) are always excluded.
   List<int> get _japaneseShips {
     final foreign = <int>{};
     for (final ids in nationalities.values) {
@@ -200,7 +201,11 @@ class TargetGroupResolver {
     for (final ids in master.shipsByStype.values) {
       all.addAll(ids);
     }
-    return (all..removeAll(foreign)).toList()..sort();
+    return (all
+          ..removeAll(foreign)
+          ..removeWhere((id) => id >= 1500))
+        .toList()
+      ..sort();
   }
 
   TargetResolution resolve(String token) {
@@ -313,7 +318,7 @@ class TargetGroupResolver {
       if (baseIds != null && baseIds.length == 1) {
         final ct = master.ctypeByShip[baseIds.first];
         if (ct != null) {
-          final classShips = master.shipsByCtype[ct] ?? const <int>[];
+          final classShips = (master.shipsByCtype[ct] ?? const <int>[]).where((id) => id < 1500).toList();
           if (classShips.isNotEmpty) {
             return TargetResolved(
               shipIds: List<int>.from(classShips)..sort(),
@@ -402,7 +407,7 @@ class TargetGroupResolver {
           if (baseIds != null && baseIds.length == 1) {
             final ct = master.ctypeByShip[baseIds.first];
             if (ct != null) {
-              final members = master.shipsByCtype[ct] ?? const <int>[];
+              final members = (master.shipsByCtype[ct] ?? const <int>[]).where((id) => id < 1500).toList();
               final resolved = <int>{};
               var ok = true;
               for (final p in parts.sublist(1)) {
@@ -482,7 +487,7 @@ class TargetGroupResolver {
       if (baseIds != null && baseIds.length == 1) {
         final ct = master.ctypeByShip[baseIds.first];
         if (ct != null) {
-          final members = master.shipsByCtype[ct] ?? const <int>[];
+          final members = (master.shipsByCtype[ct] ?? const <int>[]).where((id) => id < 1500).toList();
           final ids = <int>{};
           for (final m in members) {
             final n = master.shipName(m);
@@ -523,7 +528,7 @@ class TargetGroupResolver {
       if (baseIds != null && baseIds.length == 1) {
         final ct = master.ctypeByShip[baseIds.first];
         if (ct != null) {
-          final classShips = master.shipsByCtype[ct] ?? const <int>[];
+          final classShips = (master.shipsByCtype[ct] ?? const <int>[]).where((id) => id < 1500).toList();
           if (classShips.isNotEmpty) {
             return TargetResolved(
               shipIds: List<int>.from(classShips)..sort(),

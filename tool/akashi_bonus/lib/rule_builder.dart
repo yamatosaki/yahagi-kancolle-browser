@@ -57,7 +57,12 @@ class RuleBuilder {
   /// Equipment type ids of the page's own equipment (from master).
   final Map<int, List<int>> itemTypeIds;
 
-  RuleBuilder(this.master, {this.nationalities = const {}})
+  /// Ships explicitly covered by reviewed overrides; remodel expansion must
+  /// not pull these into base-form fits (their values come from the override).
+  final Set<int> overrideCoveredShips;
+
+  RuleBuilder(this.master,
+      {this.nationalities = const {}, this.overrideCoveredShips = const {}})
       : itemTypeIds = _indexItemTypes(master);
 
   static Map<int, List<int>> _indexItemTypes(MasterData m) {
@@ -106,6 +111,80 @@ class RuleBuilder {
     final resolver = TargetGroupResolver(master, {
       for (final g in page.tipGroups) g.label: g.shipNames,
     }, nationalities: nationalities);
+
+    // All fit target texts of this page, used to decide remodel expansion:
+    // a base-form token expands to its remodel stages only when no other fit
+    // on the page targets that stage by name (`秋月型` expands to 秋月改二
+    // unless a `秋月型改二` fit already covers it). Separators are stripped
+    // so `赤城型改二・護` matches `赤城型改二護`.
+    final allTargetTexts =
+        page.fits.expand((f) => f.targetTokens).join(' ').replaceAll(
+            RegExp(r'[・、\s]'), '');
+
+    List<int> expandRemodelsUnlessCovered(List<int> ids) {
+      bool coveredByFit(int baseId, int cid) {
+        if (overrideCoveredShips.contains(cid)) return true;
+        final nn = master.shipName(cid) ?? '';
+        if (nn.isEmpty) return false;
+        final normNn = nn.replaceAll(RegExp(r'[・、\s]'), '');
+        if (normNn.isNotEmpty && allTargetTexts.contains(normNn)) return true;
+        final formM = RegExp(
+                r'^(.+?)(改二戦|改二護|改二戊|改二甲|改二乙|改二丙|改二丁|改二特|'
+                r'改三|改四|改二|改|特|丁|甲|乙|丙|戊|戦|護)$')
+            .firstMatch(nn);
+        if (formM == null) return false;
+        final base = formM.group(1)!;
+        final form = formM.group(2)!;
+        if (allTargetTexts.contains('$base型$form')) return true;
+        // Same-class coverage: `武蔵改二` is covered by a `大和型改二` fit,
+        // `加賀改二護` by a `赤城型改二護` fit.
+        final ct = master.ctypeByShip[baseId];
+        if (ct != null) {
+          for (final m in master.shipsByCtype[ct] ?? const <int>[]) {
+            final mn = master.shipName(m) ?? '';
+            final mBase = mn.replaceFirst(
+                RegExp(
+                    r'(改二戦|改二護|改二戊|改二甲|改二乙|改二丙|改二丁|改二特|'
+                    r'改三|改四|改二|改|特|丁|甲|乙|丙|戊|戦|護)$'),
+                '');
+            if (mBase.isNotEmpty && allTargetTexts.contains('$mBase型$form')) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+
+      final out = <int>{};
+      for (final id in ids) {
+        if (id >= 1500) {
+          out.add(id);
+          continue;
+        }
+        final chain = <int>[id];
+        var cur = id;
+        var guard = 0;
+        while (cur > 0 && guard++ < 20) {
+          final next = master.shipsById[cur]?['api_aftershipid'];
+          int? ni;
+          if (next is int) {
+            ni = next;
+          } else if (next is String) {
+            ni = int.tryParse(next);
+          }
+          if (ni == null || ni <= 0 || ni >= 1500) break;
+          chain.add(ni);
+          cur = ni;
+        }
+        final covered = chain.skip(1).any((cid) => coveredByFit(id, cid));
+        if (covered) {
+          out.add(id);
+        } else {
+          out.addAll(chain);
+        }
+      }
+      return out.toList()..sort();
+    }
 
     var fitIndex = 0;
     for (var fit in page.fits) {
@@ -160,6 +239,7 @@ class RuleBuilder {
         for (final ids in master.shipsByStype.values) {
           all.addAll(ids);
         }
+        all.removeWhere((id) => id >= 1500);
         all.removeAll(listed);
         if (all.isNotEmpty) {
           resolvedTargets.add(TargetResolved(
@@ -183,7 +263,10 @@ class RuleBuilder {
       final classIds = <int>{};
       final shipTypeIds = <int>{};
       for (final t in resolvedTargets) {
-        allShipIds.addAll(t.shipIds);
+        final ships = t.sourceLabel == 'その他'
+            ? t.shipIds
+            : expandRemodelsUnlessCovered(t.shipIds);
+        allShipIds.addAll(ships);
         classIds.addAll(t.classIds);
         shipTypeIds.addAll(t.shipTypeIds);
       }
@@ -879,9 +962,9 @@ class RuleBuilder {
               maxImprovement: maxImp ?? 10,
             ),
             effect: (minImp == null && maxImp == null)
-                ? (page.titleNotes.repeatable
-                    ? PerEquipmentEffect(bonus)
-                    : OnceEffect(bonus))
+                ? (page.titleNotes.singleNoStack
+                    ? OnceEffect(bonus)
+                    : PerEquipmentEffect(bonus))
                 : PerEquipmentEffect(bonus),
             source: _source(
               detailUrl,

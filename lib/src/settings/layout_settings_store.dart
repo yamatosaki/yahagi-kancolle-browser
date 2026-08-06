@@ -13,6 +13,16 @@ abstract class LayoutSettingsStore {
   Future<List<String>> loadDashboardCardOrder();
   Future<void> saveDashboardCardOrder(List<String> order);
 
+  static const defaultDashboardCardOrder = <String>[
+    'battle',
+    'fleet',
+    'expedition',
+    'repair',
+    'construction',
+    'quests',
+    'pre_sortie',
+  ];
+
   Future<List<String>> loadDashboardCardCollapsed();
   Future<void> saveDashboardCardCollapsed(List<String> collapsedIds);
 
@@ -70,29 +80,20 @@ class SharedPreferencesLayoutSettingsStore implements LayoutSettingsStore {
   static const _keyDashboardCardOrder = 'layout_dashboard_card_order';
   static const _keyDashboardCardCollapsed = 'layout_dashboard_card_collapsed';
 
-  static const _defaultDashboardCardOrder = <String>[
-    'fleet',
-    'expedition',
-    'expedition_check',
-    'repair',
-    'construction',
-    'quests',
-    'battle',
-    'pre_sortie',
-  ];
-
   @override
   Future<List<String>> loadDashboardCardOrder() async {
     final prefs = await SharedPreferences.getInstance();
     final list = prefs.getStringList(_keyDashboardCardOrder);
     if (list != null && list.isNotEmpty) {
       // Ensure all default keys are present in case we added new ones
-      for (final key in _defaultDashboardCardOrder) {
+      for (final key in LayoutSettingsStore.defaultDashboardCardOrder) {
         if (!list.contains(key)) list.add(key);
       }
+      // Remove any keys that are no longer supported (e.g. expedition_check)
+      list.removeWhere((key) => !LayoutSettingsStore.defaultDashboardCardOrder.contains(key));
       return list;
     }
-    return List<String>.from(_defaultDashboardCardOrder);
+    return List<String>.from(LayoutSettingsStore.defaultDashboardCardOrder);
   }
 
   @override

@@ -234,12 +234,14 @@ class _BattleOverview extends StatelessWidget {
     ];
     return Row(
       children: [
-        BattleRankBadge(
-          rank: battle.rank,
-          size: phone ? 50 : 48,
-          fontSize: phone ? 21 : 20,
-        ),
-        const SizedBox(width: 10),
+        if (battle.status == LiveBattleStatus.confirmed) ...<Widget>[
+          BattleRankBadge(
+            rank: battle.rank,
+            size: phone ? 50 : 48,
+            fontSize: phone ? 21 : 20,
+          ),
+          const SizedBox(width: 10),
+        ],
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

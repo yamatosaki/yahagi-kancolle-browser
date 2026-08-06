@@ -12,15 +12,20 @@ class ExpeditionCheckPage extends StatefulWidget {
     super.key,
     required this.controller,
     required this.onBack,
+    this.initialFleetId,
+    this.showHeader = true,
   });
   final GameStateController controller;
   final VoidCallback onBack;
+  final int? initialFleetId;
+  final bool showHeader;
   @override
   State<ExpeditionCheckPage> createState() => _ExpeditionCheckPageState();
 }
 
 class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
-  int fleetId = 2, missionId = 14, target = 100;
+  late int fleetId = widget.initialFleetId ?? 2;
+  int missionId = 14, target = 100;
   bool great = false;
   @override
   Widget build(BuildContext context) {
@@ -29,36 +34,37 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
       color: const Color(0xff081521),
       child: Column(
         children: [
-          Container(
-            height: 58,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: const BoxDecoration(
-              color: Color(0xff0d1a26),
-              border: Border(bottom: BorderSide(color: Color(0xff294052))),
-            ),
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: widget.onBack,
-                  icon: const Icon(Icons.arrow_back),
-                ),
-                Text(
-                  s.title,
-                  style: const TextStyle(
-                    color: Color(0xffd4a85f),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
+          if (widget.showHeader)
+            Container(
+              height: 58,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: const BoxDecoration(
+                color: Color(0xff0d1a26),
+                border: Border(bottom: BorderSide(color: Color(0xff294052))),
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: widget.onBack,
+                    icon: const Icon(Icons.arrow_back),
                   ),
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: widget.onBack,
-                  icon: const Icon(Icons.sports_esports_outlined),
-                  label: Text(s.back),
-                ),
-              ],
+                  Text(
+                    s.title,
+                    style: const TextStyle(
+                      color: Color(0xffd4a85f),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: widget.onBack,
+                    icon: const Icon(Icons.sports_esports_outlined),
+                    label: Text(s.back),
+                  ),
+                ],
+              ),
             ),
-          ),
           Expanded(
             child: AnimatedBuilder(
               animation: widget.controller,

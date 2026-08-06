@@ -20,6 +20,9 @@ class GameStateReducer {
     '/kcsapi/api_get_member/kdock',
     '/kcsapi/api_get_member/questlist',
     '/kcsapi/api_req_hokyu/charge',
+    '/kcsapi/api_req_kaisou/slotset',
+    '/kcsapi/api_req_kaisou/slotset_ex',
+    '/kcsapi/api_req_kaisou/unsetslot_all',
     '/kcsapi/api_req_kaisou/slot_deprive',
     '/kcsapi/api_req_kaisou/slot_exchange_index',
     '/kcsapi/api_req_kousyou/createship',
@@ -49,7 +52,11 @@ class GameStateReducer {
       event.responseBody,
       // The formation change response only contains api_result and
       // api_result_msg. Its state transition is driven by request parameters.
-      allowMissingData: event.path == '/kcsapi/api_req_hensei/change',
+      allowMissingData:
+          event.path == '/kcsapi/api_req_hensei/change' ||
+          event.path == '/kcsapi/api_req_kaisou/slotset' ||
+          event.path == '/kcsapi/api_req_kaisou/slotset_ex' ||
+          event.path == '/kcsapi/api_req_kaisou/unsetslot_all',
     );
     final origin = event.sourceOrigin.isEmpty
         ? state.serverOrigin
@@ -117,6 +124,17 @@ class GameStateReducer {
       '/kcsapi/api_req_hokyu/charge' => _charge(
         state,
         _requiredMap(data, 'charge'),
+        event,
+        origin,
+      ),
+      '/kcsapi/api_req_kaisou/slotset' => _slotSet(state, event, origin),
+      '/kcsapi/api_req_kaisou/slotset_ex' => _slotSetExtra(
+        state,
+        event,
+        origin,
+      ),
+      '/kcsapi/api_req_kaisou/unsetslot_all' => _unsetAllSlots(
+        state,
         event,
         origin,
       ),
@@ -241,6 +259,73 @@ class GameStateReducer {
         state.resources,
         _optionalList(data['api_material']),
       ),
+      serverOrigin: origin,
+      updatedAt: event.capturedAt,
+    );
+  }
+
+  GameState _slotSet(GameState state, CapturedApiEvent event, String origin) {
+    final shipId = _asInt(event.requestParams['api_id']);
+    final slotIndex = _asInt(event.requestParams['api_slot_idx'], -1);
+    final itemId = _asInt(event.requestParams['api_item_id'], -1);
+    final ship = state.ships[shipId];
+    if (ship == null || slotIndex < 0) {
+      return state.copyWith(serverOrigin: origin, updatedAt: event.capturedAt);
+    }
+
+    final slots = List<int>.of(ship.slotIds);
+    while (slots.length <= slotIndex) {
+      slots.add(-1);
+    }
+    slots[slotIndex] = itemId;
+    return _replaceShip(state, _copyShip(ship, slotIds: slots), event, origin);
+  }
+
+  GameState _slotSetExtra(
+    GameState state,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final shipId = _asInt(event.requestParams['api_id']);
+    final itemId = _asInt(event.requestParams['api_item_id'], -1);
+    final ship = state.ships[shipId];
+    if (ship == null) {
+      return state.copyWith(serverOrigin: origin, updatedAt: event.capturedAt);
+    }
+    return _replaceShip(
+      state,
+      _copyShip(ship, extraSlotId: itemId),
+      event,
+      origin,
+    );
+  }
+
+  GameState _unsetAllSlots(
+    GameState state,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final shipId = _asInt(event.requestParams['api_id']);
+    final ship = state.ships[shipId];
+    if (ship == null) {
+      return state.copyWith(serverOrigin: origin, updatedAt: event.capturedAt);
+    }
+    return _replaceShip(
+      state,
+      _copyShip(ship, slotIds: List<int>.filled(ship.slotIds.length, -1)),
+      event,
+      origin,
+    );
+  }
+
+  GameState _replaceShip(
+    GameState state,
+    OwnedShip ship,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    return state.copyWith(
+      ships: Map<int, OwnedShip>.of(state.ships)..[ship.id] = ship,
       serverOrigin: origin,
       updatedAt: event.capturedAt,
     );
@@ -754,6 +839,7 @@ class GameStateReducer {
           : null,
       serverOrigin: origin,
       hasPortData: hasPortData ? true : null,
+      combatState: hasPortData ? CombatState.empty : null,
       updatedAt: event.capturedAt,
     );
   }
@@ -890,7 +976,9 @@ class GameStateReducer {
     int? currentHp,
     int? currentFuel,
     int? currentAmmo,
+    List<int>? slotIds,
     List<int>? onSlot,
+    int? extraSlotId,
   }) {
     return OwnedShip(
       id: ship.id,
@@ -903,21 +991,27 @@ class GameStateReducer {
       currentAmmo: currentAmmo ?? ship.currentAmmo,
       nextExperience: ship.nextExperience,
       firepower: ship.firepower,
+      firepowerMax: ship.firepowerMax,
       torpedo: ship.torpedo,
+      torpedoMax: ship.torpedoMax,
       antiAir: ship.antiAir,
+      antiAirMax: ship.antiAirMax,
       antiSub: ship.antiSub,
       lineOfSight: ship.lineOfSight,
       armor: ship.armor,
+      armorMax: ship.armorMax,
       evasion: ship.evasion,
       luck: ship.luck,
+      luckMax: ship.luckMax,
       speed: ship.speed,
       range: ship.range,
-      slotIds: ship.slotIds,
+      slotIds: slotIds ?? ship.slotIds,
       onSlot: onSlot ?? ship.onSlot,
-      extraSlotId: ship.extraSlotId,
+      extraSlotId: extraSlotId ?? ship.extraSlotId,
       repairDurationMilliseconds: ship.repairDurationMilliseconds,
       repairFuelCost: ship.repairFuelCost,
       repairSteelCost: ship.repairSteelCost,
+      locked: ship.locked,
     );
   }
 
@@ -1009,13 +1103,18 @@ class GameStateReducer {
         currentAmmo: _asInt(item['api_bull']),
         nextExperience: experience.length > 1 ? _asInt(experience[1]) : 0,
         firepower: _currentStat(item['api_karyoku']),
+        firepowerMax: _maximumStat(item['api_karyoku']),
         torpedo: _currentStat(item['api_raisou']),
+        torpedoMax: _maximumStat(item['api_raisou']),
         antiAir: _currentStat(item['api_taiku']),
+        antiAirMax: _maximumStat(item['api_taiku']),
         antiSub: _currentStat(item['api_taisen']),
         lineOfSight: _currentStat(item['api_sakuteki']),
         armor: _currentStat(item['api_soukou']),
+        armorMax: _maximumStat(item['api_soukou']),
         evasion: _currentStat(item['api_kaihi']),
         luck: _currentStat(item['api_lucky']),
+        luckMax: _maximumStat(item['api_lucky']),
         speed: _asInt(item['api_soku']),
         range: _asInt(item['api_leng']),
         slotIds: _intList(item['api_slot']),
@@ -1023,7 +1122,8 @@ class GameStateReducer {
         extraSlotId: _asInt(item['api_slot_ex'], -1),
         repairDurationMilliseconds: _asInt(item['api_ndock_time']),
         repairFuelCost: repairItems.isNotEmpty ? _asInt(repairItems[0]) : 0,
-        repairSteelCost: repairItems.length > 1 ? _asInt(repairItems[1]) : 0,
+        repairSteelCost: repairItems.length > 2 ? _asInt(repairItems[2]) : 0,
+        locked: _asInt(item['api_locked']) > 0,
       );
     }
     return result;
@@ -1043,6 +1143,7 @@ class GameStateReducer {
         masterId: masterId,
         level: _asInt(item['api_level']),
         proficiency: _asInt(item['api_alv']),
+        locked: _asInt(item['api_locked']) > 0,
       );
     }
     return result;
@@ -1093,7 +1194,7 @@ class GameStateReducer {
           shipId: _asInt(item['api_ship_id']),
           completionTime: _dateTimeFromMilliseconds(item['api_complete_time']),
           fuelCost: _asInt(item['api_item1']),
-          steelCost: _asInt(item['api_item2']),
+          steelCost: _asInt(item['api_item3']),
         ),
       );
     }
@@ -1193,6 +1294,11 @@ class GameStateReducer {
     return list.isEmpty ? _asInt(value) : _asInt(list.first);
   }
 
+  static int _maximumStat(Object? value) {
+    final list = _optionalList(value);
+    return list.length > 1 ? _asInt(list[1]) : _currentStat(value);
+  }
+
   static List<int> _intList(Object? value, {bool includeNonPositive = false}) {
     final result = <int>[];
     for (final item in _optionalList(value)) {
@@ -1219,9 +1325,14 @@ class GameStateReducer {
     final nextNode = _asInt(data['api_no']);
     final mapArea = _asInt(data['api_maparea_id']);
     final mapInfo = _asInt(data['api_mapinfo_no']);
+    final sortieFleetId = _asInt(event.requestParams['api_deck_id']);
     return state.copyWith(
       combatState: state.combatState
-          .copyWith(mapArea: mapArea, mapInfo: mapInfo)
+          .copyWith(
+            sortieFleetId: sortieFleetId > 0 ? sortieFleetId : null,
+            mapArea: mapArea,
+            mapInfo: mapInfo,
+          )
           .moveNext(nextNode),
     );
   }
@@ -1233,8 +1344,10 @@ class GameStateReducer {
   ) {
     final enemyFleetName = parseEnemyFleetName(data['api_formation']);
     final airSuperiority = kAirSuperiorityLabels[parseDispSeiku(data)] ?? '未知';
+    final sortieFleetId = _asInt(data['api_deck_id']);
     return state.copyWith(
       combatState: state.combatState.copyWith(
+        sortieFleetId: sortieFleetId > 0 ? sortieFleetId : null,
         enemyFleetName: enemyFleetName,
         airSuperiority: airSuperiority,
       ),

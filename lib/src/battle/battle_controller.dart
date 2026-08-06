@@ -9,7 +9,6 @@ import '../game_state/game_state.dart';
 import 'battle_damage_parser.dart';
 import 'battle_models.dart';
 import 'battle_node_label_resolver.dart';
-import 'battle_rank.dart';
 import 'battle_session.dart';
 import '../logbook/logbook_database.dart';
 
@@ -53,13 +52,6 @@ final class BattleController extends ChangeNotifier {
     '/kcsapi/api_req_sortie/battleresult',
     '/kcsapi/api_req_combined_battle/battleresult',
     '/kcsapi/api_req_practice/battle_result',
-  };
-
-  static const Set<String> _airRaidPaths = <String>{
-    '/kcsapi/api_req_sortie/ld_airbattle',
-    '/kcsapi/api_req_sortie/ld_shooting',
-    '/kcsapi/api_req_combined_battle/ld_airbattle',
-    '/kcsapi/api_req_combined_battle/ld_shooting',
   };
 
   final GameState Function() gameState;
@@ -295,14 +287,6 @@ final class BattleController extends ChangeNotifier {
     for (final issue in parsed.issues) {
       _session?.markUnconfirmed(stage: issue.stage, message: issue.message);
     }
-    final friendShips = <BattleShipSnapshot>[
-      ...parsed.friendMain,
-      ...parsed.friendEscort,
-    ];
-    final enemyShips = <BattleShipSnapshot>[
-      ...parsed.enemyMain,
-      ...parsed.enemyEscort,
-    ];
     final formation = _list(data['api_formation']);
     final parsedEnemyName = parseEnemyFleetName(data['api_formation']);
     final enemyFleetName = parsedEnemyName.isNotEmpty
@@ -316,11 +300,6 @@ final class BattleController extends ChangeNotifier {
       friendEscort: parsed.friendEscort,
       enemyMain: parsed.enemyMain,
       enemyEscort: parsed.enemyEscort,
-      rank: estimateBattleRank(
-        friendShips: friendShips,
-        enemyShips: enemyShips,
-        airRaid: _airRaidPaths.contains(event.path),
-      ),
       displayStage: BattleDisplayStage.battle,
       phaseLabel: _phaseLabel(event.path),
       friendFormation: _atInt(formation, 0),
@@ -344,21 +323,7 @@ final class BattleController extends ChangeNotifier {
     final enemyInfo = _optionalMap(data['api_enemy_info']);
     final getShip = _optionalMap(data['api_get_ship']);
     final getItem = _optionalMap(data['api_get_useitem']);
-    var rank = BattleRank.parse(data['api_win_rank']);
-    if (rank == BattleRank.s) {
-      final friendShips = _current!.friendShips;
-      final initialHp = friendShips.fold<int>(
-        0,
-        (sum, ship) => sum + ship.initialHp,
-      );
-      final currentHp = friendShips.fold<int>(
-        0,
-        (sum, ship) => sum + ship.currentHp,
-      );
-      if (currentHp >= initialHp) {
-        rank = BattleRank.ss;
-      }
-    }
+    final rank = BattleRank.parse(data['api_win_rank']);
     final mainMvp = _int(data['api_mvp']) - 1;
     final escortMvp = _int(data['api_mvp_combined']) - 1;
     final confirmed = (_current ?? LiveBattle(context: _context)).copyWith(

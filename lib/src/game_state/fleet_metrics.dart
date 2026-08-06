@@ -30,9 +30,10 @@ class FleetMetrics {
     required this.antiSub,
     required this.lineOfSight,
     required this.formula33,
-    required this.averageCondition,
+    required this.minimumCondition,
     required this.speedLabel,
     required this.airPower,
+    required this.airPowerMaximum,
   });
 
   final int shipCount;
@@ -43,9 +44,10 @@ class FleetMetrics {
   final int antiSub;
   final int lineOfSight;
   final List<Formula33Result> formula33;
-  final int averageCondition;
+  final int minimumCondition;
   final String speedLabel;
   final int? airPower;
+  final int? airPowerMaximum;
 
   factory FleetMetrics.fromState(GameState state, Fleet fleet) {
     final ships = <OwnedShip>[for (final id in fleet.shipIds) ?state.ships[id]];
@@ -58,9 +60,10 @@ class FleetMetrics {
     var formula33Ship = 0.0;
     var formula33EquipmentBase = 0.0;
     var formula33Known = state.admiralLevel > 0;
-    var totalCondition = 0;
+    int? minimumCondition;
     int? slowestSpeed;
     var calculatedAirPower = 0;
+    var calculatedAirPowerMaximum = 0;
     var airPowerKnown = true;
 
     for (final ship in ships) {
@@ -70,7 +73,9 @@ class FleetMetrics {
       antiAir += ship.antiAir;
       antiSub += ship.antiSub;
       lineOfSight += ship.lineOfSight;
-      totalCondition += ship.condition;
+      minimumCondition = minimumCondition == null
+          ? ship.condition
+          : math.min(minimumCondition, ship.condition);
 
       var shipPureLineOfSight = ship.lineOfSight.toDouble();
       for (final equipped in state.equipmentForShip(ship)) {
@@ -114,8 +119,10 @@ class FleetMetrics {
           continue;
         }
         final count = index < ship.onSlot.length ? ship.onSlot[index] : 0;
-        if (count > 0 && master.antiAir > 0) {
-          calculatedAirPower += (math.sqrt(count) * master.antiAir).floor();
+        if (count > 0 && _contributesFleetAirPower(master)) {
+          final slotAirPower = _airPowerForSlot(master, owned!, count);
+          calculatedAirPower += slotAirPower.minimum;
+          calculatedAirPowerMaximum += slotAirPower.maximum;
         }
       }
     }
@@ -145,11 +152,10 @@ class FleetMetrics {
       antiSub: antiSub,
       lineOfSight: lineOfSight,
       formula33: formula33,
-      averageCondition: ships.isEmpty
-          ? 0
-          : (totalCondition / ships.length).round(),
+      minimumCondition: minimumCondition ?? 0,
       speedLabel: _speedLabel(slowestSpeed),
       airPower: airPowerKnown ? calculatedAirPower : null,
+      airPowerMaximum: airPowerKnown ? calculatedAirPowerMaximum : null,
     );
   }
 
@@ -163,5 +169,54 @@ class FleetMetrics {
       >= 10 => '高速',
       _ => '低速',
     };
+  }
+
+  static bool _contributesFleetAirPower(MasterSlotItem master) {
+    final typeId = master.type.length > 2 ? master.type[2] : -1;
+    return switch (typeId) {
+      6 || 7 || 8 || 11 || 45 || 47 || 57 => true,
+      26 => master.antiAir > 0,
+      _ => false,
+    };
+  }
+
+  static ({int minimum, int maximum}) _airPowerForSlot(
+    MasterSlotItem master,
+    OwnedSlotItem owned,
+    int count,
+  ) {
+    const internalExperienceLowerBounds = <int>[0, 10, 25, 40, 55, 70, 85, 100];
+    const internalExperienceUpperBounds = <int>[9, 24, 39, 54, 69, 84, 99, 120];
+    const fighterBonuses = <int>[0, 0, 2, 5, 9, 14, 14, 22];
+    const seaplaneBomberBonuses = <int>[0, 1, 1, 1, 1, 3, 3, 6];
+
+    final proficiency = owned.proficiency.clamp(0, 7).toInt();
+    final typeId = master.type[2];
+    final typeBonus = switch (typeId) {
+      6 || 26 || 45 => fighterBonuses[proficiency],
+      11 => seaplaneBomberBonuses[proficiency],
+      _ => 0,
+    };
+    final improvementFactor = switch (typeId) {
+      6 ||
+      7 ||
+      26 ||
+      45 ||
+      47 ||
+      57 when master.antiAir > 3 => master.bombing > 0 ? 0.25 : 0.2,
+      _ => 0.0,
+    };
+    final internalBonusMinimum = math.sqrt(
+      internalExperienceLowerBounds[proficiency] / 10,
+    );
+    final internalBonusMaximum = math.sqrt(
+      internalExperienceUpperBounds[proficiency] / 10,
+    );
+    final effectiveAntiAir = master.antiAir + owned.level * improvementFactor;
+    final base = math.sqrt(count) * effectiveAntiAir + typeBonus;
+    return (
+      minimum: (base + internalBonusMinimum).floor(),
+      maximum: (base + internalBonusMaximum).floor(),
+    );
   }
 }

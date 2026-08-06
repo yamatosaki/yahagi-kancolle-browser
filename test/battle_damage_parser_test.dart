@@ -115,6 +115,68 @@ void main() {
     expect(result.enemyMain.map((ship) => ship.currentHp), <int>[20, 5]);
   });
 
+  test('keeps the seventh strike-force ship in the main fleet', () {
+    final result = BattleDamageParser().apply(
+      data: <String, Object?>{
+        'api_raigeki': <String, Object?>{
+          'api_fdam': <num>[-1, 0, 0, 0, 0, 0, 0, 9],
+          'api_edam': <num>[-1, 0, 0, 0, 0, 0],
+        },
+      },
+      friendMain: <BattleShipSnapshot>[
+        for (var position = 0; position < 7; position++)
+          snapshot(side: BattleSide.friend, position: position, hp: 30),
+      ],
+      enemyMain: <BattleShipSnapshot>[
+        for (var position = 0; position < 6; position++)
+          snapshot(side: BattleSide.enemy, position: position, hp: 30),
+      ],
+    );
+
+    expect(result.friendMain.map((ship) => ship.currentHp), <int>[
+      30,
+      30,
+      30,
+      30,
+      30,
+      30,
+      21,
+    ]);
+    expect(result.friendEscort, isEmpty);
+  });
+
+  test('maps strike-force shelling position six to the seventh main ship', () {
+    final result = BattleDamageParser().apply(
+      data: <String, Object?>{
+        'api_hougeki1': <String, Object?>{
+          'api_at_eflag': <int>[1, 0],
+          'api_at_list': <int>[0, 6],
+          'api_df_list': <Object?>[
+            <int>[6],
+            <int>[0],
+          ],
+          'api_damage': <Object?>[
+            <num>[8],
+            <num>[11],
+          ],
+        },
+      },
+      friendMain: <BattleShipSnapshot>[
+        for (var position = 0; position < 7; position++)
+          snapshot(side: BattleSide.friend, position: position, hp: 30),
+      ],
+      enemyMain: <BattleShipSnapshot>[
+        for (var position = 0; position < 6; position++)
+          snapshot(side: BattleSide.enemy, position: position, hp: 30),
+      ],
+    );
+
+    expect(result.friendMain[6].currentHp, 22);
+    expect(result.friendMain[6].damageDealt, 11);
+    expect(result.enemyMain[0].currentHp, 19);
+    expect(result.issues, isEmpty);
+  });
+
   test('splits twelve-slot damage arrays between main and escort', () {
     final result = BattleDamageParser().apply(
       data: <String, Object?>{

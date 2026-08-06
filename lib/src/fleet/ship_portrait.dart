@@ -156,12 +156,14 @@ class ShipPortrait extends StatelessWidget {
     required this.serverOrigin,
     this.width = 96,
     this.height = 56,
+    this.decodeHeight,
   });
 
   final MasterShip? ship;
   final String serverOrigin;
   final double width;
   final double height;
+  final int? decodeHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -214,6 +216,7 @@ class ShipPortrait extends StatelessWidget {
                   child: Image.network(
                     uri.toString(),
                     height: imageHeight,
+                    cacheHeight: decodeHeight,
                     fit: BoxFit.fitHeight,
                     errorBuilder: (context, error, stackTrace) => placeholder,
                   ),

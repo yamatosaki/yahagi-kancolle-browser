@@ -8,9 +8,16 @@ import '../../l10n/app_localizations.dart';
 import '../fleet/resource_trend_page.dart';
 
 class LogbookPage extends StatefulWidget {
-  const LogbookPage({super.key, required this.battleController});
+  const LogbookPage({
+    super.key,
+    required this.battleController,
+    this.selectedTabIndex = 0,
+    this.onTabChanged,
+  });
 
   final BattleController battleController;
+  final int selectedTabIndex;
+  final ValueChanged<int>? onTabChanged;
 
   @override
   State<LogbookPage> createState() => _LogbookPageState();
@@ -19,16 +26,41 @@ class LogbookPage extends StatefulWidget {
 class _LogbookPageState extends State<LogbookPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late int _reportedTabIndex;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _reportedTabIndex = widget.selectedTabIndex.clamp(0, 3);
+    _tabController = TabController(
+      length: 4,
+      initialIndex: _reportedTabIndex,
+      vsync: this,
+    )..addListener(_reportTabChange);
+  }
+
+  @override
+  void didUpdateWidget(covariant LogbookPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextIndex = widget.selectedTabIndex.clamp(0, 3);
+    if (_tabController.index != nextIndex) {
+      _reportedTabIndex = nextIndex;
+      _tabController.animateTo(nextIndex);
+    }
+  }
+
+  void _reportTabChange() {
+    final index = _tabController.index;
+    if (index == _reportedTabIndex) return;
+    _reportedTabIndex = index;
+    widget.onTabChanged?.call(index);
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController
+      ..removeListener(_reportTabChange)
+      ..dispose();
     super.dispose();
   }
 
@@ -36,59 +68,108 @@ class _LogbookPageState extends State<LogbookPage>
   Widget build(BuildContext context) {
     return ColoredBox(
       color: const Color(0xff081521),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: TabBarView(
+        controller: _tabController,
         children: [
-          _LogbookHeader(tabController: _tabController),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                // 1. Current Session
-                _CurrentSessionTab(controller: widget.battleController),
-                // 2. Battle History Stats
-                _BattleStatsTab(controller: widget.battleController),
-                // 3. Resource Trends
-                const ResourceTrendPage(),
-                // 4. Expedition Income
-                const _ExpeditionStatsTab(),
-              ],
-            ),
-          ),
+          _CurrentSessionTab(controller: widget.battleController),
+          _BattleStatsTab(controller: widget.battleController),
+          const ResourceTrendPage(),
+          const _ExpeditionStatsTab(),
         ],
       ),
     );
   }
 }
 
-class _LogbookHeader extends StatelessWidget {
-  const _LogbookHeader({required this.tabController});
+class LogbookSegmented extends StatelessWidget {
+  const LogbookSegmented({
+    super.key,
+    required this.selectedIndex,
+    required this.onChanged,
+  });
 
-  final TabController tabController;
+  final int selectedIndex;
+  final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xff0d1a26),
-        border: Border(bottom: BorderSide(color: Color(0xff294052))),
-      ),
-      child: TabBar(
-        controller: tabController,
-        isScrollable: true,
-        labelColor: const Color(0xffd4a85f),
-        unselectedLabelColor: const Color(0xff8197a5),
-        indicatorColor: const Color(0xffd4a85f),
-        indicatorSize: TabBarIndicatorSize.label,
-        tabs: [
-          Tab(text: AppLocalizations.of(context)?.thisSortie ?? '本次出击'),
-          Tab(text: AppLocalizations.of(context)?.historicalRecords ?? '历史战果'),
-          Tab(text: AppLocalizations.of(context)?.resourceTrend ?? '资源趋势'),
-          Tab(text: AppLocalizations.of(context)?.expeditionIncome ?? '远征收益'),
-        ],
+    final l10n = AppLocalizations.of(context);
+    final labels = <String>[
+      l10n?.thisSortie ?? '本次出击',
+      l10n?.historicalRecords ?? '历史战果',
+      l10n?.resourceTrend ?? '资源趋势',
+      l10n?.expeditionIncome ?? '远征收益',
+    ];
+    return Align(
+      alignment: Alignment.centerRight,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Container(
+          key: const Key('logbook-segmented'),
+          height: 38,
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: const Color(0xff0b202d),
+            border: Border.all(color: const Color(0xff315064)),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            children: [
+              for (var index = 0; index < labels.length; index++)
+                Expanded(
+                  child: _LogbookSegmentButton(
+                    key: Key(switch (index) {
+                      0 => 'logbook-tab-sortie',
+                      1 => 'logbook-tab-history',
+                      2 => 'logbook-tab-resources',
+                      _ => 'logbook-tab-expeditions',
+                    }),
+                    selected: index == selectedIndex,
+                    label: labels[index],
+                    onTap: () => onChanged(index),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
+}
+
+class _LogbookSegmentButton extends StatelessWidget {
+  const _LogbookSegmentButton({
+    super.key,
+    required this.selected,
+    required this.label,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: selected ? const Color(0xff8a6628) : Colors.transparent,
+    borderRadius: BorderRadius.circular(16),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Center(
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: selected ? const Color(0xffffdc88) : const Color(0xff9fb3bf),
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _CurrentSessionTab extends StatelessWidget {

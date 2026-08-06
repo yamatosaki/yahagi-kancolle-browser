@@ -149,7 +149,28 @@ class AppLocalizationsZh extends AppLocalizations {
   String get expeditionBrief => '远征简报';
 
   @override
-  String get repairBrief => '入渠简报';
+  String get repairBrief => '维修简报';
+
+  @override
+  String get repairDockMode => '入渠';
+
+  @override
+  String get anchorageRepairMode => '泊地';
+
+  @override
+  String get idle => '空闲';
+
+  @override
+  String get inactive => '闲置';
+
+  @override
+  String get repairing => '正在修理';
+
+  @override
+  String get outOfRepairRange => '超出修理范围';
+
+  @override
+  String get unableToRepair => '无法修理';
 
   @override
   String get constructionBrief => '建造简报';
@@ -388,7 +409,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get los => '索敌';
 
   @override
-  String get avgCondition => '平均疲劳';
+  String get avgCondition => '最低疲劳';
 
   @override
   String get losDetail => '索敌详情';
@@ -647,7 +668,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get lineOfSight => '索敌';
 
   @override
-  String get averageCondition => '平均疲劳';
+  String get averageCondition => '最低疲劳';
 
   @override
   String get losDetails => '索敌详情';
@@ -1185,7 +1206,28 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get expeditionBrief => '遠征簡報';
 
   @override
-  String get repairBrief => '入渠簡報';
+  String get repairBrief => '維修簡報';
+
+  @override
+  String get repairDockMode => '入渠';
+
+  @override
+  String get anchorageRepairMode => '泊地';
+
+  @override
+  String get idle => '空閒';
+
+  @override
+  String get inactive => '閒置';
+
+  @override
+  String get repairing => '正在修理';
+
+  @override
+  String get outOfRepairRange => '超出修理範圍';
+
+  @override
+  String get unableToRepair => '無法修理';
 
   @override
   String get constructionBrief => '建造簡報';
@@ -1424,7 +1466,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get los => '索敵';
 
   @override
-  String get avgCondition => '平均疲勞';
+  String get avgCondition => '最低疲勞';
 
   @override
   String get losDetail => '索敵詳情';
@@ -1683,7 +1725,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get lineOfSight => '索敵';
 
   @override
-  String get averageCondition => '平均疲勞';
+  String get averageCondition => '最低疲勞';
 
   @override
   String get losDetails => '索敵詳情';

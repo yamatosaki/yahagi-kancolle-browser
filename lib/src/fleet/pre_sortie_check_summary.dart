@@ -151,7 +151,7 @@ class PreSortieCheckSummary extends StatelessWidget {
           if (filledMainSlots < masterShip.slotCount) {
             mainEquipmentNames.add(masterShip.name);
           }
-          if (ship.extraSlotId == 0) {
+          if (ship.extraSlotId == -1) {
             extraEquipmentNames.add(masterShip.name);
           }
         }

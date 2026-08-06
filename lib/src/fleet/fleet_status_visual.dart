@@ -4,7 +4,7 @@ import '../game_state/game_state.dart';
 import 'operation_progress.dart';
 import 'ship_status_style.dart';
 
-enum FleetOperationalStatus { standby, expedition, returned, empty }
+enum FleetOperationalStatus { standby, sortie, expedition, returned, empty }
 
 class FleetStatusVisual {
   const FleetStatusVisual(this.status, this.label, this.color);
@@ -14,7 +14,18 @@ class FleetStatusVisual {
   final Color color;
 }
 
-FleetStatusVisual fleetStatusVisual(Fleet fleet, {DateTime? now}) {
+FleetStatusVisual fleetStatusVisual(
+  Fleet fleet, {
+  DateTime? now,
+  bool isSortie = false,
+}) {
+  if (isSortie) {
+    return const FleetStatusVisual(
+      FleetOperationalStatus.sortie,
+      '出击中',
+      Color(0xffffc940),
+    );
+  }
   if (fleet.mission.isActive) {
     if (operationIsCompleted(fleet.mission.completionTime, now: now)) {
       return const FleetStatusVisual(

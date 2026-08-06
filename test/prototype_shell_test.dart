@@ -28,6 +28,12 @@ import 'package:yahagi_kancolle_browser/src/capture/capture_mode_store.dart';
 import 'package:yahagi_kancolle_browser/src/capture/game_capture_controller.dart';
 import 'package:yahagi_kancolle_browser/src/capture/game_capture_port.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
+import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
+import 'package:yahagi_kancolle_browser/src/game_state/game_state_reducer.dart';
+import 'package:yahagi_kancolle_browser/src/fleet/anchorage_repair_view.dart';
+import 'package:yahagi_kancolle_browser/src/fleet/fleet_information_center.dart';
+import 'package:yahagi_kancolle_browser/src/fleet/fleet_summary_card.dart';
+import 'package:yahagi_kancolle_browser/src/fleet/repair_summary_card.dart';
 import 'package:yahagi_kancolle_browser/src/prototype_status_controller.dart';
 
 void main() {
@@ -119,16 +125,47 @@ void main() {
     }
     expect(find.text('功能面板'), findsNothing);
     expect(find.text('编辑顺序'), findsNothing);
+    final collapsedBeforeEditing = List<String>.from(
+      layoutSettingsController.dashboardCardCollapsed,
+    );
+    expect(
+      tester.widget<FleetSummaryCard>(find.byType(FleetSummaryCard)).collapsed,
+      isFalse,
+    );
     await tester.longPress(find.byKey(const ValueKey('fleet')));
     await tester.pumpAndSettle();
     expect(find.byType(Checkbox), findsWidgets);
     expect(find.byType(ReorderableDelayedDragStartListener), findsWidgets);
+    expect(
+      find.ancestor(
+        of: find.byType(FleetSummaryCard),
+        matching: find.byType(ReorderableDelayedDragStartListener),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byIcon(Icons.drag_handle), findsNothing);
+    expect(
+      tester.widget<FleetSummaryCard>(find.byType(FleetSummaryCard)).collapsed,
+      isTrue,
+    );
     final dragRegion = find.byKey(const Key('dashboard-drag-region-fleet'));
     expect(dragRegion, findsOneWidget);
     expect(tester.getSize(dragRegion).width, greaterThan(200));
+    expect(
+      tester.getSize(find.byType(FleetSummaryCard)).width,
+      closeTo(tester.getSize(dragRegion).width, 0.01),
+    );
     await tester.tap(find.byKey(const Key('dashboard-edit-done')));
     await tester.pumpAndSettle();
     expect(find.byType(Checkbox), findsNothing);
+    expect(
+      tester.widget<FleetSummaryCard>(find.byType(FleetSummaryCard)).collapsed,
+      isFalse,
+    );
+    expect(
+      layoutSettingsController.dashboardCardCollapsed,
+      collapsedBeforeEditing,
+    );
     await tester.scrollUntilVisible(
       find.byKey(const Key('live-battle-card')),
       200,
@@ -410,7 +447,18 @@ void main() {
       _MemoryModeStore(),
     );
     final gameCaptureController = GameCaptureController();
-    final gameStateController = GameStateController();
+    final gameStateController = GameStateController(
+      reducer: _RepairNavigationReducer(),
+    );
+    gameStateController.accept(
+      CapturedApiEvent(
+        path: '/repair-navigation-test',
+        responseBody: '{}',
+        source: CaptureSource.manual,
+        capturedAt: DateTime.utc(2026, 8, 7),
+      ),
+    );
+    await gameStateController.idle;
     final battleController = BattleController(
       gameState: () => gameStateController.state,
     );
@@ -466,7 +514,73 @@ void main() {
 
     await tester.tap(find.byKey(const Key('workspace-nav-repair')));
     await tester.pumpAndSettle();
-    expect(find.text('入渠'), findsOneWidget);
+    expect(find.text('入渠修理'), findsOneWidget);
+    expect(find.text('泊地修理'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('repair-mode-anchorage')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('workspace-nav-game')));
+    await tester.pumpAndSettle();
+    final repairCard = find.byType(RepairSummaryCard);
+    await tester.scrollUntilVisible(
+      repairCard,
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const Key('information-panel')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    tester
+        .widget<RepairSummaryCard>(repairCard)
+        .onOpenRepair(
+          const RepairDestination(mode: RepairCenterMode.anchorage, fleetId: 2),
+        );
+    await tester.pumpAndSettle();
+    var repairCenter = tester.widget<FleetInformationCenter>(
+      find.byType(FleetInformationCenter),
+    );
+    expect(repairCenter.repairMode, RepairCenterMode.anchorage);
+    expect(repairCenter.initialFleetId, 2);
+
+    tester
+        .widget<FleetSwitcherBar>(find.byType(FleetSwitcherBar))
+        .onFleetSelected!(1);
+    await tester.pumpAndSettle();
+    repairCenter = tester.widget<FleetInformationCenter>(
+      find.byType(FleetInformationCenter),
+    );
+    expect(repairCenter.initialFleetId, 1);
+
+    await tester.tap(find.byKey(const Key('workspace-nav-construction')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('workspace-nav-repair')));
+    await tester.pumpAndSettle();
+    repairCenter = tester.widget<FleetInformationCenter>(
+      find.byType(FleetInformationCenter),
+    );
+    expect(repairCenter.repairMode, RepairCenterMode.anchorage);
+    expect(repairCenter.initialFleetId, 1);
+
+    await tester.tap(find.byKey(const Key('workspace-nav-game')));
+    await tester.pumpAndSettle();
+    tester
+        .widget<RepairSummaryCard>(repairCard)
+        .onOpenRepair(const RepairDestination(mode: RepairCenterMode.dock));
+    await tester.pumpAndSettle();
+    repairCenter = tester.widget<FleetInformationCenter>(
+      find.byType(FleetInformationCenter),
+    );
+    expect(repairCenter.repairMode, RepairCenterMode.dock);
+    expect(repairCenter.initialFleetId, isNull);
+    final dockTab = tester.widget<Material>(
+      find.descendant(
+        of: find.byKey(const Key('repair-mode-dock')),
+        matching: find.byType(Material),
+      ),
+    );
+    expect(dockTab.color, const Color(0xff8a6628));
 
     await tester.tap(find.byKey(const Key('workspace-nav-construction')));
     await tester.pumpAndSettle();
@@ -497,6 +611,17 @@ void main() {
     battleController.dispose();
     toolbarController.dispose();
   });
+}
+
+class _RepairNavigationReducer extends GameStateReducer {
+  @override
+  GameState reduce(GameState state, CapturedApiEvent event) => const GameState(
+    fleets: <Fleet>[
+      Fleet(id: 1, name: '第一舰队'),
+      Fleet(id: 2, name: '第二舰队'),
+    ],
+    hasPortData: true,
+  );
 }
 
 class _LifecycleProbe extends StatefulWidget {

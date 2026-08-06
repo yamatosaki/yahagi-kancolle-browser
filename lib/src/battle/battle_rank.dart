@@ -50,10 +50,14 @@ BattleRank estimateBattleRank({
   if (ours.count == 1 && ours.flagshipCritical) {
     return BattleRank.d;
   }
-  if (2 * enemy.damageRate > 5 * ours.damageRate) {
+  if (2 * enemy.lostHp * ours.totalHp > 5 * ours.lostHp * enemy.totalHp) {
     return BattleRank.b;
   }
-  if (10 * enemy.damageRate > 9 * ours.damageRate) {
+  final enemyDamageAtLeastFriend =
+      enemy.lostHp * ours.totalHp >= ours.lostHp * enemy.totalHp;
+  final enemyDamageAtLeastHalf = 2 * enemy.lostHp >= enemy.totalHp;
+  if (enemy.lostHp > 0 &&
+      (enemyDamageAtLeastFriend || enemyDamageAtLeastHalf)) {
     return BattleRank.c;
   }
   if (ours.sunk > 0 && ours.count - ours.sunk == 1) {
@@ -66,7 +70,7 @@ BattleRank estimateBattleRank({
   int count,
   int sunk,
   int lostHp,
-  int damageRate,
+  int totalHp,
   bool flagshipSunk,
   bool flagshipCritical,
 })
@@ -87,7 +91,7 @@ _status(List<BattleShipSnapshot> ships) {
     count: ships.length,
     sunk: sunk,
     lostHp: lostHp,
-    damageRate: totalHp <= 0 ? 0 : (lostHp / totalHp * 100).floor(),
+    totalHp: totalHp,
     flagshipSunk: flagship.currentHp <= 0,
     flagshipCritical: flagship.currentHp * 4 <= flagship.maxHp,
   );

@@ -379,7 +379,7 @@ class BattleDamageParser {
         (key, child) => MapEntry(key.toString(), child),
       );
       final damages = _list(stage3Map['api_edam']);
-      if (_damageValues(damages).length > 6) {
+      if (battle.enemyEscort.isNotEmpty && _damageValues(damages).length > 6) {
         _applySplitDamageArray(battle.enemyMain, battle.enemyEscort, damages);
       } else {
         _applyDamageArray(battle.enemyMain, damages);
@@ -395,7 +395,7 @@ class BattleDamageParser {
         (key, child) => MapEntry(key.toString(), child),
       );
       final damages = _list(houraiMap['api_damage']);
-      if (_damageValues(damages).length > 6) {
+      if (battle.enemyEscort.isNotEmpty && _damageValues(damages).length > 6) {
         _applySplitDamageArray(battle.enemyMain, battle.enemyEscort, damages);
       } else {
         _applyDamageArray(battle.enemyMain, damages);
@@ -412,7 +412,9 @@ class BattleDamageParser {
   }) {
     final friendDamage = _list(map['api_fdam']);
     final enemyDamage = _list(map['api_edam']);
-    if (!escort && _damageValues(friendDamage).length > 6) {
+    if (!escort &&
+        battle.friendEscort.isNotEmpty &&
+        _damageValues(friendDamage).length > 6) {
       _applySplitDamageArray(
         battle.friendMain,
         battle.friendEscort,
@@ -426,7 +428,9 @@ class BattleDamageParser {
         friendDamage,
       );
     }
-    if (!escort && _damageValues(enemyDamage).length > 6) {
+    if (!escort &&
+        battle.enemyEscort.isNotEmpty &&
+        _damageValues(enemyDamage).length > 6) {
       _applySplitDamageArray(battle.enemyMain, battle.enemyEscort, enemyDamage);
     } else {
       _applyDamageArray(
@@ -476,7 +480,11 @@ class BattleDamageParser {
     required int damage,
     required BattleFleetRole roleHint,
   }) {
-    final encodedEscort = absolutePosition >= 6;
+    final hasEscort = switch (side) {
+      BattleSide.friend => battle.friendEscort.isNotEmpty,
+      BattleSide.enemy => battle.enemyEscort.isNotEmpty,
+    };
+    final encodedEscort = hasEscort && absolutePosition >= 6;
     final escort = encodedEscort || roleHint == BattleFleetRole.escort;
     final index = encodedEscort ? absolutePosition - 6 : absolutePosition;
     final fleet = switch ((side, escort)) {
@@ -499,7 +507,8 @@ class BattleDamageParser {
     required int damage,
     required BattleFleetRole roleHint,
   }) {
-    final encodedEscort = absolutePosition >= 6;
+    final encodedEscort =
+        battle.friendEscort.isNotEmpty && absolutePosition >= 6;
     final escort = encodedEscort || roleHint == BattleFleetRole.escort;
     final index = encodedEscort ? absolutePosition - 6 : absolutePosition;
     final fleet = escort ? battle.friendEscort : battle.friendMain;

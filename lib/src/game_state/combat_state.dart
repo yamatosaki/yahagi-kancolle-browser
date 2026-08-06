@@ -1,5 +1,6 @@
 class CombatState {
   const CombatState({
+    this.sortieFleetId = 0,
     this.mapArea = 0,
     this.mapInfo = 0,
     this.currentNode = 0,
@@ -9,6 +10,7 @@ class CombatState {
     this.isActive = false,
   });
 
+  final int sortieFleetId;
   final int mapArea;
   final int mapInfo;
   final int currentNode;
@@ -20,6 +22,7 @@ class CombatState {
   static const CombatState empty = CombatState();
 
   CombatState copyWith({
+    int? sortieFleetId,
     int? mapArea,
     int? mapInfo,
     int? currentNode,
@@ -29,6 +32,7 @@ class CombatState {
     bool? isActive,
   }) {
     return CombatState(
+      sortieFleetId: sortieFleetId ?? this.sortieFleetId,
       mapArea: mapArea ?? this.mapArea,
       mapInfo: mapInfo ?? this.mapInfo,
       currentNode: currentNode ?? this.currentNode,
@@ -42,6 +46,7 @@ class CombatState {
   /// Use this to clear the node-specific battle states when moving to next node
   CombatState moveNext(int nextNode) {
     return CombatState(
+      sortieFleetId: sortieFleetId,
       mapArea: mapArea,
       mapInfo: mapInfo,
       currentNode: nextNode,

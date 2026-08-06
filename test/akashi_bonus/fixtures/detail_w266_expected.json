@@ -59,10 +59,10 @@
       "source": {
         "url": "https://akashi-list.me/detail/w266.html",
         "pageName": "12.7cm連装砲C型改二",
-        "fetchedAt": "",
+        "fetchedAt": "2026-08-04T00:00:00+00:00",
         "httpLastModified": null,
-        "contentSha256": "",
-        "fragmentHash": "",
+        "contentSha256": "sha256:8fe86024977f646cbce5c17efcb5d56da9af570370fbfcb36eaf6b24c740db35",
+        "fragmentHash": "sha256:1dd71f0cd957fc508b424f4f5b3a03a53bac6fc095f26ba6766610ffc889b034",
         "sourceGroupLabel": "陽炎型改二・雪風改二",
         "rawEffect": "火力+2,+3,+1"
       }
@@ -90,14 +90,49 @@
           96,
           97,
           98,
+          144,
+          198,
+          199,
+          242,
+          244,
+          245,
+          246,
+          247,
+          248,
+          249,
+          250,
+          251,
+          252,
+          253,
+          323,
+          327,
+          328,
+          350,
+          351,
+          369,
           405,
           413,
           414,
           457,
           458,
           459,
+          463,
+          464,
+          468,
+          469,
+          470,
+          489,
+          490,
+          497,
+          498,
           582,
-          583
+          583,
+          587,
+          588,
+          667,
+          687,
+          721,
+          975
         ],
         "baseShipIds": [],
         "classIds": [],
@@ -127,10 +162,10 @@
       "source": {
         "url": "https://akashi-list.me/detail/w266.html",
         "pageName": "12.7cm連装砲C型改二",
-        "fetchedAt": "",
+        "fetchedAt": "2026-08-04T00:00:00+00:00",
         "httpLastModified": null,
-        "contentSha256": "",
-        "fragmentHash": "",
+        "contentSha256": "sha256:8fe86024977f646cbce5c17efcb5d56da9af570370fbfcb36eaf6b24c740db35",
+        "fragmentHash": "sha256:282eae7916aa50b1ab96c27bbcbb0ce6e351452fdc0eeeef734b77ec4b68d2d8",
         "sourceGroupLabel": "白露型・朝潮型",
         "rawEffect": "火力+1"
       }
@@ -176,10 +211,10 @@
       "source": {
         "url": "https://akashi-list.me/detail/w266.html",
         "pageName": "12.7cm連装砲C型改二",
-        "fetchedAt": "",
+        "fetchedAt": "2026-08-04T00:00:00+00:00",
         "httpLastModified": null,
-        "contentSha256": "",
-        "fragmentHash": "",
+        "contentSha256": "sha256:8fe86024977f646cbce5c17efcb5d56da9af570370fbfcb36eaf6b24c740db35",
+        "fragmentHash": "sha256:299ec2864161ad05db75a46fdd7e4dd0d2f28216c044e8f5299a79747aef1d42",
         "sourceGroupLabel": "陽炎型・磯風乙改",
         "rawEffect": "回避+1(磯風乙改のみ)",
         "rawCondition": "(磯風乙改のみ)"
@@ -243,10 +278,10 @@
       "source": {
         "url": "https://akashi-list.me/detail/w266.html",
         "pageName": "12.7cm連装砲C型改二",
-        "fetchedAt": "",
+        "fetchedAt": "2026-08-04T00:00:00+00:00",
         "httpLastModified": null,
-        "contentSha256": "",
-        "fragmentHash": "",
+        "contentSha256": "sha256:8fe86024977f646cbce5c17efcb5d56da9af570370fbfcb36eaf6b24c740db35",
+        "fragmentHash": "sha256:299ec2864161ad05db75a46fdd7e4dd0d2f28216c044e8f5299a79747aef1d42",
         "sourceGroupLabel": "陽炎型・磯風乙改",
         "rawEffect": "火力+1"
       }
@@ -292,10 +327,10 @@
       "source": {
         "url": "https://akashi-list.me/detail/w266.html",
         "pageName": "12.7cm連装砲C型改二",
-        "fetchedAt": "",
+        "fetchedAt": "2026-08-04T00:00:00+00:00",
         "httpLastModified": null,
-        "contentSha256": "",
-        "fragmentHash": "",
+        "contentSha256": "sha256:8fe86024977f646cbce5c17efcb5d56da9af570370fbfcb36eaf6b24c740db35",
+        "fragmentHash": "sha256:1dd71f0cd957fc508b424f4f5b3a03a53bac6fc095f26ba6766610ffc889b034",
         "sourceGroupLabel": "陽炎型改二・雪風改二",
         "rawEffect": "回避+1(雪風改二のみ)",
         "rawCondition": "(雪風改二のみ)"
@@ -313,7 +348,8 @@
       "shipCondition": {
         "shipIds": [
           145,
-          228
+          228,
+          961
         ],
         "baseShipIds": [],
         "classIds": [],
@@ -343,10 +379,10 @@
       "source": {
         "url": "https://akashi-list.me/detail/w266.html",
         "pageName": "12.7cm連装砲C型改二",
-        "fetchedAt": "",
+        "fetchedAt": "2026-08-04T00:00:00+00:00",
         "httpLastModified": null,
-        "contentSha256": "",
-        "fragmentHash": "",
+        "contentSha256": "sha256:8fe86024977f646cbce5c17efcb5d56da9af570370fbfcb36eaf6b24c740db35",
+        "fragmentHash": "sha256:d642ceb4ba92bd41da18e839ab84fc3e1629aec5dd239950a8acb8202f4f253d",
         "sourceGroupLabel": "雪風改・時雨改二",
         "rawEffect": "回避+1"
       }
@@ -363,7 +399,8 @@
       "shipCondition": {
         "shipIds": [
           145,
-          228
+          228,
+          961
         ],
         "baseShipIds": [],
         "classIds": [],
@@ -393,10 +430,10 @@
       "source": {
         "url": "https://akashi-list.me/detail/w266.html",
         "pageName": "12.7cm連装砲C型改二",
-        "fetchedAt": "",
+        "fetchedAt": "2026-08-04T00:00:00+00:00",
         "httpLastModified": null,
-        "contentSha256": "",
-        "fragmentHash": "",
+        "contentSha256": "sha256:8fe86024977f646cbce5c17efcb5d56da9af570370fbfcb36eaf6b24c740db35",
+        "fragmentHash": "sha256:d642ceb4ba92bd41da18e839ab84fc3e1629aec5dd239950a8acb8202f4f253d",
         "sourceGroupLabel": "雪風改・時雨改二",
         "rawEffect": "火力+1"
       }
@@ -424,14 +461,49 @@
           96,
           97,
           98,
+          144,
+          198,
+          199,
+          242,
+          244,
+          245,
+          246,
+          247,
+          248,
+          249,
+          250,
+          251,
+          252,
+          253,
+          323,
+          327,
+          328,
+          350,
+          351,
+          369,
           405,
           413,
           414,
           457,
           458,
           459,
+          463,
+          464,
+          468,
+          469,
+          470,
+          489,
+          490,
+          497,
+          498,
           582,
-          583
+          583,
+          587,
+          588,
+          667,
+          687,
+          721,
+          975
         ],
         "baseShipIds": [],
         "classIds": [],
@@ -470,10 +542,10 @@
       "source": {
         "url": "https://akashi-list.me/detail/w266.html",
         "pageName": "12.7cm連装砲C型改二",
-        "fetchedAt": "",
+        "fetchedAt": "2026-08-04T00:00:00+00:00",
         "httpLastModified": null,
-        "contentSha256": "",
-        "fragmentHash": "",
+        "contentSha256": "sha256:8fe86024977f646cbce5c17efcb5d56da9af570370fbfcb36eaf6b24c740db35",
+        "fragmentHash": "sha256:282eae7916aa50b1ab96c27bbcbb0ce6e351452fdc0eeeef734b77ec4b68d2d8",
         "sourceGroupLabel": "白露型・朝潮型",
         "rawEffect": "火力+1 雷装+3 回避+1"
       }
@@ -545,10 +617,10 @@
       "source": {
         "url": "https://akashi-list.me/detail/w266.html",
         "pageName": "12.7cm連装砲C型改二",
-        "fetchedAt": "",
+        "fetchedAt": "2026-08-04T00:00:00+00:00",
         "httpLastModified": null,
-        "contentSha256": "",
-        "fragmentHash": "",
+        "contentSha256": "sha256:8fe86024977f646cbce5c17efcb5d56da9af570370fbfcb36eaf6b24c740db35",
+        "fragmentHash": "sha256:299ec2864161ad05db75a46fdd7e4dd0d2f28216c044e8f5299a79747aef1d42",
         "sourceGroupLabel": "陽炎型・磯風乙改",
         "rawEffect": "火力+2 雷装+3 回避+1"
       }
@@ -610,10 +682,10 @@
       "source": {
         "url": "https://akashi-list.me/detail/w266.html",
         "pageName": "12.7cm連装砲C型改二",
-        "fetchedAt": "",
+        "fetchedAt": "2026-08-04T00:00:00+00:00",
         "httpLastModified": null,
-        "contentSha256": "",
-        "fragmentHash": "",
+        "contentSha256": "sha256:8fe86024977f646cbce5c17efcb5d56da9af570370fbfcb36eaf6b24c740db35",
+        "fragmentHash": "sha256:1dd71f0cd957fc508b424f4f5b3a03a53bac6fc095f26ba6766610ffc889b034",
         "sourceGroupLabel": "陽炎型改二・雪風改二",
         "rawEffect": "火力+2 雷装+3 回避+1"
       }
@@ -630,7 +702,8 @@
       "shipCondition": {
         "shipIds": [
           145,
-          228
+          228,
+          961
         ],
         "baseShipIds": [],
         "classIds": [],
@@ -669,10 +742,10 @@
       "source": {
         "url": "https://akashi-list.me/detail/w266.html",
         "pageName": "12.7cm連装砲C型改二",
-        "fetchedAt": "",
+        "fetchedAt": "2026-08-04T00:00:00+00:00",
         "httpLastModified": null,
-        "contentSha256": "",
-        "fragmentHash": "",
+        "contentSha256": "sha256:8fe86024977f646cbce5c17efcb5d56da9af570370fbfcb36eaf6b24c740db35",
+        "fragmentHash": "sha256:d642ceb4ba92bd41da18e839ab84fc3e1629aec5dd239950a8acb8202f4f253d",
         "sourceGroupLabel": "雪風改・時雨改二",
         "rawEffect": "火力+1 雷装+3 回避+1"
       }

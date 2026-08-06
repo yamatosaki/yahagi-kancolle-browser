@@ -227,8 +227,10 @@ class _CompactBattlePanel extends StatelessWidget {
       children: [
         Row(
           children: [
-            _RankBadge(rank: battle.rank),
-            const SizedBox(width: 11),
+            if (battle.status == LiveBattleStatus.confirmed) ...<Widget>[
+              _RankBadge(rank: battle.rank),
+              const SizedBox(width: 11),
+            ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

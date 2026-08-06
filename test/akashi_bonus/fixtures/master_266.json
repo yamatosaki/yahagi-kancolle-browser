@@ -3119,6 +3119,3516 @@
       ],
       "api_voicef": 3,
       "api_yomi": "あまつかぜ"
+    },
+    {
+      "api_afterbull": 480,
+      "api_afterfuel": 360,
+      "api_afterlv": 70,
+      "api_aftershipid": "566",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 225,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "陽炎改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16012,
+      "api_sortno": 1325,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        32,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 1,
+      "api_yomi": "かげろう"
+    },
+    {
+      "api_afterbull": 470,
+      "api_afterfuel": 370,
+      "api_afterlv": 72,
+      "api_aftershipid": "567",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 226,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "不知火改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16022,
+      "api_sortno": 1326,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        32,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 1,
+      "api_yomi": "しらぬい"
+    },
+    {
+      "api_afterbull": 460,
+      "api_afterfuel": 380,
+      "api_afterlv": 73,
+      "api_aftershipid": "568",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 227,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "黒潮改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16032,
+      "api_sortno": 1327,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        32,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 1,
+      "api_yomi": "くろしお"
+    },
+    {
+      "api_afterbull": 200,
+      "api_afterfuel": 180,
+      "api_afterlv": 77,
+      "api_aftershipid": "497",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 242,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "白露改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15072,
+      "api_sortno": 1342,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        30,
+        48
+      ],
+      "api_tyku": [
+        15,
+        49
+      ],
+      "api_voicef": 3,
+      "api_yomi": "しらつゆ"
+    },
+    {
+      "api_afterbull": 200,
+      "api_afterfuel": 180,
+      "api_afterlv": 60,
+      "api_aftershipid": "145",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 243,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "時雨改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15082,
+      "api_sortno": 1343,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        30,
+        48
+      ],
+      "api_tyku": [
+        15,
+        49
+      ],
+      "api_voicef": 3,
+      "api_yomi": "しぐれ"
+    },
+    {
+      "api_afterbull": 200,
+      "api_afterfuel": 180,
+      "api_afterlv": 70,
+      "api_aftershipid": "498",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 244,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "村雨改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15092,
+      "api_sortno": 1344,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        30,
+        48
+      ],
+      "api_tyku": [
+        15,
+        49
+      ],
+      "api_voicef": 1,
+      "api_yomi": "むらさめ"
+    },
+    {
+      "api_afterbull": 200,
+      "api_afterfuel": 180,
+      "api_afterlv": 55,
+      "api_aftershipid": "144",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 245,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "夕立改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15102,
+      "api_sortno": 1345,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        30,
+        48
+      ],
+      "api_tyku": [
+        15,
+        49
+      ],
+      "api_voicef": 1,
+      "api_yomi": "ゆうだち"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 246,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "五月雨改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15122,
+      "api_sortno": 1346,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        30,
+        48
+      ],
+      "api_tyku": [
+        15,
+        49
+      ],
+      "api_voicef": 1,
+      "api_yomi": "さみだれ"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 247,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "涼風改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15162,
+      "api_sortno": 1347,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        30,
+        48
+      ],
+      "api_tyku": [
+        15,
+        49
+      ],
+      "api_voicef": 1,
+      "api_yomi": "すずかぜ"
+    },
+    {
+      "api_afterbull": 360,
+      "api_afterfuel": 390,
+      "api_afterlv": 70,
+      "api_aftershipid": "463",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 248,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "朝潮改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15172,
+      "api_sortno": 1348,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 3,
+      "api_yomi": "あさしお"
+    },
+    {
+      "api_afterbull": 200,
+      "api_afterfuel": 270,
+      "api_afterlv": 65,
+      "api_aftershipid": "199",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 249,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "大潮改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15182,
+      "api_sortno": 1349,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 1,
+      "api_yomi": "おおしお"
+    },
+    {
+      "api_afterbull": 390,
+      "api_afterfuel": 270,
+      "api_afterlv": 77,
+      "api_aftershipid": "489",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 250,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "満潮改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15192,
+      "api_sortno": 1350,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 1,
+      "api_yomi": "みちしお"
+    },
+    {
+      "api_afterbull": 220,
+      "api_afterfuel": 280,
+      "api_afterlv": 67,
+      "api_aftershipid": "490",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 251,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "荒潮改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15202,
+      "api_sortno": 1351,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 1,
+      "api_yomi": "あらしお"
+    },
+    {
+      "api_afterbull": 390,
+      "api_afterfuel": 270,
+      "api_afterlv": 63,
+      "api_aftershipid": "198",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 252,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "霰改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15252,
+      "api_sortno": 1352,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 1,
+      "api_yomi": "あられ"
+    },
+    {
+      "api_afterbull": 300,
+      "api_afterfuel": 390,
+      "api_afterlv": 75,
+      "api_aftershipid": "464",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 253,
+      "api_leng": 1,
+      "api_luck": [
+        20,
+        79
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "霞改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15262,
+      "api_sortno": 1353,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 1,
+      "api_yomi": "かすみ"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 5,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 294,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "舞風改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16182,
+      "api_sortno": 1394,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        32,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 3,
+      "api_yomi": "まいかぜ"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 5,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 300,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "初風改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16072,
+      "api_sortno": 1396,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        32,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 3,
+      "api_yomi": "はつかぜ"
+    },
+    {
+      "api_afterbull": 450,
+      "api_afterfuel": 390,
+      "api_afterlv": 74,
+      "api_aftershipid": "648",
+      "api_backs": 5,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        8,
+        44
+      ],
+      "api_id": 301,
+      "api_leng": 1,
+      "api_luck": [
+        15,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "秋雲改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16192,
+      "api_sortno": 1397,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        32,
+        49
+      ],
+      "api_tyku": [
+        22,
+        59
+      ],
+      "api_voicef": 3,
+      "api_yomi": "あきぐも"
+    },
+    {
+      "api_afterbull": 480,
+      "api_afterfuel": 300,
+      "api_afterlv": 67,
+      "api_aftershipid": "558",
+      "api_backs": 5,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        48
+      ],
+      "api_id": 312,
+      "api_leng": 1,
+      "api_luck": [
+        17,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "浜風改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16132,
+      "api_sortno": 1408,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        32,
+        49
+      ],
+      "api_tyku": [
+        22,
+        60
+      ],
+      "api_voicef": 1,
+      "api_yomi": "はまかぜ"
+    },
+    {
+      "api_afterbull": 680,
+      "api_afterfuel": 360,
+      "api_afterlv": 70,
+      "api_aftershipid": "559",
+      "api_backs": 5,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        48
+      ],
+      "api_id": 313,
+      "api_leng": 1,
+      "api_luck": [
+        16,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "谷風改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16142,
+      "api_sortno": 1409,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        32,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 1,
+      "api_yomi": "たにかぜ"
+    },
+    {
+      "api_afterbull": 460,
+      "api_afterfuel": 770,
+      "api_afterlv": 73,
+      "api_aftershipid": "951",
+      "api_backs": 7,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 20,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 316,
+      "api_leng": 1,
+      "api_luck": [
+        17,
+        69
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "天津風改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        32,
+        84
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16092,
+      "api_sortno": 1411,
+      "api_souk": [
+        14,
+        61
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        34,
+        54
+      ],
+      "api_tyku": [
+        23,
+        63
+      ],
+      "api_voicef": 3,
+      "api_yomi": "あまつかぜ"
+    },
+    {
+      "api_afterbull": 470,
+      "api_afterfuel": 330,
+      "api_afterlv": 69,
+      "api_aftershipid": "556",
+      "api_backs": 5,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        48
+      ],
+      "api_id": 317,
+      "api_leng": 1,
+      "api_luck": [
+        13,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "浦風改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16112,
+      "api_sortno": 1412,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        32,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 1,
+      "api_yomi": "うらかぜ"
+    },
+    {
+      "api_afterbull": 480,
+      "api_afterfuel": 300,
+      "api_afterlv": 68,
+      "api_aftershipid": "557",
+      "api_backs": 6,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        48
+      ],
+      "api_id": 320,
+      "api_leng": 1,
+      "api_luck": [
+        18,
+        81
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "磯風改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16122,
+      "api_sortno": 1413,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        33,
+        49
+      ],
+      "api_tyku": [
+        24,
+        64
+      ],
+      "api_voicef": 3,
+      "api_yomi": "いそかぜ"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 6,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        48
+      ],
+      "api_id": 322,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "時津風改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16102,
+      "api_sortno": 1415,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        32,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 3,
+      "api_yomi": "ときつかぜ"
+    },
+    {
+      "api_afterbull": 190,
+      "api_afterfuel": 390,
+      "api_afterlv": 78,
+      "api_aftershipid": "975",
+      "api_backs": 5,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 323,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "春雨改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15112,
+      "api_sortno": 1416,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        30,
+        49
+      ],
+      "api_tyku": [
+        15,
+        49
+      ],
+      "api_voicef": 3,
+      "api_yomi": "はるさめ"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 5,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        50
+      ],
+      "api_id": 327,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "朝雲改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15212,
+      "api_sortno": 1419,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 3,
+      "api_yomi": "あさぐも"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 5,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 328,
+      "api_leng": 1,
+      "api_luck": [
+        11,
+        58
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "山雲改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        80
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15222,
+      "api_sortno": 1420,
+      "api_souk": [
+        14,
+        48
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        49
+      ],
+      "api_tyku": [
+        16,
+        50
+      ],
+      "api_voicef": 3,
+      "api_yomi": "やまぐも"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 6,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        48
+      ],
+      "api_id": 329,
+      "api_leng": 1,
+      "api_luck": [
+        13,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "野分改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16152,
+      "api_sortno": 1421,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        32,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 3,
+      "api_yomi": "のわき"
+    },
+    {
+      "api_afterbull": 390,
+      "api_afterfuel": 360,
+      "api_afterlv": 82,
+      "api_aftershipid": "587",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 350,
+      "api_leng": 1,
+      "api_luck": [
+        13,
+        64
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "海風改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15132,
+      "api_sortno": 1430,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        30,
+        48
+      ],
+      "api_tyku": [
+        16,
+        50
+      ],
+      "api_voicef": 3,
+      "api_yomi": "うみかぜ"
+    },
+    {
+      "api_afterbull": 390,
+      "api_afterfuel": 300,
+      "api_afterlv": 75,
+      "api_aftershipid": "469",
+      "api_backs": 5,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 351,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "江風改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        29,
+        80
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15152,
+      "api_sortno": 1431,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        30,
+        48
+      ],
+      "api_tyku": [
+        15,
+        49
+      ],
+      "api_voicef": 3,
+      "api_yomi": "かわかぜ"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 6,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        49
+      ],
+      "api_id": 354,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        63
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "嵐改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16162,
+      "api_sortno": 1434,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        32,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 3,
+      "api_yomi": "あらし"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 6,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        13,
+        50
+      ],
+      "api_id": 355,
+      "api_leng": 1,
+      "api_luck": [
+        12,
+        63
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "萩風改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16172,
+      "api_sortno": 1435,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        32,
+        49
+      ],
+      "api_tyku": [
+        16,
+        49
+      ],
+      "api_voicef": 3,
+      "api_yomi": "はぎかぜ"
+    },
+    {
+      "api_afterbull": 460,
+      "api_afterfuel": 380,
+      "api_afterlv": 74,
+      "api_aftershipid": "670",
+      "api_backs": 6,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        13,
+        50
+      ],
+      "api_id": 362,
+      "api_leng": 1,
+      "api_luck": [
+        14,
+        64
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "親潮改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        78
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16042,
+      "api_sortno": 1442,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        32,
+        49
+      ],
+      "api_tyku": [
+        16,
+        48
+      ],
+      "api_voicef": 3,
+      "api_yomi": "おやしお"
+    },
+    {
+      "api_afterbull": 390,
+      "api_afterfuel": 370,
+      "api_afterlv": 83,
+      "api_aftershipid": "588",
+      "api_backs": 5,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        13,
+        51
+      ],
+      "api_id": 369,
+      "api_leng": 1,
+      "api_luck": [
+        8,
+        59
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "山風改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        82
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15142,
+      "api_sortno": 1449,
+      "api_souk": [
+        14,
+        48
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        30,
+        48
+      ],
+      "api_tyku": [
+        15,
+        49
+      ],
+      "api_voicef": 3,
+      "api_yomi": "やまかぜ"
+    },
+    {
+      "api_afterbull": 880,
+      "api_afterfuel": 780,
+      "api_afterlv": 88,
+      "api_aftershipid": "656",
+      "api_backs": 7,
+      "api_broken": [
+        1,
+        3,
+        10,
+        1
+      ],
+      "api_buildtime": 24,
+      "api_bull_max": 20,
+      "api_ctype": 30,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        18,
+        68
+      ],
+      "api_id": 651,
+      "api_leng": 1,
+      "api_luck": [
+        60,
+        100
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "丹陽",
+      "api_powup": [
+        2,
+        0,
+        3,
+        2
+      ],
+      "api_raig": [
+        0,
+        56
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 16084,
+      "api_sortno": 451,
+      "api_souk": [
+        16,
+        60
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        35,
+        55
+      ],
+      "api_tyku": [
+        40,
+        88
+      ],
+      "api_voicef": 1,
+      "api_yomi": "ゆきかぜ"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 5,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        51
+      ],
+      "api_id": 687,
+      "api_leng": 1,
+      "api_luck": [
+        9,
+        54
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "峯雲改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        79
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15242,
+      "api_sortno": 1487,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        49
+      ],
+      "api_tyku": [
+        16,
+        50
+      ],
+      "api_voicef": 3,
+      "api_yomi": "みねぐも"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 5,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        52
+      ],
+      "api_id": 721,
+      "api_leng": 1,
+      "api_luck": [
+        8,
+        53
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "夏雲改",
+      "api_powup": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        78
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15232,
+      "api_sortno": 1721,
+      "api_souk": [
+        14,
+        49
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        49
+      ],
+      "api_tyku": [
+        13,
+        52
+      ],
+      "api_voicef": 3,
+      "api_yomi": "なつぐも"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 8,
+      "api_broken": [
+        2,
+        4,
+        11,
+        2
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 25,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        16,
+        67
+      ],
+      "api_id": 961,
+      "api_leng": 1,
+      "api_luck": [
+        55,
+        97
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "時雨改三",
+      "api_powup": [
+        2,
+        2,
+        3,
+        2
+      ],
+      "api_raig": [
+        31,
+        91
+      ],
+      "api_slot_num": 4,
+      "api_soku": 10,
+      "api_sort_id": 15088,
+      "api_sortno": 561,
+      "api_souk": [
+        15,
+        57
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        34,
+        54
+      ],
+      "api_tyku": [
+        31,
+        87
+      ],
+      "api_voicef": 3,
+      "api_yomi": "しぐれ"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 6,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        17,
+        74
+      ],
+      "api_id": 144,
+      "api_leng": 1,
+      "api_luck": [
+        22,
+        65
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "夕立改二",
+      "api_powup": [
+        2,
+        2,
+        1,
+        1
+      ],
+      "api_raig": [
+        37,
+        94
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15106,
+      "api_sortno": 144,
+      "api_souk": [
+        14,
+        52
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        58
+      ],
+      "api_tyku": [
+        16,
+        59
+      ],
+      "api_voicef": 3,
+      "api_yomi": "ゆうだち"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 6,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        16,
+        66
+      ],
+      "api_id": 198,
+      "api_leng": 1,
+      "api_luck": [
+        15,
+        68
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "霰改二",
+      "api_powup": [
+        2,
+        2,
+        1,
+        1
+      ],
+      "api_raig": [
+        32,
+        87
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15256,
+      "api_sortno": 198,
+      "api_souk": [
+        14,
+        53
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        53
+      ],
+      "api_tyku": [
+        20,
+        63
+      ],
+      "api_voicef": 1,
+      "api_yomi": "あられ"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 6,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        17,
+        67
+      ],
+      "api_id": 199,
+      "api_leng": 1,
+      "api_luck": [
+        17,
+        69
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "大潮改二",
+      "api_powup": [
+        2,
+        2,
+        1,
+        1
+      ],
+      "api_raig": [
+        33,
+        90
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15186,
+      "api_sortno": 199,
+      "api_souk": [
+        14,
+        51
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        53
+      ],
+      "api_tyku": [
+        20,
+        62
+      ],
+      "api_voicef": 1,
+      "api_yomi": "おおしお"
+    },
+    {
+      "api_afterbull": 390,
+      "api_afterfuel": 360,
+      "api_afterlv": 85,
+      "api_aftershipid": "468",
+      "api_backs": 6,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        18,
+        68
+      ],
+      "api_id": 463,
+      "api_leng": 1,
+      "api_luck": [
+        17,
+        70
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "朝潮改二",
+      "api_powup": [
+        2,
+        2,
+        1,
+        1
+      ],
+      "api_raig": [
+        36,
+        92
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15176,
+      "api_sortno": 263,
+      "api_souk": [
+        14,
+        52
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        53
+      ],
+      "api_tyku": [
+        22,
+        60
+      ],
+      "api_voicef": 3,
+      "api_yomi": "あさしお"
+    },
+    {
+      "api_afterbull": 390,
+      "api_afterfuel": 300,
+      "api_afterlv": 88,
+      "api_aftershipid": "470",
+      "api_backs": 6,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        16,
+        66
+      ],
+      "api_id": 464,
+      "api_leng": 1,
+      "api_luck": [
+        37,
+        97
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "霞改二",
+      "api_powup": [
+        2,
+        2,
+        1,
+        1
+      ],
+      "api_raig": [
+        33,
+        92
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15266,
+      "api_sortno": 264,
+      "api_souk": [
+        14,
+        52
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        53
+      ],
+      "api_tyku": [
+        24,
+        73
+      ],
+      "api_voicef": 1,
+      "api_yomi": "かすみ"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 6,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        16,
+        62
+      ],
+      "api_id": 469,
+      "api_leng": 1,
+      "api_luck": [
+        19,
+        75
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "江風改二",
+      "api_powup": [
+        2,
+        2,
+        1,
+        1
+      ],
+      "api_raig": [
+        38,
+        96
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15156,
+      "api_sortno": 269,
+      "api_souk": [
+        14,
+        51
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        54
+      ],
+      "api_tyku": [
+        18,
+        64
+      ],
+      "api_voicef": 3,
+      "api_yomi": "かわかぜ"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 7,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        19,
+        69
+      ],
+      "api_id": 489,
+      "api_leng": 1,
+      "api_luck": [
+        18,
+        77
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "満潮改二",
+      "api_powup": [
+        2,
+        2,
+        1,
+        1
+      ],
+      "api_raig": [
+        32,
+        89
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15196,
+      "api_sortno": 289,
+      "api_souk": [
+        15,
+        54
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        54
+      ],
+      "api_tyku": [
+        20,
+        65
+      ],
+      "api_voicef": 1,
+      "api_yomi": "みちしお"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 4,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        19,
+        69
+      ],
+      "api_id": 490,
+      "api_leng": 1,
+      "api_luck": [
+        17,
+        71
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "荒潮改二",
+      "api_powup": [
+        2,
+        2,
+        1,
+        1
+      ],
+      "api_raig": [
+        33,
+        88
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15206,
+      "api_sortno": 290,
+      "api_souk": [
+        14,
+        52
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        54
+      ],
+      "api_tyku": [
+        22,
+        70
+      ],
+      "api_voicef": 1,
+      "api_yomi": "あらしお"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 7,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        16,
+        69
+      ],
+      "api_id": 497,
+      "api_leng": 1,
+      "api_luck": [
+        16,
+        80
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "白露改二",
+      "api_powup": [
+        2,
+        2,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        87
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15076,
+      "api_sortno": 297,
+      "api_souk": [
+        14,
+        50
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        49
+      ],
+      "api_tyku": [
+        17,
+        71
+      ],
+      "api_voicef": 3,
+      "api_yomi": "しらつゆ"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 7,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        16,
+        68
+      ],
+      "api_id": 498,
+      "api_leng": 1,
+      "api_luck": [
+        17,
+        77
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "村雨改二",
+      "api_powup": [
+        2,
+        2,
+        1,
+        1
+      ],
+      "api_raig": [
+        28,
+        88
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15096,
+      "api_sortno": 298,
+      "api_souk": [
+        14,
+        51
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        49
+      ],
+      "api_tyku": [
+        18,
+        70
+      ],
+      "api_voicef": 1,
+      "api_yomi": "むらさめ"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 7,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        15,
+        61
+      ],
+      "api_id": 587,
+      "api_leng": 1,
+      "api_luck": [
+        20,
+        85
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "海風改二",
+      "api_powup": [
+        2,
+        2,
+        1,
+        1
+      ],
+      "api_raig": [
+        38,
+        93
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15136,
+      "api_sortno": 387,
+      "api_souk": [
+        14,
+        51
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        54
+      ],
+      "api_tyku": [
+        19,
+        69
+      ],
+      "api_voicef": 3,
+      "api_yomi": "うみかぜ"
+    },
+    {
+      "api_afterbull": 170,
+      "api_afterfuel": 300,
+      "api_afterlv": 91,
+      "api_aftershipid": "667",
+      "api_backs": 6,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        14,
+        60
+      ],
+      "api_id": 588,
+      "api_leng": 1,
+      "api_luck": [
+        10,
+        73
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "山風改二",
+      "api_powup": [
+        2,
+        2,
+        1,
+        1
+      ],
+      "api_raig": [
+        36,
+        95
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15146,
+      "api_sortno": 388,
+      "api_souk": [
+        12,
+        50
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        30,
+        52
+      ],
+      "api_tyku": [
+        17,
+        63
+      ],
+      "api_voicef": 3,
+      "api_yomi": "やまかぜ"
+    },
+    {
+      "api_afterbull": 0,
+      "api_afterfuel": 0,
+      "api_afterlv": 0,
+      "api_aftershipid": "0",
+      "api_backs": 7,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "白露型駆逐艦五番艦の春雨です、はい。<br>輸送作戦はお任せください……です。",
+      "api_houg": [
+        16,
+        66
+      ],
+      "api_id": 975,
+      "api_leng": 1,
+      "api_luck": [
+        18,
+        79
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "春雨改二",
+      "api_powup": [
+        2,
+        1,
+        2,
+        1
+      ],
+      "api_raig": [
+        28,
+        86
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15116,
+      "api_sortno": 575,
+      "api_souk": [
+        14,
+        51
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        49
+      ],
+      "api_tyku": [
+        20,
+        73
+      ],
+      "api_voicef": 3,
+      "api_yomi": "はるさめ"
+    },
+    {
+      "api_afterbull": 360,
+      "api_afterfuel": 390,
+      "api_afterlv": 85,
+      "api_aftershipid": "463",
+      "api_backs": 7,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        55
+      ],
+      "api_id": 468,
+      "api_leng": 1,
+      "api_luck": [
+        17,
+        70
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "朝潮改二丁",
+      "api_powup": [
+        2,
+        2,
+        1,
+        1
+      ],
+      "api_raig": [
+        36,
+        86
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15177,
+      "api_sortno": 268,
+      "api_souk": [
+        15,
+        55
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        34,
+        59
+      ],
+      "api_tyku": [
+        30,
+        75
+      ],
+      "api_voicef": 3,
+      "api_yomi": "あさしお"
+    },
+    {
+      "api_afterbull": 300,
+      "api_afterfuel": 390,
+      "api_afterlv": 88,
+      "api_aftershipid": "464",
+      "api_backs": 7,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 18,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        12,
+        63
+      ],
+      "api_id": 470,
+      "api_leng": 1,
+      "api_luck": [
+        37,
+        97
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "霞改二乙",
+      "api_powup": [
+        1,
+        2,
+        2,
+        1
+      ],
+      "api_raig": [
+        30,
+        83
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15267,
+      "api_sortno": 270,
+      "api_souk": [
+        15,
+        52
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        31,
+        53
+      ],
+      "api_tyku": [
+        32,
+        83
+      ],
+      "api_voicef": 1,
+      "api_yomi": "かすみ"
+    },
+    {
+      "api_afterbull": 300,
+      "api_afterfuel": 210,
+      "api_afterlv": 91,
+      "api_aftershipid": "588",
+      "api_backs": 7,
+      "api_broken": [
+        1,
+        2,
+        10,
+        0
+      ],
+      "api_buildtime": 22,
+      "api_bull_max": 20,
+      "api_ctype": 23,
+      "api_fuel_max": 15,
+      "api_getmes": "<br>",
+      "api_houg": [
+        14,
+        60
+      ],
+      "api_id": 667,
+      "api_leng": 1,
+      "api_luck": [
+        10,
+        73
+      ],
+      "api_maxeq": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "api_name": "山風改二丁",
+      "api_powup": [
+        2,
+        2,
+        1,
+        1
+      ],
+      "api_raig": [
+        24,
+        84
+      ],
+      "api_slot_num": 3,
+      "api_soku": 10,
+      "api_sort_id": 15147,
+      "api_sortno": 467,
+      "api_souk": [
+        11,
+        51
+      ],
+      "api_stype": 2,
+      "api_taik": [
+        30,
+        52
+      ],
+      "api_tyku": [
+        16,
+        66
+      ],
+      "api_voicef": 3,
+      "api_yomi": "やまかぜ"
     }
   ],
   "api_mst_slotitem": [

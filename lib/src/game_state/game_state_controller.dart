@@ -9,6 +9,7 @@ import 'game_state.dart';
 import 'game_state_reducer.dart';
 import 'game_state_store.dart';
 import '../logbook/logbook_database.dart';
+import '../fleet/anchorage_repair_timer.dart';
 
 final class GameStateController extends ChangeNotifier {
   GameStateController({
@@ -22,6 +23,8 @@ final class GameStateController extends ChangeNotifier {
   }
 
   final GameStateReducer _reducer;
+  final AnchorageRepairTimerTracker _anchorageRepairTimer =
+      AnchorageRepairTimerTracker();
   final QuestStore? questStore;
   final GameStateStore? gameStateStore;
   Timer? _expirationTimer;
@@ -114,6 +117,7 @@ final class GameStateController extends ChangeNotifier {
   GameState get state => _state;
   String? get lastError => _lastError;
   String? get lastUpdatedPath => _lastUpdatedPath;
+  DateTime? get anchorageRepairStartedAt => _anchorageRepairTimer.startedAt;
   Future<void> get idle => _queue;
 
   void accept(CapturedApiEvent event) {
@@ -126,8 +130,14 @@ final class GameStateController extends ChangeNotifier {
         return;
       }
       try {
-        final next = _reducer.reduce(_state, event);
-        if (!identical(next, _state)) {
+        final previous = _state;
+        final next = _reducer.reduce(previous, event);
+        if (!identical(next, previous)) {
+          _anchorageRepairTimer.observe(
+            previousState: previous,
+            nextState: next,
+            event: event,
+          );
           _state = next;
           _lastUpdatedPath = event.path;
           _lastError = null;

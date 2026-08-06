@@ -378,8 +378,50 @@ abstract class AppLocalizations {
   /// No description provided for @repairBrief.
   ///
   /// In zh, this message translates to:
-  /// **'入渠简报'**
+  /// **'维修简报'**
   String get repairBrief;
+
+  /// No description provided for @repairDockMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'入渠'**
+  String get repairDockMode;
+
+  /// No description provided for @anchorageRepairMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'泊地'**
+  String get anchorageRepairMode;
+
+  /// No description provided for @idle.
+  ///
+  /// In zh, this message translates to:
+  /// **'空闲'**
+  String get idle;
+
+  /// No description provided for @inactive.
+  ///
+  /// In zh, this message translates to:
+  /// **'闲置'**
+  String get inactive;
+
+  /// No description provided for @repairing.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在修理'**
+  String get repairing;
+
+  /// No description provided for @outOfRepairRange.
+  ///
+  /// In zh, this message translates to:
+  /// **'超出修理范围'**
+  String get outOfRepairRange;
+
+  /// No description provided for @unableToRepair.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法修理'**
+  String get unableToRepair;
 
   /// No description provided for @constructionBrief.
   ///
@@ -846,7 +888,7 @@ abstract class AppLocalizations {
   /// No description provided for @avgCondition.
   ///
   /// In zh, this message translates to:
-  /// **'平均疲劳'**
+  /// **'最低疲劳'**
   String get avgCondition;
 
   /// No description provided for @losDetail.
@@ -1362,7 +1404,7 @@ abstract class AppLocalizations {
   /// No description provided for @averageCondition.
   ///
   /// In zh, this message translates to:
-  /// **'平均疲劳'**
+  /// **'最低疲劳'**
   String get averageCondition;
 
   /// No description provided for @losDetails.

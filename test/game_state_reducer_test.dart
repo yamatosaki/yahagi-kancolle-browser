@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/src/game_state/fleet_metrics.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_reducer.dart';
 
@@ -417,7 +418,7 @@ void main() {
               'api_slot': <int>[7003, -1],
               'api_onslot': <int>[0, 0],
               'api_ndock_time': 5400000,
-              'api_ndock_item': <int>[24, 46],
+              'api_ndock_item': <int>[24, 0, 46, 0],
             },
           ]),
         );
@@ -545,6 +546,93 @@ void main() {
 
       expect(state.ships[9001]?.slotIds, <int>[7002, 7001, 7004]);
       expect(state.ships[9002]?.level, 44);
+    });
+
+    test(
+      'equipment changes update slots before the following ship3 refresh',
+      () {
+        final reducer = GameStateReducer();
+        var state = reducer.reduce(GameState.empty, portEvent);
+
+        state = reducer.reduce(
+          state,
+          kcsapiEvent(
+            '/kcsapi/api_req_kaisou/slotset',
+            const <String, Object?>{},
+            requestParams: const <String, Object?>{
+              'api_id': '9002',
+              'api_item_id': '7999',
+              'api_slot_idx': '1',
+            },
+          ),
+        );
+        expect(state.ships[9002]?.slotIds, <int>[7003, 7999]);
+
+        state = reducer.reduce(
+          state,
+          kcsapiEvent(
+            '/kcsapi/api_req_kaisou/slotset_ex',
+            const <String, Object?>{},
+            requestParams: const <String, Object?>{
+              'api_id': '9002',
+              'api_item_id': '7998',
+            },
+          ),
+        );
+        expect(state.ships[9002]?.extraSlotId, 7998);
+
+        state = reducer.reduce(
+          state,
+          kcsapiEvent(
+            '/kcsapi/api_req_kaisou/unsetslot_all',
+            const <String, Object?>{},
+            requestParams: const <String, Object?>{'api_id': '9002'},
+          ),
+        );
+        expect(state.ships[9002]?.slotIds, <int>[-1, -1]);
+        expect(state.ships[9002]?.extraSlotId, 7998);
+      },
+    );
+
+    test('ship3 speed refresh immediately changes the whole fleet speed', () {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(
+        reducer.reduce(GameState.empty, start2Event),
+        portEvent,
+      );
+      expect(
+        FleetMetrics.fromState(state, state.fleets.first).speedLabel,
+        '高速',
+      );
+
+      final previous = state.ships[9002]!;
+      state = reducer.reduce(
+        state,
+        kcsapiEvent('/kcsapi/api_get_member/ship3', <String, Object?>{
+          'api_ship_data': <Object?>[
+            <String, Object?>{
+              'api_id': previous.id,
+              'api_ship_id': previous.masterId,
+              'api_lv': previous.level,
+              'api_nowhp': previous.currentHp,
+              'api_maxhp': previous.maxHp,
+              'api_cond': previous.condition,
+              'api_fuel': previous.currentFuel,
+              'api_bull': previous.currentAmmo,
+              'api_soku': 15,
+              'api_slot': previous.slotIds,
+              'api_onslot': previous.onSlot,
+              'api_slot_ex': previous.extraSlotId,
+            },
+          ],
+        }),
+      );
+
+      expect(state.ships[9002]?.speed, 15);
+      expect(
+        FleetMetrics.fromState(state, state.fleets.first).speedLabel,
+        '高速+',
+      );
     });
 
     test('merges accepted quests and preserves server progress bands', () {

@@ -1768,7 +1768,7 @@
           ],
           "typeIds": []
         },
-        "category": "single",
+        "category": "count",
         "shipCondition": {
           "shipIds": [
             154,
@@ -1785,19 +1785,36 @@
         },
         "requires": [],
         "effect": {
-          "mode": "once",
-          "bonus": {
-            "firepower": 0,
-            "torpedo": 0,
-            "antiAir": 0,
-            "evasion": 3,
-            "accuracy": 0,
-            "armor": 0,
-            "antiSubmarine": 2,
-            "lineOfSight": 0,
-            "bombing": 0,
-            "range": 0
-          }
+          "mode": "countTable",
+          "increments": {
+            "1": {
+              "evasion": 3,
+              "antiSubmarine": 2
+            },
+            "2": {
+              "evasion": 3,
+              "antiSubmarine": 2
+            },
+            "3": {
+              "evasion": 3,
+              "antiSubmarine": 2
+            }
+          },
+          "byCount": {
+            "1": {
+              "evasion": 3,
+              "antiSubmarine": 2
+            },
+            "2": {
+              "evasion": 6,
+              "antiSubmarine": 4
+            },
+            "3": {
+              "evasion": 9,
+              "antiSubmarine": 6
+            }
+          },
+          "overflow": "cap"
         },
         "notes": [
           "override:override-290-fix",

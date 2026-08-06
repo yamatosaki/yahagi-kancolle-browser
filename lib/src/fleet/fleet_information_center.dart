@@ -6,13 +6,18 @@ import '../game_state/fleet_metrics.dart';
 import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
 import 'combat_mechanism.dart';
+import 'anchorage_repair_view.dart';
 import 'equipment_display.dart';
-import 'fleet_status_visual.dart';
+import 'fleet_switcher_bar.dart';
 import 'operation_status_views.dart';
 import 'ship_portrait.dart';
 import 'ship_speed_visual.dart';
 import 'ship_status_style.dart';
 import 'status_density.dart';
+import '../expedition/expedition_check_page.dart';
+import 'expedition_summary_card.dart' show ExpeditionSummaryMode, ExpeditionModeSelector;
+
+export 'fleet_switcher_bar.dart';
 
 AppLocalizations _fleetL10n(BuildContext context) =>
     AppLocalizations.of(context) ?? lookupAppLocalizations(const Locale('zh'));
@@ -26,12 +31,24 @@ class FleetInformationCenter extends StatefulWidget {
     this.page = FleetInformationPage.fleet,
     this.initialFleetId,
     this.showContextHeader = true,
+    this.repairMode,
+    this.onRepairModeChanged,
+    this.showRepairModeTabs = true,
+    this.onFleetSelected,
+    this.expeditionMode,
+    this.onExpeditionModeChanged,
   });
 
   final GameStateController controller;
   final FleetInformationPage page;
   final int? initialFleetId;
   final bool showContextHeader;
+  final RepairCenterMode? repairMode;
+  final ValueChanged<RepairCenterMode>? onRepairModeChanged;
+  final bool showRepairModeTabs;
+  final ValueChanged<int>? onFleetSelected;
+  final ExpeditionSummaryMode? expeditionMode;
+  final ValueChanged<ExpeditionSummaryMode>? onExpeditionModeChanged;
 
   @override
   State<FleetInformationCenter> createState() => _FleetInformationCenterState();
@@ -63,7 +80,11 @@ class _FleetInformationCenterState extends State<FleetInformationCenter> {
               if (widget.showContextHeader &&
                   (widget.page != FleetInformationPage.fleet ||
                       !state.hasPortData))
-                _PageHeader(page: widget.page),
+                _PageHeader(
+                  page: widget.page,
+                  expeditionMode: widget.expeditionMode,
+                  onExpeditionModeChanged: widget.onExpeditionModeChanged,
+                ),
               if (!state.hasPortData)
                 const Expanded(child: _WaitingState())
               else
@@ -77,11 +98,23 @@ class _FleetInformationCenterState extends State<FleetInformationCenter> {
                       },
                       showContextHeader: widget.showContextHeader,
                     ),
-                    FleetInformationPage.expedition => ExpeditionStatusView(
-                      state: state,
-                    ),
-                    FleetInformationPage.repair => RepairDockStatusView(
-                      state: state,
+                    FleetInformationPage.expedition => widget.expeditionMode == ExpeditionSummaryMode.check
+                        ? ExpeditionCheckPage(
+                            controller: widget.controller,
+                            showHeader: false,
+                            initialFleetId: _selectedFleetId,
+                            onBack: () {},
+                          )
+                        : ExpeditionStatusView(
+                            state: state,
+                          ),
+                    FleetInformationPage.repair => RepairCenterView(
+                      controller: widget.controller,
+                      initialFleetId: widget.initialFleetId,
+                      onFleetSelected: widget.onFleetSelected,
+                      mode: widget.repairMode,
+                      onModeChanged: widget.onRepairModeChanged,
+                      showModeTabs: widget.showRepairModeTabs,
                     ),
                     FleetInformationPage.construction =>
                       ConstructionDockStatusView(state: state),
@@ -96,9 +129,15 @@ class _FleetInformationCenterState extends State<FleetInformationCenter> {
 }
 
 class _PageHeader extends StatelessWidget {
-  const _PageHeader({required this.page});
+  const _PageHeader({
+    required this.page,
+    this.expeditionMode,
+    this.onExpeditionModeChanged,
+  });
 
   final FleetInformationPage page;
+  final ExpeditionSummaryMode? expeditionMode;
+  final ValueChanged<ExpeditionSummaryMode>? onExpeditionModeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -128,6 +167,14 @@ class _PageHeader extends StatelessWidget {
               fontSize: 17,
             ),
           ),
+          const Spacer(),
+          if (page == FleetInformationPage.expedition && expeditionMode != null && onExpeditionModeChanged != null)
+            ExpeditionModeSelector(
+              mode: expeditionMode!,
+              summaryLabel: '简报',
+              checkLabel: '检查',
+              onChanged: onExpeditionModeChanged!,
+            ),
         ],
       ),
     );
@@ -269,6 +316,9 @@ class _FleetViewState extends State<_FleetView> {
             FleetSwitcherBar(
               fleets: fleetButtons,
               selectedFleetId: fleet.id,
+              sortieFleetId: state.combatState.isActive
+                  ? state.combatState.sortieFleetId
+                  : null,
               onFleetSelected: widget.onFleetSelected,
             ),
             const SizedBox(height: 10),
@@ -397,7 +447,7 @@ class _FleetWorkspacePanel extends StatelessWidget {
   }
 }
 
-class _FleetRosterPanel extends StatelessWidget {
+class _FleetRosterPanel extends StatefulWidget {
   const _FleetRosterPanel({
     super.key,
     required this.state,
@@ -412,6 +462,35 @@ class _FleetRosterPanel extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   @override
+  State<_FleetRosterPanel> createState() => _FleetRosterPanelState();
+}
+
+class _FleetRosterPanelState extends State<_FleetRosterPanel>
+    with TickerProviderStateMixin {
+  late final AnimationController _damagePulse;
+  late final AnimationController _sparklePulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _damagePulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat();
+    _sparklePulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _damagePulse.dispose();
+    _sparklePulse.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return _FleetWorkspacePanel(
       child: Column(
@@ -420,64 +499,17 @@ class _FleetRosterPanel extends StatelessWidget {
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.all(8),
-              itemCount: ships.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 7),
+              itemCount: widget.ships.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
-                final ship = ships[index];
-                final ratio = ship.maxHp <= 0
-                    ? 0.0
-                    : ship.currentHp / ship.maxHp;
-                final borderColor = shipHpBarColor(
-                  ratio,
-                  isZeroHp: ship.currentHp <= 0,
-                );
-                return LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => onSelected(ship.id),
-                        borderRadius: BorderRadius.circular(10),
-                        child: AspectRatio(
-                          aspectRatio: 3,
-                          child: Container(
-                            key: Key('fleet-roster-ship-${ship.id}'),
-                            decoration: BoxDecoration(
-                              color: const Color(0xff142735),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: borderColor, width: 4),
-                              boxShadow: ship.id == selectedShipId
-                                  ? <BoxShadow>[
-                                      BoxShadow(
-                                        color: const Color(
-                                          0xffd4a85f,
-                                        ).withValues(alpha: 0.42),
-                                        blurRadius: 8,
-                                      ),
-                                    ]
-                                  : null,
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                ShipPortrait(
-                                  ship: state.masterForShip(ship),
-                                  serverOrigin: state.serverOrigin,
-                                  width: constraints.maxWidth,
-                                  height: constraints.maxWidth / 3,
-                                ),
-                                _StaticMoraleMark(
-                                  key: Key('fleet-morale-mark-${ship.id}'),
-                                  value: ship.condition,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+                final ship = widget.ships[index];
+                return _FleetRosterShipCapsule(
+                  state: widget.state,
+                  ship: ship,
+                  selected: ship.id == widget.selectedShipId,
+                  damagePulse: _damagePulse,
+                  sparklePulse: _sparklePulse,
+                  onTap: () => widget.onSelected(ship.id),
                 );
               },
             ),
@@ -488,38 +520,293 @@ class _FleetRosterPanel extends StatelessWidget {
   }
 }
 
-class _StaticMoraleMark extends StatelessWidget {
-  const _StaticMoraleMark({super.key, required this.value});
+class _FleetRosterShipCapsule extends StatelessWidget {
+  const _FleetRosterShipCapsule({
+    required this.state,
+    required this.ship,
+    required this.selected,
+    required this.damagePulse,
+    required this.sparklePulse,
+    required this.onTap,
+  });
 
-  final int value;
+  final GameState state;
+  final OwnedShip ship;
+  final bool selected;
+  final Animation<double> damagePulse;
+  final Animation<double> sparklePulse;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    if (value >= 50) {
-      return IgnorePointer(
-        child: Stack(
-          key: Key('fleet-morale-stars-$value'),
-          children: const [
-            Positioned(right: 8, top: 7, child: _StaticStar(size: 15)),
-            Positioned(right: 23, top: 5, child: _StaticStar(size: 8)),
-            Positioned(right: 17, top: 23, child: _StaticStar(size: 6)),
-            Positioned(right: 6, top: 29, child: _StaticStar(size: 5)),
-          ],
+    final hpRatio = ship.maxHp <= 0
+        ? 0.0
+        : (ship.currentHp / ship.maxHp).clamp(0.0, 1.0);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: AspectRatio(
+          aspectRatio: 3,
+          child: Container(
+            key: Key('fleet-roster-ship-${ship.id}'),
+            decoration: BoxDecoration(
+              color: const Color(0xff142735),
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: selected
+                  ? <BoxShadow>[
+                      BoxShadow(
+                        color: const Color(0xffd4a85f).withValues(alpha: 0.42),
+                        blurRadius: 8,
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: ClipRRect(
+                    key: Key('fleet-roster-portrait-${ship.id}'),
+                    borderRadius: BorderRadius.circular(10),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => ShipPortrait(
+                        ship: state.masterForShip(ship),
+                        serverOrigin: state.serverOrigin,
+                        width: constraints.maxWidth,
+                        height: constraints.maxHeight,
+                      ),
+                    ),
+                  ),
+                ),
+                _FleetRosterHpFrame(
+                  key: Key('fleet-hp-outer-frame-${ship.id}'),
+                  shipId: ship.id,
+                  ratio: hpRatio,
+                  color: shipHpBarColor(hpRatio, isZeroHp: ship.currentHp <= 0),
+                  pulses: ship.currentHp > 0 && hpRatio <= 0.75,
+                  animation: damagePulse,
+                ),
+                _FleetMoraleMark(
+                  key: Key('fleet-morale-mark-${ship.id}'),
+                  shipId: ship.id,
+                  value: ship.condition,
+                  sparklePulse: sparklePulse,
+                ),
+              ],
+            ),
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _FleetRosterHpFrame extends StatelessWidget {
+  const _FleetRosterHpFrame({
+    super.key,
+    required this.shipId,
+    required this.ratio,
+    required this.color,
+    required this.pulses,
+    required this.animation,
+  });
+
+  final int shipId;
+  final double ratio;
+  final Color color;
+  final bool pulses;
+  final Animation<double> animation;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget coloredFrame({double glowRadius = 1}) => CustomPaint(
+      painter: _FleetHpFramePainter(
+        ratio: ratio,
+        color: color,
+        glowRadius: glowRadius,
+      ),
+    );
+    return IgnorePointer(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CustomPaint(
+            painter: const _FleetHpFramePainter(
+              ratio: 1,
+              color: Color(0xff59666e),
+            ),
+          ),
+          if (ratio > 0 && pulses)
+            AnimatedBuilder(
+              animation: animation,
+              builder: (context, child) {
+                final trianglePhase = animation.value <= 0.5
+                    ? animation.value * 2
+                    : (1 - animation.value) * 2;
+                final phase = Curves.easeInOut.transform(trianglePhase);
+                return Opacity(
+                  key: Key('fleet-damage-pulse-$shipId'),
+                  opacity: 0.35 + phase * 0.65,
+                  child: coloredFrame(glowRadius: 0.5 + phase * 10.5),
+                );
+              },
+            )
+          else if (ratio > 0)
+            coloredFrame(),
+        ],
+      ),
+    );
+  }
+}
+
+class _FleetHpFramePainter extends CustomPainter {
+  const _FleetHpFramePainter({
+    required this.ratio,
+    required this.color,
+    this.glowRadius = 0,
+  });
+
+  final double ratio;
+  final Color color;
+  final double glowRadius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty || ratio <= 0) return;
+    final frame = RRect.fromRectAndRadius(
+      Rect.fromLTWH(-2, -2, size.width + 4, size.height + 4),
+      const Radius.circular(12),
+    );
+    canvas.save();
+    canvas.clipRect(
+      Rect.fromLTRB(
+        -16,
+        -16,
+        ratio >= 1 ? size.width + 16 : size.width * ratio,
+        size.height + 16,
+      ),
+    );
+    if (glowRadius > 0) {
+      canvas.drawRRect(
+        frame,
+        Paint()
+          ..color = color.withValues(alpha: 0.72)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 4
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, glowRadius),
       );
     }
-    if (value > 29) {
-      return const SizedBox.shrink();
-    }
+    canvas.drawRRect(
+      frame,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4,
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _FleetHpFramePainter oldDelegate) =>
+      ratio != oldDelegate.ratio ||
+      color != oldDelegate.color ||
+      glowRadius != oldDelegate.glowRadius;
+}
+
+class _FleetMoraleMark extends StatelessWidget {
+  const _FleetMoraleMark({
+    super.key,
+    required this.shipId,
+    required this.value,
+    required this.sparklePulse,
+  });
+
+  final int shipId;
+  final int value;
+  final Animation<double> sparklePulse;
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final badgeHeight = (constraints.maxHeight * 0.3)
+            .clamp(14.0, 18.0)
+            .toDouble();
+        final badgeFont = (constraints.maxHeight * 0.16)
+            .clamp(7.0, 10.0)
+            .toDouble();
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            if (value >= 50)
+              _FleetSparkleLayer(shipId: shipId, animation: sparklePulse),
+            if (value < 30) _fatigueFace(constraints.maxHeight),
+            Positioned(
+              right: 5,
+              bottom: 4,
+              child: Container(
+                key: Key('fleet-fatigue-badge-$shipId'),
+                height: badgeHeight,
+                constraints: BoxConstraints(minWidth: badgeHeight * 2.6),
+                padding: EdgeInsets.symmetric(horizontal: badgeHeight * 0.34),
+                decoration: BoxDecoration(
+                  color: const Color(0xdd07131d),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: shipFatigueColor(value).withValues(alpha: 0.78),
+                  ),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x99000000), blurRadius: 4),
+                  ],
+                ),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '疲劳 ',
+                          style: TextStyle(
+                            color: shipFatigueColor(value),
+                            fontSize: badgeFont,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        TextSpan(
+                          text: '$value',
+                          style: TextStyle(
+                            color: shipFatigueColor(value),
+                            fontSize: badgeFont + 1,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                    maxLines: 1,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+
+  Widget _fatigueFace(double height) {
     final danger = value <= 19;
     final color = danger ? const Color(0xffef5a5a) : const Color(0xffe7ad45);
-    return Align(
-      alignment: Alignment.topRight,
+    final size = (height * 0.42).clamp(18.0, 24.0).toDouble();
+    return Positioned(
+      right: 5,
+      top: 5,
       child: Container(
         key: Key('fleet-fatigue-face-$value'),
-        width: 24,
-        height: 24,
-        margin: const EdgeInsets.all(5),
+        width: size,
+        height: size,
         decoration: BoxDecoration(
           color: color,
           shape: BoxShape.circle,
@@ -533,27 +820,78 @@ class _StaticMoraleMark extends StatelessWidget {
               ? Icons.sentiment_very_dissatisfied_rounded
               : Icons.sentiment_dissatisfied_rounded,
           color: const Color(0xff3a2a20),
-          size: 19,
+          size: size * 0.79,
         ),
       ),
     );
   }
 }
 
-class _StaticStar extends StatelessWidget {
-  const _StaticStar({required this.size});
+class _FleetSparkleLayer extends StatelessWidget {
+  const _FleetSparkleLayer({required this.shipId, required this.animation});
 
-  final double size;
+  static const points = <({double x, double y, double size})>[
+    (x: 0.07, y: 0.18, size: 10),
+    (x: 0.21, y: 0.58, size: 6),
+    (x: 0.31, y: 0.29, size: 8),
+    (x: 0.69, y: 0.68, size: 7),
+    (x: 0.80, y: 0.22, size: 11),
+    (x: 0.91, y: 0.48, size: 6),
+  ];
+
+  final int shipId;
+  final Animation<double> animation;
 
   @override
-  Widget build(BuildContext context) {
-    return Icon(
-      Icons.auto_awesome_rounded,
-      size: size,
-      color: const Color(0xffffe58a),
-      shadows: const [Shadow(color: Color(0xffffcf55), blurRadius: 6)],
-    );
-  }
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: animation,
+    builder: (context, child) {
+      final phase = animation.value;
+      final opacity = switch (phase) {
+        < 0.16 => 0.0,
+        < 0.24 => (phase - 0.16) / 0.08,
+        < 0.31 => 1.0,
+        < 0.38 => 1 - (phase - 0.31) / 0.07,
+        _ => 0.0,
+      };
+      final scale = 0.55 + opacity * 0.7;
+      return LayoutBuilder(
+        builder: (context, constraints) => Stack(
+          key: Key('fleet-morale-stars-$shipId'),
+          fit: StackFit.expand,
+          children: [
+            for (var index = 0; index < points.length; index++)
+              Positioned(
+                left:
+                    constraints.maxWidth * points[index].x -
+                    points[index].size / 2,
+                top:
+                    constraints.maxHeight * points[index].y -
+                    points[index].size / 2,
+                child: Transform.scale(
+                  key: Key('fleet-sparkle-$shipId-$index'),
+                  scale: scale,
+                  child: Opacity(
+                    opacity: opacity,
+                    child: Icon(
+                      index.isEven
+                          ? Icons.auto_awesome_rounded
+                          : Icons.star_rounded,
+                      size: points[index].size,
+                      color: const Color(0xfffff7a4),
+                      shadows: const [
+                        Shadow(color: Colors.white, blurRadius: 3),
+                        Shadow(color: Color(0xffffcf3f), blurRadius: 8),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    },
+  );
 }
 
 class _FleetFocusPanel extends StatelessWidget {
@@ -993,8 +1331,8 @@ class _CompactEquipmentRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: Container(
           key: Key('fleet-equipment-row-${ship.id}-$index'),
-          height: 42,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          constraints: const BoxConstraints(minHeight: 42),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
@@ -1015,24 +1353,27 @@ class _CompactEquipmentRow extends StatelessWidget {
               ),
               const SizedBox(width: 7),
               Expanded(
-                child: Row(
+                child: Wrap(
+                  key: Key('fleet-equipment-title-flow-${ship.id}-$index'),
+                  spacing: 4,
+                  runSpacing: 2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Flexible(
-                      child: Text(
-                        master?.name ?? '未知装备',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xffe1e9ed),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    Text(
+                      master?.name ?? '未知装备',
+                      key: Key('fleet-equipment-name-${ship.id}-$index'),
+                      style: const TextStyle(
+                        color: Color(0xffe1e9ed),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     if (equipment.owned.level > 0) ...[
-                      const SizedBox(width: 4),
                       Text(
                         '★${equipment.owned.level}',
+                        key: Key(
+                          'fleet-equipment-improvement-${ship.id}-$index',
+                        ),
                         style: const TextStyle(
                           color: Color(0xff5daea6),
                           fontSize: 12,
@@ -1041,9 +1382,11 @@ class _CompactEquipmentRow extends StatelessWidget {
                       ),
                     ],
                     if (isAircraft && equipment.owned.proficiency > 0) ...[
-                      const SizedBox(width: 4),
                       Image.asset(
                         'assets/images/airplane/alv${equipment.owned.proficiency.clamp(1, 7)}.png',
+                        key: Key(
+                          'fleet-equipment-proficiency-${ship.id}-$index',
+                        ),
                         width: 18,
                         height: 16,
                       ),
@@ -1220,12 +1563,16 @@ class _SelectedEquipmentDetails extends StatelessWidget {
               const SizedBox(width: 9),
               Expanded(
                 child: Wrap(
+                  key: Key(
+                    'fleet-detail-equipment-title-flow-${ship.id}-$index',
+                  ),
                   crossAxisAlignment: WrapCrossAlignment.center,
                   spacing: 5,
                   runSpacing: 3,
                   children: [
                     Text(
                       master?.name ?? '未知装备',
+                      key: Key('fleet-detail-equipment-name-${ship.id}-$index'),
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
@@ -1234,6 +1581,9 @@ class _SelectedEquipmentDetails extends StatelessWidget {
                     if (equipment.owned.level > 0)
                       Text(
                         '★${equipment.owned.level}',
+                        key: Key(
+                          'fleet-detail-equipment-improvement-${ship.id}-$index',
+                        ),
                         style: const TextStyle(
                           color: Color(0xff5daea6),
                           fontWeight: FontWeight.w800,
@@ -1242,6 +1592,9 @@ class _SelectedEquipmentDetails extends StatelessWidget {
                     if (aircraft && equipment.owned.proficiency > 0)
                       Image.asset(
                         'assets/images/airplane/alv${equipment.owned.proficiency.clamp(1, 7)}.png',
+                        key: Key(
+                          'fleet-detail-equipment-proficiency-${ship.id}-$index',
+                        ),
                         width: 20,
                         height: 18,
                       ),
@@ -1310,154 +1663,6 @@ class _SelectedEquipmentDetails extends StatelessWidget {
   }
 }
 
-class FleetSwitcherBar extends StatelessWidget {
-  const FleetSwitcherBar({
-    super.key,
-    required this.fleets,
-    required this.selectedFleetId,
-    this.onFleetSelected,
-  });
-
-  final List<Fleet> fleets;
-  final int selectedFleetId;
-  final ValueChanged<int>? onFleetSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final visibleFleets = fleets.take(4).toList(growable: false);
-    return Row(
-      children: [
-        SizedBox(
-          key: Key('workspace-title-fleet'),
-          width: 72,
-          child: Text(
-            _fleetL10n(context).fleet,
-            style: const TextStyle(
-              color: Color(0xffe0b25c),
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        for (final item in visibleFleets) ...[
-          Expanded(
-            child: _FleetButton(
-              key: Key('fleet-button-${item.id}'),
-              fleet: item,
-              selected: item.id == selectedFleetId,
-              onTap: () => onFleetSelected?.call(item.id),
-            ),
-          ),
-          if (item != visibleFleets.last) const SizedBox(width: 8),
-        ],
-      ],
-    );
-  }
-}
-
-class _FleetButton extends StatelessWidget {
-  const _FleetButton({
-    super.key,
-    required this.fleet,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final Fleet fleet;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final phone = usesCompactFleetLayout(context);
-    final status = fleetStatusVisual(fleet);
-    return Material(
-      color: selected ? const Color(0xff3a3020) : const Color(0xff102331),
-      borderRadius: BorderRadius.circular(9),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(9),
-        child: Container(
-          height: phone ? 30 : 32,
-          padding: EdgeInsets.symmetric(
-            horizontal: phone ? 4 : 11,
-            vertical: 2,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(9),
-            border: Border.all(
-              color: selected
-                  ? const Color(0xff8d7040)
-                  : const Color(0xff294052),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Container(
-                  key: Key('fleet-name-cell-${fleet.id}'),
-                  child: Center(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        fleet.name,
-                        maxLines: 1,
-                        style: TextStyle(
-                          color: selected
-                              ? const Color(0xfff0c675)
-                              : const Color(0xffe1e9ed),
-                          fontWeight: FontWeight.w700,
-                          fontSize: phone ? 12 : 15,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Container(
-                  key: Key('fleet-status-cell-${fleet.id}'),
-                  child: Center(
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            key: Key('fleet-selector-status-dot-${fleet.id}'),
-                            width: 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              color: status.color,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          SizedBox(width: phone ? 4 : 6),
-                          Text(
-                            status.label,
-                            maxLines: 1,
-                            softWrap: false,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: phone ? 9 : 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _MetricsBar extends StatelessWidget {
   const _MetricsBar({required this.metrics});
 
@@ -1479,15 +1684,20 @@ class _MetricsBar extends StatelessWidget {
       (AppLocalizations.of(context)?.antiSub ?? '对潜', '${metrics.antiSub}'),
       (
         AppLocalizations.of(context)?.airPower ?? '制空',
-        metrics.airPower?.toString() ?? noValue,
+        metrics.airPower == null
+            ? noValue
+            : metrics.airPowerMaximum != null &&
+                  metrics.airPowerMaximum! > metrics.airPower!
+            ? '${metrics.airPower}+'
+            : '${metrics.airPower}',
       ),
       (
         AppLocalizations.of(context)?.lineOfSight ?? '索敌',
         formula33.isEmpty ? noValue : formula33.first.total.toStringAsFixed(2),
       ),
       (
-        AppLocalizations.of(context)?.averageCondition ?? '平均疲劳',
-        '${metrics.averageCondition}',
+        AppLocalizations.of(context)?.averageCondition ?? '最低疲劳',
+        '${metrics.minimumCondition}',
       ),
     ];
     final phone = usesCompactFleetLayout(context);
@@ -1499,7 +1709,11 @@ class _MetricsBar extends StatelessWidget {
               context,
               label: values[index].$1,
               value: values[index].$2,
-              key: index == 7 ? const Key('fleet-los-metric') : null,
+              key: switch (index) {
+                0 => const Key('fleet-speed-metric'),
+                7 => const Key('fleet-los-metric'),
+                _ => null,
+              },
               onTap: index == 7 && formula33.isNotEmpty
                   ? () => _showLineOfSightDetails(context)
                   : null,

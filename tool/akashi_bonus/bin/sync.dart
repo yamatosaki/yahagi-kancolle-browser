@@ -195,7 +195,14 @@ Future<int> run(List<String> args) async {
     var withBonus = 0;
     var withoutBonus = 0;
     final nationalities = _loadNationalities(toolDir);
-    final builder = RuleBuilder(master, nationalities: nationalities);
+    final overridePath = '$toolDir\\overrides\\bonuses.json';
+    final overrides = loadOverrides(overridePath);
+    final overrideCovered = <int>{
+      for (final o in overrides)
+        if (o.kind == 'addRule' && o.rule != null) ...o.rule!.shipCondition.shipIds,
+    };
+    final builder = RuleBuilder(master,
+        nationalities: nationalities, overrideCoveredShips: overrideCovered);
 
     for (final id in ids) {
       final detailUrl = '$kDetailPrefix' 'w$id.html';
@@ -269,8 +276,6 @@ Future<int> run(List<String> args) async {
     }
 
     // Apply reviewed overrides.
-    final overridePath = '$toolDir\\overrides\\bonuses.json';
-    final overrides = loadOverrides(overridePath);
     final applied = applyOverrides(allRules, overrides);
     if (applied.problems.isNotEmpty) {
       stderr.writeln('override problems: ${applied.problems}');
@@ -573,9 +578,11 @@ int _crossCheck(MasterData master, String datasetPath, String eoPath, String cwd
         detail: e['detail'] as String,
         checkedAt: e['checkedAt'] as String,
         checkedBy: e['checkedBy'] as String,
-        diffClass: e.containsKey('diffClass')
-            ? DiffClass.values.firstWhere((d) => d.label == e['diffClass'])
-            : null,
+        diffClass: e['diffClass'] == null
+            ? null
+            : DiffClass.values
+                .firstWhere((d) => d.label == e['diffClass'],
+                    orElse: () => DiffClass.sourceConflict),
       ));
     }
   }

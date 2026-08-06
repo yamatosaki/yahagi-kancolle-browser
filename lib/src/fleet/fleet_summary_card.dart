@@ -91,7 +91,13 @@ class _FleetSummaryCardState extends State<FleetSummaryCard> {
     }
 
     final fleet = state.fleets[fleetIndex];
-    final visual = fleetStatusVisual(fleet, now: widget.clock?.call());
+    final visual = fleetStatusVisual(
+      fleet,
+      now: widget.clock?.call(),
+      isSortie:
+          state.combatState.isActive &&
+          state.combatState.sortieFleetId == fleet.id,
+    );
     return _buildFleetStatus(fleetId, fleet.name, visual.label, visual.color);
   }
 
