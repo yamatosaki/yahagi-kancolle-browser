@@ -45,7 +45,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gameAreaRatio => '游戏区域占比';
 
   @override
-  String get infoPanelWidth => '情报面板宽度';
+  String get infoPanelWidth => '信息面板宽度（竖屏模式无效）';
 
   @override
   String get autoZoom => '自动缩放游戏画面（默认推荐 65：35）';
@@ -1129,7 +1129,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get gameAreaRatio => '遊戲區域佔比';
 
   @override
-  String get infoPanelWidth => '情報面板寬度';
+  String get infoPanelWidth => '資訊面板寬度（直屏模式無效）';
 
   @override
   String get autoZoom => '自動縮放遊戲畫面（預設推薦 65：35）';

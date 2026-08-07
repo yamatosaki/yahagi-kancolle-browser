@@ -174,7 +174,7 @@ abstract class AppLocalizations {
   /// No description provided for @infoPanelWidth.
   ///
   /// In zh, this message translates to:
-  /// **'情报面板宽度'**
+  /// **'信息面板宽度（竖屏模式无效）'**
   String get infoPanelWidth;
 
   /// No description provided for @autoZoom.

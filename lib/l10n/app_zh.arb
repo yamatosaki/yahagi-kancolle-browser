@@ -12,7 +12,7 @@
   "settingsTitle": "设置",
   "layoutSettings": "界面与布局",
   "gameAreaRatio": "游戏区域占比",
-  "infoPanelWidth": "情报面板宽度",
+  "infoPanelWidth": "信息面板宽度（竖屏模式无效）",
   "autoZoom": "自动缩放游戏画面（默认推荐 65：35）",
   "language": "语言 (Language)",
   "networkSettings": "网络设置",

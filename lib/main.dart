@@ -659,7 +659,10 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                           height: 42,
                                           child: buildToolbar(true),
                                         ),
-                                        Expanded(child: gameSurfaceWrapper),
+                                        if (isLandscape)
+                                          Expanded(child: gameSurfaceWrapper)
+                                        else
+                                          gameSurfaceWrapper,
                                       ],
                                     )
                                   : GameBrowserOverlay(
@@ -722,6 +725,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                           flex: gameFlex,
                                           child: DecoratedBox(
                                             decoration: const BoxDecoration(
+                                              color: Color(0xff0a1823),
                                               boxShadow: [
                                                 BoxShadow(
                                                   color: Colors.black38,
@@ -751,20 +755,18 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                     )
                                   : Column(
                                       children: [
-                                        Expanded(
-                                          flex: gameFlex,
-                                          child: DecoratedBox(
-                                            decoration: const BoxDecoration(
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.black38,
-                                                  offset: Offset(0, 2),
-                                                  blurRadius: 4,
-                                                ),
-                                              ],
-                                            ),
-                                            child: gameWidget,
+                                        DecoratedBox(
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xff0a1823),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black38,
+                                                offset: Offset(0, 2),
+                                                blurRadius: 4,
+                                              ),
+                                            ],
                                           ),
+                                          child: gameWidget,
                                         ),
                                         const Divider(
                                           height: 1,
@@ -772,7 +774,6 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                           color: Color(0xff294052),
                                         ),
                                         Expanded(
-                                          flex: informationFlex,
                                           child: Padding(
                                             padding: const EdgeInsets.only(
                                               top: 4,

@@ -12,7 +12,7 @@
   "settingsTitle": "設定",
   "layoutSettings": "介面與佈局",
   "gameAreaRatio": "遊戲區域佔比",
-  "infoPanelWidth": "情報面板寬度",
+  "infoPanelWidth": "資訊面板寬度（直屏模式無效）",
   "autoZoom": "自動縮放遊戲畫面（預設推薦 65：35）",
   "language": "語言 (Language)",
   "networkSettings": "網路設定",

@@ -35,7 +35,6 @@ class _GameBrowserOverlayState extends State<GameBrowserOverlay> {
         final isVisible = widget.controller.isVisible;
         return Stack(
           key: const Key('game-browser-overlay'),
-          fit: StackFit.expand,
           children: [
             ColoredBox(
               color: const Color(0xff102431),
