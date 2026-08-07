@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:yahagi_kancolle_browser/src/expedition/expedition_check_card.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/dashboard_card.dart';
+import 'package:yahagi_kancolle_browser/src/fleet/expedition_summary_card.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_store.dart';
@@ -16,11 +16,12 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: ExpeditionCheckCard(
+        home: ExpeditionSummaryCard(
           controller: controller,
           collapsed: false,
           onToggleCollapse: () {},
-          onOpenDetails: () {},
+          onOpenExpedition: () {},
+          onOpenExpeditionCheck: (_) {},
         ),
       ),
     );
@@ -43,11 +44,12 @@ void main() {
           builder: (context, setState) => Scaffold(
             body: SizedBox(
               width: 420,
-              child: ExpeditionCheckCard(
+              child: ExpeditionSummaryCard(
                 controller: controller,
                 collapsed: collapsed,
                 onToggleCollapse: () => setState(() => collapsed = !collapsed),
-                onOpenDetails: () => opened = true,
+                onOpenExpedition: () {},
+                onOpenExpeditionCheck: (_) => opened = true,
               ),
             ),
           ),
@@ -55,14 +57,16 @@ void main() {
       ),
     );
 
-    expect(find.text('远征检查'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('expedition-mode-check')));
+    await tester.pump();
+
+    expect(find.text('远征简报'), findsOneWidget);
     expect(find.text('简洁'), findsOneWidget);
     expect(find.text('详细'), findsOneWidget);
     expect(find.text('成功'), findsOneWidget);
     expect(find.text('大成功'), findsOneWidget);
-    expect(find.text('详情页'), findsOneWidget);
 
-    for (final label in <String>['简洁', '详细', '成功', '大成功', '详情页']) {
+    for (final label in <String>['简洁', '详细', '成功', '大成功']) {
       final text = tester.widget<Text>(find.text(label));
       expect(text.style?.fontSize, 10);
       expect(text.style?.fontWeight, FontWeight.w700);
@@ -70,17 +74,16 @@ void main() {
     for (final key in <String>[
       'expedition-mode-segments',
       'expedition-success-segments',
-      'expedition-details-segment',
     ]) {
       expect(find.byKey(Key(key)), findsOneWidget);
     }
 
-    await tester.tap(find.text('详情页'));
+    await tester.tap(find.byKey(const Key('expedition-status-text')));
     expect(opened, isTrue);
 
-    await tester.tap(find.byKey(const Key('expedition-check-collapse')));
+    await tester.tap(find.byIcon(Icons.keyboard_arrow_up_rounded));
     await tester.pumpAndSettle();
-    expect(find.text('详情页'), findsNothing);
+    expect(find.byKey(const Key('expedition-status-text')), findsNothing);
   });
 
   testWidgets('真实母港规模不会让远征卡片无限分配内存', (tester) async {
@@ -99,19 +102,21 @@ void main() {
         home: Scaffold(
           body: SizedBox(
             width: 420,
-            child: ExpeditionCheckCard(
+            child: ExpeditionSummaryCard(
               controller: controller,
               collapsed: false,
               onToggleCollapse: () {},
-              onOpenDetails: () {},
+              onOpenExpedition: () {},
+              onOpenExpeditionCheck: (_) {},
             ),
           ),
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('expedition-mode-check')));
+    await tester.pump();
 
-    expect(find.text('远征检查'), findsOneWidget);
+    expect(find.text('远征简报'), findsOneWidget);
     expect(find.textContaining('常规检查'), findsOneWidget);
 
     await tester.tap(find.text('详细'));
@@ -142,18 +147,20 @@ void main() {
             width: 412,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: ExpeditionCheckCard(
+              child: ExpeditionSummaryCard(
                 controller: controller,
                 collapsed: false,
                 onToggleCollapse: () {},
-                onOpenDetails: () {},
+                onOpenExpedition: () {},
+                onOpenExpeditionCheck: (_) {},
               ),
             ),
           ),
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('expedition-mode-check')));
+    await tester.pump();
     final fleetGroup = find.byKey(const Key('expedition-fleet-segments'));
     expect(fleetGroup, findsOneWidget);
     final fleetLabels = find.descendant(
@@ -180,11 +187,8 @@ void main() {
     await tester.tap(find.text('大成功'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('详细'));
-    await tester.pumpAndSettle();
-    expect(find.text('详情页'), findsOneWidget);
-    final titleCenter = tester.getCenter(find.text('远征检查'));
-    final detailsCenter = tester.getCenter(find.text('详情页'));
-    expect((titleCenter.dy - detailsCenter.dy).abs(), lessThan(20));
+    await tester.pump();
+    expect(find.byKey(const Key('expedition-status-text')), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
@@ -218,18 +222,20 @@ void main() {
             width: 412,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: ExpeditionCheckCard(
+              child: ExpeditionSummaryCard(
                 controller: controller,
                 collapsed: false,
                 onToggleCollapse: () {},
-                onOpenDetails: () {},
+                onOpenExpedition: () {},
+                onOpenExpeditionCheck: (_) {},
               ),
             ),
           ),
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('expedition-mode-check')));
+    await tester.pump();
 
     final nameText = tester.widget<Text>(find.text('第十一驱逐舰队'));
     expect(nameText.maxLines, 1);
@@ -255,17 +261,19 @@ void main() {
         home: Scaffold(
           body: SizedBox(
             width: 320,
-            child: ExpeditionCheckCard(
+            child: ExpeditionSummaryCard(
               controller: controller,
               collapsed: false,
               onToggleCollapse: () {},
-              onOpenDetails: () {},
+              onOpenExpedition: () {},
+              onOpenExpeditionCheck: (_) {},
             ),
           ),
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('expedition-mode-check')));
+    await tester.pump();
 
     final missionTexts = tester.widgetList<Text>(
       find.byKey(const Key('expedition-mission-name')),

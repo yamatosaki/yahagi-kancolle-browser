@@ -336,7 +336,7 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                   RadioListTile<NetworkMode>(
                     title: Text(
                       l10n.systemNetwork,
-                      style: const TextStyle(fontSize: 14),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                     ),
                     subtitle: Text(
                       l10n.systemNetworkDesc,
@@ -351,7 +351,7 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                   RadioListTile<NetworkMode>(
                     title: Text(
                       l10n.httpProxy,
-                      style: const TextStyle(fontSize: 14),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                     ),
                     subtitle: Text(
                       l10n.httpProxyDesc,
@@ -367,7 +367,7 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                   RadioListTile<NetworkMode>(
                     title: Text(
                       l10n.socks5Proxy,
-                      style: const TextStyle(fontSize: 14),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                     ),
                     subtitle: Text(
                       l10n.socks5ProxyDesc,
@@ -405,7 +405,7 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                             vertical: 8,
                           ),
                         ),
-                        style: const TextStyle(fontSize: 14),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -425,7 +425,7 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                             vertical: 8,
                           ),
                         ),
-                        style: const TextStyle(fontSize: 14),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                       ),
                     ),
                   ],

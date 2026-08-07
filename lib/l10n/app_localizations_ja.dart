@@ -1062,4 +1062,33 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get fcdMapStorageError => 'データを保存できなかったため、現在のバージョンを保持しました。';
+
+  @override
+  String get gameFrameRateTitle => 'ゲームフレームレート';
+
+  @override
+  String get gameFrameRateOff => 'オフ';
+
+  @override
+  String get gameFrameRateMax60 => '最大 60 FPS';
+
+  @override
+  String get gameFrameRateFollowDisplay => '画面に合わせる';
+
+  @override
+  String get gameFrameRateOffDesc => 'ゲーム本来のフレームレート動作を維持します。';
+
+  @override
+  String get gameFrameRateMax60Desc => 'RAF を使用し、目標フレームレートを最大 60 FPS に制限します。';
+
+  @override
+  String get gameFrameRateFollowDisplayDesc =>
+      '端末の画面リフレッシュレートに合わせます。消費電力と発熱が増える場合があります。';
+
+  @override
+  String get gameFrameRateUnsupported =>
+      '現在の Android WebView はフレームレートモードに対応していません';
+
+  @override
+  String get gameFrameRateRestartRequired => 'ゲームを再起動すると反映されます';
 }

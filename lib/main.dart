@@ -16,7 +16,6 @@ import 'src/battle/live_battle_card.dart';
 import 'src/audio/game_audio_controller.dart';
 import 'src/audio/game_audio_store.dart';
 import 'src/browser/game_browser_controller.dart';
-import 'src/fleet/expedition_summary_card.dart' show ExpeditionSummaryMode;
 import 'src/browser/gadget_bypass_controller.dart';
 import 'src/browser/gadget_bypass_store.dart';
 import 'src/browser/game_browser_overlay.dart';
@@ -36,7 +35,6 @@ import 'src/fleet/expedition_summary_card.dart';
 import 'src/fleet/repair_summary_card.dart';
 import 'src/fleet/construction_summary_card.dart';
 import 'src/fleet/pre_sortie_check_summary.dart';
-import 'src/expedition/expedition_check_page.dart';
 
 import 'src/game_webview.dart';
 import 'src/game_state/game_state_controller.dart';
@@ -61,6 +59,8 @@ import 'src/settings/settings_page.dart';
 import 'src/settings/release_check_service.dart';
 import 'src/settings/startup_update_notice.dart';
 import 'src/settings/screen_awake_controller.dart';
+import 'src/settings/battle_prediction_settings.dart';
+import 'src/settings/game_frame_rate_settings.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -82,9 +82,17 @@ Future<void> main() async {
   final safetySettingsController = await SafetySettingsController.load(
     SharedPreferencesSafetySettingsStore(),
   );
+  final battlePredictionSettingsController =
+      await BattlePredictionSettingsController.load(
+        SharedPreferencesBattlePredictionSettingsStore(),
+      );
   final displayModeController = await DisplayModeController.load(
     SharedPreferencesDisplayModeStore(),
   );
+  final gameFrameRateSettingsController =
+      await GameFrameRateSettingsController.load(
+        SharedPreferencesGameFrameRateSettingsStore(),
+      );
   applyOrientationPolicy(
     currentWindowSize(),
     displayModeController.displayMode,
@@ -143,6 +151,7 @@ Future<void> main() async {
   final battleController = BattleController(
     gameState: () => gameStateController.state,
     nodeLabelResolver: fcdMapController,
+    predictionMethod: () => battlePredictionSettingsController.method,
   );
   fcdMapController.addListener(battleController.refreshNodeLabel);
   final gameCaptureController = GameCaptureController(
@@ -162,6 +171,8 @@ Future<void> main() async {
       networkSettingsController: networkSettingsController,
       gadgetBypassController: gadgetBypassController,
       safetySettingsController: safetySettingsController,
+      battlePredictionSettingsController: battlePredictionSettingsController,
+      gameFrameRateSettingsController: gameFrameRateSettingsController,
       displayModeController: displayModeController,
       controller: controller,
       browserController: browserController,
@@ -191,6 +202,8 @@ class YahagiApp extends StatelessWidget {
     required this.networkSettingsController,
     required this.gadgetBypassController,
     required this.safetySettingsController,
+    this.battlePredictionSettingsController,
+    this.gameFrameRateSettingsController,
     required this.displayModeController,
     required this.controller,
     required this.browserController,
@@ -214,6 +227,8 @@ class YahagiApp extends StatelessWidget {
   final NetworkSettingsController networkSettingsController;
   final GadgetBypassController gadgetBypassController;
   final SafetySettingsController safetySettingsController;
+  final BattlePredictionSettingsController? battlePredictionSettingsController;
+  final GameFrameRateSettingsController? gameFrameRateSettingsController;
   final DisplayModeController displayModeController;
   final PrototypeStatusController controller;
   final GameBrowserController browserController;
@@ -278,6 +293,9 @@ class YahagiApp extends StatelessWidget {
               networkSettingsController: networkSettingsController,
               gadgetBypassController: gadgetBypassController,
               safetySettingsController: safetySettingsController,
+              battlePredictionSettingsController:
+                  battlePredictionSettingsController,
+              gameFrameRateSettingsController: gameFrameRateSettingsController,
               displayModeController: displayModeController,
               controller: controller,
               browserController: browserController,
@@ -310,6 +328,8 @@ class YahagiApp extends StatelessWidget {
                       audioController: audioController,
                       toolbarController: toolbarController,
                       gameCaptureController: gameCaptureController,
+                      frameRateSettingsController:
+                          gameFrameRateSettingsController,
                     ),
               ),
             ),
@@ -335,6 +355,8 @@ class YahagiShell extends StatefulWidget {
     required this.networkSettingsController,
     required this.gadgetBypassController,
     required this.safetySettingsController,
+    this.battlePredictionSettingsController,
+    this.gameFrameRateSettingsController,
     required this.displayModeController,
     required this.controller,
     required this.browserController,
@@ -358,6 +380,8 @@ class YahagiShell extends StatefulWidget {
   final NetworkSettingsController networkSettingsController;
   final GadgetBypassController gadgetBypassController;
   final SafetySettingsController safetySettingsController;
+  final BattlePredictionSettingsController? battlePredictionSettingsController;
+  final GameFrameRateSettingsController? gameFrameRateSettingsController;
   final DisplayModeController displayModeController;
   final PrototypeStatusController controller;
   final GameBrowserController browserController;
@@ -388,6 +412,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   int? _questCenterInitialQuestId;
   bool _inventoryShowShips = true;
   int _logbookTabIndex = 0;
+  int _settingsTabIndex = 0;
   RepairCenterMode _repairCenterMode = RepairCenterMode.dock;
   ExpeditionSummaryMode _expeditionCenterMode = ExpeditionSummaryMode.summary;
 
@@ -490,6 +515,10 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                         onLogbookTabChanged: (value) {
                           setState(() => _logbookTabIndex = value);
                         },
+                        settingsTabIndex: _settingsTabIndex,
+                        onSettingsTabChanged: (value) {
+                          setState(() => _settingsTabIndex = value);
+                        },
                         repairMode: _repairCenterMode,
                         onRepairModeChanged: (mode) {
                           setState(() => _repairCenterMode = mode);
@@ -540,17 +569,15 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                               final persistentToolbar =
                                   widget.toolbarDisplayController?.mode ==
                                   GameToolbarDisplayMode.persistent;
-                              final gameSurface = isLandscape
-                                  ? ColoredBox(
-                                      color: const Color(0xff0a1823),
-                                      child: Center(
-                                        child: AspectRatio(
-                                          aspectRatio: 1200 / 720,
-                                          child: widget.gameSurface,
-                                        ),
-                                      ),
-                                    )
-                                  : widget.gameSurface;
+                              final gameSurfaceWrapper = ColoredBox(
+                                color: const Color(0xff0a1823),
+                                child: Center(
+                                  child: AspectRatio(
+                                    aspectRatio: 1200 / 720,
+                                    child: widget.gameSurface,
+                                  ),
+                                ),
+                              );
                               Widget buildToolbar(
                                 bool persistent,
                               ) => AnimatedBuilder(
@@ -632,28 +659,13 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                           height: 42,
                                           child: buildToolbar(true),
                                         ),
-                                        if (isLandscape)
-                                          Expanded(child: gameSurface)
-                                        else
-                                          AspectRatio(
-                                            aspectRatio: 1200 / 720,
-                                            child: gameSurface,
-                                          ),
+                                        Expanded(child: gameSurfaceWrapper),
                                       ],
                                     )
-                                  : isLandscape
-                                  ? GameBrowserOverlay(
+                                  : GameBrowserOverlay(
                                       controller: widget.toolbarController,
-                                      gameSurface: gameSurface,
+                                      gameSurface: gameSurfaceWrapper,
                                       toolbar: buildToolbar(false),
-                                    )
-                                  : AspectRatio(
-                                      aspectRatio: 1200 / 720,
-                                      child: GameBrowserOverlay(
-                                        controller: widget.toolbarController,
-                                        gameSurface: gameSurface,
-                                        toolbar: buildToolbar(false),
-                                      ),
                                     );
 
                               final infoWidget = _InformationPanel(
@@ -696,7 +708,9 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                 onOpenExpeditionCheck: (fleetId) {
                                   setState(() {
                                     _expeditionCheckFleetId = fleetId;
-                                    _workspaceIndex = 9;
+                                    _expeditionCenterMode =
+                                        ExpeditionSummaryMode.check;
+                                    _workspaceIndex = 2;
                                   });
                                 },
                               );
@@ -737,17 +751,20 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                     )
                                   : Column(
                                       children: [
-                                        DecoratedBox(
-                                          decoration: const BoxDecoration(
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black38,
-                                                offset: Offset(0, 2),
-                                                blurRadius: 4,
-                                              ),
-                                            ],
+                                        Expanded(
+                                          flex: gameFlex,
+                                          child: DecoratedBox(
+                                            decoration: const BoxDecoration(
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black38,
+                                                  offset: Offset(0, 2),
+                                                  blurRadius: 4,
+                                                ),
+                                              ],
+                                            ),
+                                            child: gameWidget,
                                           ),
-                                          child: gameWidget,
                                         ),
                                         const Divider(
                                           height: 1,
@@ -755,7 +772,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                           color: Color(0xff294052),
                                         ),
                                         Expanded(
-                                          flex: 2,
+                                          flex: informationFlex,
                                           child: Padding(
                                             padding: const EdgeInsets.only(
                                               top: 4,
@@ -779,6 +796,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                           FleetInformationCenter(
                             controller: widget.gameStateController,
                             page: FleetInformationPage.expedition,
+                            initialFleetId: _expeditionCheckFleetId,
                             showContextHeader: false,
                             expeditionMode: _expeditionCenterMode,
                             onExpeditionModeChanged: (mode) {
@@ -847,6 +865,10 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                             gameStateController: widget.gameStateController,
                             safetySettingsController:
                                 widget.safetySettingsController,
+                            battlePredictionSettingsController:
+                                widget.battlePredictionSettingsController,
+                            gameFrameRateSettingsController:
+                                widget.gameFrameRateSettingsController,
                             displayModeController: widget.displayModeController,
                             currentVersion: widget.currentVersion,
                             releaseChecker: widget.releaseChecker,
@@ -857,15 +879,9 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                             showTitle: false,
                             showDeveloperDiagnostics:
                                 widget.showDeveloperDiagnostics,
+                            selectedIndex: _settingsTabIndex,
                           ),
-                        if (_workspaceIndex == 9)
-                          ExpeditionCheckPage(
-                            controller: widget.gameStateController,
-                            initialFleetId: _expeditionCheckFleetId,
-                            onBack: () {
-                              setState(() => _workspaceIndex = 0);
-                            },
-                          ),
+                        if (_workspaceIndex == 9) const SizedBox(),
                       ],
                     ),
                   ),
@@ -1092,7 +1108,10 @@ class _InformationPanelState extends State<_InformationPanel> {
           final hiddenIds = widget.layoutSettingsController.dashboardCardHidden;
           final cardOrder = widget.layoutSettingsController.dashboardCardOrder;
           final validCards = cardOrder
-              .where((id) => LayoutSettingsStore.defaultDashboardCardOrder.contains(id))
+              .where(
+                (id) =>
+                    LayoutSettingsStore.defaultDashboardCardOrder.contains(id),
+              )
               .toList();
           final visibleOrder = validCards
               .where((id) => !hiddenIds.contains(id))
@@ -1210,9 +1229,12 @@ class _InformationPanelState extends State<_InformationPanel> {
                             key: const Key('dashboard-edit-reset'),
                             tooltip: '还原默认排序',
                             onPressed: () {
-                              widget.layoutSettingsController.resetDashboardCardOrder();
+                              widget.layoutSettingsController
+                                  .resetDashboardCardOrder();
                             },
-                            icon: const Icon(Icons.settings_backup_restore_rounded),
+                            icon: const Icon(
+                              Icons.settings_backup_restore_rounded,
+                            ),
                             color: const Color(0xff8197a5),
                           ),
                           IconButton(
@@ -1238,7 +1260,9 @@ class _InformationPanelState extends State<_InformationPanel> {
                             widget.layoutSettingsController
                                 .setDashboardCardOrder(order);
                           },
-                          children: [for (final id in validCards) buildCard(id)],
+                          children: [
+                            for (final id in validCards) buildCard(id),
+                          ],
                         ),
                       ),
                     ],

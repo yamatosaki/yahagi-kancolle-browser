@@ -101,7 +101,7 @@ class DashboardCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (!collapsed) ...[const SizedBox(height: 5), child],
+            if (!collapsed) ...[const SizedBox(height: 0), child],
           ],
         ),
       ),

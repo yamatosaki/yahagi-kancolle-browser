@@ -234,7 +234,7 @@ class _BattleOverview extends StatelessWidget {
     ];
     return Row(
       children: [
-        if (battle.status == LiveBattleStatus.confirmed) ...<Widget>[
+        if (battle.rank != BattleRank.unknown) ...<Widget>[
           BattleRankBadge(
             rank: battle.rank,
             size: phone ? 50 : 48,

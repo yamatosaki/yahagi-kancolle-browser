@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../fleet/status_density.dart';
-import '../fleet/dashboard_card.dart';
 import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
 import 'expedition_evaluator.dart';
@@ -35,7 +33,8 @@ class _ExpeditionCheckContentState extends State<ExpeditionCheckContent> {
     final strings = ExpeditionStrings.of(context);
     return AnimatedBuilder(
       animation: widget.controller,
-      builder: (context, _) => _buildContent(context, widget.controller.state, strings),
+      builder: (context, _) =>
+          _buildContent(context, widget.controller.state, strings),
     );
   }
 
@@ -50,7 +49,12 @@ class _ExpeditionCheckContentState extends State<ExpeditionCheckContent> {
         children: [
           _controls(strings),
           const SizedBox(height: 10),
-          _statusBox(strings.waiting, false, neutral: true, onTap: () => widget.onOpenDetails(_fleetId)),
+          _statusBox(
+            strings.waiting,
+            false,
+            neutral: true,
+            onTap: () => widget.onOpenDetails(_fleetId),
+          ),
         ],
       );
     }
@@ -58,7 +62,12 @@ class _ExpeditionCheckContentState extends State<ExpeditionCheckContent> {
         .where((fleet) => fleet.shipIds.isNotEmpty)
         .toList();
     if (fleets.isEmpty) {
-      return _statusBox(strings.waiting, false, neutral: true, onTap: () => widget.onOpenDetails(_fleetId));
+      return _statusBox(
+        strings.waiting,
+        false,
+        neutral: true,
+        onTap: () => widget.onOpenDetails(_fleetId),
+      );
     }
     final fleet = fleets.cast<Fleet?>().firstWhere(
       (item) => item!.id == _fleetId,
@@ -137,7 +146,6 @@ class _ExpeditionCheckContentState extends State<ExpeditionCheckContent> {
 
   Widget _controls(ExpeditionStrings strings) => LayoutBuilder(
     builder: (context, constraints) {
-      final showDetailsInControls = !isPhoneDensity(context);
       final controlGroups = <Widget>[
         _segmentGroup(
           key: const Key('expedition-mode-segments'),
@@ -231,19 +239,23 @@ class _ExpeditionCheckContentState extends State<ExpeditionCheckContent> {
         child: Center(
           child: FittedBox(
             fit: BoxFit.scaleDown,
-            child: Text(
-              label,
-              maxLines: 1,
-              softWrap: false,
-              style: TextStyle(
-                color: selected
-                    ? const Color(0xffffdc88)
-                    : command
-                    ? const Color(0xffd4a85f)
-                    : const Color(0xff8197a5),
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-              ),
+            child: Row(
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: TextStyle(
+                    color: selected
+                        ? const Color(0xffffdc88)
+                        : command
+                        ? const Color(0xffd4a85f)
+                        : const Color(0xff8197a5),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -321,14 +333,10 @@ class _ExpeditionCheckContentState extends State<ExpeditionCheckContent> {
       return DropdownButtonFormField<int>(
         initialValue: current,
         isExpanded: true,
-        decoration: InputDecoration(
-          labelText: strings.selectExpedition,
+        decoration: const InputDecoration(
           isDense: true,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 9,
-          ),
-          border: const OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          border: OutlineInputBorder(),
         ),
         items: [
           for (final id in expeditionRules.keys)
@@ -354,7 +362,12 @@ class _ExpeditionCheckContentState extends State<ExpeditionCheckContent> {
     },
   );
 
-  Widget _statusBox(String text, bool passed, {bool neutral = false, VoidCallback? onTap}) {
+  Widget _statusBox(
+    String text,
+    bool passed, {
+    bool neutral = false,
+    VoidCallback? onTap,
+  }) {
     final color = neutral
         ? const Color(0xff244457)
         : passed
@@ -368,13 +381,9 @@ class _ExpeditionCheckContentState extends State<ExpeditionCheckContent> {
           onTap: onTap,
           borderRadius: BorderRadius.circular(5),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             child: Text(
-              '${neutral
-                  ? '•'
-                  : passed
-                  ? '☑'
-                  : '☒'} $text',
+              text,
               key: const Key('expedition-status-text'),
               maxLines: 1,
               softWrap: false,

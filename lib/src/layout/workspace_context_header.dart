@@ -21,6 +21,8 @@ class WorkspaceContextHeader extends StatelessWidget {
     this.onInventorySectionChanged,
     this.logbookTabIndex = 0,
     this.onLogbookTabChanged,
+    this.settingsTabIndex = 0,
+    this.onSettingsTabChanged,
     this.repairMode = RepairCenterMode.dock,
     this.onRepairModeChanged,
     this.expeditionMode = ExpeditionSummaryMode.summary,
@@ -35,6 +37,8 @@ class WorkspaceContextHeader extends StatelessWidget {
   final ValueChanged<bool>? onInventorySectionChanged;
   final int logbookTabIndex;
   final ValueChanged<int>? onLogbookTabChanged;
+  final int settingsTabIndex;
+  final ValueChanged<int>? onSettingsTabChanged;
   final RepairCenterMode repairMode;
   final ValueChanged<RepairCenterMode>? onRepairModeChanged;
   final ExpeditionSummaryMode expeditionMode;
@@ -92,8 +96,6 @@ class WorkspaceContextHeader extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-          const Spacer(),
-          QuestCountSegmentedBar(quests: state.quests.values),
         ],
       );
     }
@@ -137,6 +139,28 @@ class WorkspaceContextHeader extends StatelessWidget {
             shipCount: state.ships.length,
             equipmentCount: state.slotItems.length,
             onChanged: onInventorySectionChanged ?? (_) {},
+          ),
+        ],
+      );
+    }
+    if (workspaceIndex == 8) {
+      return Row(
+        children: [
+          Text(
+            l10n.settings,
+            key: const Key('workspace-title-settings'),
+            style: const TextStyle(
+              color: Color(0xffe0b25c),
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: SettingsSegmented(
+              selectedIndex: settingsTabIndex,
+              onChanged: onSettingsTabChanged ?? (_) {},
+            ),
           ),
         ],
       );
@@ -185,4 +209,81 @@ class WorkspaceContextHeader extends StatelessWidget {
       : l10n.localeName.contains('Hant')
       ? '持有一覽'
       : '持有一览';
+}
+
+class SettingsSegmented extends StatelessWidget {
+  const SettingsSegmented({
+    super.key,
+    required this.selectedIndex,
+    required this.onChanged,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = const <String>[
+      '画面',
+      '声音',
+      '战斗',
+      '网络',
+      '关于与支持',
+    ];
+    return Container(
+      height: 38,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xff0b202d),
+        border: Border.all(color: const Color(0xff315064)),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          for (var index = 0; index < labels.length; index++)
+            Expanded(
+              child: _SettingsSegmentButton(
+                selected: index == selectedIndex,
+                label: labels[index],
+                onTap: () => onChanged(index),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsSegmentButton extends StatelessWidget {
+  const _SettingsSegmentButton({
+    required this.selected,
+    required this.label,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: selected ? const Color(0xff8a6628) : Colors.transparent,
+    borderRadius: BorderRadius.circular(16),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Center(
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: selected ? const Color(0xffffdc88) : const Color(0xff9fb3bf),
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    ),
+  );
 }

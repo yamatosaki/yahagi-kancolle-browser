@@ -102,7 +102,7 @@ class _GadgetBypassSectionState extends State<GadgetBypassSection> {
               activeThumbColor: const Color(0xff403923),
               title: Text(
                 l10n?.gadgetBypassEnable ?? '开启绕行',
-                style: const TextStyle(fontSize: 14),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
               ),
               subtitle: Text(
                 l10n?.gadgetBypassDesc ?? '仅影响游戏客户端文件加载',

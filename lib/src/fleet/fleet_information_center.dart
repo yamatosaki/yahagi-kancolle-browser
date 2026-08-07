@@ -13,6 +13,7 @@ import 'operation_status_views.dart';
 import 'ship_portrait.dart';
 import 'ship_speed_visual.dart';
 import 'ship_status_style.dart';
+import 'ship_status_visuals.dart';
 import 'status_density.dart';
 import '../expedition/expedition_check_page.dart';
 import 'expedition_summary_card.dart' show ExpeditionSummaryMode, ExpeditionModeSelector;
@@ -581,7 +582,7 @@ class _FleetRosterShipCapsule extends StatelessWidget {
                     ),
                   ),
                 ),
-                _FleetRosterHpFrame(
+                ShipHpFrame(
                   key: Key('fleet-hp-outer-frame-${ship.id}'),
                   shipId: ship.id,
                   ratio: hpRatio,
@@ -589,7 +590,7 @@ class _FleetRosterShipCapsule extends StatelessWidget {
                   pulses: ship.currentHp > 0 && hpRatio <= 0.75,
                   animation: damagePulse,
                 ),
-                _FleetMoraleMark(
+                ShipMoraleMark(
                   key: Key('fleet-morale-mark-${ship.id}'),
                   shipId: ship.id,
                   value: ship.condition,
@@ -604,295 +605,6 @@ class _FleetRosterShipCapsule extends StatelessWidget {
   }
 }
 
-class _FleetRosterHpFrame extends StatelessWidget {
-  const _FleetRosterHpFrame({
-    super.key,
-    required this.shipId,
-    required this.ratio,
-    required this.color,
-    required this.pulses,
-    required this.animation,
-  });
-
-  final int shipId;
-  final double ratio;
-  final Color color;
-  final bool pulses;
-  final Animation<double> animation;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget coloredFrame({double glowRadius = 1}) => CustomPaint(
-      painter: _FleetHpFramePainter(
-        ratio: ratio,
-        color: color,
-        glowRadius: glowRadius,
-      ),
-    );
-    return IgnorePointer(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          CustomPaint(
-            painter: const _FleetHpFramePainter(
-              ratio: 1,
-              color: Color(0xff59666e),
-            ),
-          ),
-          if (ratio > 0 && pulses)
-            AnimatedBuilder(
-              animation: animation,
-              builder: (context, child) {
-                final trianglePhase = animation.value <= 0.5
-                    ? animation.value * 2
-                    : (1 - animation.value) * 2;
-                final phase = Curves.easeInOut.transform(trianglePhase);
-                return Opacity(
-                  key: Key('fleet-damage-pulse-$shipId'),
-                  opacity: 0.35 + phase * 0.65,
-                  child: coloredFrame(glowRadius: 0.5 + phase * 10.5),
-                );
-              },
-            )
-          else if (ratio > 0)
-            coloredFrame(),
-        ],
-      ),
-    );
-  }
-}
-
-class _FleetHpFramePainter extends CustomPainter {
-  const _FleetHpFramePainter({
-    required this.ratio,
-    required this.color,
-    this.glowRadius = 0,
-  });
-
-  final double ratio;
-  final Color color;
-  final double glowRadius;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (size.isEmpty || ratio <= 0) return;
-    final frame = RRect.fromRectAndRadius(
-      Rect.fromLTWH(-2, -2, size.width + 4, size.height + 4),
-      const Radius.circular(12),
-    );
-    canvas.save();
-    canvas.clipRect(
-      Rect.fromLTRB(
-        -16,
-        -16,
-        ratio >= 1 ? size.width + 16 : size.width * ratio,
-        size.height + 16,
-      ),
-    );
-    if (glowRadius > 0) {
-      canvas.drawRRect(
-        frame,
-        Paint()
-          ..color = color.withValues(alpha: 0.72)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 4
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, glowRadius),
-      );
-    }
-    canvas.drawRRect(
-      frame,
-      Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 4,
-    );
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _FleetHpFramePainter oldDelegate) =>
-      ratio != oldDelegate.ratio ||
-      color != oldDelegate.color ||
-      glowRadius != oldDelegate.glowRadius;
-}
-
-class _FleetMoraleMark extends StatelessWidget {
-  const _FleetMoraleMark({
-    super.key,
-    required this.shipId,
-    required this.value,
-    required this.sparklePulse,
-  });
-
-  final int shipId;
-  final int value;
-  final Animation<double> sparklePulse;
-
-  @override
-  Widget build(BuildContext context) => IgnorePointer(
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        final badgeHeight = (constraints.maxHeight * 0.3)
-            .clamp(14.0, 18.0)
-            .toDouble();
-        final badgeFont = (constraints.maxHeight * 0.16)
-            .clamp(7.0, 10.0)
-            .toDouble();
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            if (value >= 50)
-              _FleetSparkleLayer(shipId: shipId, animation: sparklePulse),
-            if (value < 30) _fatigueFace(constraints.maxHeight),
-            Positioned(
-              right: 5,
-              bottom: 4,
-              child: Container(
-                key: Key('fleet-fatigue-badge-$shipId'),
-                height: badgeHeight,
-                constraints: BoxConstraints(minWidth: badgeHeight * 2.6),
-                padding: EdgeInsets.symmetric(horizontal: badgeHeight * 0.34),
-                decoration: BoxDecoration(
-                  color: const Color(0xdd07131d),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: shipFatigueColor(value).withValues(alpha: 0.78),
-                  ),
-                  boxShadow: const [
-                    BoxShadow(color: Color(0x99000000), blurRadius: 4),
-                  ],
-                ),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: '疲劳 ',
-                          style: TextStyle(
-                            color: shipFatigueColor(value),
-                            fontSize: badgeFont,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        TextSpan(
-                          text: '$value',
-                          style: TextStyle(
-                            color: shipFatigueColor(value),
-                            fontSize: badgeFont + 1,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ],
-                    ),
-                    maxLines: 1,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    ),
-  );
-
-  Widget _fatigueFace(double height) {
-    final danger = value <= 19;
-    final color = danger ? const Color(0xffef5a5a) : const Color(0xffe7ad45);
-    final size = (height * 0.42).clamp(18.0, 24.0).toDouble();
-    return Positioned(
-      right: 5,
-      top: 5,
-      child: Container(
-        key: Key('fleet-fatigue-face-$value'),
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xfff6ead1), width: 1.5),
-          boxShadow: [
-            BoxShadow(color: color.withValues(alpha: 0.45), blurRadius: 5),
-          ],
-        ),
-        child: Icon(
-          danger
-              ? Icons.sentiment_very_dissatisfied_rounded
-              : Icons.sentiment_dissatisfied_rounded,
-          color: const Color(0xff3a2a20),
-          size: size * 0.79,
-        ),
-      ),
-    );
-  }
-}
-
-class _FleetSparkleLayer extends StatelessWidget {
-  const _FleetSparkleLayer({required this.shipId, required this.animation});
-
-  static const points = <({double x, double y, double size})>[
-    (x: 0.07, y: 0.18, size: 10),
-    (x: 0.21, y: 0.58, size: 6),
-    (x: 0.31, y: 0.29, size: 8),
-    (x: 0.69, y: 0.68, size: 7),
-    (x: 0.80, y: 0.22, size: 11),
-    (x: 0.91, y: 0.48, size: 6),
-  ];
-
-  final int shipId;
-  final Animation<double> animation;
-
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: animation,
-    builder: (context, child) {
-      final phase = animation.value;
-      final opacity = switch (phase) {
-        < 0.16 => 0.0,
-        < 0.24 => (phase - 0.16) / 0.08,
-        < 0.31 => 1.0,
-        < 0.38 => 1 - (phase - 0.31) / 0.07,
-        _ => 0.0,
-      };
-      final scale = 0.55 + opacity * 0.7;
-      return LayoutBuilder(
-        builder: (context, constraints) => Stack(
-          key: Key('fleet-morale-stars-$shipId'),
-          fit: StackFit.expand,
-          children: [
-            for (var index = 0; index < points.length; index++)
-              Positioned(
-                left:
-                    constraints.maxWidth * points[index].x -
-                    points[index].size / 2,
-                top:
-                    constraints.maxHeight * points[index].y -
-                    points[index].size / 2,
-                child: Transform.scale(
-                  key: Key('fleet-sparkle-$shipId-$index'),
-                  scale: scale,
-                  child: Opacity(
-                    opacity: opacity,
-                    child: Icon(
-                      index.isEven
-                          ? Icons.auto_awesome_rounded
-                          : Icons.star_rounded,
-                      size: points[index].size,
-                      color: const Color(0xfffff7a4),
-                      shadows: const [
-                        Shadow(color: Colors.white, blurRadius: 3),
-                        Shadow(color: Color(0xffffcf3f), blurRadius: 8),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      );
-    },
-  );
-}
 
 class _FleetFocusPanel extends StatelessWidget {
   const _FleetFocusPanel({
@@ -1026,21 +738,27 @@ class _FleetFocusPanel extends StatelessWidget {
                               ),
                               _CompactStatusMeter(
                                 height: meterHeight,
-                                icon: Image.asset(
-                                  'assets/images/material/01.png',
-                                  width: 14,
-                                  height: 14,
+                                icon: Icon(
+                                  Icons.favorite_rounded,
+                                  key: Key('fleet-focus-hp-icon-${ship.id}'),
+                                  color: const Color(0xffef5a5a),
+                                  size: 14,
                                 ),
-                                value:
-                                    '${ship.currentFuel}/${master?.maxFuel ?? 0}',
-                                ratio: fuelRatio,
-                                valueColor: shipSupplyValueColor(fuelRatio),
-                                barColor: shipSupplyBarColor(fuelRatio),
+                                value: '${ship.currentHp}/${ship.maxHp}',
+                                ratio: hpRatio,
+                                valueColor: shipHpValueColor(
+                                  hpRatio,
+                                  isZeroHp: ship.currentHp <= 0,
+                                ),
+                                barColor: shipHpBarColor(
+                                  hpRatio,
+                                  isZeroHp: ship.currentHp <= 0,
+                                ),
                                 valueKey: Key(
-                                  'fleet-focus-fuel-value-${ship.id}',
+                                  'fleet-focus-hp-value-${ship.id}',
                                 ),
                                 trackKey: Key(
-                                  'fleet-focus-fuel-track-${ship.id}',
+                                  'fleet-focus-hp-track-${ship.id}',
                                 ),
                               ),
                             ],
@@ -1130,27 +848,22 @@ class _FleetFocusPanel extends StatelessWidget {
                               ),
                               _CompactStatusMeter(
                                 height: meterHeight,
-                                icon: Icon(
-                                  Icons.favorite_rounded,
-                                  key: Key('fleet-focus-hp-icon-${ship.id}'),
-                                  color: const Color(0xffef5a5a),
-                                  size: 14,
+                                icon: Image.asset(
+                                  'assets/images/material/01.png',
+                                  key: Key('fleet-focus-fuel-icon-${ship.id}'),
+                                  width: 14,
+                                  height: 14,
                                 ),
-                                value: '${ship.currentHp}/${ship.maxHp}',
-                                ratio: hpRatio,
-                                valueColor: shipHpValueColor(
-                                  hpRatio,
-                                  isZeroHp: ship.currentHp <= 0,
-                                ),
-                                barColor: shipHpBarColor(
-                                  hpRatio,
-                                  isZeroHp: ship.currentHp <= 0,
-                                ),
+                                value:
+                                    '${ship.currentFuel}/${master?.maxFuel ?? 0}',
+                                ratio: fuelRatio,
+                                valueColor: shipSupplyValueColor(fuelRatio),
+                                barColor: shipSupplyBarColor(fuelRatio),
                                 valueKey: Key(
-                                  'fleet-focus-hp-value-${ship.id}',
+                                  'fleet-focus-fuel-value-${ship.id}',
                                 ),
                                 trackKey: Key(
-                                  'fleet-focus-hp-track-${ship.id}',
+                                  'fleet-focus-fuel-track-${ship.id}',
                                 ),
                               ),
                               _CompactStatusMeter(

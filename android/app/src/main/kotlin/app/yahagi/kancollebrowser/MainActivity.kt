@@ -28,6 +28,7 @@ import app.yahagi.kancollebrowser.browser.WebViewProxyManager
 import app.yahagi.kancollebrowser.browser.GadgetBypassManager
 import app.yahagi.kancollebrowser.browser.GadgetBypassWebViewClient
 import app.yahagi.kancollebrowser.browser.FixedCanvasScalePolicy
+import app.yahagi.kancollebrowser.browser.GameFrameRateManager
 import app.yahagi.kancollebrowser.capture.GameCaptureBridge
 import app.yahagi.kancollebrowser.capture.ScreenshotDestination
 import java.io.File
@@ -59,12 +60,14 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
         const val GADGET_BYPASS_CHANNEL = "app.yahagi.kancollebrowser/gadget_bypass"
         const val SCREEN_AWAKE_CHANNEL = "app.yahagi.kancollebrowser/screen_awake"
         const val GAME_SCREENSHOT_CHANNEL = "app.yahagi.kancollebrowser/game_screenshot"
+        const val GAME_FRAME_RATE_CHANNEL = "app.yahagi.kancollebrowser/game_frame_rate"
         const val SCREENSHOT_PERMISSION_REQUEST = 2406
     }
 
     private var gameCaptureBridge: GameCaptureBridge? = null
     private var webViewProxyManager: WebViewProxyManager? = null
     private var gadgetBypassManager: GadgetBypassManager? = null
+    private var gameFrameRateManager: GameFrameRateManager? = null
     private var gadgetBypassLayoutListener: ViewTreeObserver.OnGlobalLayoutListener? = null
     
     private var boundWebView: WebView? = null
@@ -191,6 +194,13 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
             flutterEngine.dartExecutor.binaryMessenger,
             GADGET_BYPASS_CHANNEL,
         ).setMethodCallHandler(bypassManager)
+
+        val frameRateManager = GameFrameRateManager(this)
+        gameFrameRateManager = frameRateManager
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            GAME_FRAME_RATE_CHANNEL,
+        ).setMethodCallHandler(frameRateManager)
     }
 
     override fun onDestroy() {
@@ -200,6 +210,8 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
         webViewProxyManager?.dispose()
         webViewProxyManager = null
         gadgetBypassManager = null
+        gameFrameRateManager?.dispose()
+        gameFrameRateManager = null
         fixedCanvasLayoutListener?.let { listener ->
             boundWebView?.removeOnLayoutChangeListener(listener)
         }

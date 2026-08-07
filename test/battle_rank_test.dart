@@ -1,4 +1,4 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_models.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_rank.dart';
 
@@ -122,20 +122,23 @@ void main() {
     expect(rank, BattleRank.d);
   });
 
-  test('returns C after damaging at least half the enemy without a sink', () {
-    final rank = estimateBattleRank(
-      friendShips: <BattleShipSnapshot>[
-        ship(side: BattleSide.friend, initialHp: 100, currentHp: 40),
-      ],
-      enemyShips: <BattleShipSnapshot>[
-        ship(side: BattleSide.enemy, initialHp: 100, currentHp: 50),
-      ],
-    );
+  test(
+    'returns D when enemy damage is half but below ninety percent of ours',
+    () {
+      final rank = estimateBattleRank(
+        friendShips: <BattleShipSnapshot>[
+          ship(side: BattleSide.friend, initialHp: 100, currentHp: 40),
+        ],
+        enemyShips: <BattleShipSnapshot>[
+          ship(side: BattleSide.enemy, initialHp: 100, currentHp: 50),
+        ],
+      );
 
-    expect(rank, BattleRank.c);
-  });
+      expect(rank, BattleRank.d);
+    },
+  );
 
-  test('returns D when sub-half enemy damage is lower than friend damage', () {
+  test('returns C when enemy damage exceeds ninety percent of ours', () {
     final rank = estimateBattleRank(
       friendShips: <BattleShipSnapshot>[
         ship(side: BattleSide.friend, initialHp: 100, currentHp: 80),
@@ -145,7 +148,20 @@ void main() {
       ],
     );
 
-    expect(rank, BattleRank.d);
+    expect(rank, BattleRank.c);
+  });
+
+  test('floors damage percentages before the strict B-rank comparison', () {
+    final rank = estimateBattleRank(
+      friendShips: <BattleShipSnapshot>[
+        ship(side: BattleSide.friend, initialHp: 1000, currentHp: 899),
+      ],
+      enemyShips: <BattleShipSnapshot>[
+        ship(side: BattleSide.enemy, initialHp: 1000, currentHp: 746),
+      ],
+    );
+
+    expect(rank, BattleRank.c);
   });
 
   test('returns E when only one friend ship remains afloat', () {

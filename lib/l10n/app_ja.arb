@@ -374,5 +374,14 @@
   "@fcdMapUpdated": {"placeholders": {"oldVersion": {"type": "String"}, "newVersion": {"type": "String"}}},
   "fcdMapNetworkError": "データ更新元に接続できません。しばらくしてから再試行してください。",
   "fcdMapValidationError": "ダウンロードしたデータを検証できなかったため、現在のバージョンを保持しました。",
-  "fcdMapStorageError": "データを保存できなかったため、現在のバージョンを保持しました。"
+  "fcdMapStorageError": "データを保存できなかったため、現在のバージョンを保持しました。",
+  "gameFrameRateTitle": "ゲームフレームレート",
+  "gameFrameRateOff": "オフ",
+  "gameFrameRateMax60": "最大 60 FPS",
+  "gameFrameRateFollowDisplay": "画面に合わせる",
+  "gameFrameRateOffDesc": "ゲーム本来のフレームレート動作を維持します。",
+  "gameFrameRateMax60Desc": "RAF を使用し、目標フレームレートを最大 60 FPS に制限します。",
+  "gameFrameRateFollowDisplayDesc": "端末の画面リフレッシュレートに合わせます。消費電力と発熱が増える場合があります。",
+  "gameFrameRateUnsupported": "現在の Android WebView はフレームレートモードに対応していません",
+  "gameFrameRateRestartRequired": "ゲームを再起動すると反映されます"
 }

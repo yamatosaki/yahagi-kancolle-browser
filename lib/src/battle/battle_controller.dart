@@ -10,12 +10,19 @@ import 'battle_damage_parser.dart';
 import 'battle_models.dart';
 import 'battle_node_label_resolver.dart';
 import 'battle_session.dart';
+import 'prediction/battle_prediction_engine.dart';
+import 'prediction/poi/poi_battle_prediction_engine.dart';
+import 'prediction/yahagi_battle_prediction_engine.dart';
+import '../settings/battle_prediction_settings.dart';
 import '../logbook/logbook_database.dart';
 
 final class BattleController extends ChangeNotifier {
   BattleController({
     required this.gameState,
     BattleDamageParser? damageParser,
+    this.predictionMethod,
+    this.poiEngineFactory,
+    this.yahagiEngineFactory,
     this.maxRecords = 100,
     this.nodeLabelResolver = const EmptyBattleNodeLabelResolver(),
   }) : _damageParser = damageParser ?? BattleDamageParser(),
@@ -28,6 +35,7 @@ final class BattleController extends ChangeNotifier {
 
   static const Set<String> _battlePaths = <String>{
     '/kcsapi/api_req_practice/battle',
+    '/kcsapi/api_req_practice/midnight_battle',
     '/kcsapi/api_req_sortie/battle',
     '/kcsapi/api_req_sortie/airbattle',
     '/kcsapi/api_req_sortie/ld_airbattle',
@@ -56,6 +64,9 @@ final class BattleController extends ChangeNotifier {
 
   final GameState Function() gameState;
   final BattleDamageParser _damageParser;
+  final BattlePredictionMethod Function()? predictionMethod;
+  final BattlePredictionEngineFactory? poiEngineFactory;
+  final BattlePredictionEngineFactory? yahagiEngineFactory;
   final int maxRecords;
   final BattleNodeLabelResolver nodeLabelResolver;
   final List<BattleRecord> _records = <BattleRecord>[];
@@ -65,6 +76,7 @@ final class BattleController extends ChangeNotifier {
   Future<void> _queue = Future<void>.value();
   BattleContext _context = const BattleContext();
   BattleSession? _session;
+  BattlePredictionEngine? _predictionEngine;
   LiveBattle? _current;
   String? _lastError;
   bool _disposed = false;
@@ -133,6 +145,7 @@ final class BattleController extends ChangeNotifier {
       _current = null;
       _archiveSession();
       _session = null;
+      _predictionEngine = null;
       return;
     }
     final data = GameApiDecoder.decodeData(event.responseBody);
@@ -161,6 +174,7 @@ final class BattleController extends ChangeNotifier {
         displayStage: BattleDisplayStage.navigation,
       );
       _archiveSession();
+      _predictionEngine = null;
       _session = BattleSession(
         id: '${event.sequence}:${_context.mapAreaId}-${_context.mapInfoNo}-${_context.node}',
         context: _context,
@@ -276,14 +290,13 @@ final class BattleController extends ChangeNotifier {
       previous: previousBattle?.enemyEscort,
     );
 
-    final parsed = _damageParser.apply(
-      data: data,
+    _predictionEngine ??= _createPredictionEngine(
       friendMain: friendMain,
       friendEscort: friendEscort,
       enemyMain: enemyMain,
       enemyEscort: enemyEscort,
-      path: event.path,
     );
+    final parsed = _predictionEngine!.append(path: event.path, data: data);
     for (final issue in parsed.issues) {
       _session?.markUnconfirmed(stage: issue.stage, message: issue.message);
     }
@@ -293,6 +306,9 @@ final class BattleController extends ChangeNotifier {
         ? parsedEnemyName
         : previous?.enemyFleetName ?? '';
     final seiku = parseDispSeiku(data);
+    final rank = (_session?.isConfirmed ?? parsed.issues.isEmpty)
+        ? parsed.rank
+        : BattleRank.unknown;
 
     _current = LiveBattle(
       context: _context,
@@ -300,6 +316,7 @@ final class BattleController extends ChangeNotifier {
       friendEscort: parsed.friendEscort,
       enemyMain: parsed.enemyMain,
       enemyEscort: parsed.enemyEscort,
+      rank: rank,
       displayStage: BattleDisplayStage.battle,
       phaseLabel: _phaseLabel(event.path),
       friendFormation: _atInt(formation, 0),
@@ -307,11 +324,45 @@ final class BattleController extends ChangeNotifier {
       engagement: _atInt(formation, 2),
       enemyFleetName: enemyFleetName,
       airSuperiority: kAirSuperiorityLabels[seiku] ?? '未知',
-      mvpPositions: _predictedMvpPositions(
-        parsed.friendMain,
-        parsed.friendEscort,
-      ),
+      mvpPositions: parsed.mvpPositions.isNotEmpty
+          ? parsed.mvpPositions
+          : _predictedMvpPositions(parsed.friendMain, parsed.friendEscort),
     );
+  }
+
+  BattlePredictionEngine _createPredictionEngine({
+    required List<BattleShipSnapshot> friendMain,
+    required List<BattleShipSnapshot> friendEscort,
+    required List<BattleShipSnapshot> enemyMain,
+    required List<BattleShipSnapshot> enemyEscort,
+  }) {
+    final method = predictionMethod?.call() ?? BattlePredictionMethod.poi;
+    final factory = method == BattlePredictionMethod.poi
+        ? poiEngineFactory
+        : yahagiEngineFactory;
+    if (factory != null) {
+      return factory(
+        friendMain: friendMain,
+        friendEscort: friendEscort,
+        enemyMain: enemyMain,
+        enemyEscort: enemyEscort,
+      );
+    }
+    return switch (method) {
+      BattlePredictionMethod.poi => PoiBattlePredictionEngine(
+        friendMain: friendMain,
+        friendEscort: friendEscort,
+        enemyMain: enemyMain,
+        enemyEscort: enemyEscort,
+      ),
+      BattlePredictionMethod.yahagi => YahagiBattlePredictionEngine(
+        friendMain: friendMain,
+        friendEscort: friendEscort,
+        enemyMain: enemyMain,
+        enemyEscort: enemyEscort,
+        damageParser: _damageParser,
+      ),
+    };
   }
 
   void _applyResult(Map<String, Object?> data, CapturedApiEvent event) {
@@ -323,7 +374,21 @@ final class BattleController extends ChangeNotifier {
     final enemyInfo = _optionalMap(data['api_enemy_info']);
     final getShip = _optionalMap(data['api_get_ship']);
     final getItem = _optionalMap(data['api_get_useitem']);
-    final rank = BattleRank.parse(data['api_win_rank']);
+    var rank = BattleRank.parse(data['api_win_rank']);
+    if (rank == BattleRank.s) {
+      final friendShips = _current!.friendShips;
+      final initialHp = friendShips.fold<int>(
+        0,
+        (sum, ship) => sum + ship.initialHp,
+      );
+      final currentHp = friendShips.fold<int>(
+        0,
+        (sum, ship) => sum + ship.currentHp,
+      );
+      if (friendShips.isNotEmpty && currentHp >= initialHp) {
+        rank = BattleRank.ss;
+      }
+    }
     final mainMvp = _int(data['api_mvp']) - 1;
     final escortMvp = _int(data['api_mvp_combined']) - 1;
     final confirmed = (_current ?? LiveBattle(context: _context)).copyWith(
@@ -495,7 +560,7 @@ final class BattleController extends ChangeNotifier {
   ) {
     final positions = <int>[];
     int? bestPosition;
-    var bestDamage = 0;
+    var bestDamage = -1;
     for (var index = 0; index < main.length; index++) {
       if (main[index].damageDealt > bestDamage) {
         bestDamage = main[index].damageDealt;
@@ -506,7 +571,7 @@ final class BattleController extends ChangeNotifier {
       positions.add(bestPosition);
     }
     bestPosition = null;
-    bestDamage = 0;
+    bestDamage = -1;
     for (var index = 0; index < escort.length; index++) {
       if (escort[index].damageDealt > bestDamage) {
         bestDamage = escort[index].damageDealt;

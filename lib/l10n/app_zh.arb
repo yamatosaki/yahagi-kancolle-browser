@@ -4,7 +4,7 @@
   "game": "游戏",
   "fleet": "舰队",
   "expedition": "远征",
-  "repair": "入渠",
+  "repair": "修理",
   "construction": "建造",
   "quests": "任务",
   "battleRecords": "战斗记录",
@@ -374,5 +374,14 @@
   "@fcdMapUpdated": {"placeholders": {"oldVersion": {"type": "String"}, "newVersion": {"type": "String"}}},
   "fcdMapNetworkError": "未能连接数据更新源，请稍后重试。",
   "fcdMapValidationError": "下载的数据未通过校验，已保留当前版本。",
-  "fcdMapStorageError": "数据保存失败，已保留当前版本。"
+  "fcdMapStorageError": "数据保存失败，已保留当前版本。",
+  "gameFrameRateTitle": "游戏帧率",
+  "gameFrameRateOff": "关闭",
+  "gameFrameRateMax60": "最高 60 FPS",
+  "gameFrameRateFollowDisplay": "跟随屏幕",
+  "gameFrameRateOffDesc": "保持游戏原始帧率行为。",
+  "gameFrameRateMax60Desc": "使用 RAF 渲染，并将目标帧率限制为最高 60 FPS。",
+  "gameFrameRateFollowDisplayDesc": "跟随设备屏幕刷新率；可能增加耗电和发热。",
+  "gameFrameRateUnsupported": "当前 Android WebView 不支持帧率模式",
+  "gameFrameRateRestartRequired": "重新启动游戏后生效"
 }

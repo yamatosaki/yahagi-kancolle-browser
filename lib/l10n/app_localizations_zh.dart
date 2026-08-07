@@ -21,7 +21,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get expedition => '远征';
 
   @override
-  String get repair => '入渠';
+  String get repair => '修理';
 
   @override
   String get construction => '建造';
@@ -1059,6 +1059,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get fcdMapStorageError => '数据保存失败，已保留当前版本。';
+
+  @override
+  String get gameFrameRateTitle => '游戏帧率';
+
+  @override
+  String get gameFrameRateOff => '关闭';
+
+  @override
+  String get gameFrameRateMax60 => '最高 60 FPS';
+
+  @override
+  String get gameFrameRateFollowDisplay => '跟随屏幕';
+
+  @override
+  String get gameFrameRateOffDesc => '保持游戏原始帧率行为。';
+
+  @override
+  String get gameFrameRateMax60Desc => '使用 RAF 渲染，并将目标帧率限制为最高 60 FPS。';
+
+  @override
+  String get gameFrameRateFollowDisplayDesc => '跟随设备屏幕刷新率；可能增加耗电和发热。';
+
+  @override
+  String get gameFrameRateUnsupported => '当前 Android WebView 不支持帧率模式';
+
+  @override
+  String get gameFrameRateRestartRequired => '重新启动游戏后生效';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1078,7 +1105,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get expedition => '遠征';
 
   @override
-  String get repair => '入渠';
+  String get repair => '修理';
 
   @override
   String get construction => '建造';
@@ -2116,4 +2143,31 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get fcdMapStorageError => '資料儲存失敗，已保留目前版本。';
+
+  @override
+  String get gameFrameRateTitle => '遊戲幀率';
+
+  @override
+  String get gameFrameRateOff => '關閉';
+
+  @override
+  String get gameFrameRateMax60 => '最高 60 FPS';
+
+  @override
+  String get gameFrameRateFollowDisplay => '跟隨螢幕';
+
+  @override
+  String get gameFrameRateOffDesc => '保持遊戲原始幀率行為。';
+
+  @override
+  String get gameFrameRateMax60Desc => '使用 RAF 渲染，並將目標幀率限制為最高 60 FPS。';
+
+  @override
+  String get gameFrameRateFollowDisplayDesc => '跟隨裝置螢幕更新率；可能增加耗電和發熱。';
+
+  @override
+  String get gameFrameRateUnsupported => '目前 Android WebView 不支援幀率模式';
+
+  @override
+  String get gameFrameRateRestartRequired => '重新啟動遊戲後生效';
 }

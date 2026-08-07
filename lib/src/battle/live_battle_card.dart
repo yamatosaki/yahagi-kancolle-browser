@@ -227,7 +227,7 @@ class _CompactBattlePanel extends StatelessWidget {
       children: [
         Row(
           children: [
-            if (battle.status == LiveBattleStatus.confirmed) ...<Widget>[
+            if (battle.rank != BattleRank.unknown) ...<Widget>[
               _RankBadge(rank: battle.rank),
               const SizedBox(width: 11),
             ],

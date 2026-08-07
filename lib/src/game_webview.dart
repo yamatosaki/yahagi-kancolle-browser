@@ -8,6 +8,7 @@ import 'audio/game_audio_controller.dart';
 import 'audio/game_audio_port.dart';
 import 'bridge/native_game_capture_script.dart';
 import 'browser/game_browser_controller.dart';
+import 'browser/game_frame_rate_port.dart';
 import 'browser/game_page_alignment_script.dart';
 import 'browser/game_toolbar_controller.dart';
 import 'browser/game_webview_compatibility.dart';
@@ -22,6 +23,7 @@ import 'prototype_status_controller.dart';
 import 'settings/network_settings_controller.dart';
 import 'settings/network_settings_store.dart';
 import 'settings/network_settings_validator.dart';
+import 'settings/game_frame_rate_settings.dart';
 
 import 'settings/safety_settings_controller.dart';
 
@@ -45,6 +47,7 @@ class GameWebView extends StatefulWidget {
     required this.audioController,
     required this.toolbarController,
     required this.gameCaptureController,
+    this.frameRateSettingsController,
   });
 
   final NetworkSettingsController networkSettingsController;
@@ -55,6 +58,7 @@ class GameWebView extends StatefulWidget {
   final GameAudioController audioController;
   final GameToolbarController toolbarController;
   final GameCaptureController gameCaptureController;
+  final GameFrameRateSettingsController? frameRateSettingsController;
 
   @override
   State<GameWebView> createState() => _GameWebViewState();
@@ -63,6 +67,7 @@ class GameWebView extends StatefulWidget {
 class _GameWebViewState extends State<GameWebView> {
   late final WebViewController _webViewController;
   late final Future<void> _compatibilityReady;
+  late final Future<void> _frameRateReady;
   late final GameCapturePort _gameCapturePort;
   late CaptureMode _activeCaptureMode;
   static const _scaleChannel = MethodChannel(
@@ -91,6 +96,7 @@ class _GameWebViewState extends State<GameWebView> {
     widget.captureModeController.addListener(_onCaptureModeChanged);
     _webViewController = WebViewController();
     _compatibilityReady = _configureCompatibility();
+    _frameRateReady = _configureFrameRate();
     widget.browserController.attachPort(
       WebViewGameBrowserPort(
         _webViewController,
@@ -178,6 +184,7 @@ class _GameWebViewState extends State<GameWebView> {
 
     // Ensure compatibility is done
     await _compatibilityReady;
+    await _frameRateReady;
 
     // Apply network settings
     final netSettings = widget.networkSettingsController.settings;
@@ -273,6 +280,14 @@ class _GameWebViewState extends State<GameWebView> {
       ),
       currentUserAgent: currentUserAgent,
     );
+  }
+
+  Future<void> _configureFrameRate() async {
+    final controller = widget.frameRateSettingsController;
+    if (controller == null) return;
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    await controller.attachPort(createPlatformGameFrameRatePort());
   }
 
   NavigationDecision _onNavigationRequest(NavigationRequest request) {

@@ -113,6 +113,8 @@ void main() {
       'statusSuccess',
       // The established formula name is written identically in both locales.
       'formula33',
+      // The numeric frame-rate label and FPS acronym are shared terminology.
+      'gameFrameRateMax60',
     };
     const reviewedJa = <String>{
       'appTitle',

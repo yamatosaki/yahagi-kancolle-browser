@@ -173,6 +173,10 @@ class BattleDamageParser {
         battle,
         friendActiveRole: friendRole,
         enemyActiveRole: enemyRole,
+        isNight:
+            kind == BattleStageKind.nightShelling ||
+            kind == BattleStageKind.friendlyNightBattle,
+        attributeFriendDamage: kind != BattleStageKind.friendlyNightBattle,
       );
     }
 
@@ -192,6 +196,7 @@ class BattleDamageParser {
         friendActiveRole: friendRole,
         enemyActiveRole: enemyRole,
       );
+      _addTorpedoDamage(opening, battle);
     }
     shelling('api_hougeki1', BattleStageKind.shelling);
     shelling('api_hougeki2', BattleStageKind.shelling);
@@ -210,6 +215,37 @@ class BattleDamageParser {
         escort: false,
         friendActiveRole: friendRole,
         enemyActiveRole: enemyRole,
+      );
+      _addTorpedoDamage(closing, battle);
+    }
+  }
+
+  void _addTorpedoDamage(Map<String, Object?> map, _MutableBattle battle) {
+    final rows = _list(map['api_fydam_list_items']);
+    if (rows.isNotEmpty) {
+      for (var position = 0; position < rows.length; position++) {
+        final amount = _list(
+          rows[position],
+        ).fold<int>(0, (sum, value) => sum + _damage(value));
+        _addDamageDealt(
+          battle,
+          absolutePosition: position,
+          damage: amount,
+          roleHint: BattleFleetRole.main,
+        );
+      }
+      return;
+    }
+    if (map['api_frai'] == null) return;
+    final values = _list(map['api_fydam']).isNotEmpty
+        ? _list(map['api_fydam'])
+        : _list(map['api_fdam']);
+    for (var position = 0; position < values.length; position++) {
+      _addDamageDealt(
+        battle,
+        absolutePosition: position,
+        damage: _damage(values[position]),
+        roleHint: BattleFleetRole.main,
       );
     }
   }
@@ -298,11 +334,14 @@ class BattleDamageParser {
     _MutableBattle battle, {
     required BattleFleetRole friendActiveRole,
     required BattleFleetRole enemyActiveRole,
+    bool isNight = false,
+    bool attributeFriendDamage = true,
   }) {
     final flags = _list(map['api_at_eflag']);
     final attackers = _list(map['api_at_list']);
     final defenders = _list(map['api_df_list']);
     final damageRows = _list(map['api_damage']);
+    final attackTypes = _list(map[isNight ? 'api_sp_list' : 'api_at_type']);
     final count = defenders.length < damageRows.length
         ? defenders.length
         : damageRows.length;
@@ -317,6 +356,12 @@ class BattleDamageParser {
       final attackerIsEnemy = hasAttackerFlag
           ? _int(flags[attackIndex]) != 0
           : _int(targets.first) < 6;
+      final attackOrder = attackIndex < attackTypes.length
+          ? _multiTargetAttackOrder(
+              _int(attackTypes[attackIndex]),
+              isNight: isNight,
+            )
+          : null;
       final hitCount = targets.length < damages.length
           ? targets.length
           : damages.length;
@@ -326,7 +371,27 @@ class BattleDamageParser {
         if (damage <= 0) {
           continue;
         }
-        dealt += damage;
+        if (attributeFriendDamage && !attackerIsEnemy && attackOrder != null) {
+          var attacker = attackIndex < attackers.length
+              ? _int(attackers[attackIndex])
+              : -1;
+          if (attacker >= 0) {
+            attacker += hit < attackOrder.length ? attackOrder[hit] : 0;
+            if (isNight &&
+                battle.friendEscort.isNotEmpty &&
+                attacker < battle.friendMain.length) {
+              attacker += battle.friendMain.length;
+            }
+            _addDamageDealt(
+              battle,
+              absolutePosition: attacker,
+              damage: damage,
+              roleHint: BattleFleetRole.main,
+            );
+          }
+        } else {
+          dealt += damage;
+        }
         var targetPosition = _int(targets[hit]);
         var targetRole = attackerIsEnemy ? friendActiveRole : enemyActiveRole;
         if (!hasAttackerFlag) {
@@ -343,7 +408,11 @@ class BattleDamageParser {
           roleHint: targetRole,
         );
       }
-      if (!attackerIsEnemy && attackIndex < attackers.length && dealt > 0) {
+      if (attributeFriendDamage &&
+          !attackerIsEnemy &&
+          attackOrder == null &&
+          attackIndex < attackers.length &&
+          dealt > 0) {
         _addDamageDealt(
           battle,
           absolutePosition: _int(attackers[attackIndex]),
@@ -352,6 +421,27 @@ class BattleDamageParser {
         );
       }
     }
+  }
+
+  static List<int>? _multiTargetAttackOrder(
+    int attackType, {
+    required bool isNight,
+  }) {
+    if (!isNight && attackType == 1) return const <int>[0, 0, 0];
+    return switch (attackType) {
+      100 => const <int>[0, 2, 4],
+      101 || 102 || 105 || 106 => const <int>[0, 0, 1],
+      103 => const <int>[0, 1, 2],
+      104 when isNight => const <int>[0, 1],
+      200 when isNight => const <int>[0, 0],
+      300 => const <int>[1, 1, 2, 2],
+      301 => const <int>[2, 2, 3, 3],
+      302 => const <int>[1, 1, 3, 3],
+      400 => const <int>[0, 1, 2],
+      401 => const <int>[0, 0, 1],
+      1000 => const <int>[0, 0, 0, 0, 0, 0],
+      _ => null,
+    };
   }
 
   void _applySupport(
@@ -507,6 +597,7 @@ class BattleDamageParser {
     required int damage,
     required BattleFleetRole roleHint,
   }) {
+    if (damage <= 0) return;
     final encodedEscort =
         battle.friendEscort.isNotEmpty && absolutePosition >= 6;
     final escort = encodedEscort || roleHint == BattleFleetRole.escort;

@@ -50,7 +50,8 @@ app.*.map.json
 .superpowers/
 docs/superpowers/
 docs/internal/
-docs/previews/
+docs/previews/*
+!docs/previews/combined-fleet-prophet-sidebar-preview.png
 docs/demos/
 docs/TECHNICAL_REPORT.md
 docs/项目交接与下一步路线-2026-07-31.md

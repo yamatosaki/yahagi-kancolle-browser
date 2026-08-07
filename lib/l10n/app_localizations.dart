@@ -126,7 +126,7 @@ abstract class AppLocalizations {
   /// No description provided for @repair.
   ///
   /// In zh, this message translates to:
-  /// **'入渠'**
+  /// **'修理'**
   String get repair;
 
   /// No description provided for @construction.
@@ -2101,6 +2101,60 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'数据保存失败，已保留当前版本。'**
   String get fcdMapStorageError;
+
+  /// No description provided for @gameFrameRateTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏帧率'**
+  String get gameFrameRateTitle;
+
+  /// No description provided for @gameFrameRateOff.
+  ///
+  /// In zh, this message translates to:
+  /// **'关闭'**
+  String get gameFrameRateOff;
+
+  /// No description provided for @gameFrameRateMax60.
+  ///
+  /// In zh, this message translates to:
+  /// **'最高 60 FPS'**
+  String get gameFrameRateMax60;
+
+  /// No description provided for @gameFrameRateFollowDisplay.
+  ///
+  /// In zh, this message translates to:
+  /// **'跟随屏幕'**
+  String get gameFrameRateFollowDisplay;
+
+  /// No description provided for @gameFrameRateOffDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'保持游戏原始帧率行为。'**
+  String get gameFrameRateOffDesc;
+
+  /// No description provided for @gameFrameRateMax60Desc.
+  ///
+  /// In zh, this message translates to:
+  /// **'使用 RAF 渲染，并将目标帧率限制为最高 60 FPS。'**
+  String get gameFrameRateMax60Desc;
+
+  /// No description provided for @gameFrameRateFollowDisplayDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'跟随设备屏幕刷新率；可能增加耗电和发热。'**
+  String get gameFrameRateFollowDisplayDesc;
+
+  /// No description provided for @gameFrameRateUnsupported.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前 Android WebView 不支持帧率模式'**
+  String get gameFrameRateUnsupported;
+
+  /// No description provided for @gameFrameRateRestartRequired.
+  ///
+  /// In zh, this message translates to:
+  /// **'重新启动游戏后生效'**
+  String get gameFrameRateRestartRequired;
 }
 
 class _AppLocalizationsDelegate

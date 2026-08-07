@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../fleet/fleet_switcher_bar.dart';
 import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
 import 'expedition_evaluator.dart';
@@ -101,86 +102,124 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
       ),
     );
     final mission = state.masterMissions[missionId];
-    return LayoutBuilder(
-      builder: (context, c) => SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final f in fleets)
-                  ChoiceChip(
-                    label: Text(f.name),
-                    selected: fleetId == f.id,
-                    onSelected: (_) => setState(() => fleetId = f.id),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<int>(
-              initialValue: missionId,
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: s.selectExpedition,
-                border: const OutlineInputBorder(),
-              ),
-              items: [
-                for (final id in expeditionRules.keys)
-                  DropdownMenuItem(
-                    value: id,
-                    child: Text(
-                      '${_displayId(id)} · ${state.masterMissions[id]?.name ?? '远征'}',
-                    ),
-                  ),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => missionId = v);
-              },
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              children: [
-                ChoiceChip(
-                  label: Text(s.success),
-                  selected: !great,
-                  onSelected: (_) => setState(() => great = false),
-                ),
-                ChoiceChip(
-                  label: Text(s.greatSuccess),
-                  selected: great,
-                  onSelected: (_) => setState(() => great = true),
-                ),
-                if (great)
-                  for (final v in const [80, 85, 90, 95, 100])
-                    ChoiceChip(
-                      label: Text('$v%'),
-                      selected: target == v,
-                      onSelected: (_) => setState(() => target = v),
-                    ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (c.maxWidth > 760)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: _overview(s, mission, income, ev)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _conditions(s, ev)),
-                ],
-              )
-            else ...[
-              _overview(s, mission, income, ev),
-              const SizedBox(height: 12),
-              _conditions(s, ev),
-            ],
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: const BoxDecoration(
+            color: Color(0xff0a1823),
+            border: Border(bottom: BorderSide(color: Color(0xff294052))),
+          ),
+          child: FleetSwitcherBar(
+            fleets: fleets,
+            selectedFleetId: fleetId,
+            showTitle: false,
+            onFleetSelected: (id) => setState(() => fleetId = id),
+          ),
         ),
-      ),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, c) => SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                      SizedBox(
+                        width: 250,
+                        child: DropdownButtonFormField<int>(
+                          initialValue: missionId,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 9,
+                            ),
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [
+                            for (final id in expeditionRules.keys)
+                              DropdownMenuItem(
+                                value: id,
+                                child: Text(
+                                  '${_displayId(id)} · ${state.masterMissions[id]?.name ?? '远征'}',
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setState(() => missionId = v);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      _SegmentGroup(
+                        children: [
+                          _SegmentButton(
+                            label: s.success,
+                            selected: !great,
+                            onTap: () => setState(() => great = false),
+                          ),
+                          _SegmentButton(
+                            label: s.greatSuccess,
+                            selected: great,
+                            onTap: () => setState(() => great = true),
+                          ),
+                        ],
+                      ),
+                      if (great) ...[
+                        const SizedBox(width: 12),
+                        _TargetMenu(
+                          target: target,
+                          onSelected: (v) => setState(() => target = v),
+                        ),
+                      ],
+                      const SizedBox(width: 12),
+                      _StatusCapsule(
+                        text:
+                            '${s.normalCheck}: ${ev.normalPassed ? s.passed : s.failed}',
+                        passed: ev.normalPassed,
+                      ),
+                      if (great) ...[
+                        const SizedBox(width: 12),
+                        _StatusCapsule(
+                          text:
+                              '${s.greatSuccess}: ${ev.greatSuccessPassed ? s.passed : s.failed} (${ev.greatSuccessRate.toStringAsFixed(2)}%)',
+                          passed: ev.greatSuccessPassed,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                if (c.maxWidth > 760)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _overview(s, mission, income, ev)),
+                        const SizedBox(width: 12),
+                        Expanded(child: _conditions(s, ev)),
+                      ],
+                    )
+                  else ...[
+                    _overview(s, mission, income, ev),
+                    const SizedBox(height: 12),
+                    _conditions(s, ev),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -234,26 +273,6 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
         _sectionTitle(s.expectedIncome),
         const SizedBox(height: 6),
         _resourceGrid(income),
-        const SizedBox(height: 10),
-        Text(
-          '${s.normalCheck}：${ev.normalPassed ? s.passed : s.failed}',
-          style: TextStyle(
-            color: ev.normalPassed
-                ? const Color(0xff28d978)
-                : const Color(0xffff5964),
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        if (great)
-          Text(
-            '${s.greatSuccess}：${ev.greatSuccessPassed ? s.passed : s.failed} (${ev.greatSuccessRate.toStringAsFixed(2)}%)',
-            style: TextStyle(
-              color: ev.greatSuccessPassed
-                  ? const Color(0xff28d978)
-                  : const Color(0xffff5964),
-              fontWeight: FontWeight.w800,
-            ),
-          ),
       ],
     ),
   );
@@ -482,15 +501,162 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
-          Flexible(
+          Text(
+            s.conditionActual(condition),
+            textAlign: TextAlign.right,
+            style: TextStyle(color: color, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SegmentGroup extends StatelessWidget {
+  const _SegmentGroup({required this.children});
+  final List<Widget> children;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 260, // Width for 4-character tabs style
+      height: 38,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xff0b202d),
+        border: Border.all(color: const Color(0xff315064)),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: children.map((c) => Expanded(child: c)).toList(),
+      ),
+    );
+  }
+}
+
+class _SegmentButton extends StatelessWidget {
+  const _SegmentButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? const Color(0xff8a6628) : Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Center(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
             child: Text(
-              s.conditionActual(condition),
-              textAlign: TextAlign.right,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: color, fontWeight: FontWeight.w700),
+              label,
+              style: TextStyle(
+                color: selected
+                    ? const Color(0xffffdc88)
+                    : const Color(0xff9fb3bf),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TargetMenu extends StatelessWidget {
+  const _TargetMenu({required this.target, required this.onSelected});
+  final int target;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<int>(
+      initialValue: target,
+      onSelected: onSelected,
+      color: const Color(0xff1b263b),
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: Color(0xff415a77)),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      itemBuilder: (context) => [
+        for (final v in const [80, 85, 90, 95, 100])
+          PopupMenuItem(
+            value: v,
+            height: 32,
+            child: Text(
+              '$v%',
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xffdce6eb),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+      ],
+      child: _SegmentGroup(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 7),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$target%',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xffdce6eb),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_drop_down,
+                  size: 16,
+                  color: Color(0xffdce6eb),
+                ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _StatusCapsule extends StatelessWidget {
+  const _StatusCapsule({required this.text, required this.passed});
+
+  final String text;
+  final bool passed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: passed ? const Color(0xff182c25) : const Color(0xff2d1720),
+        border: Border.all(
+          color: passed ? const Color(0xff294d35) : const Color(0xff4c202d),
+        ),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        softWrap: false,
+        style: TextStyle(
+          fontSize: 13,
+          color: passed ? const Color(0xff67b579) : const Color(0xffc5525c),
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

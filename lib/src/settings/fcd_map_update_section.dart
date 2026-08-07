@@ -16,7 +16,7 @@ final class FcdMapUpdateSection extends StatelessWidget {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) => ListTile(
-        title: Text(l10n.fcdMapDataTitle, style: const TextStyle(fontSize: 15)),
+        title: Text(l10n.fcdMapDataTitle, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
         subtitle: Wrap(
           spacing: 16,
           runSpacing: 2,

@@ -140,7 +140,7 @@ class GameStateReducer {
       ),
       '/kcsapi/api_req_kaisou/slot_exchange_index' => _mergeActionShips(
         state,
-        <Object?>[_requiredMap(data, 'slot exchange')['api_ship_data']],
+        _optionalList(_requiredMap(data, 'slot exchange')['api_ship_data']),
         event,
         origin,
       ),

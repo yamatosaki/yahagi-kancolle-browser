@@ -1,199 +1,101 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/src/fleet/fleet_ship_status_capsule.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/fleet_summary_card.dart';
-import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
-import 'package:yahagi_kancolle_browser/src/game_state/game_state_store.dart';
 
 import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
-  testWidgets('standby fleet uses the shared green status color', (
+  testWidgets('selected fleet renders its ship status capsules', (
     tester,
   ) async {
-    final controller = GameStateController(
-      gameStateStore: _StaticGameStateStore(
-        const GameState(
-          fleets: <Fleet>[
-            Fleet(id: 1, name: '第1舰队', shipIds: <int>[9001]),
-          ],
-          hasPortData: true,
-        ),
-      ),
-    );
+    final controller = await _controllerWithPortData();
     addTearDown(controller.dispose);
-    await controller.idle;
+
+    await tester.pumpWidget(_card(controller: controller));
+    await tester.pump();
+
+    expect(find.text('第一舰队'), findsOneWidget);
+    expect(find.byType(FleetShipStatusCapsule), findsNWidgets(2));
+    expect(find.text('夕張'), findsOneWidget);
+    expect(find.text('吹雪'), findsOneWidget);
+  });
+
+  testWidgets('fleet selector changes the list and ship tap opens that fleet', (
+    tester,
+  ) async {
+    final controller = await _controllerWithPortData();
+    addTearDown(controller.dispose);
+    int? openedFleetId;
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: FleetSummaryCard(
-            controller: controller,
-            collapsed: false,
-            onToggleCollapse: () {},
-            onOpenFleet: (_) {},
-          ),
-        ),
+      _card(
+        controller: controller,
+        onOpenFleet: (fleetId) => openedFleetId = fleetId,
       ),
     );
     await tester.pump();
 
-    expect(find.text('母港待命'), findsOneWidget);
-    expect(
-      (tester
-                  .widget<Container>(
-                    find.byKey(const Key('fleet-status-dot-1')),
-                  )
-                  .decoration
-              as BoxDecoration?)
-          ?.color,
-      const Color(0xff29a634),
-    );
-  });
-
-  testWidgets('tapping a fleet capsule opens that fleet', (tester) async {
-    final controller = GameStateController();
-    addTearDown(controller.dispose);
-    controller
-      ..accept(start2Event)
-      ..accept(portEvent)
-      ..accept(slotItemEvent);
-    await controller.idle;
-
-    int? openedFleetId;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: FleetSummaryCard(
-            controller: controller,
-            collapsed: false,
-            onToggleCollapse: () {},
-            onOpenFleet: (id) => openedFleetId = id,
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('第一舰队'));
+    await tester.tap(find.byType(FleetShipStatusCapsule).first);
     expect(openedFleetId, 1);
 
     await tester.tap(find.text('第二舰队'));
+    await tester.pump();
+    expect(find.byType(FleetShipStatusCapsule), findsOneWidget);
+    expect(find.text('吹雪'), findsOneWidget);
+
+    await tester.tap(find.byType(FleetShipStatusCapsule));
     expect(openedFleetId, 2);
   });
 
-  testWidgets('sortie fleet stays active until the next port snapshot', (
-    tester,
-  ) async {
-    final controller = GameStateController();
+  testWidgets('selecting an empty fleet shows the empty state', (tester) async {
+    final controller = await _controllerWithPortData();
     addTearDown(controller.dispose);
-    controller
-      ..accept(start2Event)
-      ..accept(portEvent)
-      ..accept(mapStartEvent);
-    await controller.idle;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: FleetSummaryCard(
-            controller: controller,
-            collapsed: false,
-            onToggleCollapse: () {},
-            onOpenFleet: (_) {},
-          ),
-        ),
-      ),
-    );
+    await tester.pumpWidget(_card(controller: controller));
+    await tester.pump();
+    await tester.tap(find.text('第三舰队'));
     await tester.pump();
 
-    expect(controller.state.combatState.sortieFleetId, 1);
-    expect(find.text('出击中'), findsOneWidget);
-
-    controller.accept(portEvent);
-    await controller.idle;
-    await tester.pump();
-
-    expect(controller.state.combatState.isActive, isFalse);
-    expect(controller.state.combatState.sortieFleetId, 0);
-    expect(find.text('出击中'), findsNothing);
-    expect(find.text('母港待命'), findsWidgets);
+    expect(find.text('无数据'), findsOneWidget);
+    expect(find.byType(FleetShipStatusCapsule), findsNothing);
   });
 
-  testWidgets('expedition changes to returned when countdown completes', (
+  testWidgets('repeating ship animations do not block finite-frame tests', (
     tester,
   ) async {
-    var now = DateTime.now().toUtc();
-    final controller = GameStateController(
-      gameStateStore: _StaticGameStateStore(
-        GameState(
-          fleets: <Fleet>[
-            Fleet(
-              id: 1,
-              name: '2',
-              shipIds: const <int>[9001],
-              mission: FleetMission(
-                state: 1,
-                missionId: 5,
-                completionTime: now.add(const Duration(seconds: 1)),
-              ),
-            ),
-          ],
-          hasPortData: true,
-        ),
-      ),
-    );
+    final controller = await _controllerWithPortData();
     addTearDown(controller.dispose);
-    await controller.idle;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: FleetSummaryCard(
-            controller: controller,
-            collapsed: false,
-            onToggleCollapse: () {},
-            onOpenFleet: (_) {},
-            clock: () => now,
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
+    await tester.pumpWidget(_card(controller: controller));
+    await tester.pump(const Duration(milliseconds: 250));
 
-    expect(find.text('远征中'), findsOneWidget);
-    expect(
-      (tester
-                  .widget<Container>(
-                    find.byKey(const Key('fleet-status-dot-1')),
-                  )
-                  .decoration
-              as BoxDecoration?)
-          ?.color,
-      const Color(0xffffc940),
-    );
-    now = now.add(const Duration(seconds: 2));
-    await tester.pump(const Duration(seconds: 2));
-    expect(find.text('已返母港'), findsOneWidget);
-    expect(find.text('远征中'), findsNothing);
-    expect(
-      (tester
-                  .widget<Container>(
-                    find.byKey(const Key('fleet-status-dot-1')),
-                  )
-                  .decoration
-              as BoxDecoration?)
-          ?.color,
-      const Color(0xff03a9f4),
-    );
+    expect(tester.takeException(), isNull);
+    expect(find.byType(FleetShipStatusCapsule), findsNWidgets(2));
   });
 }
 
-class _StaticGameStateStore extends GameStateStore {
-  _StaticGameStateStore(this.value);
-
-  final GameState value;
-
-  @override
-  Future<GameState> load() async => value;
+Future<GameStateController> _controllerWithPortData() async {
+  final controller = GameStateController();
+  controller
+    ..accept(start2Event)
+    ..accept(portEvent)
+    ..accept(slotItemEvent);
+  await controller.idle;
+  return controller;
 }
+
+Widget _card({
+  required GameStateController controller,
+  ValueChanged<int>? onOpenFleet,
+}) => MaterialApp(
+  home: Scaffold(
+    body: FleetSummaryCard(
+      controller: controller,
+      collapsed: false,
+      onToggleCollapse: () {},
+      onOpenFleet: onOpenFleet ?? (_) {},
+    ),
+  ),
+);

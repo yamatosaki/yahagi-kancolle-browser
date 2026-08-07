@@ -741,6 +741,7 @@ void main() {
             collapsed: false,
             onToggleCollapse: () {},
             onOpenExpedition: () => openedExpedition = true,
+            onOpenExpeditionCheck: (_) {},
           ),
         ),
       ),

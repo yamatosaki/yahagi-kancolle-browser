@@ -4,8 +4,8 @@ import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import 'release_check_service.dart';
 
-class AboutDialogWidget extends StatelessWidget {
-  const AboutDialogWidget({
+class AboutContentWidget extends StatelessWidget {
+  const AboutContentWidget({
     super.key,
     this.currentVersion = '1.0.2',
     this.releaseChecker,
@@ -162,155 +162,150 @@ class AboutDialogWidget extends StatelessWidget {
     final l10n =
         AppLocalizations.of(context) ??
         lookupAppLocalizations(const Locale('zh'));
-    return Dialog(
-      backgroundColor: const Color(0xff0d1a26),
-      shape: RoundedRectangleBorder(
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xff122431),
+        border: Border.all(color: const Color(0xff294052)),
         borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: Color(0xff294052)),
       ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 450,
-          maxHeight: MediaQuery.sizeOf(context).height - 32,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                key: const Key('about-content-scroll'),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Header
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 30, 20, 20),
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: const Color(0xff3c586b),
-                                width: 2,
-                              ),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Colors.black38,
-                                  blurRadius: 10,
-                                  offset: Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: ClipOval(
-                              child: Image.asset(
-                                'assets/app_icon.png',
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 15),
-                          const Text(
-                            'ヤハギ',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xffd4a85f,
-                              ).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: const Color(
-                                  0xffd4a85f,
-                                ).withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: Text(
-                              l10n.version.replaceFirst(
-                                RegExp(r'\d+(?:\.\d+){1,2}'),
-                                currentVersion,
-                              ),
-                              style: const TextStyle(
-                                fontSize: 14,
-                                color: Color(0xffd4a85f),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 15),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 8,
-                            alignment: WrapAlignment.center,
-                            children: [
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xffd4a85f),
-                                  foregroundColor: const Color(0xff081521),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                ),
-                                icon: const Icon(Icons.code, size: 18),
-                                label: Text(
-                                  l10n.viewOnGitHub,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                onPressed: () async {
-                                  final uri = Uri.parse(githubUrl);
-                                  if (await canLaunchUrl(uri)) {
-                                    await launchUrl(
-                                      uri,
-                                      mode: LaunchMode.externalApplication,
-                                    );
-                                  }
-                                },
-                              ),
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xff142735),
-                                  foregroundColor: const Color(0xff8197a5),
-                                  side: const BorderSide(
-                                    color: Color(0xff294052),
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                ),
-                                icon: const Icon(
-                                  Icons.system_update_alt,
-                                  size: 18,
-                                ),
-                                label: Text(l10n.checkForUpdates),
-                                onPressed: () => _checkForUpdates(context),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xff3c586b),
+                      width: 2,
                     ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black38,
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/app_icon.png',
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'ヤハギ',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xffd4a85f,
+                          ).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color(
+                              0xffd4a85f,
+                            ).withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          l10n.version.replaceFirst(
+                            RegExp(r'\d+(?:\.\d+){1,2}'),
+                            currentVersion,
+                          ),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xffd4a85f),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xffd4a85f),
+                        foregroundColor: const Color(0xff081521),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      icon: const Icon(Icons.code, size: 18),
+                      label: Text(
+                        l10n.viewOnGitHub,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      onPressed: () async {
+                        final uri = Uri.parse(githubUrl);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        }
+                      },
+                    ),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xff142735),
+                        foregroundColor: const Color(0xff8197a5),
+                        side: const BorderSide(
+                          color: Color(0xff294052),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      icon: const Icon(
+                        Icons.system_update_alt,
+                        size: 18,
+                      ),
+                      label: Text(l10n.checkForUpdates),
+                      onPressed: () => _checkForUpdates(context),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
 
-                    // Disclaimer
-                    Container(
-                      key: const Key('about-disclaimer-scroll'),
-                      padding: const EdgeInsets.all(20),
-                      color: const Color(0xff0a131c),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+          // Disclaimer
+          Container(
+            key: const Key('about-disclaimer-scroll'),
+            padding: const EdgeInsets.all(20),
+            color: const Color(0xff0a131c),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                           Row(
                             children: [
                               const Icon(
@@ -344,29 +339,23 @@ class AboutDialogWidget extends StatelessWidget {
                         ],
                       ),
                     ),
-                  ],
-                ),
+          // Footer
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: Color(0xff294052))),
+              color: Color(0xff0d1a26),
+              borderRadius: BorderRadius.vertical(
+                bottom: Radius.circular(12),
               ),
             ),
-
-            // Footer
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: Color(0xff142735))),
-                color: Color(0xff0d1a26),
-                borderRadius: BorderRadius.vertical(
-                  bottom: Radius.circular(12),
-                ),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                l10n.openSourceLicense,
-                style: const TextStyle(fontSize: 12, color: Color(0xff567080)),
-              ),
+            alignment: Alignment.center,
+            child: Text(
+              l10n.openSourceLicense,
+              style: const TextStyle(fontSize: 12, color: Color(0xff567080)),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

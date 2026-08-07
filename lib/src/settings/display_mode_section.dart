@@ -17,11 +17,14 @@ class DisplayModeSection extends StatelessWidget {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(l10n.displayMode),
+            Text(
+              l10n.displayMode,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            ),
             DropdownButton<DisplayMode>(
               value: controller.displayMode,
               underline: const SizedBox(),

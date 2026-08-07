@@ -729,17 +729,19 @@ void main() {
     final ammo = tester.getRect(
       find.byKey(const Key('fleet-focus-ammo-track-9001')),
     );
-    expect(fuel.left, lessThan(hp.left));
-    expect(ammo.left, closeTo(hp.left, 1));
-    expect(fuel.top, greaterThan(hp.top));
-    expect(ammo.top, greaterThan(hp.top));
+    expect(hp.left, lessThan(fuel.left));
+    expect(ammo.left, closeTo(fuel.left, 1));
+    expect(hp.top, greaterThan(fuel.top));
+    expect(ammo.top, greaterThan(fuel.top));
     expect(<double>{hp.width, fuel.width, ammo.width}, hasLength(1));
     expect(
       tester
           .getTopLeft(find.byKey(const Key('fleet-focus-meta-content-9001')))
           .dx,
       closeTo(
-        tester.getTopLeft(find.byKey(const Key('fleet-focus-hp-icon-9001'))).dx,
+        tester.getTopLeft(
+          find.byKey(const Key('fleet-focus-fuel-icon-9001')),
+        ).dx,
         1,
       ),
     );

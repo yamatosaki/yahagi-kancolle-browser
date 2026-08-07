@@ -139,79 +139,7 @@ class _QuestHeader extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-          const Spacer(),
-          QuestCountSegmentedBar(quests: quests),
         ],
-      ),
-    );
-  }
-}
-
-class QuestCountSegmentedBar extends StatelessWidget {
-  const QuestCountSegmentedBar({super.key, required this.quests});
-
-  final Iterable<GameQuest> quests;
-
-  @override
-  Widget build(BuildContext context) {
-    final accepted = quests.where((quest) => quest.isAccepted).length;
-    final completed = quests.where((quest) => quest.isCompleted).length;
-    return Container(
-      key: const Key('quest-count-segmented'),
-      height: 32,
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: const Color(0xff102331),
-        borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: const Color(0xff294052)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _QuestCountSegment(
-            key: const Key('quest-count-accepted'),
-            label:
-                '${AppLocalizations.of(context)?.accepted ?? "已接受"} $accepted',
-            selected: true,
-          ),
-          _QuestCountSegment(
-            key: const Key('quest-count-completed'),
-            label:
-                '${AppLocalizations.of(context)?.completed ?? "已完成"} $completed',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuestCountSegment extends StatelessWidget {
-  const _QuestCountSegment({
-    super.key,
-    required this.label,
-    this.selected = false,
-  });
-
-  final String label;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 26,
-      padding: const EdgeInsets.symmetric(horizontal: 11),
-      decoration: BoxDecoration(
-        color: selected ? const Color(0xff654c29) : Colors.transparent,
-        borderRadius: BorderRadius.circular(7),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        label,
-        style: TextStyle(
-          color: selected ? const Color(0xffffc861) : const Color(0xffa7bac5),
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
       ),
     );
   }

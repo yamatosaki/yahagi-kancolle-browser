@@ -365,31 +365,27 @@ class _RepairSummaryModeSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       key: const Key('repair-summary-mode-selector'),
-      width: 112,
       height: 26,
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: const Color(0xff102331),
+        color: const Color(0xff10212e),
+        borderRadius: BorderRadius.circular(7),
         border: Border.all(color: const Color(0xff294052)),
-        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: _ModeButton(
-              key: const Key('repair-summary-mode-dock'),
-              label: dockLabel,
-              selected: mode == RepairCenterMode.dock,
-              onTap: () => onChanged(RepairCenterMode.dock),
-            ),
+          _ModeButton(
+            key: const Key('repair-summary-mode-dock'),
+            label: dockLabel,
+            selected: mode == RepairCenterMode.dock,
+            onTap: () => onChanged(RepairCenterMode.dock),
           ),
-          Expanded(
-            child: _ModeButton(
-              key: const Key('repair-summary-mode-anchorage'),
-              label: anchorageLabel,
-              selected: mode == RepairCenterMode.anchorage,
-              onTap: () => onChanged(RepairCenterMode.anchorage),
-            ),
+          _ModeButton(
+            key: const Key('repair-summary-mode-anchorage'),
+            label: anchorageLabel,
+            selected: mode == RepairCenterMode.anchorage,
+            onTap: () => onChanged(RepairCenterMode.anchorage),
           ),
         ],
       ),
@@ -410,29 +406,29 @@ class _ModeButton extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: selected ? const Color(0xff8a6628) : Colors.transparent,
-    borderRadius: BorderRadius.circular(6),
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Center(
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? const Color(0xff5b4829) : Colors.transparent,
+      borderRadius: BorderRadius.circular(5),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(5),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
           child: Text(
             label,
             style: TextStyle(
               color: selected
-                  ? const Color(0xffffdc88)
-                  : const Color(0xff9fb3bf),
+                  ? const Color(0xffffcf67)
+                  : const Color(0xff8197a5),
               fontSize: 10,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _AnchorageFleetSelector extends StatelessWidget {
