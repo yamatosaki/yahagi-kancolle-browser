@@ -997,12 +997,17 @@ class _RelationRow extends StatelessWidget {
             children: [
               for (var index = 0; index < entries.length; index++) ...[
                 if (index > 0) const SizedBox(width: 6),
-                ActionChip(
+                Material(
                   key: Key('$keyPrefix-${entries[index].gameId}'),
-                  label: Text(entries[index].code),
-                  onPressed: () => onSelected(entries[index].gameId),
-                  visualDensity: VisualDensity.compact,
-                  side: BorderSide(color: _questCodeColor(entries[index].code)),
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(5),
+                    onTap: () => onSelected(entries[index].gameId),
+                    child: _QuestCodeTag(
+                      key: Key('quest-relation-code-${entries[index].gameId}'),
+                      code: entries[index].code,
+                    ),
+                  ),
                 ),
               ],
             ],

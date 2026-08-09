@@ -59,12 +59,15 @@ void main() {
     expect(projection.byGameId(202).progressLabel, '＜50%');
   });
 
-  test('loads the bundled kcWiki quest catalog', () async {
+  test('loads the bundled Japanese quest catalog with relations', () async {
     final bundled = await QuestCatalog.loadAsset();
 
     expect(bundled.entries.length, greaterThan(500));
     expect(bundled.byGameId(201)?.code, 'Bd1');
-    expect(bundled.byGameId(201)?.name, isNotEmpty);
+    expect(bundled.byGameId(201)?.name, '敵艦隊を撃破せよ！');
+    expect(bundled.byGameId(201)?.description, contains('敵艦隊'));
+    expect(bundled.byGameId(201)?.description, isNot(contains('敌舰队')));
+    expect(bundled.successorsOf(201), isNotEmpty);
   });
 
   test('merges Japanese display text with kcWiki quest relations', () {

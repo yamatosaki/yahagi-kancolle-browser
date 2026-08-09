@@ -375,6 +375,7 @@ void main() {
         find.byKey(const Key('quest-relation-pre-scroll')),
         findsOneWidget,
       );
+      expect(find.byKey(const Key('quest-relation-code-101')), findsOneWidget);
       expect(
         find.byKey(const Key('quest-relation-post-scroll')),
         findsOneWidget,
