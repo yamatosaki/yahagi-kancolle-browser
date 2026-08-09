@@ -83,6 +83,7 @@ flutter:
     - assets/images/airplane/
     - assets/data/fcd/map.json
     - assets/data/quests-scn.json
+    - assets/data/quests-meta.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:
