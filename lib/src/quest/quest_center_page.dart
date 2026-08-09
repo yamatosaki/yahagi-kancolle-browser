@@ -10,6 +10,49 @@ import 'quest_catalog_controller.dart';
 
 enum QuestCenterMode { active, all }
 
+class QuestFilterController extends ChangeNotifier {
+  String query = '';
+  int? category;
+  int? period;
+  QuestUnlockState? unlockState;
+
+  bool get hasSearch => query.trim().isNotEmpty;
+  bool get hasFilters =>
+      category != null || period != null || unlockState != null;
+
+  void setQuery(String value) {
+    if (query == value) return;
+    query = value;
+    notifyListeners();
+  }
+
+  void setCategory(int? value) {
+    if (category == value) return;
+    category = value;
+    notifyListeners();
+  }
+
+  void setPeriod(int? value) {
+    if (period == value) return;
+    period = value;
+    notifyListeners();
+  }
+
+  void setUnlockState(QuestUnlockState? value) {
+    if (unlockState == value) return;
+    unlockState = value;
+    notifyListeners();
+  }
+
+  void clear() {
+    query = '';
+    category = null;
+    period = null;
+    unlockState = null;
+    notifyListeners();
+  }
+}
+
 class QuestModeTabs extends StatelessWidget {
   const QuestModeTabs({super.key, required this.mode, required this.onChanged});
 
@@ -17,29 +60,35 @@ class QuestModeTabs extends StatelessWidget {
   final ValueChanged<QuestCenterMode> onChanged;
 
   @override
-  Widget build(BuildContext context) => Container(
-    key: const Key('quest-mode-tabs'),
-    height: 36,
-    padding: const EdgeInsets.all(3),
-    decoration: BoxDecoration(
-      color: const Color(0xff0b202d),
-      border: Border.all(color: const Color(0xff315064)),
-      borderRadius: BorderRadius.circular(18),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _QuestModeButton(
-          selected: mode == QuestCenterMode.active,
-          label: '进行中',
-          onTap: () => onChanged(QuestCenterMode.active),
-        ),
-        _QuestModeButton(
-          selected: mode == QuestCenterMode.all,
-          label: '全任务',
-          onTap: () => onChanged(QuestCenterMode.all),
-        ),
-      ],
+  Widget build(BuildContext context) => SizedBox(
+    width: 260,
+    height: 38,
+    child: Container(
+      key: const Key('quest-mode-tabs'),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xff0b202d),
+        border: Border.all(color: const Color(0xff315064)),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _QuestModeButton(
+              selected: mode == QuestCenterMode.active,
+              label: '进行中',
+              onTap: () => onChanged(QuestCenterMode.active),
+            ),
+          ),
+          Expanded(
+            child: _QuestModeButton(
+              selected: mode == QuestCenterMode.all,
+              label: '全任务',
+              onTap: () => onChanged(QuestCenterMode.all),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -62,20 +111,273 @@ class _QuestModeButton extends StatelessWidget {
     child: InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(15),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected
-                  ? const Color(0xffffdc88)
-                  : const Color(0xff9fb3bf),
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
+      child: Center(
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? const Color(0xffffdc88) : const Color(0xff9fb3bf),
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
           ),
         ),
+      ),
+    ),
+  );
+}
+
+class QuestHeaderControls extends StatelessWidget {
+  const QuestHeaderControls({
+    super.key,
+    required this.mode,
+    required this.onModeChanged,
+    required this.filters,
+  });
+
+  final QuestCenterMode mode;
+  final ValueChanged<QuestCenterMode> onModeChanged;
+  final QuestFilterController filters;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: filters,
+    builder: (context, _) => Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        QuestModeTabs(mode: mode, onChanged: onModeChanged),
+        if (mode == QuestCenterMode.all) ...[
+          const SizedBox(width: 6),
+          _QuestHeaderIconButton(
+            key: const Key('quest-search-button'),
+            icon: Icons.search,
+            active: filters.hasSearch,
+            tooltip: '搜索任务',
+            onPressed: () => _showQuestSearch(context, filters),
+          ),
+          const SizedBox(width: 4),
+          _QuestHeaderIconButton(
+            key: const Key('quest-filter-button'),
+            icon: Icons.filter_alt_outlined,
+            active: filters.hasFilters,
+            tooltip: '筛选任务',
+            onPressed: () => _showQuestFilters(context, filters),
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+class _QuestHeaderIconButton extends StatelessWidget {
+  const _QuestHeaderIconButton({
+    super.key,
+    required this.icon,
+    required this.active,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final bool active;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 34,
+    height: 34,
+    child: IconButton(
+      padding: EdgeInsets.zero,
+      tooltip: tooltip,
+      onPressed: onPressed,
+      style: IconButton.styleFrom(
+        backgroundColor: active
+            ? const Color(0xff8a6628)
+            : const Color(0xff0b202d),
+        side: const BorderSide(color: Color(0xff315064)),
+      ),
+      icon: Icon(
+        icon,
+        size: 18,
+        color: active ? const Color(0xffffdc88) : const Color(0xff9fb3bf),
+      ),
+    ),
+  );
+}
+
+Future<void> _showQuestSearch(
+  BuildContext context,
+  QuestFilterController filters,
+) async {
+  final textController = TextEditingController(text: filters.query);
+  await showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('搜索任务'),
+      content: TextField(
+        key: const Key('quest-search-field'),
+        controller: textController,
+        autofocus: true,
+        onChanged: filters.setQuery,
+        decoration: const InputDecoration(
+          hintText: '搜索编号、任务名或说明',
+          prefixIcon: Icon(Icons.search),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            textController.clear();
+            filters.setQuery('');
+          },
+          child: const Text('清除'),
+        ),
+        FilledButton(
+          key: const Key('quest-search-close'),
+          onPressed: () => Navigator.pop(context),
+          child: const Text('完成'),
+        ),
+      ],
+    ),
+  );
+}
+
+Future<void> _showQuestFilters(
+  BuildContext context,
+  QuestFilterController filters,
+) {
+  final content = _QuestFilterSheet(filters: filters);
+  if (MediaQuery.sizeOf(context).width < 600) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xff142735),
+      builder: (_) => SafeArea(child: content),
+    );
+  }
+  return showDialog<void>(
+    context: context,
+    builder: (_) => Dialog(child: SizedBox(width: 520, child: content)),
+  );
+}
+
+class _QuestFilterSheet extends StatelessWidget {
+  const _QuestFilterSheet({required this.filters});
+
+  final QuestFilterController filters;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    key: const Key('quest-filter-sheet'),
+    animation: filters,
+    builder: (context, _) => Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                '筛选任务',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+              const Spacer(),
+              TextButton(
+                key: const Key('quest-filter-clear'),
+                onPressed: filters.clear,
+                child: const Text('清除全部'),
+              ),
+              IconButton(
+                key: const Key('quest-filter-close'),
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text('任务类型'),
+          const SizedBox(height: 5),
+          Wrap(
+            runSpacing: 5,
+            children: [
+              _FilterChip(
+                key: const Key('quest-filter-category-all'),
+                label: '全部类型',
+                selected: filters.category == null,
+                onTap: () => filters.setCategory(null),
+              ),
+              for (final item in const <(int, String)>[
+                (2, '出击'),
+                (1, '编成'),
+                (3, '演习'),
+                (4, '远征'),
+                (5, '补给/入渠'),
+                (6, '工厂'),
+                (7, '改装'),
+                (0, '其他'),
+              ])
+                _FilterChip(
+                  key: Key('quest-filter-category-${item.$1}'),
+                  label: item.$2,
+                  selected: filters.category == item.$1,
+                  onTap: () => filters.setCategory(item.$1),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Text('任务周期'),
+          const SizedBox(height: 5),
+          Wrap(
+            runSpacing: 5,
+            children: [
+              _FilterChip(
+                key: const Key('quest-filter-period-all'),
+                label: '全部周期',
+                selected: filters.period == null,
+                onTap: () => filters.setPeriod(null),
+              ),
+              for (final item in const <(int, String)>[
+                (1, '日常'),
+                (2, '周常'),
+                (3, '月常'),
+                (4, '单次'),
+                (5, '季常'),
+                (6, '年常'),
+              ])
+                _FilterChip(
+                  key: Key('quest-filter-period-${item.$1}'),
+                  label: item.$2,
+                  selected: filters.period == item.$1,
+                  onTap: () => filters.setPeriod(item.$1),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Text('解锁状态'),
+          const SizedBox(height: 5),
+          Wrap(
+            children: [
+              _FilterChip(
+                key: const Key('quest-filter-unlock-all'),
+                label: '全部状态',
+                selected: filters.unlockState == null,
+                onTap: () => filters.setUnlockState(null),
+              ),
+              _FilterChip(
+                key: const Key('quest-filter-unlock-unlocked'),
+                label: '已解锁',
+                selected: filters.unlockState == QuestUnlockState.unlocked,
+                onTap: () => filters.setUnlockState(QuestUnlockState.unlocked),
+              ),
+              _FilterChip(
+                key: const Key('quest-filter-unlock-locked'),
+                label: '未解锁',
+                selected: filters.unlockState == QuestUnlockState.locked,
+                onTap: () => filters.setUnlockState(QuestUnlockState.locked),
+              ),
+            ],
+          ),
+        ],
       ),
     ),
   );
@@ -91,6 +393,7 @@ class QuestCenterPage extends StatefulWidget {
     this.onModeChanged,
     this.catalog,
     this.catalogController,
+    this.filterController,
   });
 
   final GameStateController controller;
@@ -100,6 +403,7 @@ class QuestCenterPage extends StatefulWidget {
   final ValueChanged<QuestCenterMode>? onModeChanged;
   final QuestCatalog? catalog;
   final QuestCatalogController? catalogController;
+  final QuestFilterController? filterController;
 
   @override
   State<QuestCenterPage> createState() => _QuestCenterPageState();
@@ -109,10 +413,10 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
   late int? _selectedQuestId = widget.initialQuestId;
   late QuestCenterMode _mode = widget.mode;
   QuestCatalog? _catalog;
-  String _query = '';
-  int? _categoryFilter;
-  int? _periodFilter;
-  QuestUnlockState? _unlockFilter;
+  final QuestFilterController _localFilters = QuestFilterController();
+
+  QuestFilterController get _filters =>
+      widget.filterController ?? _localFilters;
 
   @override
   void initState() {
@@ -124,6 +428,12 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
   Future<void> _loadCatalog() async {
     final catalog = await QuestCatalog.loadAsset();
     if (mounted) setState(() => _catalog = catalog);
+  }
+
+  @override
+  void dispose() {
+    _localFilters.dispose();
+    super.dispose();
   }
 
   @override
@@ -151,12 +461,9 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
   void _selectRelation(int id) {
     setState(() {
       _selectedQuestId = id;
-      _query = '';
-      _categoryFilter = null;
-      _periodFilter = null;
-      _unlockFilter = null;
       _mode = QuestCenterMode.all;
     });
+    _filters.clear();
     widget.onModeChanged?.call(QuestCenterMode.all);
   }
 
@@ -166,6 +473,7 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
     child: AnimatedBuilder(
       animation: Listenable.merge(<Listenable>[
         widget.controller,
+        _filters,
         if (widget.catalogController case final controller?) controller,
       ]),
       builder: (context, _) {
@@ -175,7 +483,11 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (widget.showTitle)
-                _QuestHeader(mode: _mode, onModeChanged: _changeMode),
+                _QuestHeader(
+                  mode: _mode,
+                  filters: _filters,
+                  onModeChanged: _changeMode,
+                ),
               const Expanded(
                 child: Center(
                   key: Key('quest-catalog-loading'),
@@ -192,7 +504,11 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (widget.showTitle)
-              _QuestHeader(mode: _mode, onModeChanged: _changeMode),
+              _QuestHeader(
+                mode: _mode,
+                filters: _filters,
+                onModeChanged: _changeMode,
+              ),
             Expanded(
               child: entries.isEmpty
                   ? const _WaitingState()
@@ -202,18 +518,6 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
                           entries: entries,
                           selectedQuestId: selected!.id,
                           allMode: _mode == QuestCenterMode.all,
-                          query: _query,
-                          categoryFilter: _categoryFilter,
-                          periodFilter: _periodFilter,
-                          unlockFilter: _unlockFilter,
-                          onQueryChanged: (value) =>
-                              setState(() => _query = value),
-                          onCategoryChanged: (value) =>
-                              setState(() => _categoryFilter = value),
-                          onPeriodChanged: (value) =>
-                              setState(() => _periodFilter = value),
-                          onUnlockChanged: (value) =>
-                              setState(() => _unlockFilter = value),
                           onSelected: (id) =>
                               setState(() => _selectedQuestId = id),
                         );
@@ -226,9 +530,7 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
                           final detailMin = _mode == QuestCenterMode.all
                               ? 310.0
                               : 330.0;
-                          final naturalList =
-                              (_mode == QuestCenterMode.all ? 122.0 : 24.0) +
-                              entries.length * 84.0;
+                          final naturalList = 18.0 + entries.length * 70.0;
                           final listHeight = naturalList.clamp(
                             84.0,
                             (constraints.maxHeight - detailMin).clamp(
@@ -280,20 +582,22 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
     return projection.items
         .where((item) {
           final entry = item.entry;
-          final query = _query.trim().toLowerCase();
+          final query = _filters.query.trim().toLowerCase();
           if (query.isNotEmpty &&
               !entry.code.toLowerCase().contains(query) &&
               !entry.name.toLowerCase().contains(query) &&
               !entry.description.toLowerCase().contains(query)) {
             return false;
           }
-          if (_categoryFilter != null && entry.category != _categoryFilter) {
+          if (_filters.category != null &&
+              entry.category != _filters.category) {
             return false;
           }
-          if (_periodFilter != null && entry.period != _periodFilter) {
+          if (_filters.period != null && entry.period != _filters.period) {
             return false;
           }
-          return _unlockFilter == null || item.unlockState == _unlockFilter;
+          return _filters.unlockState == null ||
+              item.unlockState == _filters.unlockState;
         })
         .map((item) => _QuestViewEntry.fromCatalog(item, _catalog!))
         .toList(growable: false);
@@ -310,9 +614,14 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
 }
 
 class _QuestHeader extends StatelessWidget {
-  const _QuestHeader({required this.mode, required this.onModeChanged});
+  const _QuestHeader({
+    required this.mode,
+    required this.filters,
+    required this.onModeChanged,
+  });
 
   final QuestCenterMode mode;
+  final QuestFilterController filters;
   final ValueChanged<QuestCenterMode> onModeChanged;
 
   @override
@@ -323,19 +632,31 @@ class _QuestHeader extends StatelessWidget {
       color: Color(0xff0d1a26),
       border: Border(bottom: BorderSide(color: Color(0xff294052))),
     ),
-    child: Row(
-      children: [
-        Text(
-          AppLocalizations.of(context)?.quests ?? '任务',
-          style: const TextStyle(
-            color: Color(0xffd4a85f),
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const Spacer(),
-        QuestModeTabs(mode: mode, onChanged: onModeChanged),
-      ],
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final controls = QuestHeaderControls(
+          mode: mode,
+          filters: filters,
+          onModeChanged: onModeChanged,
+        );
+        if (constraints.maxWidth < 430) {
+          return Align(alignment: Alignment.centerRight, child: controls);
+        }
+        return Row(
+          children: [
+            Text(
+              AppLocalizations.of(context)?.quests ?? '任务',
+              style: const TextStyle(
+                color: Color(0xffd4a85f),
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const Spacer(),
+            controls,
+          ],
+        );
+      },
     ),
   );
 }
@@ -345,139 +666,23 @@ class _QuestListPanel extends StatelessWidget {
     required this.entries,
     required this.selectedQuestId,
     required this.allMode,
-    required this.query,
-    required this.categoryFilter,
-    required this.periodFilter,
-    required this.unlockFilter,
-    required this.onQueryChanged,
-    required this.onCategoryChanged,
-    required this.onPeriodChanged,
-    required this.onUnlockChanged,
     required this.onSelected,
   });
 
   final List<_QuestViewEntry> entries;
   final int selectedQuestId;
   final bool allMode;
-  final String query;
-  final int? categoryFilter;
-  final int? periodFilter;
-  final QuestUnlockState? unlockFilter;
-  final ValueChanged<String> onQueryChanged;
-  final ValueChanged<int?> onCategoryChanged;
-  final ValueChanged<int?> onPeriodChanged;
-  final ValueChanged<QuestUnlockState?> onUnlockChanged;
   final ValueChanged<int> onSelected;
 
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      if (allMode) ...[
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-          child: SizedBox(
-            height: 38,
-            child: TextField(
-              key: const Key('quest-search-field'),
-              onChanged: onQueryChanged,
-              decoration: InputDecoration(
-                hintText: '搜索编号、任务名或说明',
-                prefixIcon: const Icon(Icons.search, size: 18),
-                contentPadding: EdgeInsets.zero,
-                filled: true,
-                fillColor: const Color(0xff102431),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xff315064)),
-                ),
-              ),
-            ),
-          ),
-        ),
-        SizedBox(
-          height: 58,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    _FilterChip(
-                      label: '全部类型',
-                      selected: categoryFilter == null,
-                      onTap: () => onCategoryChanged(null),
-                    ),
-                    for (final item in const <(int, String)>[
-                      (2, '出击'),
-                      (1, '编成'),
-                      (3, '演习'),
-                      (4, '远征'),
-                      (5, '补给/入渠'),
-                      (6, '工厂'),
-                      (7, '改装'),
-                      (0, '其他'),
-                    ])
-                      _FilterChip(
-                        label: item.$2,
-                        selected: categoryFilter == item.$1,
-                        onTap: () => onCategoryChanged(item.$1),
-                      ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    _FilterChip(
-                      label: '全部周期',
-                      selected: periodFilter == null,
-                      onTap: () => onPeriodChanged(null),
-                    ),
-                    for (final item in const <(int, String)>[
-                      (1, '日常'),
-                      (2, '周常'),
-                      (3, '月常'),
-                      (4, '单次'),
-                      (5, '季常'),
-                      (6, '年常'),
-                    ])
-                      _FilterChip(
-                        label: item.$2,
-                        selected: periodFilter == item.$1,
-                        onTap: () => onPeriodChanged(item.$1),
-                      ),
-                    _FilterChip(
-                      label: '已解锁',
-                      selected: unlockFilter == QuestUnlockState.unlocked,
-                      onTap: () => onUnlockChanged(
-                        unlockFilter == QuestUnlockState.unlocked
-                            ? null
-                            : QuestUnlockState.unlocked,
-                      ),
-                    ),
-                    _FilterChip(
-                      label: '未解锁',
-                      selected: unlockFilter == QuestUnlockState.locked,
-                      onTap: () => onUnlockChanged(
-                        unlockFilter == QuestUnlockState.locked
-                            ? null
-                            : QuestUnlockState.locked,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
       Expanded(
         child: ListView.separated(
           padding: const EdgeInsets.all(12),
           itemCount: entries.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 8),
+          separatorBuilder: (_, _) => const SizedBox(height: 6),
           itemBuilder: (context, index) {
             final entry = entries[index];
             return _QuestCard(
@@ -494,6 +699,7 @@ class _QuestListPanel extends StatelessWidget {
 
 class _FilterChip extends StatelessWidget {
   const _FilterChip({
+    super.key,
     required this.label,
     required this.selected,
     required this.onTap,
@@ -559,7 +765,7 @@ class _QuestCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(9),
         child: SizedBox(
-          height: 76,
+          height: 64,
           child: Row(
             children: [
               Container(
@@ -577,16 +783,27 @@ class _QuestCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${entry.code} · ${entry.title}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    Row(
+                      children: [
+                        _QuestCodeTag(
+                          key: Key('quest-card-code-${entry.id}'),
+                          code: entry.code,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            entry.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 7),
+                    const SizedBox(height: 3),
                     Row(
                       children: [
                         _SmallTag(
@@ -638,10 +855,27 @@ class _QuestDetail extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          '${entry.code} · ${entry.title}',
+        Row(
           key: Key('quest-detail-title-${entry.id}'),
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          children: [
+            _QuestCodeTag(
+              key: Key('quest-detail-code-${entry.id}'),
+              code: entry.code,
+              large: true,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                entry.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 9),
         Wrap(
@@ -756,22 +990,73 @@ class _RelationRow extends StatelessWidget {
         ),
       ),
       Expanded(
-        child: Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            for (final relation in entries)
-              ActionChip(
-                key: Key('$keyPrefix-${relation.gameId}'),
-                label: Text('${relation.code} ${relation.name}'),
-                onPressed: () => onSelected(relation.gameId),
-                visualDensity: VisualDensity.compact,
-              ),
-          ],
+        child: SingleChildScrollView(
+          key: Key('$keyPrefix-scroll'),
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (var index = 0; index < entries.length; index++) ...[
+                if (index > 0) const SizedBox(width: 6),
+                ActionChip(
+                  key: Key('$keyPrefix-${entries[index].gameId}'),
+                  label: Text(entries[index].code),
+                  onPressed: () => onSelected(entries[index].gameId),
+                  visualDensity: VisualDensity.compact,
+                  side: BorderSide(color: _questCodeColor(entries[index].code)),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     ],
   );
+}
+
+class _QuestCodeTag extends StatelessWidget {
+  const _QuestCodeTag({super.key, required this.code, this.large = false});
+
+  final String code;
+  final bool large;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _questCodeColor(code);
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: large ? 9 : 7,
+        vertical: large ? 3 : 2,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: color.withValues(alpha: 0.65)),
+      ),
+      child: Text(
+        code,
+        maxLines: 1,
+        style: TextStyle(
+          color: color,
+          fontSize: large ? 13 : 10.5,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+Color _questCodeColor(String code) {
+  final category = RegExp(r'[A-G]', caseSensitive: false).firstMatch(code);
+  return switch (category?.group(0)?.toUpperCase()) {
+    'A' => const Color(0xff19bb2e),
+    'B' => const Color(0xffe73939),
+    'C' => const Color(0xff87da61),
+    'D' => const Color(0xff16c2a3),
+    'E' => const Color(0xffe2c609),
+    'F' => const Color(0xff805444),
+    'G' => const Color(0xffc792e8),
+    _ => const Color(0xffa9bdc8),
+  };
 }
 
 class _StatusBadge extends StatelessWidget {
@@ -784,7 +1069,7 @@ class _StatusBadge extends StatelessWidget {
     final positive = entry.allMode ? !entry.locked : entry.completed;
     final color = positive ? const Color(0xff67d2a6) : const Color(0xffe0ad4f);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
         color: positive ? const Color(0xff173a31) : const Color(0xff3b3020),
         borderRadius: BorderRadius.circular(5),
@@ -882,7 +1167,7 @@ class _SmallTag extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
     decoration: BoxDecoration(
       color: color.withValues(alpha: 0.2),
       borderRadius: BorderRadius.circular(5),

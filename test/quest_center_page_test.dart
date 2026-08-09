@@ -62,6 +62,12 @@ void main() {
     expect(find.text('全任务'), findsOneWidget);
     expect(find.textContaining('更新于'), findsNothing);
     expect(find.byKey(const Key('quest-mode-tabs')), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const Key('quest-mode-tabs'))),
+      const Size(260, 38),
+    );
+    expect(find.byKey(const Key('quest-search-button')), findsNothing);
+    expect(find.byKey(const Key('quest-filter-button')), findsNothing);
     expect(find.byKey(const Key('quest-card-201')), findsOneWidget);
     expect(find.byKey(const Key('quest-card-402')), findsOneWidget);
     expect(find.text('50%+'), findsWidgets);
@@ -303,8 +309,47 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(find.byKey(const Key('quest-search-button')), findsOneWidget);
+      expect(find.byKey(const Key('quest-filter-button')), findsOneWidget);
+      expect(find.byKey(const Key('quest-search-field')), findsNothing);
+      await tester.tap(find.byKey(const Key('quest-search-button')));
+      await tester.pumpAndSettle();
       expect(find.byKey(const Key('quest-search-field')), findsOneWidget);
-      expect(find.textContaining('B1 · 当前任务'), findsWidgets);
+      await tester.enterText(find.byKey(const Key('quest-search-field')), 'B1');
+      await tester.tap(find.byKey(const Key('quest-search-close')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('quest-card-201')), findsOneWidget);
+      expect(find.byKey(const Key('quest-card-202')), findsNothing);
+      await tester.tap(find.byKey(const Key('quest-search-button')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('quest-search-field')), '');
+      await tester.tap(find.byKey(const Key('quest-search-close')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('quest-filter-button')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('quest-filter-sheet')), findsOneWidget);
+      expect(find.text('全部类型'), findsOneWidget);
+      expect(find.text('全部周期'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('quest-filter-category-1')));
+      await tester.tap(find.byKey(const Key('quest-filter-close')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('quest-card-101')), findsOneWidget);
+      expect(find.byKey(const Key('quest-card-201')), findsNothing);
+      await tester.tap(find.byKey(const Key('quest-filter-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('quest-filter-clear')));
+      await tester.tap(find.byKey(const Key('quest-filter-close')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('quest-card-201')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('quest-card-201')));
+      await tester.pump();
+      expect(find.byKey(const Key('quest-card-code-201')), findsOneWidget);
+      expect(find.text('当前任务'), findsWidgets);
+      expect(
+        tester.getSize(find.byKey(const Key('quest-card-201'))).height,
+        64,
+      );
       expect(
         find.descendant(
           of: find.byKey(const Key('quest-card-201')),
@@ -312,14 +357,35 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.text('前置任务'), findsOneWidget);
-      expect(find.text('后置任务'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('quest-relation-pre-101')),
+          matching: find.text('A1'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('quest-relation-pre-101')),
+          matching: find.text('前置任务'),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const Key('quest-relation-pre-scroll')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('quest-relation-post-scroll')),
+        findsOneWidget,
+      );
       expect(find.text('奖励内容'), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('quest-relation-post-202')));
       await tester.pump();
       expect(find.byKey(const Key('quest-detail-title-202')), findsOneWidget);
-      expect(find.textContaining('Bd2 · 后置任务'), findsWidgets);
+      expect(find.byKey(const Key('quest-detail-code-202')), findsOneWidget);
+      expect(find.text('后置任务'), findsWidgets);
       controller.dispose();
     },
   );

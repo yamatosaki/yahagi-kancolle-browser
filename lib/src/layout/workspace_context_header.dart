@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../fleet/fleet_information_center.dart';
 import '../fleet/anchorage_repair_view.dart';
-import '../fleet/expedition_summary_card.dart' show ExpeditionSummaryMode, ExpeditionModeSelector;
+import '../fleet/expedition_summary_card.dart'
+    show ExpeditionSummaryMode, ExpeditionModeSelector;
 import '../fleet/resource_grid.dart';
 import '../game_state/game_state.dart';
 import '../inventory/owned_inventory_page.dart';
@@ -25,6 +26,9 @@ class WorkspaceContextHeader extends StatelessWidget {
     this.onSettingsTabChanged,
     this.repairMode = RepairCenterMode.dock,
     this.onRepairModeChanged,
+    this.questMode = QuestCenterMode.active,
+    this.onQuestModeChanged,
+    this.questFilters,
     this.expeditionMode = ExpeditionSummaryMode.summary,
     this.onExpeditionModeChanged,
   });
@@ -41,6 +45,9 @@ class WorkspaceContextHeader extends StatelessWidget {
   final ValueChanged<int>? onSettingsTabChanged;
   final RepairCenterMode repairMode;
   final ValueChanged<RepairCenterMode>? onRepairModeChanged;
+  final QuestCenterMode questMode;
+  final ValueChanged<QuestCenterMode>? onQuestModeChanged;
+  final QuestFilterController? questFilters;
   final ExpeditionSummaryMode expeditionMode;
   final ValueChanged<ExpeditionSummaryMode>? onExpeditionModeChanged;
 
@@ -85,18 +92,40 @@ class WorkspaceContextHeader extends StatelessWidget {
       );
     }
     if (workspaceIndex == 5) {
-      return Row(
-        children: [
-          Text(
-            l10n.quests,
-            key: const Key('workspace-title-quest'),
-            style: const TextStyle(
-              color: Color(0xffe0b25c),
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final controls = questFilters == null
+              ? QuestModeTabs(
+                  mode: questMode,
+                  onChanged: onQuestModeChanged ?? (_) {},
+                )
+              : QuestHeaderControls(
+                  mode: questMode,
+                  filters: questFilters!,
+                  onModeChanged: onQuestModeChanged ?? (_) {},
+                );
+          if (constraints.maxWidth < 430) {
+            return Align(
+              alignment: Alignment.centerRight,
+              child: FittedBox(fit: BoxFit.scaleDown, child: controls),
+            );
+          }
+          return Row(
+            children: [
+              Text(
+                l10n.quests,
+                key: const Key('workspace-title-quest'),
+                style: const TextStyle(
+                  color: Color(0xffe0b25c),
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Spacer(),
+              controls,
+            ],
+          );
+        },
       );
     }
     if (workspaceIndex == 6) {
@@ -223,13 +252,7 @@ class SettingsSegmented extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labels = const <String>[
-      '画面',
-      '声音',
-      '战斗',
-      '网络',
-      '关于与支持',
-    ];
+    final labels = const <String>['画面', '声音', '战斗', '网络', '关于与支持'];
     return Container(
       height: 38,
       padding: const EdgeInsets.all(3),

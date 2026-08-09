@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/combat_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/layout/workspace_context_header.dart';
+import 'package:yahagi_kancolle_browser/src/quest/quest_center_page.dart';
 
 void main() {
   const state = GameState(
@@ -107,7 +108,7 @@ void main() {
     expect(find.text('建造'), findsOneWidget);
   });
 
-  testWidgets('quest workspace puts connected counts beside its title', (
+  testWidgets('quest workspace switches between active and all quests', (
     tester,
   ) async {
     const questState = GameState(
@@ -132,23 +133,55 @@ void main() {
         ),
       },
     );
+    QuestCenterMode? changedMode;
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: Scaffold(
           body: WorkspaceContextHeader(
             workspaceIndex: 5,
             state: questState,
             selectedFleetId: 1,
+            questMode: QuestCenterMode.active,
+            onQuestModeChanged: (mode) => changedMode = mode,
           ),
         ),
       ),
     );
 
     expect(find.byKey(const Key('workspace-title-quest')), findsOneWidget);
-    expect(find.byKey(const Key('quest-count-segmented')), findsOneWidget);
-    expect(find.text('已接受 2'), findsOneWidget);
-    expect(find.text('已完成 1'), findsOneWidget);
+    expect(find.byKey(const Key('quest-mode-tabs')), findsOneWidget);
+    expect(find.text('进行中'), findsOneWidget);
+    expect(find.text('全任务'), findsOneWidget);
     expect(find.textContaining('更新于'), findsNothing);
+    await tester.tap(find.text('全任务'));
+    expect(changedMode, QuestCenterMode.all);
+  });
+
+  testWidgets('all quest workspace adds search and filter actions', (
+    tester,
+  ) async {
+    final filters = QuestFilterController();
+    addTearDown(filters.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: WorkspaceContextHeader(
+            workspaceIndex: 5,
+            state: const GameState(),
+            selectedFleetId: 1,
+            questMode: QuestCenterMode.all,
+            questFilters: filters,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('quest-search-button')), findsOneWidget);
+    expect(find.byKey(const Key('quest-filter-button')), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const Key('quest-mode-tabs'))),
+      const Size(260, 38),
+    );
   });
 
   testWidgets('owned inventory puts its section switch in the top right', (

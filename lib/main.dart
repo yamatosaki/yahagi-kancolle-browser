@@ -451,6 +451,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   int _settingsTabIndex = 0;
   RepairCenterMode _repairCenterMode = RepairCenterMode.dock;
   QuestCenterMode _questCenterMode = QuestCenterMode.active;
+  final QuestFilterController _questFilters = QuestFilterController();
   ExpeditionSummaryMode _expeditionCenterMode = ExpeditionSummaryMode.summary;
 
   @override
@@ -466,6 +467,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   void dispose() {
     widget.displayModeController.removeListener(_applyOrientationPolicy);
     widget.layoutSettingsController.removeListener(_onLayoutSettingsChanged);
+    _questFilters.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -561,6 +563,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                           setState(() => _repairCenterMode = mode);
                         },
                         questMode: _questCenterMode,
+                        questFilters: _questFilters,
                         onQuestModeChanged: (mode) {
                           setState(() => _questCenterMode = mode);
                         },
@@ -881,6 +884,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                             initialQuestId: _questCenterInitialQuestId,
                             showTitle: false,
                             mode: _questCenterMode,
+                            filterController: _questFilters,
                             onModeChanged: (mode) {
                               setState(() => _questCenterMode = mode);
                             },
