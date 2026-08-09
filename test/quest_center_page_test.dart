@@ -376,6 +376,15 @@ void main() {
         findsOneWidget,
       );
       expect(find.byKey(const Key('quest-relation-code-101')), findsOneWidget);
+      final preLabelRect = tester.getRect(find.text('前置任务').at(1));
+      final preCodeRect = tester.getRect(
+        find.byKey(const Key('quest-relation-code-101')),
+      );
+      expect(preCodeRect.left - preLabelRect.right, greaterThanOrEqualTo(12));
+      expect(
+        (preCodeRect.center.dy - preLabelRect.center.dy).abs(),
+        lessThanOrEqualTo(0.5),
+      );
       expect(
         find.byKey(const Key('quest-relation-post-scroll')),
         findsOneWidget,

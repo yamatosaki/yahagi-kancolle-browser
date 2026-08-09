@@ -980,15 +980,13 @@ class _RelationRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.center,
     children: [
       SizedBox(
         width: 58,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(label, style: const TextStyle(color: Color(0xff91a5b0))),
-        ),
+        child: Text(label, style: const TextStyle(color: Color(0xff91a5b0))),
       ),
+      const SizedBox(width: 12),
       Expanded(
         child: SingleChildScrollView(
           key: Key('$keyPrefix-scroll'),
