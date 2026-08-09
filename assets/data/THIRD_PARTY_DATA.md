@@ -1,5 +1,9 @@
 # 第三方数据说明 (Third-Party Data Notice)
 
+## 舰队 Collection 任务目录
+
+`quests-scn.json` 是合并目录：日文任务名称、说明和奖励来自 [Kcanotify game data](https://github.com/antest1/kcanotify-gamedata) 的 `quests-jp.json`，英文编号和前置任务关系来自 [kcWiki kcQuests](https://github.com/kcwikizh/kcQuests)。应用在本地由前置关系反向生成后置关系，并参考 [poi-plugin-quest-info-2](https://github.com/lawvs/poi-plugin-quest-2) 的任务链算法推断已解锁和未解锁状态。数据可能存在更新延迟，实际状态以游戏为准。
+
 本目录下的 `equipment_fit_bonuses.json` 数据集由本项目从第三方网站**派生整理**（derived data），不是本项目独立创作的数据，也不属于第三方站点或其运营者的官方数据。
 
 ## 数据来源

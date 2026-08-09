@@ -42,6 +42,22 @@ project's MIT License does not grant rights in third-party names, trademarks,
 characters, artwork, or other third-party material that may appear in those
 assets. All such rights remain with their respective owners.
 
+Kcanotify game data, kcWiki kcQuests, and poi-plugin-quest-info-2
+-----------------------------------------------------------------
+
+Japanese quest names, descriptions, and rewards are sourced from:
+https://github.com/antest1/kcanotify-gamedata
+
+Quest codes and prerequisite relations are sourced from:
+https://github.com/kcwikizh/kcQuests
+
+Quest relation/status behavior is adapted from the MIT-licensed plugin:
+https://github.com/lawvs/poi-plugin-quest-2
+
+Copyright and database rights remain with their respective contributors and
+source communities. The source repository and attribution are retained here,
+and the data is presented with an in-app accuracy disclaimer.
+
 poi-plugin-ezexped
 ------------------
 

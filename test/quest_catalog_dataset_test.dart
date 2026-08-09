@@ -84,4 +84,32 @@ void main() {
       throwsFormatException,
     );
   });
+
+  test('persists display and relation source revisions', () {
+    final version = QuestCatalogVersion(
+      committedAt: DateTime.utc(2026, 8, 10),
+      commitSha: 'a' * 40,
+      relationCommitSha: 'b' * 40,
+      sha256: 'c' * 64,
+    );
+
+    final restored = QuestCatalogVersion.fromJson(version.toJson());
+
+    expect(restored.displayCommitSha, 'a' * 40);
+    expect(restored.relationCommitSha, 'b' * 40);
+    expect(restored.shortLabel, contains('aaaaaaa/bbbbbbb'));
+  });
+
+  test('reads legacy metadata as a single shared revision', () {
+    final restored = QuestCatalogVersion.fromJson(
+      jsonEncode(<String, Object?>{
+        'committedAt': '2026-08-10T00:00:00Z',
+        'commitSha': 'a' * 40,
+        'sha256': 'b' * 64,
+      }),
+    );
+
+    expect(restored.displayCommitSha, 'a' * 40);
+    expect(restored.relationCommitSha, 'a' * 40);
+  });
 }

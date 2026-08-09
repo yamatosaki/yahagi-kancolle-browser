@@ -7,24 +7,37 @@ import 'quest_catalog.dart';
 final class QuestCatalogVersion implements Comparable<QuestCatalogVersion> {
   const QuestCatalogVersion({
     required this.committedAt,
-    required this.commitSha,
+    required String commitSha,
+    String? relationCommitSha,
     required this.sha256,
-  });
+  }) : displayCommitSha = commitSha,
+       relationCommitSha = relationCommitSha ?? commitSha;
 
   final DateTime committedAt;
-  final String commitSha;
+  final String displayCommitSha;
+  final String relationCommitSha;
   final String sha256;
+
+  String get commitSha => displayCommitSha;
 
   String get shortLabel =>
       '${committedAt.toUtc().toIso8601String().substring(0, 10)} '
-      '${commitSha.substring(0, 7)}';
+      '${displayCommitSha.substring(0, 7)}/'
+      '${relationCommitSha.substring(0, 7)}';
 
   @override
   int compareTo(QuestCatalogVersion other) {
     final time = committedAt.compareTo(other.committedAt);
     if (time != 0) return time;
-    if (commitSha == other.commitSha) return 0;
-    return sha256 == other.sha256 ? 0 : commitSha.compareTo(other.commitSha);
+    if (displayCommitSha == other.displayCommitSha &&
+        relationCommitSha == other.relationCommitSha) {
+      return 0;
+    }
+    if (sha256 == other.sha256) return 0;
+    final display = displayCommitSha.compareTo(other.displayCommitSha);
+    return display != 0
+        ? display
+        : relationCommitSha.compareTo(other.relationCommitSha);
   }
 
   factory QuestCatalogVersion.fromJson(String rawJson) {
@@ -35,25 +48,32 @@ final class QuestCatalogVersion implements Comparable<QuestCatalogVersion> {
     final committedAt = DateTime.tryParse(
       decoded['committedAt'] as String? ?? '',
     );
-    final commitSha = decoded['commitSha'];
+    final displayCommitSha =
+        decoded['displayCommitSha'] ?? decoded['commitSha'];
+    final relationCommitSha = decoded['relationCommitSha'] ?? displayCommitSha;
     final contentHash = decoded['sha256'];
     if (committedAt == null ||
-        commitSha is! String ||
-        !RegExp(r'^[0-9a-f]{40}$').hasMatch(commitSha) ||
+        displayCommitSha is! String ||
+        !RegExp(r'^[0-9a-f]{40}$').hasMatch(displayCommitSha) ||
+        relationCommitSha is! String ||
+        !RegExp(r'^[0-9a-f]{40}$').hasMatch(relationCommitSha) ||
         contentHash is! String ||
         !RegExp(r'^[0-9a-f]{64}$').hasMatch(contentHash)) {
       throw const FormatException('Quest metadata fields are invalid');
     }
     return QuestCatalogVersion(
       committedAt: committedAt.toUtc(),
-      commitSha: commitSha,
+      commitSha: displayCommitSha,
+      relationCommitSha: relationCommitSha,
       sha256: contentHash,
     );
   }
 
   String toJson() => jsonEncode(<String, Object?>{
     'committedAt': committedAt.toUtc().toIso8601String(),
-    'commitSha': commitSha,
+    'commitSha': displayCommitSha,
+    'displayCommitSha': displayCommitSha,
+    'relationCommitSha': relationCommitSha,
     'sha256': sha256,
   });
 }
