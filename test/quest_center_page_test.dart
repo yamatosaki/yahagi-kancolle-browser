@@ -390,6 +390,22 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('奖励内容'), findsOneWidget);
+      TextStyle effectiveStyle(Finder finder) {
+        final text = tester.widget<Text>(finder);
+        return DefaultTextStyle.of(
+          tester.element(finder),
+        ).style.merge(text.style);
+      }
+
+      for (final finder in <Finder>[
+        find.text('当前说明'),
+        find.text('奖励内容'),
+        find.text('前置任务').at(1),
+      ]) {
+        final style = effectiveStyle(finder);
+        expect(style.fontFamily, 'HarmonyOS_Sans_SC');
+        expect(style.color, Colors.white);
+      }
 
       await tester.tap(find.byKey(const Key('quest-relation-post-202')));
       await tester.pump();

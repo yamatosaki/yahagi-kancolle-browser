@@ -850,117 +850,122 @@ class _QuestDetail extends StatelessWidget {
   final ValueChanged<int> onRelationSelected;
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    padding: const EdgeInsets.all(16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          key: Key('quest-detail-title-${entry.id}'),
-          children: [
-            _QuestCodeTag(
-              key: Key('quest-detail-code-${entry.id}'),
-              code: entry.code,
-              large: true,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                entry.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) => DefaultTextStyle.merge(
+    style: const TextStyle(
+      color: Colors.white,
+      fontFamily: 'HarmonyOS_Sans_SC',
+      fontFamilyFallback: <String>['HarmonyOS_Sans_TC', 'NotoSansJP'],
+    ),
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            key: Key('quest-detail-title-${entry.id}'),
+            children: [
+              _QuestCodeTag(
+                key: Key('quest-detail-code-${entry.id}'),
+                code: entry.code,
+                large: true,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  entry.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 9),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            _SmallTag(label: entry.categoryLabel, color: entry.categoryColor),
-            _SmallTag(
-              label: entry.periodLabel(context),
-              color: entry.periodColor,
-            ),
-            _SmallTag(label: entry.progressLabel, color: entry.progressColor),
-            _StatusBadge(
-              key: Key('quest-detail-status-${entry.id}'),
-              entry: entry,
-            ),
-            if (entry.exactProgress case final progress?)
+            ],
+          ),
+          const SizedBox(height: 9),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _SmallTag(label: entry.categoryLabel, color: entry.categoryColor),
               _SmallTag(
-                key: Key('quest-detail-exact-progress-${entry.id}'),
-                label: progress,
-                color: const Color(0xff8ec6e8),
+                label: entry.periodLabel(context),
+                color: entry.periodColor,
               ),
-          ],
-        ),
-        const SizedBox(height: 13),
-        _DetailCard(
-          title: AppLocalizations.of(context)?.questDesc ?? '任务说明',
-          child: Text(
-            entry.detail.isEmpty ? '暂无说明' : entry.detail,
-            style: const TextStyle(
-              color: Color(0xffc4d0d7),
-              fontSize: 13,
-              height: 1.45,
+              _SmallTag(label: entry.progressLabel, color: entry.progressColor),
+              _StatusBadge(
+                key: Key('quest-detail-status-${entry.id}'),
+                entry: entry,
+              ),
+              if (entry.exactProgress case final progress?)
+                _SmallTag(
+                  key: Key('quest-detail-exact-progress-${entry.id}'),
+                  label: progress,
+                  color: const Color(0xff8ec6e8),
+                ),
+            ],
+          ),
+          const SizedBox(height: 13),
+          _DetailCard(
+            title: AppLocalizations.of(context)?.questDesc ?? '任务说明',
+            child: Text(
+              entry.detail.isEmpty ? '暂无说明' : entry.detail,
+              style: const TextStyle(fontSize: 13, height: 1.45),
             ),
           ),
-        ),
-        if (entry.memo.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          _DetailCard(title: '完成条件', child: Text(entry.memo)),
-        ],
-        const SizedBox(height: 8),
-        _DetailCard(
-          title: AppLocalizations.of(context)?.baseReward ?? '基础奖励',
-          child: entry.rewardsText.isNotEmpty
-              ? Text(entry.rewardsText)
-              : Wrap(
-                  spacing: 18,
-                  runSpacing: 9,
-                  children: [
-                    for (var index = 0; index < 4; index++)
-                      _MaterialReward(
-                        assetIndex: index + 1,
-                        value: entry.materials[index],
-                      ),
-                  ],
-                ),
-        ),
-        if (entry.prerequisites.isNotEmpty || entry.successors.isNotEmpty) ...[
+          if (entry.memo.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _DetailCard(title: '完成条件', child: Text(entry.memo)),
+          ],
           const SizedBox(height: 8),
           _DetailCard(
-            title: '任务关系',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (entry.prerequisites.isNotEmpty)
-                  _RelationRow(
-                    label: '前置任务',
-                    entries: entry.prerequisites,
-                    keyPrefix: 'quest-relation-pre',
-                    onSelected: onRelationSelected,
+            title: AppLocalizations.of(context)?.baseReward ?? '基础奖励',
+            child: entry.rewardsText.isNotEmpty
+                ? Text(entry.rewardsText)
+                : Wrap(
+                    spacing: 18,
+                    runSpacing: 9,
+                    children: [
+                      for (var index = 0; index < 4; index++)
+                        _MaterialReward(
+                          assetIndex: index + 1,
+                          value: entry.materials[index],
+                        ),
+                    ],
                   ),
-                if (entry.successors.isNotEmpty) ...[
-                  if (entry.prerequisites.isNotEmpty) const SizedBox(height: 8),
-                  _RelationRow(
-                    label: '后置任务',
-                    entries: entry.successors,
-                    keyPrefix: 'quest-relation-post',
-                    onSelected: onRelationSelected,
-                  ),
-                ],
-              ],
-            ),
           ),
+          if (entry.prerequisites.isNotEmpty ||
+              entry.successors.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _DetailCard(
+              title: '任务关系',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (entry.prerequisites.isNotEmpty)
+                    _RelationRow(
+                      label: '前置任务',
+                      entries: entry.prerequisites,
+                      keyPrefix: 'quest-relation-pre',
+                      onSelected: onRelationSelected,
+                    ),
+                  if (entry.successors.isNotEmpty) ...[
+                    if (entry.prerequisites.isNotEmpty)
+                      const SizedBox(height: 8),
+                    _RelationRow(
+                      label: '后置任务',
+                      entries: entry.successors,
+                      keyPrefix: 'quest-relation-post',
+                      onSelected: onRelationSelected,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ],
-      ],
+      ),
     ),
   );
 }
@@ -982,10 +987,7 @@ class _RelationRow extends StatelessWidget {
   Widget build(BuildContext context) => Row(
     crossAxisAlignment: CrossAxisAlignment.center,
     children: [
-      SizedBox(
-        width: 58,
-        child: Text(label, style: const TextStyle(color: Color(0xff91a5b0))),
-      ),
+      SizedBox(width: 58, child: Text(label)),
       const SizedBox(width: 12),
       Expanded(
         child: SingleChildScrollView(
