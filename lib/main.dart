@@ -29,6 +29,7 @@ import 'src/capture/capture_mode_store.dart';
 import 'src/capture/game_capture_controller.dart';
 import 'src/capture/game_capture_port.dart';
 import 'src/fleet/fleet_information_center.dart';
+import 'src/fleet/ship_status_style.dart';
 import 'src/fleet/anchorage_repair_view.dart';
 import 'src/fleet/fleet_summary_card.dart';
 import 'src/fleet/expedition_summary_card.dart';
@@ -45,6 +46,9 @@ import 'src/inventory/owned_inventory_page.dart';
 import 'src/prototype_status_controller.dart';
 import 'src/quest/pinned_quests_summary.dart';
 import 'src/quest/quest_center_page.dart';
+import 'src/quest/quest_catalog_controller.dart';
+import 'src/quest/quest_catalog_store.dart';
+import 'src/quest/quest_catalog_update_service.dart';
 import 'src/quest/shared_preferences_quest_store.dart';
 import 'src/settings/layout_settings_controller.dart';
 import 'src/settings/layout_settings_store.dart';
@@ -148,6 +152,31 @@ Future<void> main() async {
     lastCheckedAt: fcdMapState?.lastCheckedAt,
     sourceHost: fcdMapState?.source ?? '',
   );
+  QuestCatalogStorage questCatalogStorage;
+  try {
+    questCatalogStorage = await ApplicationQuestCatalogStorage.create();
+  } catch (error) {
+    debugPrint('任务资料目录不可用，改用内置数据: $error');
+    questCatalogStorage = const BundledOnlyQuestCatalogStorage();
+  }
+  final questCatalogStore = QuestCatalogStore(questCatalogStorage);
+  final loadedQuestCatalog = await questCatalogStore.loadBestAvailable();
+  final loadedQuestCatalogState = await questCatalogStore.loadState();
+  final questCatalogState =
+      loadedQuestCatalogState?.version.commitSha ==
+          loadedQuestCatalog.dataset.version.commitSha
+      ? loadedQuestCatalogState
+      : null;
+  final questCatalogController = QuestCatalogController(
+    dataset: loadedQuestCatalog.dataset,
+    updater: QuestCatalogUpdateService(
+      client: http.Client(),
+      store: questCatalogStore,
+      appVersion: currentVersion,
+    ),
+    lastCheckedAt: questCatalogState?.lastCheckedAt,
+    sourceHost: questCatalogState?.source ?? '',
+  );
   final battleController = BattleController(
     gameState: () => gameStateController.state,
     nodeLabelResolver: fcdMapController,
@@ -185,6 +214,7 @@ Future<void> main() async {
       gameStateController: gameStateController,
       battleController: battleController,
       fcdMapController: fcdMapController,
+      questCatalogController: questCatalogController,
       currentVersion: currentVersion,
       releaseChecker: releaseChecker,
       screenAwakeController: screenAwakeController,
@@ -192,6 +222,7 @@ Future<void> main() async {
   );
   WidgetsBinding.instance.addPostFrameCallback((_) {
     unawaited(fcdMapController.checkForUpdates());
+    unawaited(questCatalogController.checkForUpdates());
   });
 }
 
@@ -214,6 +245,7 @@ class YahagiApp extends StatelessWidget {
     required this.gameStateController,
     required this.battleController,
     this.fcdMapController,
+    this.questCatalogController,
     this.gameSurface,
     this.currentVersion = '1.0.2',
     this.releaseChecker,
@@ -239,6 +271,7 @@ class YahagiApp extends StatelessWidget {
   final GameStateController gameStateController;
   final BattleController battleController;
   final FcdMapController? fcdMapController;
+  final QuestCatalogController? questCatalogController;
   final Widget? gameSurface;
   final String currentVersion;
   final ReleaseChecker? releaseChecker;
@@ -306,6 +339,7 @@ class YahagiApp extends StatelessWidget {
               gameStateController: gameStateController,
               battleController: battleController,
               fcdMapController: fcdMapController,
+              questCatalogController: questCatalogController,
               currentVersion: currentVersion,
               releaseChecker: releaseChecker,
               screenAwakeController: screenAwakeController,
@@ -373,6 +407,7 @@ class YahagiShell extends StatefulWidget {
     this.toolbarDisplayController,
     this.gameScreenshotController,
     this.fcdMapController,
+    this.questCatalogController,
     this.showDeveloperDiagnostics = false,
   });
 
@@ -393,6 +428,7 @@ class YahagiShell extends StatefulWidget {
   final GameStateController gameStateController;
   final BattleController battleController;
   final FcdMapController? fcdMapController;
+  final QuestCatalogController? questCatalogController;
   final String currentVersion;
   final ReleaseChecker? releaseChecker;
   final ScreenAwakeController? screenAwakeController;
@@ -414,6 +450,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   int _logbookTabIndex = 0;
   int _settingsTabIndex = 0;
   RepairCenterMode _repairCenterMode = RepairCenterMode.dock;
+  QuestCenterMode _questCenterMode = QuestCenterMode.active;
   ExpeditionSummaryMode _expeditionCenterMode = ExpeditionSummaryMode.summary;
 
   @override
@@ -522,6 +559,10 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                         repairMode: _repairCenterMode,
                         onRepairModeChanged: (mode) {
                           setState(() => _repairCenterMode = mode);
+                        },
+                        questMode: _questCenterMode,
+                        onQuestModeChanged: (mode) {
+                          setState(() => _questCenterMode = mode);
                         },
                         expeditionMode: _expeditionCenterMode,
                         onExpeditionModeChanged: (mode) {
@@ -789,6 +830,12 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                         if (_workspaceIndex == 1)
                           FleetInformationCenter(
                             controller: widget.gameStateController,
+                            damagePulseMode:
+                                widget
+                                    .layoutSettingsController
+                                    .enhancedDamagePulse
+                                ? DamagePulseMode.enhanced
+                                : DamagePulseMode.normal,
                             page: FleetInformationPage.fleet,
                             initialFleetId: _fleetCenterInitialFleetId,
                             showContextHeader: false,
@@ -830,8 +877,13 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                         if (_workspaceIndex == 5)
                           QuestCenterPage(
                             controller: widget.gameStateController,
+                            catalogController: widget.questCatalogController,
                             initialQuestId: _questCenterInitialQuestId,
                             showTitle: false,
+                            mode: _questCenterMode,
+                            onModeChanged: (mode) {
+                              setState(() => _questCenterMode = mode);
+                            },
                           ),
                         if (_workspaceIndex == 6)
                           LogbookPage(
@@ -877,6 +929,8 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                             toolbarDisplayController:
                                 widget.toolbarDisplayController,
                             fcdMapController: widget.fcdMapController,
+                            questCatalogController:
+                                widget.questCatalogController,
                             showTitle: false,
                             showDeveloperDiagnostics:
                                 widget.showDeveloperDiagnostics,
@@ -1128,6 +1182,10 @@ class _InformationPanelState extends State<_InformationPanel> {
             final child = switch (id) {
               'fleet' => FleetSummaryCard(
                 controller: widget.gameStateController,
+                damagePulseMode:
+                    widget.layoutSettingsController.enhancedDamagePulse
+                    ? DamagePulseMode.enhanced
+                    : DamagePulseMode.normal,
                 collapsed: isCollapsed,
                 onToggleCollapse: toggle,
                 onOpenFleet: widget.onOpenFleet,
@@ -1160,6 +1218,10 @@ class _InformationPanelState extends State<_InformationPanel> {
               ),
               'battle' => LiveBattleCard(
                 controller: widget.battleController,
+                damagePulseMode:
+                    widget.layoutSettingsController.enhancedDamagePulse
+                    ? DamagePulseMode.enhanced
+                    : DamagePulseMode.normal,
                 collapsed: isCollapsed,
                 onToggleCollapse: toggle,
               ),
@@ -1252,12 +1314,11 @@ class _InformationPanelState extends State<_InformationPanel> {
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           buildDefaultDragHandles: false,
                           onReorderItem: (oldIndex, newIndex) {
-                            final order = List<String>.from(validCards);
-                            final item = order.removeAt(oldIndex);
-                            if (newIndex > oldIndex) {
-                              newIndex -= 1;
-                            }
-                            order.insert(newIndex, item);
+                            final order = reorderDashboardCards(
+                              validCards,
+                              oldIndex,
+                              newIndex,
+                            );
                             widget.layoutSettingsController
                                 .setDashboardCardOrder(order);
                           },
