@@ -110,6 +110,25 @@ void main() {
     controller.dispose();
   });
 
+  testWidgets('all quests waits for catalog without null assertion', (
+    tester,
+  ) async {
+    final controller = GameStateController();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: QuestCenterPage(
+          controller: controller,
+          mode: QuestCenterMode.all,
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('quest-catalog-loading')), findsOneWidget);
+    controller.dispose();
+  });
+
   testWidgets('shows exact known quest progress only in quest details', (
     tester,
   ) async {

@@ -1,3 +1,5 @@
+// ignore_for_file: use_null_aware_elements
+
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -168,6 +170,21 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
       ]),
       builder: (context, _) {
         _catalog = widget.catalogController?.catalog ?? _catalog;
+        if (_mode == QuestCenterMode.all && _catalog == null) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (widget.showTitle)
+                _QuestHeader(mode: _mode, onModeChanged: _changeMode),
+              const Expanded(
+                child: Center(
+                  key: Key('quest-catalog-loading'),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+            ],
+          );
+        }
         final live = widget.controller.state.quests;
         final entries = _entries(live);
         final selected = _selected(entries);
@@ -177,9 +194,7 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
             if (widget.showTitle)
               _QuestHeader(mode: _mode, onModeChanged: _changeMode),
             Expanded(
-              child: _mode == QuestCenterMode.all && _catalog == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : entries.isEmpty
+              child: entries.isEmpty
                   ? const _WaitingState()
                   : LayoutBuilder(
                       builder: (context, constraints) {
