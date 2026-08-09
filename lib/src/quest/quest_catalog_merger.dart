@@ -18,7 +18,7 @@ String mergeQuestCatalogJson({
     final display = _decodeEntry(japanese[key], 'Japanese quest entry');
     final code = _requiredString(display, 'code').trim();
     final name = _requiredString(display, 'name');
-    final description = _requiredString(display, 'desc');
+    final description = _string(display, 'desc');
     final relationValue = relations[key];
     final relation = relationValue == null
         ? const <String, dynamic>{}
@@ -69,6 +69,14 @@ Map<String, dynamic> _decodeEntry(Object? value, String label) {
 String _requiredString(Map<String, dynamic> entry, String key) {
   final value = entry[key];
   if (value is! String || value.trim().isEmpty) {
+    throw FormatException('Japanese quest $key is invalid');
+  }
+  return value;
+}
+
+String _string(Map<String, dynamic> entry, String key) {
+  final value = entry[key];
+  if (value is! String) {
     throw FormatException('Japanese quest $key is invalid');
   }
   return value;

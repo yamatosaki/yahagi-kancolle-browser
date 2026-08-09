@@ -6,11 +6,16 @@ import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 
 import 'quest_catalog_dataset.dart';
+import 'quest_catalog_merger.dart';
 import 'quest_catalog_store.dart';
 
-const questCatalogCommitApi =
+const questCatalogDisplayCommitApi =
+    'https://api.github.com/repos/antest1/kcanotify-gamedata/commits'
+    '?path=files/quests-jp.json&per_page=1';
+const questCatalogRelationCommitApi =
     'https://api.github.com/repos/kcwikizh/kcQuests/commits'
     '?path=quests-scn.json&per_page=1';
+const questCatalogCommitApi = questCatalogRelationCommitApi;
 
 sealed class QuestCatalogUpdateResult {
   const QuestCatalogUpdateResult({required this.sourceHost});
@@ -67,8 +72,14 @@ final class QuestCatalogUpdateService implements QuestCatalogUpdateClient {
     required QuestCatalogDataset current,
   }) async {
     try {
-      final remote = await _readRemoteVersion();
-      if (remote.commitSha == current.version.commitSha) {
+      final revisions = await Future.wait(<Future<_RemoteRevision>>[
+        _readRemoteRevision(Uri.parse(questCatalogDisplayCommitApi)),
+        _readRemoteRevision(Uri.parse(questCatalogRelationCommitApi)),
+      ]);
+      final displayRevision = revisions[0];
+      final relationRevision = revisions[1];
+      if (displayRevision.sha == current.version.displayCommitSha &&
+          relationRevision.sha == current.version.relationCommitSha) {
         final result = QuestCatalogUpToDate(
           current.version,
           sourceHost: 'api.github.com',
@@ -76,61 +87,48 @@ final class QuestCatalogUpdateService implements QuestCatalogUpdateClient {
         await _saveState(current, result, 'upToDate');
         return result;
       }
-      if (remote.committedAt.isBefore(current.version.committedAt)) {
+      final remoteCommittedAt =
+          displayRevision.committedAt.isAfter(relationRevision.committedAt)
+          ? displayRevision.committedAt
+          : relationRevision.committedAt;
+      if (remoteCommittedAt.isBefore(current.version.committedAt)) {
         throw const FormatException('Quest catalog update would downgrade');
       }
 
-      QuestCatalogUpdateFailed? lastFailure;
-      for (final uri in _dataSources(remote.commitSha)) {
-        try {
-          final bytes = await _get(uri, maximumDataBytes);
-          final raw = utf8.decode(bytes);
-          final version = QuestCatalogVersion(
-            committedAt: remote.committedAt,
-            commitSha: remote.commitSha,
-            sha256: sha256.convert(bytes).toString(),
-          );
-          final dataset = QuestCatalogDataset.parse(
-            rawJson: raw,
-            version: version,
-            minimumQuestCount: minimumQuestCount,
-            maxBytes: maximumDataBytes,
-          );
-          try {
-            await store.save(dataset);
-          } on IOException catch (error) {
-            final failed = QuestCatalogUpdateFailed(
-              QuestCatalogUpdateFailure.storage,
-              error,
-              sourceHost: uri.host,
-            );
-            await _saveState(current, failed, 'storageFailed');
-            return failed;
-          }
-          final result = QuestCatalogUpdated(dataset, sourceHost: uri.host);
-          await _saveState(dataset, result, 'updated');
-          return result;
-        } on FormatException catch (error) {
-          lastFailure = QuestCatalogUpdateFailed(
-            QuestCatalogUpdateFailure.validation,
-            error,
-            sourceHost: uri.host,
-          );
-        } on Object catch (error) {
-          lastFailure = QuestCatalogUpdateFailed(
-            QuestCatalogUpdateFailure.network,
-            error,
-            sourceHost: uri.host,
-          );
-        }
+      final display = await _download(_displaySources(displayRevision.sha));
+      final relations = await _download(_relationSources(relationRevision.sha));
+      final raw = mergeQuestCatalogJson(
+        japaneseJson: display.raw,
+        relationJson: relations.raw,
+      );
+      final version = QuestCatalogVersion(
+        committedAt: remoteCommittedAt,
+        commitSha: displayRevision.sha,
+        relationCommitSha: relationRevision.sha,
+        sha256: sha256.convert(utf8.encode(raw)).toString(),
+      );
+      final dataset = QuestCatalogDataset.parse(
+        rawJson: raw,
+        version: version,
+        minimumQuestCount: minimumQuestCount,
+        maxBytes: maximumDataBytes,
+      );
+      final sourceHost = display.host == relations.host
+          ? display.host
+          : '${display.host}+${relations.host}';
+      try {
+        await store.save(dataset);
+      } on IOException catch (error) {
+        final failed = QuestCatalogUpdateFailed(
+          QuestCatalogUpdateFailure.storage,
+          error,
+          sourceHost: sourceHost,
+        );
+        await _saveState(current, failed, 'storageFailed');
+        return failed;
       }
-      final result =
-          lastFailure ??
-          const QuestCatalogUpdateFailed(
-            QuestCatalogUpdateFailure.network,
-            'No quest catalog source is available',
-          );
-      await _saveState(current, result, '${result.kind.name}Failed');
+      final result = QuestCatalogUpdated(dataset, sourceHost: sourceHost);
+      await _saveState(dataset, result, 'updated');
       return result;
     } on FormatException catch (error) {
       final result = QuestCatalogUpdateFailed(
@@ -151,8 +149,8 @@ final class QuestCatalogUpdateService implements QuestCatalogUpdateClient {
     }
   }
 
-  Future<QuestCatalogVersion> _readRemoteVersion() async {
-    final bytes = await _get(Uri.parse(questCatalogCommitApi), 64 * 1024);
+  Future<_RemoteRevision> _readRemoteRevision(Uri uri) async {
+    final bytes = await _get(uri, 64 * 1024);
     final decoded = jsonDecode(utf8.decode(bytes));
     if (decoded is! List || decoded.isEmpty || decoded.first is! Map) {
       throw const FormatException('Quest commit metadata is invalid');
@@ -169,14 +167,21 @@ final class QuestCatalogUpdateService implements QuestCatalogUpdateClient {
         date == null) {
       throw const FormatException('Quest commit fields are invalid');
     }
-    return QuestCatalogVersion(
-      committedAt: date.toUtc(),
-      commitSha: sha,
-      sha256: '0' * 64,
-    );
+    return _RemoteRevision(sha: sha, committedAt: date.toUtc());
   }
 
-  List<Uri> _dataSources(String sha) => <Uri>[
+  List<Uri> _displaySources(String sha) => <Uri>[
+    Uri.parse(
+      'https://raw.githubusercontent.com/antest1/kcanotify-gamedata/'
+      '$sha/files/quests-jp.json',
+    ),
+    Uri.parse(
+      'https://cdn.jsdelivr.net/gh/antest1/kcanotify-gamedata@'
+      '$sha/files/quests-jp.json',
+    ),
+  ];
+
+  List<Uri> _relationSources(String sha) => <Uri>[
     Uri.parse(
       'https://raw.githubusercontent.com/kcwikizh/kcQuests/$sha/quests-scn.json',
     ),
@@ -185,12 +190,27 @@ final class QuestCatalogUpdateService implements QuestCatalogUpdateClient {
     ),
   ];
 
+  Future<_DownloadedCatalog> _download(List<Uri> sources) async {
+    Object? lastError;
+    for (final uri in sources) {
+      try {
+        final bytes = await _get(uri, maximumDataBytes);
+        return _DownloadedCatalog(raw: utf8.decode(bytes), host: uri.host);
+      } on Object catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError ?? const HttpException('No quest source is available');
+  }
+
   Future<List<int>> _get(Uri uri, int maxBytes) async {
+    final sha =
+        RegExp(r'[0-9a-f]{40}').firstMatch(uri.toString())?.group(0) ?? '';
     final allowed =
-        uri == Uri.parse(questCatalogCommitApi) ||
-        _dataSources(
-          RegExp(r'[0-9a-f]{40}').firstMatch(uri.toString())?.group(0) ?? '',
-        ).contains(uri);
+        uri == Uri.parse(questCatalogDisplayCommitApi) ||
+        uri == Uri.parse(questCatalogRelationCommitApi) ||
+        _displaySources(sha).contains(uri) ||
+        _relationSources(sha).contains(uri);
     if (uri.scheme != 'https' || !allowed) {
       throw FormatException('Quest update URL is not allowed: $uri');
     }
@@ -236,4 +256,18 @@ final class QuestCatalogUpdateService implements QuestCatalogUpdateClient {
       // A diagnostic state failure must never replace a verified dataset.
     }
   }
+}
+
+final class _RemoteRevision {
+  const _RemoteRevision({required this.sha, required this.committedAt});
+
+  final String sha;
+  final DateTime committedAt;
+}
+
+final class _DownloadedCatalog {
+  const _DownloadedCatalog({required this.raw, required this.host});
+
+  final String raw;
+  final String host;
 }
