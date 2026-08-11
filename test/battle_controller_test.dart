@@ -4,6 +4,7 @@ import 'package:yahagi_kancolle_browser/src/battle/battle_controller.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_models.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_node_label_resolver.dart';
 import 'package:yahagi_kancolle_browser/src/battle/prediction/battle_prediction_engine.dart';
+import 'package:yahagi_kancolle_browser/src/battle/prediction/battle_prediction_executor.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_reducer.dart';
 import 'package:yahagi_kancolle_browser/src/settings/battle_prediction_settings.dart';
@@ -12,6 +13,38 @@ import 'package:yahagi_kancolle_browser/src/performance/frame_notification_coale
 import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
+  test('recovers after a prediction executor failure', () async {
+    final reducer = GameStateReducer();
+    var state = reducer.reduce(GameState.empty, start2Event);
+    state = reducer.reduce(state, portEvent);
+    final controller = BattleController(
+      gameState: () => state,
+      predictionExecutor: const _ThrowingPredictionExecutor(),
+    );
+    addTearDown(controller.dispose);
+
+    controller
+      ..accept(mapStartEvent)
+      ..accept(dayBattleEvent);
+    await controller.idle;
+    expect(controller.lastError, isNotNull);
+
+    controller.accept(
+      kcsapiEvent('/kcsapi/api_req_map/next', <String, Object?>{
+        'api_maparea_id': 1,
+        'api_mapinfo_no': 1,
+        'api_no': 2,
+        'api_next': 0,
+        'api_event_id': 0,
+        'api_event_kind': 0,
+      }, sequence: 9999),
+    );
+    await controller.idle;
+
+    expect(controller.lastError, isNull);
+    expect(controller.current?.displayStage, BattleDisplayStage.navigation);
+  });
+
   test('coalesces notifications from consecutive captured events', () async {
     final scheduled = <void Function()>[];
     final controller = BattleController(
@@ -868,6 +901,19 @@ final class _RecordingDamageAlertPort implements BattleDamageAlertPort {
   @override
   Future<void> alert(BattleDamageAlertSeverity severity) async {
     alerts.add(severity);
+  }
+}
+
+final class _ThrowingPredictionExecutor implements BattlePredictionExecutor {
+  const _ThrowingPredictionExecutor();
+
+  @override
+  Future<BattlePredictionAppendResult> append({
+    required BattlePredictionEngine engine,
+    required String path,
+    required Map<String, Object?> data,
+  }) async {
+    throw StateError('prediction failed');
   }
 }
 

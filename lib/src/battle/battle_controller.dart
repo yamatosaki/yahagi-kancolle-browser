@@ -13,6 +13,7 @@ import 'battle_models.dart';
 import 'battle_node_label_resolver.dart';
 import 'battle_session.dart';
 import 'prediction/battle_prediction_engine.dart';
+import 'prediction/battle_prediction_executor.dart';
 import 'prediction/poi/poi_battle_prediction_engine.dart';
 import 'prediction/yahagi_battle_prediction_engine.dart';
 import '../settings/battle_prediction_settings.dart';
@@ -35,10 +36,13 @@ final class BattleController extends ChangeNotifier
     this.maxRecords = 100,
     this.nodeLabelResolver = const EmptyBattleNodeLabelResolver(),
     FrameNotificationCoalescer? captureNotifications,
+    BattlePredictionExecutor? predictionExecutor,
   }) : _friendlyHpUpdater = onFriendlyHpUpdated,
        _damageParser = damageParser ?? BattleDamageParser(),
        _captureNotifications =
            captureNotifications ?? FrameNotificationCoalescer(),
+       _predictionExecutor =
+           predictionExecutor ?? const IsolateBattlePredictionExecutor(),
        assert(maxRecords > 0);
 
   static const Set<String> _mapPaths = <String>{
@@ -80,6 +84,7 @@ final class BattleController extends ChangeNotifier
   _friendlyHpUpdater;
   final BattleDamageParser _damageParser;
   final FrameNotificationCoalescer _captureNotifications;
+  final BattlePredictionExecutor _predictionExecutor;
   final BattleDamageAlertPort? damageAlertPort;
   final bool Function()? battleDamageVibrationEnabled;
   final BattlePredictionMethod Function()? predictionMethod;
@@ -150,12 +155,12 @@ final class BattleController extends ChangeNotifier
     if (_acceptedSequences.length > 512) {
       _acceptedSequences.remove(_acceptedSequences.first);
     }
-    _queue = _queue.then((_) {
+    _queue = _queue.then((_) async {
       if (_disposed) {
         return;
       }
       try {
-        _reduce(event);
+        await _reduce(event);
         _lastError = null;
         _captureNotifications.schedule(notifyListeners);
       } catch (error) {
@@ -174,7 +179,7 @@ final class BattleController extends ChangeNotifier
       path == '/kcsapi/api_port/port' ||
       path == '/kcsapi/api_start2/getData';
 
-  void _reduce(CapturedApiEvent event) {
+  Future<void> _reduce(CapturedApiEvent event) async {
     if (event.path == '/kcsapi/api_port/port' ||
         event.path == '/kcsapi/api_start2/getData') {
       _current = null;
@@ -230,7 +235,7 @@ final class BattleController extends ChangeNotifier
         capturedAt: event.capturedAt,
         data: map,
       );
-      _applyBattlePhase(map, event);
+      await _applyBattlePhase(map, event);
       final battle = _current!;
       _session!.updateFleets(
         friendMain: battle.friendMain,
@@ -382,7 +387,10 @@ final class BattleController extends ChangeNotifier
     return List<String>.unmodifiable(names);
   }
 
-  void _applyBattlePhase(Map<String, Object?> data, CapturedApiEvent event) {
+  Future<void> _applyBattlePhase(
+    Map<String, Object?> data,
+    CapturedApiEvent event,
+  ) async {
     final state = gameState();
     final practice =
         _context.practice || event.path.startsWith('/kcsapi/api_req_practice/');
@@ -440,7 +448,13 @@ final class BattleController extends ChangeNotifier
       enemyMain: enemyMain,
       enemyEscort: enemyEscort,
     );
-    final parsed = _predictionEngine!.append(path: event.path, data: data);
+    final appendResult = await _predictionExecutor.append(
+      engine: _predictionEngine!,
+      path: event.path,
+      data: data,
+    );
+    _predictionEngine = appendResult.engine;
+    final parsed = appendResult.prediction;
     if (!practice && (battleDamageVibrationEnabled?.call() ?? false)) {
       final severity = detectFriendlyDamageAlert(
         before: <BattleShipSnapshot>[...friendMain, ...friendEscort],
