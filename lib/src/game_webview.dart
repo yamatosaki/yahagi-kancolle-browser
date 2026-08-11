@@ -24,6 +24,7 @@ import 'settings/network_settings_controller.dart';
 import 'settings/network_settings_store.dart';
 import 'settings/network_settings_validator.dart';
 import 'settings/game_frame_rate_settings.dart';
+import 'settings/game_rendering_mode.dart';
 
 import 'settings/safety_settings_controller.dart';
 
@@ -48,6 +49,7 @@ class GameWebView extends StatefulWidget {
     required this.toolbarController,
     required this.gameCaptureController,
     this.frameRateSettingsController,
+    this.renderingMode = GameRenderingMode.standard,
   });
 
   final NetworkSettingsController networkSettingsController;
@@ -59,6 +61,7 @@ class GameWebView extends StatefulWidget {
   final GameToolbarController toolbarController;
   final GameCaptureController gameCaptureController;
   final GameFrameRateSettingsController? frameRateSettingsController;
+  final GameRenderingMode renderingMode;
 
   @override
   State<GameWebView> createState() => _GameWebViewState();
@@ -279,6 +282,7 @@ class _GameWebViewState extends State<GameWebView> {
         cookieManager: cookieManager,
       ),
       currentUserAgent: currentUserAgent,
+      renderingMode: widget.renderingMode,
     );
   }
 
@@ -308,16 +312,32 @@ class _GameWebViewState extends State<GameWebView> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        WebViewWidget(
-          key: const Key('game-webview'),
-          controller: _webViewController,
-        ),
+        _buildWebView(),
         if (_startupState != GameStartupState.ready)
           Container(
             color: const Color(0xff102431),
             child: Center(child: _buildStartupOverlay()),
           ),
       ],
+    );
+  }
+
+  Widget _buildWebView() {
+    PlatformWebViewWidgetCreationParams params =
+        PlatformWebViewWidgetCreationParams(
+          controller: _webViewController.platform,
+        );
+    if (_webViewController.platform is AndroidWebViewController) {
+      params =
+          AndroidWebViewWidgetCreationParams.fromPlatformWebViewWidgetCreationParams(
+            params,
+            displayWithHybridComposition:
+                widget.renderingMode.usesHybridComposition,
+          );
+    }
+    return WebViewWidget.fromPlatformCreationParams(
+      key: const Key('game-webview'),
+      params: params,
     );
   }
 

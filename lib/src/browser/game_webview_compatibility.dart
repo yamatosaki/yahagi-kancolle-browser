@@ -1,3 +1,5 @@
+import '../settings/game_rendering_mode.dart';
+
 abstract interface class GameWebViewCompatibilityPort {
   Future<void> allowThirdPartyCookies();
 
@@ -5,6 +7,11 @@ abstract interface class GameWebViewCompatibilityPort {
 }
 
 abstract final class GameWebViewCompatibility {
+  static const canvasCompatibilityUserAgent =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_7) '
+      'AppleWebKit/605.1.15 (KHTML, like Gecko) '
+      'Version/26.0 Safari/605.1.15';
+
   static String toDesktopUserAgent(String currentUserAgent) {
     final chromeVersion = RegExp(
       r'\bChrome/[0-9.]+',
@@ -29,11 +36,22 @@ abstract final class GameWebViewCompatibility {
         '$chromeVersion $safariVersion';
   }
 
+  static String userAgentFor(
+    GameRenderingMode renderingMode,
+    String currentUserAgent,
+  ) {
+    if (renderingMode.usesCanvasRenderer) {
+      return canvasCompatibilityUserAgent;
+    }
+    return toDesktopUserAgent(currentUserAgent);
+  }
+
   static Future<void> configure(
     GameWebViewCompatibilityPort port, {
     required String currentUserAgent,
+    GameRenderingMode renderingMode = GameRenderingMode.standard,
   }) async {
     await port.allowThirdPartyCookies();
-    await port.setUserAgent(toDesktopUserAgent(currentUserAgent));
+    await port.setUserAgent(userAgentFor(renderingMode, currentUserAgent));
   }
 }

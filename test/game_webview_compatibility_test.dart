@@ -1,5 +1,6 @@
 ﻿import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_webview_compatibility.dart';
+import 'package:yahagi_kancolle_browser/src/settings/game_rendering_mode.dart';
 
 void main() {
   group('GameWebViewCompatibility', () {
@@ -46,6 +47,52 @@ void main() {
 
       expect(port.acceptedThirdPartyCookies, isTrue);
       expect(port.userAgent, contains('Windows NT 10.0'));
+    });
+    test('compatibility mode keeps the desktop Chromium identity', () {
+      const currentUserAgent =
+          'Mozilla/5.0 (Linux; Android 16; wv) '
+          'AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 '
+          'Chrome/140.0.7339.0 Mobile Safari/537.36';
+
+      final userAgent = GameWebViewCompatibility.userAgentFor(
+        GameRenderingMode.compatibility,
+        currentUserAgent,
+      );
+
+      expect(userAgent, contains('Windows NT 10.0'));
+      expect(userAgent, contains('Chrome/140.0.7339.0'));
+    });
+
+    test('canvas compatibility mode uses Safari without Chrome', () {
+      const currentUserAgent =
+          'Mozilla/5.0 (Linux; Android 16; wv) '
+          'AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 '
+          'Chrome/140.0.7339.0 Mobile Safari/537.36';
+
+      final userAgent = GameWebViewCompatibility.userAgentFor(
+        GameRenderingMode.canvasCompatibility,
+        currentUserAgent,
+      );
+
+      expect(userAgent, contains('Macintosh; Intel Mac OS X'));
+      expect(userAgent, contains('Safari/'));
+      expect(userAgent, isNot(contains('Chrome/')));
+    });
+
+    test('configure applies the selected renderer identity', () async {
+      final port = _RecordingCompatibilityPort();
+
+      await GameWebViewCompatibility.configure(
+        port,
+        currentUserAgent:
+            'Mozilla/5.0 (Linux; Android 16; wv) '
+            'AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 '
+            'Chrome/140.0.7339.0 Mobile Safari/537.36',
+        renderingMode: GameRenderingMode.canvasCompatibility,
+      );
+
+      expect(port.userAgent, contains('Safari/'));
+      expect(port.userAgent, isNot(contains('Chrome/')));
     });
   });
 }
