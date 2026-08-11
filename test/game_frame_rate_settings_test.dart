@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yahagi_kancolle_browser/src/settings/game_frame_rate_settings.dart';
@@ -97,6 +99,33 @@ void main() {
     expect(await store.loadMode(), GameFrameRateMode.prefer60);
     expect(controller.supported, isFalse);
   });
+
+  test(
+    'rapid mode changes finish in the order selected by the player',
+    () async {
+      final store = _DelayedFrameRateSettingsStore();
+      final controller = await GameFrameRateSettingsController.load(store);
+      addTearDown(controller.dispose);
+
+      final stable30 = controller.setMode(GameFrameRateMode.stable30);
+      final prefer60 = controller.setMode(GameFrameRateMode.prefer60);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(store.pendingModes, <GameFrameRateMode>[
+        GameFrameRateMode.stable30,
+      ]);
+      store.completeNext();
+      await Future<void>.delayed(Duration.zero);
+      expect(store.pendingModes, <GameFrameRateMode>[
+        GameFrameRateMode.prefer60,
+      ]);
+      store.completeNext();
+      await Future.wait<void>(<Future<void>>[stable30, prefer60]);
+
+      expect(controller.mode, GameFrameRateMode.prefer60);
+      expect(await store.loadMode(), GameFrameRateMode.prefer60);
+    },
+  );
 }
 
 final class _RecordingFrameRatePort implements GameFrameRatePort {
@@ -112,5 +141,31 @@ final class _RecordingFrameRatePort implements GameFrameRatePort {
   Future<void> configure(GameFrameRateMode mode) async {
     if (throwOnConfigure) throw StateError('configure failed');
     configuredModes.add(mode);
+  }
+}
+
+final class _DelayedFrameRateSettingsStore
+    implements GameFrameRateSettingsStore {
+  GameFrameRateMode _mode = GameFrameRateMode.automatic;
+  final List<({GameFrameRateMode mode, Completer<void> completer})> _pending =
+      <({GameFrameRateMode mode, Completer<void> completer})>[];
+
+  List<GameFrameRateMode> get pendingModes => <GameFrameRateMode>[
+    for (final request in _pending) request.mode,
+  ];
+
+  @override
+  Future<GameFrameRateMode> loadMode() async => _mode;
+
+  @override
+  Future<void> saveMode(GameFrameRateMode mode) {
+    final completer = Completer<void>();
+    _pending.add((mode: mode, completer: completer));
+    return completer.future.then((_) => _mode = mode);
+  }
+
+  void completeNext() {
+    final request = _pending.removeAt(0);
+    request.completer.complete();
   }
 }

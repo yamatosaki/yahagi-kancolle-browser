@@ -155,6 +155,46 @@ void main() {
       expect(consumer.events.last.hasDecodedEnvelope, isTrue);
     },
   );
+
+  test('dispatch does not wait for a consumer database queue', () async {
+    final consumer = _BlockingConsumer();
+    final pipeline = GameApiEventPipeline(
+      consumers: <GameApiEventConsumer>[consumer],
+    );
+    addTearDown(() async {
+      consumer.release();
+      await pipeline.idle;
+    });
+
+    pipeline
+      ..add(_event('/kcsapi/api_port/port', _body(1), sequence: 1))
+      ..add(_event('/kcsapi/api_port/port', _body(1), sequence: 2));
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(consumer.events.map((event) => event.sequence), <int>[1, 2]);
+  });
+
+  test(
+    'idle waits for consumer queues after every event is dispatched',
+    () async {
+      final consumer = _BlockingConsumer();
+      final pipeline = GameApiEventPipeline(
+        consumers: <GameApiEventConsumer>[consumer],
+      );
+      pipeline.add(_event('/kcsapi/api_port/port', _body(1)));
+      await Future<void>.delayed(Duration.zero);
+
+      var idleCompleted = false;
+      final idle = pipeline.idle.then((_) => idleCompleted = true);
+      await Future<void>.delayed(Duration.zero);
+      expect(idleCompleted, isFalse);
+
+      consumer.release();
+      await idle;
+      expect(idleCompleted, isTrue);
+    },
+  );
 }
 
 final class _RecordingConsumer implements GameApiEventConsumer {
@@ -171,6 +211,24 @@ final class _RecordingConsumer implements GameApiEventConsumer {
 
   @override
   bool supportsPath(String path) => supportedPaths?.contains(path) ?? true;
+}
+
+final class _BlockingConsumer implements GameApiEventConsumer {
+  final List<CapturedApiEvent> events = <CapturedApiEvent>[];
+  final Completer<void> _idle = Completer<void>();
+
+  @override
+  void accept(CapturedApiEvent event) => events.add(event);
+
+  @override
+  Future<void> get idle => _idle.future;
+
+  @override
+  bool supportsPath(String path) => true;
+
+  void release() {
+    if (!_idle.isCompleted) _idle.complete();
+  }
 }
 
 CapturedApiEvent _event(String path, String body, {int sequence = 0}) {

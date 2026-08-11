@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:isolate';
 
 import '../bridge/captured_api_event.dart';
@@ -36,7 +35,12 @@ final class GameApiEventPipeline {
     );
   }
 
-  Future<void> get idle => _queue;
+  Future<void> get idle async {
+    await _queue;
+    await Future.wait<void>(<Future<void>>[
+      for (final consumer in _consumers) consumer.idle,
+    ]);
+  }
 
   Future<void> _prepareAndDispatch(CapturedApiEvent event) async {
     final consumers = <GameApiEventConsumer>[
@@ -59,14 +63,11 @@ final class GameApiEventPipeline {
     for (final consumer in consumers) {
       consumer.accept(prepared);
     }
-    await Future.wait<void>(<Future<void>>[
-      for (final consumer in consumers) consumer.idle,
-    ]);
   }
 
   bool _shouldDecode(CapturedApiEvent event) {
     return event.path == '/kcsapi/api_start2/getData' ||
-        utf8.encode(event.responseBody).length >= backgroundThresholdBytes;
+        event.responseBody.length >= backgroundThresholdBytes;
   }
 }
 

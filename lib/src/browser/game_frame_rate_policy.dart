@@ -2,6 +2,29 @@ import '../settings/game_frame_rate_settings.dart';
 
 enum FrameRateDecision { keep60, downgradeTo30, lock30 }
 
+bool isGameFrameRateSamplingPage(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) return false;
+
+  final host = uri.host.toLowerCase();
+  if (host == 'accounts.dmm.com') return false;
+  if (host == 'kancolle-server.com' || host.endsWith('.kancolle-server.com')) {
+    return true;
+  }
+  final isDmm =
+      host == 'dmm.com' ||
+      host.endsWith('.dmm.com') ||
+      host == 'dmm.co.jp' ||
+      host.endsWith('.dmm.co.jp');
+  if (!isDmm) return false;
+
+  final path = uri.path.toLowerCase();
+  return host == 'osapi.dmm.com' ||
+      path.contains('kancolle') ||
+      path.contains('854854') ||
+      path.contains('/kcs');
+}
+
 final class GameFrameRatePolicy {
   GameFrameRatePolicy({required this.mode});
 

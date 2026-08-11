@@ -2,6 +2,7 @@
 
 import android.Manifest
 import android.content.ContentValues
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -27,12 +28,14 @@ import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.embedding.engine.FlutterShellArgs
 import io.flutter.plugin.common.MethodChannel
 import app.yahagi.kancollebrowser.browser.WebViewProxyManager
 import app.yahagi.kancollebrowser.browser.GadgetBypassManager
 import app.yahagi.kancollebrowser.browser.GadgetBypassWebViewClient
 import app.yahagi.kancollebrowser.browser.FixedCanvasScalePolicy
 import app.yahagi.kancollebrowser.browser.GameFrameRateManager
+import app.yahagi.kancollebrowser.browser.GameFrameRateBridge
 import app.yahagi.kancollebrowser.browser.GameFrameRateMode
 import app.yahagi.kancollebrowser.capture.GameCaptureBridge
 import app.yahagi.kancollebrowser.capture.ScreenshotCaptureAttempt
@@ -46,6 +49,27 @@ import java.util.Date
 import java.util.Locale
 
 class MainActivity : FlutterActivity(), GadgetBypassManager.Host, GameFrameRateManager.Host {
+    @Suppress("DEPRECATION")
+    override fun getFlutterShellArgs(): FlutterShellArgs {
+        val shellArgs = super.getFlutterShellArgs()
+        val storedMode = getSharedPreferences(
+            GameRenderingModeHcppPolicy.PREFERENCES_NAME,
+            Context.MODE_PRIVATE,
+        ).getString(GameRenderingModeHcppPolicy.RENDERING_MODE_KEY, null)
+        val enableHcpp = GameRenderingModeHcppPolicy.shouldEnable(storedMode)
+
+        shellArgs.remove(FlutterShellArgs.ARG_ENABLE_HCPP_AND_SURFACE_CONTROL)
+        shellArgs.remove(FlutterShellArgs.ARG_DISABLE_HCPP_AND_SURFACE_CONTROL)
+        shellArgs.add(
+            if (enableHcpp) {
+                FlutterShellArgs.ARG_ENABLE_HCPP_AND_SURFACE_CONTROL
+            } else {
+                FlutterShellArgs.ARG_DISABLE_HCPP_AND_SURFACE_CONTROL
+            },
+        )
+        return shellArgs
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -226,7 +250,10 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, GameFrameRateM
             GADGET_BYPASS_CHANNEL,
         ).setMethodCallHandler(bypassManager)
 
-        val frameRateManager = GameFrameRateManager(this)
+        val frameRateManager = GameFrameRateManager(
+            this,
+            GameFrameRateBridge(this),
+        )
         gameFrameRateManager = frameRateManager
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,

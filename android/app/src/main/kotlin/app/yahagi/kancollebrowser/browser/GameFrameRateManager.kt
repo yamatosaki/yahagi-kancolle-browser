@@ -20,6 +20,7 @@ enum class GameFrameRateMode(val wireName: String) {
 
 class GameFrameRateManager(
     private val host: Host,
+    private val bridge: GameFrameRateBridge,
 ) : MethodChannel.MethodCallHandler {
     interface Host {
         fun onFrameRateModeChanged(mode: GameFrameRateMode)
@@ -28,23 +29,56 @@ class GameFrameRateManager(
     @Volatile
     var mode: GameFrameRateMode = GameFrameRateMode.AUTO
         private set
+    private var configured = false
 
     val patchesMainScript: Boolean
-        get() = mode.patchesMainScript
+        get() = configured && mode.patchesMainScript
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
-            "isSupported" -> result.success(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            "isSupported" -> result.success(
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && bridge.isSupported(),
+            )
             "configure" -> {
-                mode = GameFrameRateMode.fromWireName(call.argument<String>("mode"))
-                host.onFrameRateModeChanged(mode)
-                result.success(null)
+                val requestedMode = GameFrameRateMode.fromWireName(
+                    call.argument<String>("mode"),
+                )
+                try {
+                    bridge.configure(requestedMode.initialTarget)
+                    mode = requestedMode
+                    configured = true
+                    host.onFrameRateModeChanged(mode)
+                    result.success(null)
+                } catch (error: GameFrameRateBridgeException) {
+                    result.error(error.code, error.message, null)
+                }
             }
+            "applyTarget" -> {
+                val target = GameFrameRateTarget.fromWireName(
+                    call.argument<String>("target"),
+                )
+                if (target == null) {
+                    result.error("invalid_frame_rate_target", "Unknown frame-rate target.", null)
+                } else {
+                    bridge.apply(target)
+                    result.success(null)
+                }
+            }
+            "measuredFps" -> result.success(bridge.measuredFps())
             else -> result.notImplemented()
         }
     }
 
     fun dispose() {
+        bridge.dispose()
+        configured = false
         mode = GameFrameRateMode.AUTO
     }
 }
+
+private val GameFrameRateMode.initialTarget: GameFrameRateTarget
+    get() = if (this == GameFrameRateMode.STABLE_30) {
+        GameFrameRateTarget.FPS_30
+    } else {
+        GameFrameRateTarget.FPS_60
+    }

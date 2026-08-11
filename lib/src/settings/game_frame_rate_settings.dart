@@ -101,6 +101,7 @@ final class GameFrameRateSettingsController extends ChangeNotifier {
   GameFrameRatePort? _port;
   GameFrameRateMode _mode;
   bool? _supported;
+  Future<void> _modeChangeQueue = Future<void>.value();
 
   GameFrameRateMode get mode => _mode;
   bool? get supported => _supported;
@@ -109,7 +110,13 @@ final class GameFrameRateSettingsController extends ChangeNotifier {
     GameFrameRateSettingsStore store,
   ) async => GameFrameRateSettingsController._(store, await store.loadMode());
 
-  Future<void> setMode(GameFrameRateMode mode) async {
+  Future<void> setMode(GameFrameRateMode mode) {
+    final operation = _modeChangeQueue.then((_) => _setMode(mode));
+    _modeChangeQueue = operation.catchError((_) {});
+    return operation;
+  }
+
+  Future<void> _setMode(GameFrameRateMode mode) async {
     if (_mode == mode) return;
     await _store.saveMode(mode);
     _mode = mode;

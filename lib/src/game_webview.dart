@@ -9,6 +9,7 @@ import 'audio/game_audio_port.dart';
 import 'bridge/native_game_capture_script.dart';
 import 'browser/game_browser_controller.dart';
 import 'browser/game_frame_rate_port.dart';
+import 'browser/game_frame_rate_policy.dart';
 import 'browser/game_frame_rate_runtime_controller.dart';
 import 'browser/game_page_alignment_script.dart';
 import 'browser/game_toolbar_controller.dart';
@@ -82,6 +83,7 @@ class _GameWebViewState extends State<GameWebView> {
 
   bool _audioPortAttached = false;
   bool _capturePortAttached = false;
+  int _navigationEpoch = 0;
 
   GameStartupState _startupState = GameStartupState.loadingSettings;
   String _startupErrorMessage = '';
@@ -127,6 +129,7 @@ class _GameWebViewState extends State<GameWebView> {
         NavigationDelegate(
           onNavigationRequest: _onNavigationRequest,
           onPageStarted: (url) {
+            _navigationEpoch += 1;
             _frameRateRuntimeController?.onPageStarted();
             widget.controller.onPageStarted(url);
             widget.browserController.onPageStarted(url);
@@ -140,6 +143,7 @@ class _GameWebViewState extends State<GameWebView> {
             }
           },
           onPageFinished: (url) async {
+            final navigationEpoch = _navigationEpoch;
             widget.controller.onPageFinished(url);
             widget.browserController.onPageFinished(url);
 
@@ -148,19 +152,29 @@ class _GameWebViewState extends State<GameWebView> {
                 'bindFixedCanvas',
                 <String, Object>{'contentWidth': 1200, 'contentHeight': 720},
               );
+              if (!_isCurrentNavigation(navigationEpoch)) return;
             }
 
             await _webViewController.runJavaScript(gamePageAlignmentScript);
+            if (!_isCurrentNavigation(navigationEpoch)) return;
             await _webViewController.runJavaScript('''
               if (window.__yahagiMobileAlignGame) window.__yahagiMobileAlignGame();
             ''');
+            if (!_isCurrentNavigation(navigationEpoch)) return;
             await _prepareCapture();
+            if (!_isCurrentNavigation(navigationEpoch)) return;
             await _attachAudioPortOnce();
+            if (!_isCurrentNavigation(navigationEpoch)) return;
 
             if (_startupState == GameStartupState.loadingGame) {
               setState(() => _startupState = GameStartupState.ready);
             }
-            await _frameRateRuntimeController?.onPageReady();
+            await _frameRateRuntimeController?.onPageReady(
+              samplingEnabled:
+                  widget.browserController.mode !=
+                      GameBrowserMode.localPrototype &&
+                  isGameFrameRateSamplingPage(url),
+            );
           },
           onWebResourceError: (error) {
             final isForMainFrame = error.isForMainFrame ?? true;
@@ -250,6 +264,8 @@ class _GameWebViewState extends State<GameWebView> {
     await widget.audioController.attachPort(MethodChannelGameAudioPort());
   }
 
+  bool _isCurrentNavigation(int epoch) => mounted && epoch == _navigationEpoch;
+
   Future<void> _onCaptureModeChanged() async {
     final nextMode = widget.captureModeController.mode;
     if (nextMode == _activeCaptureMode) {
@@ -312,9 +328,10 @@ class _GameWebViewState extends State<GameWebView> {
     try {
       await controller.attachPort(createPlatformGameFrameRatePort());
       if (!mounted) return;
+      if (controller.supported != true) return;
       _frameRateRuntimeController = GameFrameRateRuntimeController(
         settings: controller,
-        port: WebViewGameFrameRateRuntimePort(_webViewController),
+        port: createGameFrameRateRuntimePort(_webViewController),
       );
     } catch (error) {
       debugPrint('Frame-rate runtime unavailable: $error');

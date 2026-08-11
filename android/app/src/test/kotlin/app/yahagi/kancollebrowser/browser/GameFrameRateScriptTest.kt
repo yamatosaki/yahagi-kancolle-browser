@@ -54,4 +54,20 @@ class GameFrameRateScriptTest {
         val original = "console.log('main');"
         assertEquals(original, GameMainScriptPatcher.patch(original))
     }
+
+    @Test
+    fun runtimeBridgeScriptControlsTheTickerInsideEachDocument() {
+        val script = GameFrameRateBridgeScript.source
+
+        assertTrue(script.contains("window.YahagiFrameRate"))
+        assertTrue(script.contains("bridge.postMessage"))
+        assertTrue(script.contains("bridge.onmessage"))
+        assertTrue(script.contains("createjs.Ticker"))
+        assertTrue(script.contains("getMeasuredFPS"))
+        assertTrue(script.contains("ticker.RAF"))
+        assertTrue(script.contains("ticker.TIMEOUT"))
+        assertFalse(script.contains("fetch("))
+        assertFalse(script.contains("XMLHttpRequest"))
+        assertFalse(script.contains("dispatchEvent"))
+    }
 }

@@ -17,6 +17,18 @@ void main() {
     expect(fixture.port.appliedTargets, isEmpty);
   });
 
+  test('does not sample or apply a target on a login page', () async {
+    final fixture = await _Fixture.create();
+    addTearDown(fixture.dispose);
+
+    await fixture.runtime.onPageReady(samplingEnabled: false);
+    fixture.runtime.recordFlutterFrame(const Duration(milliseconds: 40));
+
+    expect(fixture.port.appliedTargets, isEmpty);
+    expect(fixture.timer, isNull);
+    expect(fixture.runtime.policy.flutterFrameCount, 0);
+  });
+
   test(
     'automatic mode starts at 60 and samples at most once per tick',
     () async {

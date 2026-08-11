@@ -17,6 +17,15 @@ GameFrameRatePort createPlatformGameFrameRatePort() {
   return const UnsupportedGameFrameRatePort();
 }
 
+GameFrameRateRuntimePort createGameFrameRateRuntimePort(
+  WebViewController controller,
+) {
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    return const MethodChannelGameFrameRateRuntimePort();
+  }
+  return WebViewGameFrameRateRuntimePort(controller);
+}
+
 final class MethodChannelGameFrameRatePort implements GameFrameRatePort {
   const MethodChannelGameFrameRatePort({
     this.channel = _defaultGameFrameRateChannel,
@@ -36,10 +45,44 @@ final class MethodChannelGameFrameRatePort implements GameFrameRatePort {
   }
 
   @override
-  Future<void> configure(GameFrameRateMode mode) {
-    return channel.invokeMethod<void>('configure', <String, Object?>{
-      'mode': mode.wireName,
+  Future<void> configure(GameFrameRateMode mode) async {
+    const attempts = 12;
+    for (var attempt = 0; attempt < attempts; attempt += 1) {
+      try {
+        await channel.invokeMethod<void>('configure', <String, Object?>{
+          'mode': mode.wireName,
+        });
+        return;
+      } on PlatformException catch (error) {
+        if (error.code != 'webview_not_found' || attempt == attempts - 1) {
+          rethrow;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 16));
+      }
+    }
+  }
+}
+
+final class MethodChannelGameFrameRateRuntimePort
+    implements GameFrameRateRuntimePort {
+  const MethodChannelGameFrameRateRuntimePort({
+    this.channel = _defaultGameFrameRateChannel,
+  });
+
+  final MethodChannel channel;
+
+  @override
+  Future<void> apply(GameFrameRateTarget target) {
+    return channel.invokeMethod<void>('applyTarget', <String, Object?>{
+      'target': target.name,
     });
+  }
+
+  @override
+  Future<double?> measuredFps() async {
+    final value = await channel.invokeMethod<num>('measuredFps');
+    final fps = value?.toDouble();
+    return fps != null && fps.isFinite && fps >= 0 ? fps : null;
   }
 }
 

@@ -64,11 +64,13 @@ final class GameFrameRateRuntimeController {
     _sampleTicks = 0;
   }
 
-  Future<void> onPageReady() async {
+  Future<void> onPageReady({bool samplingEnabled = true}) async {
     if (_disposed) return;
-    _ready = true;
+    _ready = samplingEnabled;
+    _stopTimer();
     policy.resetWindow();
     _sampleTicks = 0;
+    if (!samplingEnabled) return;
     _enqueue(_applySelectedMode);
     await idle;
   }

@@ -3,6 +3,32 @@ import 'package:yahagi_kancolle_browser/src/browser/game_frame_rate_policy.dart'
 import 'package:yahagi_kancolle_browser/src/settings/game_frame_rate_settings.dart';
 
 void main() {
+  group('game frame-rate sampling page', () {
+    test('accepts the DMM game shell and Kancolle server pages', () {
+      expect(
+        isGameFrameRateSamplingPage(
+          'https://www.dmm.com/netgame/social/-/gadgets/=/app_id=854854/',
+        ),
+        isTrue,
+      );
+      expect(
+        isGameFrameRateSamplingPage(
+          'https://w01y.kancolle-server.com/kcs2/index.php',
+        ),
+        isTrue,
+      );
+    });
+
+    test('rejects login, generic DMM and malformed pages', () {
+      expect(
+        isGameFrameRateSamplingPage('https://accounts.dmm.com/login'),
+        isFalse,
+      );
+      expect(isGameFrameRateSamplingPage('https://www.dmm.com/'), isFalse);
+      expect(isGameFrameRateSamplingPage('not a url'), isFalse);
+    });
+  });
+
   test('downgrades only after two consecutive unstable CreateJS windows', () {
     final policy = GameFrameRatePolicy(mode: GameFrameRateMode.automatic);
 
