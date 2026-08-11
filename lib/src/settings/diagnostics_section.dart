@@ -8,6 +8,8 @@ import '../capture/capture_mode_controller.dart';
 import '../capture/game_capture_controller.dart';
 import '../capture/game_capture_port.dart';
 import '../prototype_status_controller.dart';
+import 'game_rendering_mode.dart';
+import 'game_rendering_mode_controller.dart';
 
 class DiagnosticsSection extends StatelessWidget {
   const DiagnosticsSection({
@@ -16,12 +18,14 @@ class DiagnosticsSection extends StatelessWidget {
     required this.captureModeController,
     required this.gameCaptureController,
     required this.prototypeStatusController,
+    this.gameRenderingModeController,
   });
 
   final GameBrowserController browserController;
   final CaptureModeController captureModeController;
   final GameCaptureController gameCaptureController;
   final PrototypeStatusController prototypeStatusController;
+  final GameRenderingModeController? gameRenderingModeController;
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +35,7 @@ class DiagnosticsSection extends StatelessWidget {
         captureModeController,
         gameCaptureController,
         prototypeStatusController,
+        ?gameRenderingModeController,
       ]),
       builder: (context, _) {
         final l10n =
@@ -63,6 +68,15 @@ class DiagnosticsSection extends StatelessWidget {
                   browserController.displayAddress,
               warning: browserController.loadState == GamePageLoadState.failed,
             ),
+            if (gameRenderingModeController case final rendering?) ...[
+              const SizedBox(height: 8),
+              _DiagnosticCard(
+                title:
+                    '${l10n.gameRenderingModeTitle}: '
+                    '${_renderingModeLabel(l10n, rendering.mode)}',
+                subtitle: _renderingPipelineSummary(rendering.mode),
+              ),
+            ],
             const SizedBox(height: 8),
             _DiagnosticCard(
               title: captureModeController.mode == CaptureMode.browserOnly
@@ -114,6 +128,22 @@ class DiagnosticsSection extends StatelessWidget {
         );
       },
     );
+  }
+
+  String _renderingModeLabel(AppLocalizations l10n, GameRenderingMode mode) =>
+      switch (mode) {
+        GameRenderingMode.standard => l10n.gameRenderingModeStandard,
+        GameRenderingMode.compatibility => l10n.gameRenderingModeCompatibility,
+        GameRenderingMode.canvasCompatibility => l10n.gameRenderingModeCanvas,
+      };
+
+  String _renderingPipelineSummary(GameRenderingMode mode) {
+    final composition = mode.usesHybridComposition
+        ? 'Hybrid Composition'
+        : 'Texture Layer';
+    final renderer = mode.usesCanvasRenderer ? 'Canvas' : 'WebGL';
+    final blur = mode.enablesToolbarBlur ? 'on' : 'off';
+    return '$composition · $renderer · Backdrop blur: $blur';
   }
 
   String _browserStateLabel(AppLocalizations l10n, GamePageLoadState state) {

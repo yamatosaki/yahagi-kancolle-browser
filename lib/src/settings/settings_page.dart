@@ -120,6 +120,7 @@ class SettingsPage extends StatelessWidget {
           captureModeController: captureModeController,
           gameCaptureController: gameCaptureController,
           showDeveloperDiagnostics: showDeveloperDiagnostics,
+          gameRenderingModeController: gameRenderingModeController,
         ),
       ],
     );
