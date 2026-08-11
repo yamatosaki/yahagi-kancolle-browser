@@ -42,13 +42,13 @@ class BattleSettingsPage extends StatelessWidget with SettingsUIHelpers {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            buildSectionTitle('战斗提醒'),
+            buildSectionTitle(l10n.battleAlertsSection),
             buildCard(
               child: AnimatedBuilder(
                 animation: safetySettingsController,
                 builder: (context, _) => buildSwitchTile(
-                  title: '战斗受损震动提醒',
-                  subtitle: '我方舰娘在战斗中刚进入中破或大破时震动提醒。',
+                  title: l10n.battleDamageVibration,
+                  subtitle: l10n.battleDamageVibrationDesc,
                   value: safetySettingsController.battleDamageVibrationEnabled,
                   onChanged:
                       safetySettingsController.setBattleDamageVibrationEnabled,
@@ -57,7 +57,7 @@ class BattleSettingsPage extends StatelessWidget with SettingsUIHelpers {
             ),
             const SizedBox(height: 24),
             if (battlePredictionSettingsController != null) ...<Widget>[
-              buildSectionTitle('战斗预测'),
+              buildSectionTitle(l10n.battlePredictionSection),
               buildCard(
                 child: BattlePredictionSettingsSection(
                   controller: battlePredictionSettingsController!,

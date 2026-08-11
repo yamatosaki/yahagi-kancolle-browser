@@ -25,36 +25,42 @@ void main() {
     });
 
     test('Empty Host', () {
-      expect(NetworkSettingsValidator.validateHost(''), '地址不能为空');
-      expect(NetworkSettingsValidator.validateHost('   '), '地址不能为空');
+      expect(
+        NetworkSettingsValidator.validateHost(''),
+        NetworkValidationError.hostEmpty,
+      );
+      expect(
+        NetworkSettingsValidator.validateHost('   '),
+        NetworkValidationError.hostEmpty,
+      );
     });
 
     test('Host with http://', () {
       expect(
         NetworkSettingsValidator.validateHost('http://192.168.1.10'),
-        '地址中不要包含http://，只需填写服务器地址。',
+        NetworkValidationError.httpScheme,
       );
       expect(
         NetworkSettingsValidator.validateHost('socks5://127.0.0.1'),
-        '地址中不要包含socks://，只需填写服务器地址。',
+        NetworkValidationError.socksScheme,
       );
       expect(
         NetworkSettingsValidator.validateHost('ftp://127.0.0.1'),
-        '地址中不要包含协议头',
+        NetworkValidationError.scheme,
       );
     });
 
     test('Host with path', () {
       expect(
         NetworkSettingsValidator.validateHost('192.168.1.10/proxy'),
-        '不允许包含路径',
+        NetworkValidationError.path,
       );
     });
 
     test('Host with auth', () {
       expect(
         NetworkSettingsValidator.validateHost('user:pass@192.168.1.10'),
-        '不允许包含用户名或密码',
+        NetworkValidationError.credentials,
       );
     });
 
@@ -65,23 +71,38 @@ void main() {
     });
 
     test('Invalid port (0)', () {
-      expect(NetworkSettingsValidator.validatePort('0'), '不允许0');
+      expect(
+        NetworkSettingsValidator.validatePort('0'),
+        NetworkValidationError.portZero,
+      );
     });
 
     test('Invalid port (65536)', () {
-      expect(NetworkSettingsValidator.validatePort('65536'), '范围1至65535');
+      expect(
+        NetworkSettingsValidator.validatePort('65536'),
+        NetworkValidationError.portRange,
+      );
     });
 
     test('Invalid port (non-number)', () {
-      expect(NetworkSettingsValidator.validatePort('abc'), '必须为整数');
+      expect(
+        NetworkSettingsValidator.validatePort('abc'),
+        NetworkValidationError.portInteger,
+      );
     });
 
     test('Invalid port (decimal)', () {
-      expect(NetworkSettingsValidator.validatePort('80.80'), '不允许小数');
+      expect(
+        NetworkSettingsValidator.validatePort('80.80'),
+        NetworkValidationError.portDecimal,
+      );
     });
 
     test('Invalid port (negative)', () {
-      expect(NetworkSettingsValidator.validatePort('-8080'), '不允许负数');
+      expect(
+        NetworkSettingsValidator.validatePort('-8080'),
+        NetworkValidationError.portNegative,
+      );
     });
 
     test('Format Proxy Host', () {

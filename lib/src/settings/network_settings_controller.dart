@@ -87,7 +87,7 @@ class NetworkSettingsController extends ChangeNotifier {
       return const ProxyResult(
         success: false,
         code: 'proxy_operation_busy',
-        message: '代理应用进行中',
+        message: 'proxy_operation_busy',
         elapsedMs: 0,
       );
     }
@@ -112,7 +112,7 @@ class NetworkSettingsController extends ChangeNotifier {
         result = const ProxyResult(
           success: false,
           code: 'unknown_mode',
-          message: '未知代理模式',
+          message: 'unknown_mode',
           elapsedMs: 0,
         );
       }

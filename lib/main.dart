@@ -1137,6 +1137,7 @@ class _WorkspaceNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       width: 58,
       decoration: BoxDecoration(
@@ -1155,7 +1156,7 @@ class _WorkspaceNavigation extends StatelessWidget {
                     _NavigationButton(
                       key: const Key('workspace-nav-game'),
                       icon: Icons.videogame_asset_outlined,
-                      label: AppLocalizations.of(context)?.game ?? '游戏',
+                      label: l10n.game,
                       selected: selectedIndex == 0,
                       onTap: () => onSelected(0),
                     ),
@@ -1163,7 +1164,7 @@ class _WorkspaceNavigation extends StatelessWidget {
                     _NavigationButton(
                       key: const Key('workspace-nav-fleet'),
                       icon: Icons.directions_boat_outlined,
-                      label: AppLocalizations.of(context)?.fleet ?? '舰队',
+                      label: l10n.fleet,
                       selected: selectedIndex == 1,
                       onTap: () => onSelected(1),
                     ),
@@ -1171,7 +1172,7 @@ class _WorkspaceNavigation extends StatelessWidget {
                     _NavigationButton(
                       key: const Key('workspace-nav-expedition'),
                       icon: Icons.explore_outlined,
-                      label: AppLocalizations.of(context)?.expedition ?? '远征',
+                      label: l10n.expedition,
                       selected: selectedIndex == 2,
                       onTap: () => onSelected(2),
                     ),
@@ -1179,7 +1180,7 @@ class _WorkspaceNavigation extends StatelessWidget {
                     _NavigationButton(
                       key: const Key('workspace-nav-repair'),
                       icon: Icons.build_circle_outlined,
-                      label: AppLocalizations.of(context)?.repair ?? '入渠',
+                      label: l10n.repair,
                       selected: selectedIndex == 3,
                       onTap: () => onSelected(3),
                     ),
@@ -1187,7 +1188,7 @@ class _WorkspaceNavigation extends StatelessWidget {
                     _NavigationButton(
                       key: const Key('workspace-nav-construction'),
                       icon: Icons.handyman_outlined,
-                      label: AppLocalizations.of(context)?.construction ?? '建造',
+                      label: l10n.construction,
                       selected: selectedIndex == 4,
                       onTap: () => onSelected(4),
                     ),
@@ -1195,7 +1196,7 @@ class _WorkspaceNavigation extends StatelessWidget {
                     _NavigationButton(
                       key: const Key('workspace-nav-quests'),
                       icon: Icons.assignment_outlined,
-                      label: AppLocalizations.of(context)?.quests ?? '任务',
+                      label: l10n.quests,
                       selected: selectedIndex == 5,
                       onTap: () => onSelected(5),
                     ),
@@ -1203,7 +1204,7 @@ class _WorkspaceNavigation extends StatelessWidget {
                     _NavigationButton(
                       key: const Key('workspace-nav-senka'),
                       icon: Icons.emoji_events_outlined,
-                      label: '战果',
+                      label: l10n.senka,
                       selected: selectedIndex == 9,
                       onTap: () => onSelected(9),
                     ),
@@ -1211,8 +1212,7 @@ class _WorkspaceNavigation extends StatelessWidget {
                     _NavigationButton(
                       key: const Key('workspace-nav-battle-records'),
                       icon: Icons.menu_book_outlined,
-                      label:
-                          AppLocalizations.of(context)?.battleRecords ?? '航海日志',
+                      label: l10n.battleRecords,
                       selected: selectedIndex == 6,
                       onTap: () => onSelected(6),
                     ),
@@ -1220,10 +1220,7 @@ class _WorkspaceNavigation extends StatelessWidget {
                     _NavigationButton(
                       key: const Key('workspace-nav-owned-inventory'),
                       icon: Icons.inventory_2_outlined,
-                      label:
-                          Localizations.localeOf(context).languageCode == 'ja'
-                          ? '保有一覧'
-                          : '持有一览',
+                      label: l10n.ownedInventory,
                       selected: selectedIndex == 7,
                       onTap: () => onSelected(7),
                     ),
@@ -1231,7 +1228,7 @@ class _WorkspaceNavigation extends StatelessWidget {
                     _NavigationButton(
                       key: const Key('workspace-nav-settings'),
                       icon: Icons.settings_outlined,
-                      label: AppLocalizations.of(context)?.settings ?? '设置',
+                      label: l10n.settings,
                       selected: selectedIndex == 8,
                       onTap: () => onSelected(8),
                     ),
@@ -1474,7 +1471,9 @@ class _InformationPanelState extends State<_InformationPanel> {
                         children: [
                           IconButton(
                             key: const Key('dashboard-edit-reset'),
-                            tooltip: '还原默认排序',
+                            tooltip: AppLocalizations.of(
+                              context,
+                            )!.restoreDefaultOrder,
                             onPressed: () {
                               widget.layoutSettingsController
                                   .resetDashboardCardOrder();

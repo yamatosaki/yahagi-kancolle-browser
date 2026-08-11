@@ -1194,6 +1194,170 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get gameRenderingModeFailed => '切换失败，已保留或回退到安全模式。';
+
+  @override
+  String get senka => '战果';
+
+  @override
+  String get ownedInventory => '持有一览';
+
+  @override
+  String get improvement => '改修';
+
+  @override
+  String get briefing => '简报';
+
+  @override
+  String get check => '检查';
+
+  @override
+  String get restoreDefaultOrder => '还原默认排序';
+
+  @override
+  String get settingsTabScreen => '画面';
+
+  @override
+  String get settingsTabSound => '声音';
+
+  @override
+  String get settingsTabBattle => '战斗';
+
+  @override
+  String get settingsTabNetwork => '网络';
+
+  @override
+  String get settingsTabAboutSupport => '关于与支持';
+
+  @override
+  String get frameRateSettingsSection => '帧率设置';
+
+  @override
+  String get battleAlertsSection => '战斗提醒';
+
+  @override
+  String get battleDamageVibration => '战斗受损震动提醒';
+
+  @override
+  String get battleDamageVibrationDesc => '我方舰娘在战斗中刚进入中破或大破时震动提醒。';
+
+  @override
+  String get battlePredictionSection => '战斗预测';
+
+  @override
+  String get battlePredictionEngine => '战斗预测引擎';
+
+  @override
+  String get battlePredictionRecommendation => '推荐使用增强模式，可获得更完整的战斗预测结果。';
+
+  @override
+  String get battlePredictionHighAccuracy => '增强模式';
+
+  @override
+  String get battlePredictionLightweight => '轻量模式';
+
+  @override
+  String get battlePredictionHighAccuracyDesc => '按战斗模拟规则完整复演，预测更精确，但性能开销更高。';
+
+  @override
+  String get battlePredictionLightweightDesc => '使用轻量化预测逻辑，性能开销更低。';
+
+  @override
+  String get battlePredictionNextBattle => '切换从下一场战斗开始生效。';
+
+  @override
+  String get improvementDatasetTitle => '改修规划资料';
+
+  @override
+  String improvementDatasetVersion(String version) {
+    return '资料版本 $version';
+  }
+
+  @override
+  String get improvementDatasetNeverChecked => '尚未手动检查';
+
+  @override
+  String improvementDatasetLastChecked(String time) {
+    return '最近检查 $time';
+  }
+
+  @override
+  String get improvementDatasetManualUpdate => '手动更新改修资料';
+
+  @override
+  String improvementDatasetUpToDate(String version) {
+    return '当前已经是最新资料（$version）';
+  }
+
+  @override
+  String improvementDatasetUpdated(String oldVersion, String newVersion) {
+    return '改修资料已从 $oldVersion 更新到 $newVersion，页面已立即刷新。';
+  }
+
+  @override
+  String improvementDatasetNetworkError(String version) {
+    return '网络连接失败，已继续使用本地资料（$version）。';
+  }
+
+  @override
+  String improvementDatasetValidationError(String version) {
+    return '远程资料校验失败，未替换本地资料（$version）。';
+  }
+
+  @override
+  String improvementDatasetStorageError(String version) {
+    return '资料保存失败，未替换本地资料（$version）。';
+  }
+
+  @override
+  String get networkValidationHostEmpty => '地址不能为空';
+
+  @override
+  String get networkValidationControlCharacter => '不允许包含换行或控制字符';
+
+  @override
+  String get networkValidationHttpScheme => '地址中不要包含 http://，只需填写服务器地址。';
+
+  @override
+  String get networkValidationSocksScheme => '地址中不要包含 socks://，只需填写服务器地址。';
+
+  @override
+  String get networkValidationScheme => '地址中不要包含协议头';
+
+  @override
+  String get networkValidationPath => '不允许包含路径';
+
+  @override
+  String get networkValidationCredentials => '不允许包含用户名或密码';
+
+  @override
+  String get networkValidationIpv6 => 'IPv6 地址格式不正确（含有非法字符）';
+
+  @override
+  String get networkValidationPortEmpty => '端口不能为空';
+
+  @override
+  String get networkValidationPortDecimal => '端口不允许使用小数';
+
+  @override
+  String get networkValidationPortNegative => '端口不允许使用负数';
+
+  @override
+  String get networkValidationPortZero => '端口不能为 0';
+
+  @override
+  String get networkValidationPortInteger => '端口必须为整数';
+
+  @override
+  String get networkValidationPortRange => '端口范围为 1 至 65535';
+
+  @override
+  String get gadgetBypassRestricted => '受限';
+
+  @override
+  String get networkProxyOperationBusy => '代理设置正在应用中';
+
+  @override
+  String get networkUnknownProxyMode => '未知代理模式';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -2387,4 +2551,168 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get gameRenderingModeFailed => '切換失敗，已保留或回退至安全模式。';
+
+  @override
+  String get senka => '戰果';
+
+  @override
+  String get ownedInventory => '持有一覽';
+
+  @override
+  String get improvement => '改修';
+
+  @override
+  String get briefing => '簡報';
+
+  @override
+  String get check => '檢查';
+
+  @override
+  String get restoreDefaultOrder => '還原預設排序';
+
+  @override
+  String get settingsTabScreen => '畫面';
+
+  @override
+  String get settingsTabSound => '聲音';
+
+  @override
+  String get settingsTabBattle => '戰鬥';
+
+  @override
+  String get settingsTabNetwork => '網路';
+
+  @override
+  String get settingsTabAboutSupport => '關於與支援';
+
+  @override
+  String get frameRateSettingsSection => '幀率設定';
+
+  @override
+  String get battleAlertsSection => '戰鬥提醒';
+
+  @override
+  String get battleDamageVibration => '戰鬥受損震動提醒';
+
+  @override
+  String get battleDamageVibrationDesc => '我方艦娘在戰鬥中剛進入中破或大破時震動提醒。';
+
+  @override
+  String get battlePredictionSection => '戰鬥預測';
+
+  @override
+  String get battlePredictionEngine => '戰鬥預測引擎';
+
+  @override
+  String get battlePredictionRecommendation => '建議使用增強模式，可獲得更完整的戰鬥預測結果。';
+
+  @override
+  String get battlePredictionHighAccuracy => '增強模式';
+
+  @override
+  String get battlePredictionLightweight => '輕量模式';
+
+  @override
+  String get battlePredictionHighAccuracyDesc => '依照戰鬥模擬規則完整重演，預測更精確，但效能開銷較高。';
+
+  @override
+  String get battlePredictionLightweightDesc => '使用輕量化預測邏輯，效能開銷較低。';
+
+  @override
+  String get battlePredictionNextBattle => '切換將從下一場戰鬥開始生效。';
+
+  @override
+  String get improvementDatasetTitle => '改修規劃資料';
+
+  @override
+  String improvementDatasetVersion(String version) {
+    return '資料版本 $version';
+  }
+
+  @override
+  String get improvementDatasetNeverChecked => '尚未手動檢查';
+
+  @override
+  String improvementDatasetLastChecked(String time) {
+    return '最近檢查 $time';
+  }
+
+  @override
+  String get improvementDatasetManualUpdate => '手動更新改修資料';
+
+  @override
+  String improvementDatasetUpToDate(String version) {
+    return '目前已是最新資料（$version）';
+  }
+
+  @override
+  String improvementDatasetUpdated(String oldVersion, String newVersion) {
+    return '改修資料已從 $oldVersion 更新至 $newVersion，頁面已立即重新整理。';
+  }
+
+  @override
+  String improvementDatasetNetworkError(String version) {
+    return '網路連線失敗，已繼續使用本機資料（$version）。';
+  }
+
+  @override
+  String improvementDatasetValidationError(String version) {
+    return '遠端資料驗證失敗，未取代本機資料（$version）。';
+  }
+
+  @override
+  String improvementDatasetStorageError(String version) {
+    return '資料儲存失敗，未取代本機資料（$version）。';
+  }
+
+  @override
+  String get networkValidationHostEmpty => '位址不能為空';
+
+  @override
+  String get networkValidationControlCharacter => '不能包含換行或控制字元';
+
+  @override
+  String get networkValidationHttpScheme => '位址中請勿包含 http://，只需填寫伺服器位址。';
+
+  @override
+  String get networkValidationSocksScheme => '位址中請勿包含 socks://，只需填寫伺服器位址。';
+
+  @override
+  String get networkValidationScheme => '位址中請勿包含通訊協定前綴';
+
+  @override
+  String get networkValidationPath => '不能包含路徑';
+
+  @override
+  String get networkValidationCredentials => '不能包含使用者名稱或密碼';
+
+  @override
+  String get networkValidationIpv6 => 'IPv6 位址格式不正確（含有非法字元）';
+
+  @override
+  String get networkValidationPortEmpty => '連接埠不能為空';
+
+  @override
+  String get networkValidationPortDecimal => '連接埠不能使用小數';
+
+  @override
+  String get networkValidationPortNegative => '連接埠不能使用負數';
+
+  @override
+  String get networkValidationPortZero => '連接埠不能為 0';
+
+  @override
+  String get networkValidationPortInteger => '連接埠必須為整數';
+
+  @override
+  String get networkValidationPortRange => '連接埠範圍為 1 至 65535';
+
+  @override
+  String get gadgetBypassRestricted => '受限';
+
+  @override
+  String get networkProxyOperationBusy => '代理設定正在套用中';
+
+  @override
+  String get networkUnknownProxyMode => '未知的代理模式';
 }

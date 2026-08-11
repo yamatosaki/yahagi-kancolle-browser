@@ -241,12 +241,12 @@ class WorkspaceContextHeader extends StatelessWidget {
       );
     }
     if (workspaceIndex == 9) {
-      return const Row(
+      return Row(
         children: [
           Text(
-            '战果',
-            key: Key('workspace-title-senka'),
-            style: TextStyle(
+            l10n.senka,
+            key: const Key('workspace-title-senka'),
+            style: const TextStyle(
               color: Color(0xffe0b25c),
               fontSize: 17,
               fontWeight: FontWeight.w800,
@@ -272,8 +272,8 @@ class WorkspaceContextHeader extends StatelessWidget {
           const Spacer(),
           ExpeditionModeSelector(
             mode: expeditionMode,
-            summaryLabel: '简报',
-            checkLabel: '检查',
+            summaryLabel: l10n.briefing,
+            checkLabel: l10n.check,
             onChanged: onExpeditionModeChanged!,
           ),
         ],
@@ -289,16 +289,12 @@ class WorkspaceContextHeader extends StatelessWidget {
         5 => ('quest', l10n.quests),
         6 => ('logbook', l10n.battleRecords),
         8 => ('settings', l10n.settings),
-        9 => ('senka', '战果'),
+        9 => ('senka', l10n.senka),
         _ => ('unknown', ''),
       };
 
   static String _ownedInventoryTitle(AppLocalizations l10n) =>
-      l10n.localeName.startsWith('ja')
-      ? '保有一覧'
-      : l10n.localeName.contains('Hant')
-      ? '持有一覽'
-      : '持有一览';
+      l10n.ownedInventory;
 }
 
 class ConstructionModeTabs extends StatelessWidget {
@@ -311,47 +307,52 @@ class ConstructionModeTabs extends StatelessWidget {
   final ValueChanged<ConstructionCenterMode> onChanged;
 
   @override
-  Widget build(BuildContext context) => Container(
-    key: const Key('construction-mode-tabs'),
-    width: 260,
-    height: 38,
-    padding: const EdgeInsets.all(3),
-    decoration: BoxDecoration(
-      color: const Color(0xff0b202d),
-      border: Border.all(color: const Color(0xff315064)),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Row(
-      children: [
-        for (final value in ConstructionCenterMode.values)
-          Expanded(
-            child: Material(
-              color: mode == value
-                  ? const Color(0xff8a6628)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-              child: InkWell(
-                key: Key('construction-mode-${value.name}'),
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      key: const Key('construction-mode-tabs'),
+      width: 260,
+      height: 38,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xff0b202d),
+        border: Border.all(color: const Color(0xff315064)),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          for (final value in ConstructionCenterMode.values)
+            Expanded(
+              child: Material(
+                color: mode == value
+                    ? const Color(0xff8a6628)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
-                onTap: () => onChanged(value),
-                child: Center(
-                  child: Text(
-                    value == ConstructionCenterMode.construction ? '建造' : '改修',
-                    style: TextStyle(
-                      color: mode == value
-                          ? const Color(0xffffdc88)
-                          : const Color(0xff9fb3bf),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                child: InkWell(
+                  key: Key('construction-mode-${value.name}'),
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => onChanged(value),
+                  child: Center(
+                    child: Text(
+                      value == ConstructionCenterMode.construction
+                          ? l10n.construction
+                          : l10n.improvement,
+                      style: TextStyle(
+                        color: mode == value
+                            ? const Color(0xffffdc88)
+                            : const Color(0xff9fb3bf),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class SettingsSegmented extends StatelessWidget {
@@ -366,7 +367,14 @@ class SettingsSegmented extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labels = const <String>['画面', '声音', '战斗', '网络', '关于与支持'];
+    final l10n = AppLocalizations.of(context)!;
+    final labels = <String>[
+      l10n.settingsTabScreen,
+      l10n.settingsTabSound,
+      l10n.settingsTabBattle,
+      l10n.settingsTabNetwork,
+      l10n.settingsTabAboutSupport,
+    ];
     return Container(
       height: 38,
       padding: const EdgeInsets.all(3),

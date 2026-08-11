@@ -1202,4 +1202,170 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get gameRenderingModeFailed => '切り替えに失敗しました。現在の設定を維持するか、安全なモードへ戻しました。';
+
+  @override
+  String get senka => '戦果';
+
+  @override
+  String get ownedInventory => '保有一覧';
+
+  @override
+  String get improvement => '改修';
+
+  @override
+  String get briefing => '概要';
+
+  @override
+  String get check => 'チェック';
+
+  @override
+  String get restoreDefaultOrder => '既定の並び順に戻す';
+
+  @override
+  String get settingsTabScreen => '画面';
+
+  @override
+  String get settingsTabSound => 'サウンド';
+
+  @override
+  String get settingsTabBattle => '戦闘';
+
+  @override
+  String get settingsTabNetwork => 'ネットワーク';
+
+  @override
+  String get settingsTabAboutSupport => '情報・サポート';
+
+  @override
+  String get frameRateSettingsSection => 'フレームレート設定';
+
+  @override
+  String get battleAlertsSection => '戦闘通知';
+
+  @override
+  String get battleDamageVibration => '戦闘損傷時の振動通知';
+
+  @override
+  String get battleDamageVibrationDesc => '味方艦娘が戦闘中に中破または大破になったとき振動で通知します。';
+
+  @override
+  String get battlePredictionSection => '戦闘予測';
+
+  @override
+  String get battlePredictionEngine => '戦闘予測エンジン';
+
+  @override
+  String get battlePredictionRecommendation => 'より詳細な予測結果を得るには高精度モードを推奨します。';
+
+  @override
+  String get battlePredictionHighAccuracy => '高精度モード';
+
+  @override
+  String get battlePredictionLightweight => '軽量モード';
+
+  @override
+  String get battlePredictionHighAccuracyDesc =>
+      '戦闘シミュレーションの規則に沿って再現するため高精度ですが、処理負荷が高くなります。';
+
+  @override
+  String get battlePredictionLightweightDesc => '簡易予測ロジックを使用し、処理負荷を抑えます。';
+
+  @override
+  String get battlePredictionNextBattle => '変更は次の戦闘から反映されます。';
+
+  @override
+  String get improvementDatasetTitle => '改修計画データ';
+
+  @override
+  String improvementDatasetVersion(String version) {
+    return 'データバージョン $version';
+  }
+
+  @override
+  String get improvementDatasetNeverChecked => '手動確認はまだ行われていません';
+
+  @override
+  String improvementDatasetLastChecked(String time) {
+    return '最終確認 $time';
+  }
+
+  @override
+  String get improvementDatasetManualUpdate => '改修データを手動更新';
+
+  @override
+  String improvementDatasetUpToDate(String version) {
+    return '最新のデータです（$version）';
+  }
+
+  @override
+  String improvementDatasetUpdated(String oldVersion, String newVersion) {
+    return '改修データを $oldVersion から $newVersion に更新し、画面へ反映しました。';
+  }
+
+  @override
+  String improvementDatasetNetworkError(String version) {
+    return 'ネットワーク接続に失敗したため、ローカルデータ（$version）を使用します。';
+  }
+
+  @override
+  String improvementDatasetValidationError(String version) {
+    return 'リモートデータの検証に失敗したため、ローカルデータ（$version）を維持しました。';
+  }
+
+  @override
+  String improvementDatasetStorageError(String version) {
+    return 'データの保存に失敗したため、ローカルデータ（$version）を維持しました。';
+  }
+
+  @override
+  String get networkValidationHostEmpty => 'アドレスを入力してください';
+
+  @override
+  String get networkValidationControlCharacter => '改行や制御文字は使用できません';
+
+  @override
+  String get networkValidationHttpScheme => 'http:// は入力せず、サーバーアドレスのみ入力してください。';
+
+  @override
+  String get networkValidationSocksScheme =>
+      'socks:// は入力せず、サーバーアドレスのみ入力してください。';
+
+  @override
+  String get networkValidationScheme => 'プロトコル名は入力できません';
+
+  @override
+  String get networkValidationPath => 'パスは入力できません';
+
+  @override
+  String get networkValidationCredentials => 'ユーザー名やパスワードは入力できません';
+
+  @override
+  String get networkValidationIpv6 => 'IPv6 アドレスの形式が正しくありません（使用できない文字が含まれています）';
+
+  @override
+  String get networkValidationPortEmpty => 'ポート番号を入力してください';
+
+  @override
+  String get networkValidationPortDecimal => 'ポート番号に小数は使用できません';
+
+  @override
+  String get networkValidationPortNegative => 'ポート番号に負数は使用できません';
+
+  @override
+  String get networkValidationPortZero => 'ポート番号に 0 は使用できません';
+
+  @override
+  String get networkValidationPortInteger => 'ポート番号は整数で入力してください';
+
+  @override
+  String get networkValidationPortRange => 'ポート番号は 1～65535 の範囲で入力してください';
+
+  @override
+  String get gadgetBypassRestricted => '制限あり';
+
+  @override
+  String get networkProxyOperationBusy => 'プロキシ設定を適用中です';
+
+  @override
+  String get networkUnknownProxyMode => '不明なプロキシモードです';
 }

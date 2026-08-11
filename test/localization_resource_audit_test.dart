@@ -115,6 +115,9 @@ void main() {
       'formula33',
       // The numeric frame-rate label and FPS acronym are shared terminology.
       'gameFrameRateMax60',
+      // 改修 is the in-game term in both Chinese scripts; 受限 is unchanged.
+      'improvement',
+      'gadgetBypassRestricted',
     };
     const reviewedJa = <String>{
       'appTitle',
@@ -139,6 +142,9 @@ void main() {
       'statusSuccess',
       // 「33式」 is the in-game formula name in Japanese as well.
       'formula33',
+      // 改修 and 画面 are established UI terms shared with Japanese.
+      'improvement',
+      'settingsTabScreen',
     };
 
     Set<String> identical(String locale) {

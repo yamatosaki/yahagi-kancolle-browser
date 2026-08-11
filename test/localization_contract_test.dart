@@ -124,7 +124,7 @@ void main() {
       isEmpty,
       reason:
           'Remove stale localization review entries:\n'
-          '${staleEntries.join('\n')}',
+          '${staleEntries.map((entry) => 'STALE ${jsonEncode(entry)}').join('\n')}',
     );
   });
 }

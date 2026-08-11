@@ -2347,6 +2347,306 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'切换失败，已保留或回退到安全模式。'**
   String get gameRenderingModeFailed;
+
+  /// No description provided for @senka.
+  ///
+  /// In zh, this message translates to:
+  /// **'战果'**
+  String get senka;
+
+  /// No description provided for @ownedInventory.
+  ///
+  /// In zh, this message translates to:
+  /// **'持有一览'**
+  String get ownedInventory;
+
+  /// No description provided for @improvement.
+  ///
+  /// In zh, this message translates to:
+  /// **'改修'**
+  String get improvement;
+
+  /// No description provided for @briefing.
+  ///
+  /// In zh, this message translates to:
+  /// **'简报'**
+  String get briefing;
+
+  /// No description provided for @check.
+  ///
+  /// In zh, this message translates to:
+  /// **'检查'**
+  String get check;
+
+  /// No description provided for @restoreDefaultOrder.
+  ///
+  /// In zh, this message translates to:
+  /// **'还原默认排序'**
+  String get restoreDefaultOrder;
+
+  /// No description provided for @settingsTabScreen.
+  ///
+  /// In zh, this message translates to:
+  /// **'画面'**
+  String get settingsTabScreen;
+
+  /// No description provided for @settingsTabSound.
+  ///
+  /// In zh, this message translates to:
+  /// **'声音'**
+  String get settingsTabSound;
+
+  /// No description provided for @settingsTabBattle.
+  ///
+  /// In zh, this message translates to:
+  /// **'战斗'**
+  String get settingsTabBattle;
+
+  /// No description provided for @settingsTabNetwork.
+  ///
+  /// In zh, this message translates to:
+  /// **'网络'**
+  String get settingsTabNetwork;
+
+  /// No description provided for @settingsTabAboutSupport.
+  ///
+  /// In zh, this message translates to:
+  /// **'关于与支持'**
+  String get settingsTabAboutSupport;
+
+  /// No description provided for @frameRateSettingsSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'帧率设置'**
+  String get frameRateSettingsSection;
+
+  /// No description provided for @battleAlertsSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'战斗提醒'**
+  String get battleAlertsSection;
+
+  /// No description provided for @battleDamageVibration.
+  ///
+  /// In zh, this message translates to:
+  /// **'战斗受损震动提醒'**
+  String get battleDamageVibration;
+
+  /// No description provided for @battleDamageVibrationDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'我方舰娘在战斗中刚进入中破或大破时震动提醒。'**
+  String get battleDamageVibrationDesc;
+
+  /// No description provided for @battlePredictionSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'战斗预测'**
+  String get battlePredictionSection;
+
+  /// No description provided for @battlePredictionEngine.
+  ///
+  /// In zh, this message translates to:
+  /// **'战斗预测引擎'**
+  String get battlePredictionEngine;
+
+  /// No description provided for @battlePredictionRecommendation.
+  ///
+  /// In zh, this message translates to:
+  /// **'推荐使用增强模式，可获得更完整的战斗预测结果。'**
+  String get battlePredictionRecommendation;
+
+  /// No description provided for @battlePredictionHighAccuracy.
+  ///
+  /// In zh, this message translates to:
+  /// **'增强模式'**
+  String get battlePredictionHighAccuracy;
+
+  /// No description provided for @battlePredictionLightweight.
+  ///
+  /// In zh, this message translates to:
+  /// **'轻量模式'**
+  String get battlePredictionLightweight;
+
+  /// No description provided for @battlePredictionHighAccuracyDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'按战斗模拟规则完整复演，预测更精确，但性能开销更高。'**
+  String get battlePredictionHighAccuracyDesc;
+
+  /// No description provided for @battlePredictionLightweightDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'使用轻量化预测逻辑，性能开销更低。'**
+  String get battlePredictionLightweightDesc;
+
+  /// No description provided for @battlePredictionNextBattle.
+  ///
+  /// In zh, this message translates to:
+  /// **'切换从下一场战斗开始生效。'**
+  String get battlePredictionNextBattle;
+
+  /// No description provided for @improvementDatasetTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'改修规划资料'**
+  String get improvementDatasetTitle;
+
+  /// No description provided for @improvementDatasetVersion.
+  ///
+  /// In zh, this message translates to:
+  /// **'资料版本 {version}'**
+  String improvementDatasetVersion(String version);
+
+  /// No description provided for @improvementDatasetNeverChecked.
+  ///
+  /// In zh, this message translates to:
+  /// **'尚未手动检查'**
+  String get improvementDatasetNeverChecked;
+
+  /// No description provided for @improvementDatasetLastChecked.
+  ///
+  /// In zh, this message translates to:
+  /// **'最近检查 {time}'**
+  String improvementDatasetLastChecked(String time);
+
+  /// No description provided for @improvementDatasetManualUpdate.
+  ///
+  /// In zh, this message translates to:
+  /// **'手动更新改修资料'**
+  String get improvementDatasetManualUpdate;
+
+  /// No description provided for @improvementDatasetUpToDate.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前已经是最新资料（{version}）'**
+  String improvementDatasetUpToDate(String version);
+
+  /// No description provided for @improvementDatasetUpdated.
+  ///
+  /// In zh, this message translates to:
+  /// **'改修资料已从 {oldVersion} 更新到 {newVersion}，页面已立即刷新。'**
+  String improvementDatasetUpdated(String oldVersion, String newVersion);
+
+  /// No description provided for @improvementDatasetNetworkError.
+  ///
+  /// In zh, this message translates to:
+  /// **'网络连接失败，已继续使用本地资料（{version}）。'**
+  String improvementDatasetNetworkError(String version);
+
+  /// No description provided for @improvementDatasetValidationError.
+  ///
+  /// In zh, this message translates to:
+  /// **'远程资料校验失败，未替换本地资料（{version}）。'**
+  String improvementDatasetValidationError(String version);
+
+  /// No description provided for @improvementDatasetStorageError.
+  ///
+  /// In zh, this message translates to:
+  /// **'资料保存失败，未替换本地资料（{version}）。'**
+  String improvementDatasetStorageError(String version);
+
+  /// No description provided for @networkValidationHostEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'地址不能为空'**
+  String get networkValidationHostEmpty;
+
+  /// No description provided for @networkValidationControlCharacter.
+  ///
+  /// In zh, this message translates to:
+  /// **'不允许包含换行或控制字符'**
+  String get networkValidationControlCharacter;
+
+  /// No description provided for @networkValidationHttpScheme.
+  ///
+  /// In zh, this message translates to:
+  /// **'地址中不要包含 http://，只需填写服务器地址。'**
+  String get networkValidationHttpScheme;
+
+  /// No description provided for @networkValidationSocksScheme.
+  ///
+  /// In zh, this message translates to:
+  /// **'地址中不要包含 socks://，只需填写服务器地址。'**
+  String get networkValidationSocksScheme;
+
+  /// No description provided for @networkValidationScheme.
+  ///
+  /// In zh, this message translates to:
+  /// **'地址中不要包含协议头'**
+  String get networkValidationScheme;
+
+  /// No description provided for @networkValidationPath.
+  ///
+  /// In zh, this message translates to:
+  /// **'不允许包含路径'**
+  String get networkValidationPath;
+
+  /// No description provided for @networkValidationCredentials.
+  ///
+  /// In zh, this message translates to:
+  /// **'不允许包含用户名或密码'**
+  String get networkValidationCredentials;
+
+  /// No description provided for @networkValidationIpv6.
+  ///
+  /// In zh, this message translates to:
+  /// **'IPv6 地址格式不正确（含有非法字符）'**
+  String get networkValidationIpv6;
+
+  /// No description provided for @networkValidationPortEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'端口不能为空'**
+  String get networkValidationPortEmpty;
+
+  /// No description provided for @networkValidationPortDecimal.
+  ///
+  /// In zh, this message translates to:
+  /// **'端口不允许使用小数'**
+  String get networkValidationPortDecimal;
+
+  /// No description provided for @networkValidationPortNegative.
+  ///
+  /// In zh, this message translates to:
+  /// **'端口不允许使用负数'**
+  String get networkValidationPortNegative;
+
+  /// No description provided for @networkValidationPortZero.
+  ///
+  /// In zh, this message translates to:
+  /// **'端口不能为 0'**
+  String get networkValidationPortZero;
+
+  /// No description provided for @networkValidationPortInteger.
+  ///
+  /// In zh, this message translates to:
+  /// **'端口必须为整数'**
+  String get networkValidationPortInteger;
+
+  /// No description provided for @networkValidationPortRange.
+  ///
+  /// In zh, this message translates to:
+  /// **'端口范围为 1 至 65535'**
+  String get networkValidationPortRange;
+
+  /// No description provided for @gadgetBypassRestricted.
+  ///
+  /// In zh, this message translates to:
+  /// **'受限'**
+  String get gadgetBypassRestricted;
+
+  /// No description provided for @networkProxyOperationBusy.
+  ///
+  /// In zh, this message translates to:
+  /// **'代理设置正在应用中'**
+  String get networkProxyOperationBusy;
+
+  /// No description provided for @networkUnknownProxyMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'未知代理模式'**
+  String get networkUnknownProxyMode;
 }
 
 class _AppLocalizationsDelegate

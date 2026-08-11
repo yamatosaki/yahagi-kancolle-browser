@@ -87,7 +87,7 @@ class _GadgetBypassSectionState extends State<GadgetBypassSection> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     return AnimatedBuilder(
       animation: widget.controller,
       builder: (context, _) {
@@ -101,11 +101,14 @@ class _GadgetBypassSectionState extends State<GadgetBypassSection> {
               activeTrackColor: const Color(0xffb98a28),
               activeThumbColor: const Color(0xff403923),
               title: Text(
-                l10n?.gadgetBypassEnable ?? '开启绕行',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                l10n.gadgetBypassEnable,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               subtitle: Text(
-                l10n?.gadgetBypassDesc ?? '仅影响游戏客户端文件加载',
+                l10n.gadgetBypassDesc,
                 style: const TextStyle(fontSize: 12, color: Color(0xff8197a5)),
               ),
               onChanged: controller.isApplying || !controller.supported
@@ -116,7 +119,7 @@ class _GadgetBypassSectionState extends State<GadgetBypassSection> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Text(
-                  l10n?.gadgetBypassUnsupported ?? '当前设备不支持（需要 Android 8.0+）',
+                  l10n.gadgetBypassUnsupported,
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xffe0a35f),
@@ -132,7 +135,7 @@ class _GadgetBypassSectionState extends State<GadgetBypassSection> {
                 dropdownColor: const Color(0xff142735),
                 style: const TextStyle(fontSize: 13, color: Color(0xffdce6eb)),
                 decoration: InputDecoration(
-                  labelText: l10n?.gadgetBypassEndpoint ?? '镜像端点',
+                  labelText: l10n.gadgetBypassEndpoint,
                   labelStyle: const TextStyle(
                     fontSize: 12,
                     color: Color(0xff8197a5),
@@ -155,7 +158,7 @@ class _GadgetBypassSectionState extends State<GadgetBypassSection> {
                   ),
                   DropdownMenuItem(
                     value: _presetCustom,
-                    child: Text(l10n?.endpointCustom ?? '自定义'),
+                    child: Text(l10n.endpointCustom),
                   ),
                 ],
                 onChanged: _onPresetChanged,
@@ -187,8 +190,8 @@ class _GadgetBypassSectionState extends State<GadgetBypassSection> {
                   Expanded(
                     child: Text(
                       controller.enabled
-                          ? '${l10n?.gadgetBypassStatusOn ?? '已启用'} · ${controller.endpoint}'
-                          : l10n?.gadgetBypassStatusOff ?? '未启用',
+                          ? '${l10n.gadgetBypassStatusOn} · ${controller.endpoint}'
+                          : l10n.gadgetBypassStatusOff,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -208,7 +211,7 @@ class _GadgetBypassSectionState extends State<GadgetBypassSection> {
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                     ),
                     child: Text(
-                      l10n?.gadgetBypassClearCache ?? '清空缓存',
+                      l10n.gadgetBypassClearCache,
                       style: const TextStyle(fontSize: 11),
                     ),
                   ),
@@ -227,8 +230,8 @@ class _GadgetBypassSectionState extends State<GadgetBypassSection> {
                   icon: const Icon(Icons.network_check, size: 16),
                   label: Text(
                     controller.isDiagnosing
-                        ? (l10n?.gadgetBypassDiagnosing ?? '诊断中...')
-                        : l10n?.gadgetBypassDiagnose ?? '运行连通性诊断',
+                        ? l10n.gadgetBypassDiagnosing
+                        : l10n.gadgetBypassDiagnose,
                     style: const TextStyle(fontSize: 12),
                   ),
                   style: TextButton.styleFrom(
@@ -242,12 +245,12 @@ class _GadgetBypassSectionState extends State<GadgetBypassSection> {
             if (controller.lastDiagnose != null) ...<Widget>[
               _diagnoseRow(
                 key: 'gadget-bypass-diagnose-w00g',
-                label: l10n?.gadgetBypassW00g ?? '客户端服务器 (w00g)',
+                label: l10n.gadgetBypassW00g,
                 probe: controller.lastDiagnose!.w00g,
               ),
               _diagnoseRow(
                 key: 'gadget-bypass-diagnose-endpoint',
-                label: l10n?.gadgetBypassEndpointProbe ?? '镜像端点',
+                label: l10n.gadgetBypassEndpointProbe,
                 probe: controller.lastDiagnose!.endpoint,
               ),
             ],
@@ -255,7 +258,7 @@ class _GadgetBypassSectionState extends State<GadgetBypassSection> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Text(
-                  '${l10n?.gadgetBypassError ?? '绕行配置失败'}: ${controller.lastError}',
+                  '${l10n.gadgetBypassError}: ${controller.lastError}',
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xffe07a6a),
@@ -275,13 +278,14 @@ class _GadgetBypassSectionState extends State<GadgetBypassSection> {
   }) {
     final statusCode = probe.statusCode;
     final ok = statusCode != null && statusCode >= 200 && statusCode < 300;
+    final l10n = AppLocalizations.of(context)!;
     final statusText = statusCode == 403
-        ? 'HTTP 403 · 受限 (${probe.elapsedMs}ms)'
+        ? 'HTTP 403 · ${l10n.gadgetBypassRestricted} (${probe.elapsedMs}ms)'
         : ok
-        ? '${AppLocalizations.of(context)?.gadgetBypassReachable ?? '通畅'} · HTTP $statusCode (${probe.elapsedMs}ms)'
+        ? '${l10n.gadgetBypassReachable} · HTTP $statusCode (${probe.elapsedMs}ms)'
         : probe.reachable && statusCode != null
         ? 'HTTP $statusCode (${probe.elapsedMs}ms)'
-        : AppLocalizations.of(context)?.gadgetBypassUnreachable ?? '无法连接';
+        : l10n.gadgetBypassUnreachable;
     return Padding(
       key: Key(key),
       padding: const EdgeInsets.fromLTRB(16, 2, 16, 2),

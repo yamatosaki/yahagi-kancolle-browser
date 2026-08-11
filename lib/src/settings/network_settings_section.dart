@@ -67,12 +67,12 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
     if (_selectedMode != NetworkMode.system) {
       final hostError = NetworkSettingsValidator.validateHost(host);
       if (hostError != null) {
-        _showErrorSnackBar(hostError);
+        _showErrorSnackBar(_validationMessage(hostError));
         return;
       }
       final portError = NetworkSettingsValidator.validatePort(portStr);
       if (portError != null) {
-        _showErrorSnackBar(portError);
+        _showErrorSnackBar(_validationMessage(portError));
         return;
       }
     }
@@ -95,12 +95,12 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
     if (_selectedMode != NetworkMode.system) {
       final hostError = NetworkSettingsValidator.validateHost(host);
       if (hostError != null) {
-        _showErrorSnackBar(hostError);
+        _showErrorSnackBar(_validationMessage(hostError));
         return;
       }
       final portError = NetworkSettingsValidator.validatePort(portStr);
       if (portError != null) {
-        _showErrorSnackBar(portError);
+        _showErrorSnackBar(_validationMessage(portError));
         return;
       }
     }
@@ -133,7 +133,12 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
       );
       widget.onApplySuccess();
     } else {
-      _showErrorSnackBar(l10n.networkApplyFailed(result.code, result.message));
+      _showErrorSnackBar(
+        l10n.networkApplyFailed(
+          result.code,
+          _localizedProxyResultMessage(l10n, result),
+        ),
+      );
     }
   }
 
@@ -180,6 +185,36 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
       SnackBar(content: Text(message), backgroundColor: Colors.red.shade800),
     );
   }
+
+  String _validationMessage(NetworkValidationError error) {
+    final l10n = AppLocalizations.of(context)!;
+    return switch (error) {
+      NetworkValidationError.hostEmpty => l10n.networkValidationHostEmpty,
+      NetworkValidationError.controlCharacter =>
+        l10n.networkValidationControlCharacter,
+      NetworkValidationError.httpScheme => l10n.networkValidationHttpScheme,
+      NetworkValidationError.socksScheme => l10n.networkValidationSocksScheme,
+      NetworkValidationError.scheme => l10n.networkValidationScheme,
+      NetworkValidationError.path => l10n.networkValidationPath,
+      NetworkValidationError.credentials => l10n.networkValidationCredentials,
+      NetworkValidationError.ipv6 => l10n.networkValidationIpv6,
+      NetworkValidationError.portEmpty => l10n.networkValidationPortEmpty,
+      NetworkValidationError.portDecimal => l10n.networkValidationPortDecimal,
+      NetworkValidationError.portNegative => l10n.networkValidationPortNegative,
+      NetworkValidationError.portZero => l10n.networkValidationPortZero,
+      NetworkValidationError.portInteger => l10n.networkValidationPortInteger,
+      NetworkValidationError.portRange => l10n.networkValidationPortRange,
+    };
+  }
+
+  String _localizedProxyResultMessage(
+    AppLocalizations l10n,
+    ProxyResult result,
+  ) => switch (result.code) {
+    'proxy_operation_busy' => l10n.networkProxyOperationBusy,
+    'unknown_mode' => l10n.networkUnknownProxyMode,
+    _ => result.message,
+  };
 
   Widget _buildDiagnosticCard(AppLocalizations l10n, ProxyResult? result) {
     if (result == null) return const SizedBox.shrink();
@@ -336,7 +371,10 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                   RadioListTile<NetworkMode>(
                     title: Text(
                       l10n.systemNetwork,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     subtitle: Text(
                       l10n.systemNetworkDesc,
@@ -351,7 +389,10 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                   RadioListTile<NetworkMode>(
                     title: Text(
                       l10n.httpProxy,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     subtitle: Text(
                       l10n.httpProxyDesc,
@@ -367,7 +408,10 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                   RadioListTile<NetworkMode>(
                     title: Text(
                       l10n.socks5Proxy,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     subtitle: Text(
                       l10n.socks5ProxyDesc,
@@ -405,7 +449,10 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                             vertical: 8,
                           ),
                         ),
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -425,7 +472,10 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
                             vertical: 8,
                           ),
                         ),
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],

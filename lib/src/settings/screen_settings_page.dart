@@ -200,7 +200,7 @@ class ScreenSettingsPage extends StatelessWidget with SettingsUIHelpers {
             ),
             if (gameFrameRateSettingsController != null) ...<Widget>[
               const SizedBox(height: 24),
-              buildSectionTitle('帧率设置'), // 临时写死，也可以用 l10n
+              buildSectionTitle(l10n.frameRateSettingsSection),
               buildCard(
                 child: GameFrameRateSettingsSection(
                   controller: gameFrameRateSettingsController!,
