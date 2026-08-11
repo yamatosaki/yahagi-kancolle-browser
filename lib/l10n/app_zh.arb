@@ -405,5 +405,18 @@
   "gameFrameRateMax60Desc": "使用 RAF 渲染，并将目标帧率限制为最高 60 FPS。",
   "gameFrameRateFollowDisplayDesc": "使用 GotoBrowser 同款主脚本补丁，让游戏跟随设备刷新率；可能增加耗电和发热。",
   "gameFrameRateUnsupported": "当前 Android WebView 不支持解除帧率上限",
-  "gameFrameRateRestartRequired": "重新加载游戏页面后生效"
+  "gameFrameRateRestartRequired": "重新加载游戏页面后生效",
+  "gameRenderingModeTitle": "游戏渲染兼容模式",
+  "gameRenderingModeStandard": "标准模式",
+  "gameRenderingModeStandardDesc": "Texture Layer + WebGL，保留工具栏模糊效果。",
+  "gameRenderingModeCompatibility": "兼容模式",
+  "gameRenderingModeCompatibilityDesc": "Hybrid Composition + WebGL，关闭工具栏模糊；适合华为、荣耀设备卡顿时尝试。",
+  "gameRenderingModeCanvas": "深度兼容模式",
+  "gameRenderingModeCanvasDesc": "Hybrid Composition + Canvas，关闭工具栏模糊；兼容性优先，画面性能可能降低。",
+  "gameRenderingModeConfirmTitle": "切换游戏渲染模式？",
+  "gameRenderingModeConfirmMessage": "切换后将自动重建游戏页面，当前页面会短暂关闭并重新载入。请先避免正在进行的操作。",
+  "gameRenderingModeBattleWarning": "检测到可能正在战斗。现在切换可能中断当前战斗页面，建议结束战斗后再操作。",
+  "gameRenderingModeChanging": "正在重建游戏页面…",
+  "gameRenderingModeApplied": "渲染模式已切换。",
+  "gameRenderingModeFailed": "切换失败，已保留或回退到安全模式。"
 }

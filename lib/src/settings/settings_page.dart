@@ -24,6 +24,7 @@ import 'network_settings_page_new.dart';
 import 'about_support_settings_page.dart';
 import 'battle_prediction_settings.dart';
 import 'game_frame_rate_settings.dart';
+import 'game_rendering_mode_controller.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({
@@ -51,6 +52,8 @@ class SettingsPage extends StatelessWidget {
     this.battlePredictionSettingsController,
     this.gameFrameRateSettingsController,
     this.selectedIndex = 0,
+    this.gameRenderingModeController,
+    this.isBattleActive = false,
   });
 
   final LayoutSettingsController layoutSettingsController;
@@ -76,6 +79,8 @@ class SettingsPage extends StatelessWidget {
   final BattlePredictionSettingsController? battlePredictionSettingsController;
   final GameFrameRateSettingsController? gameFrameRateSettingsController;
   final int selectedIndex;
+  final GameRenderingModeController? gameRenderingModeController;
+  final bool isBattleActive;
 
   @override
   Widget build(BuildContext context) {
@@ -89,6 +94,8 @@ class SettingsPage extends StatelessWidget {
           captureModeController: captureModeController,
           gameFrameRateSettingsController: gameFrameRateSettingsController,
           screenAwakeController: screenAwakeController,
+          gameRenderingModeController: gameRenderingModeController,
+          isBattleActive: isBattleActive,
         ),
         SoundSettingsPage(audioController: audioController),
         BattleSettingsPage(

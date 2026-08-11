@@ -2269,6 +2269,84 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'重新加载游戏页面后生效'**
   String get gameFrameRateRestartRequired;
+
+  /// No description provided for @gameRenderingModeTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏渲染兼容模式'**
+  String get gameRenderingModeTitle;
+
+  /// No description provided for @gameRenderingModeStandard.
+  ///
+  /// In zh, this message translates to:
+  /// **'标准模式'**
+  String get gameRenderingModeStandard;
+
+  /// No description provided for @gameRenderingModeStandardDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'Texture Layer + WebGL，保留工具栏模糊效果。'**
+  String get gameRenderingModeStandardDesc;
+
+  /// No description provided for @gameRenderingModeCompatibility.
+  ///
+  /// In zh, this message translates to:
+  /// **'兼容模式'**
+  String get gameRenderingModeCompatibility;
+
+  /// No description provided for @gameRenderingModeCompatibilityDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'Hybrid Composition + WebGL，关闭工具栏模糊；适合华为、荣耀设备卡顿时尝试。'**
+  String get gameRenderingModeCompatibilityDesc;
+
+  /// No description provided for @gameRenderingModeCanvas.
+  ///
+  /// In zh, this message translates to:
+  /// **'深度兼容模式'**
+  String get gameRenderingModeCanvas;
+
+  /// No description provided for @gameRenderingModeCanvasDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'Hybrid Composition + Canvas，关闭工具栏模糊；兼容性优先，画面性能可能降低。'**
+  String get gameRenderingModeCanvasDesc;
+
+  /// No description provided for @gameRenderingModeConfirmTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'切换游戏渲染模式？'**
+  String get gameRenderingModeConfirmTitle;
+
+  /// No description provided for @gameRenderingModeConfirmMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'切换后将自动重建游戏页面，当前页面会短暂关闭并重新载入。请先避免正在进行的操作。'**
+  String get gameRenderingModeConfirmMessage;
+
+  /// No description provided for @gameRenderingModeBattleWarning.
+  ///
+  /// In zh, this message translates to:
+  /// **'检测到可能正在战斗。现在切换可能中断当前战斗页面，建议结束战斗后再操作。'**
+  String get gameRenderingModeBattleWarning;
+
+  /// No description provided for @gameRenderingModeChanging.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在重建游戏页面…'**
+  String get gameRenderingModeChanging;
+
+  /// No description provided for @gameRenderingModeApplied.
+  ///
+  /// In zh, this message translates to:
+  /// **'渲染模式已切换。'**
+  String get gameRenderingModeApplied;
+
+  /// No description provided for @gameRenderingModeFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'切换失败，已保留或回退到安全模式。'**
+  String get gameRenderingModeFailed;
 }
 
 class _AppLocalizationsDelegate

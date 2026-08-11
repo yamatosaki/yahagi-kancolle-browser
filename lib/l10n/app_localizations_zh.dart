@@ -1150,6 +1150,50 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get gameFrameRateRestartRequired => '重新加载游戏页面后生效';
+
+  @override
+  String get gameRenderingModeTitle => '游戏渲染兼容模式';
+
+  @override
+  String get gameRenderingModeStandard => '标准模式';
+
+  @override
+  String get gameRenderingModeStandardDesc =>
+      'Texture Layer + WebGL，保留工具栏模糊效果。';
+
+  @override
+  String get gameRenderingModeCompatibility => '兼容模式';
+
+  @override
+  String get gameRenderingModeCompatibilityDesc =>
+      'Hybrid Composition + WebGL，关闭工具栏模糊；适合华为、荣耀设备卡顿时尝试。';
+
+  @override
+  String get gameRenderingModeCanvas => '深度兼容模式';
+
+  @override
+  String get gameRenderingModeCanvasDesc =>
+      'Hybrid Composition + Canvas，关闭工具栏模糊；兼容性优先，画面性能可能降低。';
+
+  @override
+  String get gameRenderingModeConfirmTitle => '切换游戏渲染模式？';
+
+  @override
+  String get gameRenderingModeConfirmMessage =>
+      '切换后将自动重建游戏页面，当前页面会短暂关闭并重新载入。请先避免正在进行的操作。';
+
+  @override
+  String get gameRenderingModeBattleWarning =>
+      '检测到可能正在战斗。现在切换可能中断当前战斗页面，建议结束战斗后再操作。';
+
+  @override
+  String get gameRenderingModeChanging => '正在重建游戏页面…';
+
+  @override
+  String get gameRenderingModeApplied => '渲染模式已切换。';
+
+  @override
+  String get gameRenderingModeFailed => '切换失败，已保留或回退到安全模式。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -2299,4 +2343,48 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get gameFrameRateRestartRequired => '重新載入遊戲頁面後生效';
+
+  @override
+  String get gameRenderingModeTitle => '遊戲渲染相容模式';
+
+  @override
+  String get gameRenderingModeStandard => '標準模式';
+
+  @override
+  String get gameRenderingModeStandardDesc =>
+      'Texture Layer + WebGL，保留工具列模糊效果。';
+
+  @override
+  String get gameRenderingModeCompatibility => '相容模式';
+
+  @override
+  String get gameRenderingModeCompatibilityDesc =>
+      'Hybrid Composition + WebGL，關閉工具列模糊；適合華為、榮耀裝置卡頓時嘗試。';
+
+  @override
+  String get gameRenderingModeCanvas => '深度相容模式';
+
+  @override
+  String get gameRenderingModeCanvasDesc =>
+      'Hybrid Composition + Canvas，關閉工具列模糊；相容性優先，畫面效能可能降低。';
+
+  @override
+  String get gameRenderingModeConfirmTitle => '切換遊戲渲染模式？';
+
+  @override
+  String get gameRenderingModeConfirmMessage =>
+      '切換後將自動重建遊戲頁面，目前頁面會短暫關閉並重新載入。請先避免正在進行的操作。';
+
+  @override
+  String get gameRenderingModeBattleWarning =>
+      '偵測到可能正在戰鬥。現在切換可能中斷目前戰鬥頁面，建議結束戰鬥後再操作。';
+
+  @override
+  String get gameRenderingModeChanging => '正在重建遊戲頁面…';
+
+  @override
+  String get gameRenderingModeApplied => '渲染模式已切換。';
+
+  @override
+  String get gameRenderingModeFailed => '切換失敗，已保留或回退至安全模式。';
 }

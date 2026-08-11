@@ -405,5 +405,18 @@
   "gameFrameRateMax60Desc": "RAF を使用し、目標フレームレートを最大 60 FPS に制限します。",
   "gameFrameRateFollowDisplayDesc": "GotoBrowser と同じメインスクリプトパッチで端末のリフレッシュレートに追従させます。消費電力と発熱が増える場合があります。",
   "gameFrameRateUnsupported": "現在の Android WebView は FPS 上限解除に対応していません",
-  "gameFrameRateRestartRequired": "ゲームページを再読み込みすると反映されます"
+  "gameFrameRateRestartRequired": "ゲームページを再読み込みすると反映されます",
+  "gameRenderingModeTitle": "ゲーム描画互換モード",
+  "gameRenderingModeStandard": "標準モード",
+  "gameRenderingModeStandardDesc": "Texture Layer + WebGL。ツールバーのぼかし効果を維持します。",
+  "gameRenderingModeCompatibility": "互換モード",
+  "gameRenderingModeCompatibilityDesc": "Hybrid Composition + WebGL。ぼかしを無効化し、Huawei・HONOR 端末のカクつきを軽減します。",
+  "gameRenderingModeCanvas": "高度互換モード",
+  "gameRenderingModeCanvasDesc": "Hybrid Composition + Canvas。互換性を優先するため、描画性能が低下する場合があります。",
+  "gameRenderingModeConfirmTitle": "ゲーム描画モードを切り替えますか？",
+  "gameRenderingModeConfirmMessage": "切り替えるとゲームページを自動的に再構築します。現在のページは一時的に閉じて再読み込みされます。操作中の切り替えは避けてください。",
+  "gameRenderingModeBattleWarning": "戦闘中の可能性があります。今切り替えると戦闘画面が中断されるため、戦闘終了後の変更を推奨します。",
+  "gameRenderingModeChanging": "ゲームページを再構築しています…",
+  "gameRenderingModeApplied": "描画モードを切り替えました。",
+  "gameRenderingModeFailed": "切り替えに失敗しました。現在の設定を維持するか、安全なモードへ戻しました。"
 }

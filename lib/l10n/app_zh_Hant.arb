@@ -405,5 +405,18 @@
   "gameFrameRateMax60Desc": "使用 RAF 渲染，並將目標幀率限制為最高 60 FPS。",
   "gameFrameRateFollowDisplayDesc": "使用與 GotoBrowser 相同的主腳本補丁，讓遊戲跟隨裝置更新率；可能增加耗電與發熱。",
   "gameFrameRateUnsupported": "目前 Android WebView 不支援解除幀率上限",
-  "gameFrameRateRestartRequired": "重新載入遊戲頁面後生效"
+  "gameFrameRateRestartRequired": "重新載入遊戲頁面後生效",
+  "gameRenderingModeTitle": "遊戲渲染相容模式",
+  "gameRenderingModeStandard": "標準模式",
+  "gameRenderingModeStandardDesc": "Texture Layer + WebGL，保留工具列模糊效果。",
+  "gameRenderingModeCompatibility": "相容模式",
+  "gameRenderingModeCompatibilityDesc": "Hybrid Composition + WebGL，關閉工具列模糊；適合華為、榮耀裝置卡頓時嘗試。",
+  "gameRenderingModeCanvas": "深度相容模式",
+  "gameRenderingModeCanvasDesc": "Hybrid Composition + Canvas，關閉工具列模糊；相容性優先，畫面效能可能降低。",
+  "gameRenderingModeConfirmTitle": "切換遊戲渲染模式？",
+  "gameRenderingModeConfirmMessage": "切換後將自動重建遊戲頁面，目前頁面會短暫關閉並重新載入。請先避免正在進行的操作。",
+  "gameRenderingModeBattleWarning": "偵測到可能正在戰鬥。現在切換可能中斷目前戰鬥頁面，建議結束戰鬥後再操作。",
+  "gameRenderingModeChanging": "正在重建遊戲頁面…",
+  "gameRenderingModeApplied": "渲染模式已切換。",
+  "gameRenderingModeFailed": "切換失敗，已保留或回退至安全模式。"
 }

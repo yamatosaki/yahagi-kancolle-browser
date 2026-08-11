@@ -1158,4 +1158,48 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get gameFrameRateRestartRequired => 'ゲームページを再読み込みすると反映されます';
+
+  @override
+  String get gameRenderingModeTitle => 'ゲーム描画互換モード';
+
+  @override
+  String get gameRenderingModeStandard => '標準モード';
+
+  @override
+  String get gameRenderingModeStandardDesc =>
+      'Texture Layer + WebGL。ツールバーのぼかし効果を維持します。';
+
+  @override
+  String get gameRenderingModeCompatibility => '互換モード';
+
+  @override
+  String get gameRenderingModeCompatibilityDesc =>
+      'Hybrid Composition + WebGL。ぼかしを無効化し、Huawei・HONOR 端末のカクつきを軽減します。';
+
+  @override
+  String get gameRenderingModeCanvas => '高度互換モード';
+
+  @override
+  String get gameRenderingModeCanvasDesc =>
+      'Hybrid Composition + Canvas。互換性を優先するため、描画性能が低下する場合があります。';
+
+  @override
+  String get gameRenderingModeConfirmTitle => 'ゲーム描画モードを切り替えますか？';
+
+  @override
+  String get gameRenderingModeConfirmMessage =>
+      '切り替えるとゲームページを自動的に再構築します。現在のページは一時的に閉じて再読み込みされます。操作中の切り替えは避けてください。';
+
+  @override
+  String get gameRenderingModeBattleWarning =>
+      '戦闘中の可能性があります。今切り替えると戦闘画面が中断されるため、戦闘終了後の変更を推奨します。';
+
+  @override
+  String get gameRenderingModeChanging => 'ゲームページを再構築しています…';
+
+  @override
+  String get gameRenderingModeApplied => '描画モードを切り替えました。';
+
+  @override
+  String get gameRenderingModeFailed => '切り替えに失敗しました。現在の設定を維持するか、安全なモードへ戻しました。';
 }
