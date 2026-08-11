@@ -8,6 +8,7 @@ import 'package:yahagi_kancolle_browser/src/battle/battle_node_label_resolver.da
 import 'package:yahagi_kancolle_browser/src/battle/battle_pills.dart';
 import 'package:yahagi_kancolle_browser/src/battle/detailed_battle_panel.dart';
 import 'package:yahagi_kancolle_browser/src/battle/live_battle_card.dart';
+import 'package:yahagi_kancolle_browser/src/battle/official_enemy_preview.dart';
 import 'package:yahagi_kancolle_browser/src/bridge/captured_api_event.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_reducer.dart';
@@ -495,6 +496,40 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('combined enemy preview renders escort and main in three rows', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 360,
+            child: OfficialEnemyPreview(
+              names: <String>['伴随一', '伴随二', '伴随三', '主力一', '主力二', '主力三'],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const suffixes = <String>['一', '二', '三'];
+    for (final suffix in suffixes) {
+      final escort = find.text('伴随$suffix');
+      final main = find.text('主力$suffix');
+      expect(escort, findsOneWidget);
+      expect(main, findsOneWidget);
+      expect(
+        (tester.getCenter(escort).dy - tester.getCenter(main).dy).abs(),
+        lessThan(0.5),
+      );
+      expect(tester.getCenter(escort).dx, lessThan(tester.getCenter(main).dx));
+    }
+    final name = tester.widget<Text>(find.text('伴随一'));
+    expect(name.style?.fontSize, 11);
+    expect(name.style?.fontWeight, FontWeight.w700);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('land-base raid is visible in detailed and compact forecast', (
     tester,

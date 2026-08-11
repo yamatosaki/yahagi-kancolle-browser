@@ -349,23 +349,26 @@ final class BattleController extends ChangeNotifier {
     Map<String, Object?> data,
     GameState state,
   ) {
-    Map<String, Object?>? preview;
-    for (final value in _list(data['api_e_deck_info']).reversed) {
+    final previews = <Map<String, Object?>>[];
+    for (final value in _list(data['api_e_deck_info'])) {
       final candidate = _optionalMap(value);
-      if (candidate != null) {
-        preview = candidate;
-        break;
-      }
+      if (candidate != null) previews.add(candidate);
     }
-    if (preview == null) return const <String>[];
+    if (previews.isEmpty) return const <String>[];
 
-    final names = <String>[];
-    for (final value in _list(preview['api_ship_ids'])) {
-      final name = state.masterShips[_int(value)]?.name.trim() ?? '';
-      if (name.isEmpty) continue;
-      names.add(name);
-      if (names.length == 3) break;
+    List<String> namesOf(Map<String, Object?> preview) {
+      final names = <String>[];
+      for (final value in _list(preview['api_ship_ids'])) {
+        final name = state.masterShips[_int(value)]?.name.trim() ?? '';
+        if (name.isEmpty) continue;
+        names.add(name);
+        if (names.length == 3) break;
+      }
+      return names;
     }
+
+    final names = namesOf(previews.last);
+    if (previews.length > 1) names.addAll(namesOf(previews.first));
     return List<String>.unmodifiable(names);
   }
 

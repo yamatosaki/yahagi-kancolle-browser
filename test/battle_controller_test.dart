@@ -187,6 +187,52 @@ void main() {
     },
   );
 
+  test(
+    'map response exposes escort then main names for an enemy combined fleet',
+    () async {
+      const state = GameState(
+        masterShips: <int, MasterShip>{
+          1601: MasterShip(id: 1601, name: '主力一', shipTypeId: 9),
+          1602: MasterShip(id: 1602, name: '主力二', shipTypeId: 9),
+          1603: MasterShip(id: 1603, name: '主力三', shipTypeId: 9),
+          1701: MasterShip(id: 1701, name: '伴随一', shipTypeId: 2),
+          1702: MasterShip(id: 1702, name: '伴随二', shipTypeId: 2),
+          1703: MasterShip(id: 1703, name: '伴随三', shipTypeId: 2),
+        },
+      );
+      final controller = BattleController(gameState: () => state);
+      addTearDown(controller.dispose);
+
+      controller.accept(
+        kcsapiEvent('/kcsapi/api_req_map/next', <String, Object?>{
+          'api_maparea_id': 1,
+          'api_mapinfo_no': 1,
+          'api_no': 2,
+          'api_e_deck_info': <Object?>[
+            <String, Object?>{
+              'api_kind': 1,
+              'api_ship_ids': <int>[1601, 1602, 1603],
+            },
+            <String, Object?>{
+              'api_kind': 2,
+              'api_ship_ids': <int>[1701, 1702, 1703],
+            },
+          ],
+        }, sequence: 990),
+      );
+      await controller.idle;
+
+      expect(controller.current?.enemyPreviewNames, <String>[
+        '伴随一',
+        '伴随二',
+        '伴随三',
+        '主力一',
+        '主力二',
+        '主力三',
+      ]);
+    },
+  );
+
   test('map next exposes land-base raid result in the forecast', () async {
     const state = GameState(
       landBases: <LandBaseState>[

@@ -229,6 +229,7 @@ class _LogbookTablePage extends StatefulWidget {
 class _LogbookTablePageState extends State<_LogbookTablePage> {
   static const _batchSize = 50;
   final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
   final _filterButtonAnchor = GlobalKey();
   final List<Map<String, dynamic>> _records = [];
   bool _loading = false;
@@ -269,6 +270,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
       widget.battleController.removeListener(_refreshAfterBattleChange);
     }
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -381,7 +383,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
 
     return switch (widget.category) {
       _LogbookCategory.sortie =>
-        selected('map', '全部海域', _mapLabel(record)) &&
+        selected('map', '全部海域', _fullMapLabel(record)) &&
             selected('status', '全部状态', _sortieStatus(record['node_type'])) &&
             selected('rank', '全部评价', '${record['rank']}'.toUpperCase()),
       _LogbookCategory.expedition =>
@@ -402,8 +404,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
             selected('secretary', '全部秘书舰', record['secretary_name']),
       _LogbookCategory.retirement =>
         selected('type', '全部类型', record['type']) &&
-            selected('shipType', '全部舰种', record['ship_type']) &&
-            selected('ship', '全部舰娘', record['ship_name']),
+            selected('shipType', '全部舰种', record['ship_type']),
       _LogbookCategory.resource => true,
     };
   }
@@ -452,7 +453,6 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
       'date': '全部日期',
       'type': '全部类型',
       'shipType': '全部舰种',
-      'ship': '全部舰娘',
     },
     _LogbookCategory.resource => const <String, String>{},
   };
@@ -465,27 +465,20 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
         LogbookFilterField(
           keyName: 'map',
           label: '海域',
-          options: _distinct('全部海域', _records.map(_mapLabel)),
+          options: _distinct('全部海域', _records.map(_fullMapLabel)),
         ),
-        const LogbookFilterField(
+        LogbookFilterField(
           keyName: 'status',
           label: '状态',
-          options: [
+          options: _distinct(
             '全部状态',
-            '普通战斗',
-            'Boss 战',
-            '空袭战',
-            '长距离空袭战',
-            '航空战',
-            '夜战',
-            '敌联合舰队',
-            '进击',
-          ],
+            _records.map((row) => _sortieStatus(row['node_type'])),
+          ),
         ),
         const LogbookFilterField(
           keyName: 'rank',
           label: '评价',
-          options: ['全部评价', 'S', 'A', 'B', 'C', 'D', 'E'],
+          options: ['全部评价', 'SS', 'S', 'A', 'B', 'C', 'D', 'E'],
         ),
       ],
       _LogbookCategory.expedition => [
@@ -569,14 +562,6 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
             _records.map((row) => '${row['ship_type']}'),
           ),
         ),
-        LogbookFilterField(
-          keyName: 'ship',
-          label: '舰娘',
-          options: _distinct(
-            '全部舰娘',
-            _records.map((row) => '${row['ship_name']}'),
-          ),
-        ),
       ],
       _LogbookCategory.resource => const <LogbookFilterField>[],
     };
@@ -625,31 +610,38 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
                 SizedBox(
                   width: 210,
                   height: _logbookControlHeight,
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (_) => setState(() {}),
-                    textAlignVertical: TextAlignVertical.center,
-                    style: const TextStyle(
-                      color: Color(0xffd7e3e9),
-                      fontSize: 12,
+                  child: AnimatedBuilder(
+                    animation: _searchFocusNode,
+                    builder: (context, child) => DecoratedBox(
+                      key: const Key('logbook-search-capsule'),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: _searchFocusNode.hasFocus
+                              ? const Color(0xffb7832a)
+                              : const Color(0xff315064),
+                        ),
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: child,
                     ),
-                    decoration: InputDecoration(
-                      isCollapsed: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 10,
+                    child: TextField(
+                      controller: _searchController,
+                      focusNode: _searchFocusNode,
+                      onChanged: (_) => setState(() {}),
+                      textAlignVertical: TextAlignVertical.center,
+                      style: const TextStyle(
+                        color: Color(0xffd7e3e9),
+                        fontSize: 12,
                       ),
-                      hintText: _searchHint,
-                      hintStyle: const TextStyle(
-                        color: Color(0xff667f8d),
-                        fontSize: 11,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Color(0xff315064)),
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(color: Color(0xffb7832a)),
-                        borderRadius: BorderRadius.circular(9),
+                      decoration: InputDecoration(
+                        isCollapsed: true,
+                        contentPadding: const EdgeInsets.fromLTRB(10, 5, 10, 0),
+                        hintText: _searchHint,
+                        hintStyle: const TextStyle(
+                          color: Color(0xff667f8d),
+                          fontSize: 11,
+                        ),
+                        border: InputBorder.none,
                       ),
                     ),
                   ),
@@ -722,11 +714,9 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
         return FrozenDataTable(
           key: Key('logbook-table-${widget.category.name}'),
           keyPrefix: 'logbook-${widget.category.name}',
-          frozenColumnWidths: const [112],
-          frozenHeaders: const [_HeaderCell('时间')],
-          frozenCells: (index) => [
-            _TextCell(_formatTime(rows[index]['timestamp'])),
-          ],
+          frozenColumnWidths: _frozenColumnWidths,
+          frozenHeaders: _frozenHeaders,
+          frozenCells: (index) => _frozenCells(rows[index]),
           scrollableColumnWidths: spec.widths,
           scrollableHeaders: spec.headers,
           scrollableCells: (index) => spec.cells(rows[index]),
@@ -740,11 +730,43 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
     );
   }
 
+  List<double> get _frozenColumnWidths => switch (widget.category) {
+    _LogbookCategory.sortie => const [220],
+    _LogbookCategory.construction => const [105],
+    _LogbookCategory.development => const [220],
+    _LogbookCategory.retirement => const [],
+    _ => const [112],
+  };
+
+  List<Widget> get _frozenHeaders => switch (widget.category) {
+    _LogbookCategory.sortie => const [_HeaderCell('海域')],
+    _LogbookCategory.construction => const [_HeaderCell('舰娘')],
+    _LogbookCategory.development => const [_HeaderCell('开发装备')],
+    _LogbookCategory.retirement => const [],
+    _ => const [_HeaderCell('时间')],
+  };
+
+  List<Widget> _frozenCells(Map<String, dynamic> row) =>
+      switch (widget.category) {
+        _LogbookCategory.sortie => [_TextCell(_mapLabel(row))],
+        _LogbookCategory.construction => [
+          _TextCell('${row['ship_name']}', strong: true),
+        ],
+        _LogbookCategory.development => [
+          _EquipmentCell(
+            name: '${row['equipment_name']}',
+            iconId: row['equipment_icon_id'] as int? ?? -1,
+          ),
+        ],
+        _LogbookCategory.retirement => const [],
+        _ => [_TextCell(_formatTime(row['timestamp']))],
+      };
+
   _TableSpec _tableSpecForWidth(double availableWidth) {
     if (widget.category == _LogbookCategory.sortie) {
       final spec = _tableSpec;
       final widths = List<double>.of(spec.widths);
-      final scrollableWidth = availableWidth - 112;
+      final scrollableWidth = availableWidth - 220;
       final baseWidth = widths.fold<double>(0, (sum, width) => sum + width);
       if (scrollableWidth > baseWidth) {
         widths[4] += scrollableWidth - baseWidth;
@@ -756,20 +778,26 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
       );
     }
     if (widget.category != _LogbookCategory.retirement) return _tableSpec;
-    final scrollableWidth = (availableWidth - 112).clamp(
-      452.0,
-      double.infinity,
-    );
-    final typeWidth = scrollableWidth * 0.2;
-    final shipTypeWidth = scrollableWidth * 0.28;
+    final scrollableWidth = availableWidth.clamp(564.0, double.infinity);
+    const timeWidth = 112.0;
+    final detailWidth = scrollableWidth - timeWidth;
+    final typeWidth = detailWidth * 0.2;
+    final shipTypeWidth = detailWidth * 0.28;
     return _TableSpec(
       widths: [
+        timeWidth,
         typeWidth,
         shipTypeWidth,
-        scrollableWidth - typeWidth - shipTypeWidth,
+        detailWidth - typeWidth - shipTypeWidth,
       ],
-      headers: const [_HeaderCell('类型'), _HeaderCell('舰种'), _HeaderCell('舰娘')],
+      headers: const [
+        _HeaderCell('时间'),
+        _HeaderCell('类型'),
+        _HeaderCell('舰种'),
+        _HeaderCell('舰娘'),
+      ],
       cells: (row) => [
+        _TextCell(_formatTime(row['timestamp'])),
         _RetirementTypeCell('${row['type']}'),
         _TextCell('${row['ship_type']}'),
         _TextCell('${row['ship_name']} Lv.${row['level']}', strong: true),
@@ -779,9 +807,9 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
 
   _TableSpec get _tableSpec => switch (widget.category) {
     _LogbookCategory.sortie => _TableSpec(
-      widths: const [460, 90, 85, 68, 180, 120, 135, 135, 135, 135],
+      widths: const [112, 90, 85, 68, 180, 120, 135, 135, 135, 135],
       headers: const [
-        _HeaderCell('海域'),
+        _HeaderCell('时间'),
         _HeaderCell('节点'),
         _HeaderCell('状态'),
         _HeaderCell('评价'),
@@ -793,7 +821,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
         _HeaderCell('二队 MVP'),
       ],
       cells: (row) => [
-        _TextCell(_mapLabel(row)),
+        _TextCell(_formatTime(row['timestamp'])),
         _TextCell(
           _sortieNodeLabel(
             row['node'],
@@ -839,10 +867,10 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
       ],
     ),
     _LogbookCategory.construction => _TableSpec(
-      widths: const [110, 105, 95, 82, 82, 82, 82, 105, 190],
+      widths: const [112, 110, 95, 82, 82, 82, 82, 105, 190],
       headers: const [
+        _HeaderCell('时间'),
         _HeaderCell('建造类型'),
-        _HeaderCell('舰娘'),
         _HeaderCell('舰种'),
         _ResourceHeader(GameResourceType.fuel),
         _ResourceHeader(GameResourceType.ammunition),
@@ -852,8 +880,8 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
         _HeaderCell('秘书舰'),
       ],
       cells: (row) => [
+        _TextCell(_formatTime(row['timestamp'])),
         _TextCell('${row['construction_type']}'),
-        _TextCell('${row['ship_name']}', strong: true),
         _TextCell('${row['ship_type']}'),
         _TextCell('${row['fuel']}'),
         _TextCell('${row['ammo']}'),
@@ -864,11 +892,11 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
       ],
     ),
     _LogbookCategory.development => _TableSpec(
-      widths: const [82, 220, 120, 82, 82, 82, 82, 190],
+      widths: const [120, 112, 82, 82, 82, 82, 82, 190],
       headers: const [
-        _HeaderCell('结果'),
-        _HeaderCell('开发装备'),
         _HeaderCell('装备类型'),
+        _HeaderCell('时间'),
+        _HeaderCell('结果'),
         _ResourceHeader(GameResourceType.fuel),
         _ResourceHeader(GameResourceType.ammunition),
         _ResourceHeader(GameResourceType.steel),
@@ -876,12 +904,9 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
         _HeaderCell('秘书舰'),
       ],
       cells: (row) => [
-        _ResultCell((row['success'] as int? ?? 0) > 0 ? '成功' : '失败'),
-        _EquipmentCell(
-          name: '${row['equipment_name']}',
-          iconId: row['equipment_icon_id'] as int? ?? -1,
-        ),
         _TextCell('${row['equipment_type']}'),
+        _TextCell(_formatTime(row['timestamp'])),
+        _ResultCell((row['success'] as int? ?? 0) > 0 ? '成功' : '失败'),
         _TextCell('${row['fuel']}'),
         _TextCell('${row['ammo']}'),
         _TextCell('${row['steel']}'),
@@ -890,9 +915,15 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
       ],
     ),
     _LogbookCategory.retirement => _TableSpec(
-      widths: const [92, 130, 230],
-      headers: const [_HeaderCell('类型'), _HeaderCell('舰种'), _HeaderCell('舰娘')],
+      widths: const [112, 92, 130, 230],
+      headers: const [
+        _HeaderCell('时间'),
+        _HeaderCell('类型'),
+        _HeaderCell('舰种'),
+        _HeaderCell('舰娘'),
+      ],
       cells: (row) => [
+        _TextCell(_formatTime(row['timestamp'])),
         _RetirementTypeCell('${row['type']}'),
         _TextCell('${row['ship_type']}'),
         _TextCell('${row['ship_name']} Lv.${row['level']}', strong: true),
@@ -908,7 +939,15 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
         'ID: $id';
   }
 
-  String _mapLabel(Map<String, dynamic> row) {
+  String _mapLabel(Map<String, dynamic> row) =>
+      _formatMapLabel(row, truncateName: true);
+
+  String _fullMapLabel(Map<String, dynamic> row) => _formatMapLabel(row);
+
+  String _formatMapLabel(
+    Map<String, dynamic> row, {
+    bool truncateName = false,
+  }) {
     final area = row['map_area'] as int? ?? 0;
     final map = row['map_no'] as int? ?? 0;
     final number = '$area-$map';
@@ -918,7 +957,9 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
         : widget.battleController.gameState().mapName(area, map);
     final difficulty = _mapDifficultyLabel(row['map_difficulty']);
     final suffix = difficulty.isEmpty ? number : '$number $difficulty';
-    return name == null || name.isEmpty ? suffix : '$name ($suffix)';
+    if (name == null || name.isEmpty) return suffix;
+    final displayName = truncateName ? _truncateMapName(name) : name;
+    return '$displayName ($suffix)';
   }
 }
 
@@ -1226,7 +1267,7 @@ String _sortieNodeLabel(
   final label = resolved.isNotEmpty ? resolved : _nodeLabel(node);
   if (label == '—') return label;
   final isBoss = nodeType?.toString().toLowerCase().contains('boss') ?? false;
-  return '$label${isBoss ? 'Boss' : '道中'}';
+  return '$label·${isBoss ? 'Boss' : '道中'}';
 }
 
 String _mapDifficultyLabel(Object? raw) => switch (raw as int? ?? 0) {
@@ -1236,6 +1277,12 @@ String _mapDifficultyLabel(Object? raw) => switch (raw as int? ?? 0) {
   4 => '甲',
   _ => '',
 };
+
+String _truncateMapName(String name, {int maxCharacters = 10}) {
+  final characters = name.runes.toList(growable: false);
+  if (characters.length <= maxCharacters) return name;
+  return '${String.fromCharCodes(characters.take(maxCharacters))}…';
+}
 
 String _sortieStatus(Object? raw) {
   if (raw case final String label when label.trim().isNotEmpty) return label;
