@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 import '../settings/game_frame_rate_settings.dart';
+import 'game_frame_rate_runtime_controller.dart';
+import 'game_frame_rate_script.dart';
 
 const MethodChannel _defaultGameFrameRateChannel = MethodChannel(
   'app.yahagi.kancollebrowser/game_frame_rate',
@@ -48,4 +51,29 @@ final class UnsupportedGameFrameRatePort implements GameFrameRatePort {
 
   @override
   Future<void> configure(GameFrameRateMode mode) async {}
+}
+
+final class WebViewGameFrameRateRuntimePort
+    implements GameFrameRateRuntimePort {
+  const WebViewGameFrameRateRuntimePort(this.controller);
+
+  final WebViewController controller;
+
+  @override
+  Future<void> apply(GameFrameRateTarget target) {
+    return controller.runJavaScript(gameFrameRateApplyScript(target));
+  }
+
+  @override
+  Future<double?> measuredFps() async {
+    final value = await controller.runJavaScriptReturningResult(
+      gameFrameRateMeasurementScript,
+    );
+    final parsed = switch (value) {
+      num number => number.toDouble(),
+      String text => double.tryParse(text),
+      _ => null,
+    };
+    return parsed != null && parsed.isFinite && parsed >= 0 ? parsed : null;
+  }
 }

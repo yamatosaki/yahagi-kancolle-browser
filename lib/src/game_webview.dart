@@ -9,6 +9,7 @@ import 'audio/game_audio_port.dart';
 import 'bridge/native_game_capture_script.dart';
 import 'browser/game_browser_controller.dart';
 import 'browser/game_frame_rate_port.dart';
+import 'browser/game_frame_rate_runtime_controller.dart';
 import 'browser/game_page_alignment_script.dart';
 import 'browser/game_toolbar_controller.dart';
 import 'browser/game_webview_compatibility.dart';
@@ -74,6 +75,7 @@ class _GameWebViewState extends State<GameWebView> {
   late final Future<void> _frameRateReady;
   late final GameCapturePort _gameCapturePort;
   late CaptureMode _activeCaptureMode;
+  GameFrameRateRuntimeController? _frameRateRuntimeController;
   static const _scaleChannel = MethodChannel(
     'app.webview/fixed_canvas_scaling',
   );
@@ -125,6 +127,7 @@ class _GameWebViewState extends State<GameWebView> {
         NavigationDelegate(
           onNavigationRequest: _onNavigationRequest,
           onPageStarted: (url) {
+            _frameRateRuntimeController?.onPageStarted();
             widget.controller.onPageStarted(url);
             widget.browserController.onPageStarted(url);
             widget.toolbarController.onStageChanged(
@@ -157,6 +160,7 @@ class _GameWebViewState extends State<GameWebView> {
             if (_startupState == GameStartupState.loadingGame) {
               setState(() => _startupState = GameStartupState.ready);
             }
+            await _frameRateRuntimeController?.onPageReady();
           },
           onWebResourceError: (error) {
             final isForMainFrame = error.isForMainFrame ?? true;
@@ -305,7 +309,16 @@ class _GameWebViewState extends State<GameWebView> {
     if (controller == null) return;
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted) return;
-    await controller.attachPort(createPlatformGameFrameRatePort());
+    try {
+      await controller.attachPort(createPlatformGameFrameRatePort());
+      if (!mounted) return;
+      _frameRateRuntimeController = GameFrameRateRuntimeController(
+        settings: controller,
+        port: WebViewGameFrameRateRuntimePort(_webViewController),
+      );
+    } catch (error) {
+      debugPrint('Frame-rate runtime unavailable: $error');
+    }
   }
 
   NavigationDecision _onNavigationRequest(NavigationRequest request) {
@@ -424,6 +437,7 @@ class _GameWebViewState extends State<GameWebView> {
 
   @override
   void dispose() {
+    _frameRateRuntimeController?.dispose();
     widget.captureModeController.removeListener(_onCaptureModeChanged);
     widget.networkSettingsController.removeListener(_onNetworkSettingsChanged);
     _webViewController.setJavaScriptMode(JavaScriptMode.disabled);
