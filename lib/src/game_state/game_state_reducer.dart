@@ -1108,30 +1108,56 @@ class GameStateReducer {
     CapturedApiEvent event,
     String origin,
   ) {
-    if (!data.containsKey('api_air_base')) {
-      return state.copyWith(serverOrigin: origin, updatedAt: event.capturedAt);
-    }
-    final bases = <LandBaseState>[];
-    for (final value in _optionalList(data['api_air_base'])) {
+    final mapDifficulties = Map<int, int>.from(state.mapDifficulties);
+    for (final value in _optionalList(data['api_map_info'])) {
       final item = _optionalMap(value);
-      final areaId = _asInt(item?['api_area_id']);
-      final baseId = _asInt(item?['api_rid']);
-      if (item == null || areaId <= 0 || baseId <= 0) continue;
-      bases.add(
-        LandBaseState(
-          areaId: areaId,
-          baseId: baseId,
-          name: _asString(item['api_name'], '第 $baseId 基地航空队'),
-          actionKind: _asInt(item['api_action_kind']),
-        ),
-      );
+      final mapId = _asInt(item?['api_id']);
+      final eventMap = _optionalMap(item?['api_eventmap']);
+      final rank = _asInt(eventMap?['api_selected_rank']);
+      if (item == null || mapId <= 0 || eventMap == null) continue;
+      MasterMapInfo? master;
+      for (final candidate in state.masterMapInfos.values) {
+        if (candidate.id == mapId) {
+          master = candidate;
+          break;
+        }
+      }
+      final areaId = master?.mapAreaId ?? mapId ~/ 10;
+      final mapNo = master?.mapNo ?? mapId % 10;
+      if (areaId <= 0 || mapNo <= 0) continue;
+      final key = areaId * 100 + mapNo;
+      if (rank > 0) {
+        mapDifficulties[key] = rank;
+      } else {
+        mapDifficulties.remove(key);
+      }
     }
-    bases.sort((left, right) {
-      final byArea = left.areaId.compareTo(right.areaId);
-      return byArea != 0 ? byArea : left.baseId.compareTo(right.baseId);
-    });
+
+    List<LandBaseState>? bases;
+    if (data.containsKey('api_air_base')) {
+      bases = <LandBaseState>[];
+      for (final value in _optionalList(data['api_air_base'])) {
+        final item = _optionalMap(value);
+        final areaId = _asInt(item?['api_area_id']);
+        final baseId = _asInt(item?['api_rid']);
+        if (item == null || areaId <= 0 || baseId <= 0) continue;
+        bases.add(
+          LandBaseState(
+            areaId: areaId,
+            baseId: baseId,
+            name: _asString(item['api_name'], '第 $baseId 基地航空队'),
+            actionKind: _asInt(item['api_action_kind']),
+          ),
+        );
+      }
+      bases.sort((left, right) {
+        final byArea = left.areaId.compareTo(right.areaId);
+        return byArea != 0 ? byArea : left.baseId.compareTo(right.baseId);
+      });
+    }
     return state.copyWith(
       landBases: bases,
+      mapDifficulties: mapDifficulties,
       serverOrigin: origin,
       updatedAt: event.capturedAt,
     );
@@ -1405,6 +1431,7 @@ class GameStateReducer {
         mapAreaId: mapAreaId,
         mapNo: mapNo,
         name: name,
+        operationText: _asString(item['api_opetext']),
       );
     }
     return result;

@@ -151,12 +151,24 @@ class MasterMapInfo {
     required this.mapAreaId,
     required this.mapNo,
     required this.name,
+    this.operationText = '',
   });
 
   final int id;
   final int mapAreaId;
   final int mapNo;
   final String name;
+  final String operationText;
+
+  String get displayName {
+    final operation = operationText.trim();
+    if (operation.isEmpty ||
+        operation == name ||
+        name.endsWith('/$operation')) {
+      return name;
+    }
+    return '$name/$operation';
+  }
 }
 
 class OwnedShip {
@@ -601,6 +613,7 @@ class GameState {
     this.masterSlotItems = const <int, MasterSlotItem>{},
     this.masterMissions = const <int, MasterMission>{},
     this.masterMapInfos = const <int, MasterMapInfo>{},
+    Map<int, int> mapDifficulties = const <int, int>{},
     this.ships = const <int, OwnedShip>{},
     this.slotItems = const <int, OwnedSlotItem>{},
     this.fleets = const <Fleet>[],
@@ -625,7 +638,9 @@ class GameState {
        // ignore: prefer_initializing_formals
        _furnitureCoins = furnitureCoins,
        // ignore: prefer_initializing_formals
-       _hasFurnitureCoinData = hasFurnitureCoinData;
+       _hasFurnitureCoinData = hasFurnitureCoinData,
+       // ignore: prefer_initializing_formals
+       _mapDifficulties = mapDifficulties;
 
   static const GameState empty = GameState();
 
@@ -640,6 +655,7 @@ class GameState {
   final Map<int, MasterSlotItem> masterSlotItems;
   final Map<int, MasterMission> masterMissions;
   final Map<int, MasterMapInfo> masterMapInfos;
+  final Map<int, int>? _mapDifficulties;
   final Map<int, OwnedShip> ships;
   final Map<int, OwnedSlotItem> slotItems;
   final List<Fleet> fleets;
@@ -685,8 +701,13 @@ class GameState {
     return master == null ? null : masterShipTypes[master.shipTypeId];
   }
 
+  Map<int, int> get mapDifficulties => _mapDifficulties ?? const <int, int>{};
+
   String? mapName(int areaId, int mapNo) =>
-      masterMapInfos[areaId * 100 + mapNo]?.name;
+      masterMapInfos[areaId * 100 + mapNo]?.displayName;
+
+  int mapDifficulty(int areaId, int mapNo) =>
+      mapDifficulties[areaId * 100 + mapNo] ?? 0;
 
   List<ShipEquipment> equipmentForShip(OwnedShip ship) {
     final ids = <int>[
@@ -712,6 +733,7 @@ class GameState {
     Map<int, MasterSlotItem>? masterSlotItems,
     Map<int, MasterMission>? masterMissions,
     Map<int, MasterMapInfo>? masterMapInfos,
+    Map<int, int>? mapDifficulties,
     Map<int, OwnedShip>? ships,
     Map<int, OwnedSlotItem>? slotItems,
     List<Fleet>? fleets,
@@ -741,6 +763,7 @@ class GameState {
       masterSlotItems: masterSlotItems ?? this.masterSlotItems,
       masterMissions: masterMissions ?? this.masterMissions,
       masterMapInfos: masterMapInfos ?? this.masterMapInfos,
+      mapDifficulties: mapDifficulties ?? this.mapDifficulties,
       ships: ships ?? this.ships,
       slotItems: slotItems ?? this.slotItems,
       fleets: fleets ?? this.fleets,

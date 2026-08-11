@@ -580,9 +580,25 @@ final class BattleController extends ChangeNotifier {
     }
 
     // Log to persistent database
-    LogbookDatabase.instance.insertBattleRecord(record).catchError((error) {
-      debugPrint('战斗记录写入失败: $error');
-    });
+    final state = gameState();
+    LogbookDatabase.instance
+        .insertBattleRecord(
+          record,
+          mapName:
+              state.mapName(
+                confirmed.context.mapAreaId,
+                confirmed.context.mapInfoNo,
+              ) ??
+              '',
+          mapDifficulty: state.mapDifficulty(
+            confirmed.context.mapAreaId,
+            confirmed.context.mapInfoNo,
+          ),
+          nodeLabel: confirmed.context.nodeDisplayLabel?.trim() ?? '',
+        )
+        .catchError((error) {
+          debugPrint('战斗记录写入失败: $error');
+        });
   }
 
   void _ensureSession(CapturedApiEvent event) {

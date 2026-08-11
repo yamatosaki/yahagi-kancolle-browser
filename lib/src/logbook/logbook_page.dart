@@ -21,6 +21,8 @@ enum _LogbookCategory {
   final String label;
 }
 
+const double _logbookControlHeight = 28;
+
 class LogbookPage extends StatefulWidget {
   const LogbookPage({
     super.key,
@@ -231,6 +233,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
   final List<Map<String, dynamic>> _records = [];
   bool _loading = false;
   bool _refreshing = false;
+  bool _refreshQueued = false;
   bool _hasMore = true;
   Map<String, String> _filters = const <String, String>{};
 
@@ -274,20 +277,31 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
   }
 
   Future<void> _refreshLatest() async {
-    if (_refreshing || _loading || !mounted) return;
+    if (!mounted) return;
+    if (_refreshing || _loading) {
+      _refreshQueued = true;
+      return;
+    }
     _refreshing = true;
     try {
       final latest = await _queryRecords();
       if (!mounted || latest.isEmpty) return;
-      final knownIds = _records.map((row) => row['id']).toSet();
-      final additions = latest
-          .where((row) => !knownIds.contains(row['id']))
+      final latestIds = latest.map((row) => row['id']).toSet();
+      final older = _records
+          .where((row) => !latestIds.contains(row['id']))
           .toList(growable: false);
-      if (additions.isNotEmpty) {
-        setState(() => _records.insertAll(0, additions));
-      }
+      setState(() {
+        _records
+          ..clear()
+          ..addAll(latest)
+          ..addAll(older);
+      });
     } finally {
       _refreshing = false;
+      if (_refreshQueued && mounted) {
+        _refreshQueued = false;
+        Future<void>.microtask(_refreshLatest);
+      }
     }
   }
 
@@ -610,7 +624,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
                 ),
                 SizedBox(
                   width: 210,
-                  height: 28,
+                  height: _logbookControlHeight,
                   child: TextField(
                     controller: _searchController,
                     onChanged: (_) => setState(() {}),
@@ -727,6 +741,20 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
   }
 
   _TableSpec _tableSpecForWidth(double availableWidth) {
+    if (widget.category == _LogbookCategory.sortie) {
+      final spec = _tableSpec;
+      final widths = List<double>.of(spec.widths);
+      final scrollableWidth = availableWidth - 112;
+      final baseWidth = widths.fold<double>(0, (sum, width) => sum + width);
+      if (scrollableWidth > baseWidth) {
+        widths[4] += scrollableWidth - baseWidth;
+      }
+      return _TableSpec(
+        widths: widths,
+        headers: spec.headers,
+        cells: spec.cells,
+      );
+    }
     if (widget.category != _LogbookCategory.retirement) return _tableSpec;
     final scrollableWidth = (availableWidth - 112).clamp(
       452.0,
@@ -751,7 +779,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
 
   _TableSpec get _tableSpec => switch (widget.category) {
     _LogbookCategory.sortie => _TableSpec(
-      widths: const [155, 85, 85, 68, 180, 120],
+      widths: const [460, 90, 85, 68, 180, 120, 135, 135, 135, 135],
       headers: const [
         _HeaderCell('海域'),
         _HeaderCell('节点'),
@@ -759,10 +787,20 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
         _HeaderCell('评价'),
         _HeaderCell('敌舰队'),
         _HeaderCell('掉落'),
+        _HeaderCell('旗舰'),
+        _HeaderCell('二队旗舰'),
+        _HeaderCell('MVP'),
+        _HeaderCell('二队 MVP'),
       ],
       cells: (row) => [
         _TextCell(_mapLabel(row)),
-        _TextCell(_nodeLabel(row['node'])),
+        _TextCell(
+          _sortieNodeLabel(
+            row['node'],
+            row['node_type'],
+            resolvedLabel: row['node_label'],
+          ),
+        ),
         _TextCell(_sortieStatus(row['node_type']), strong: true),
         _RankCell('${row['rank']}'),
         _TextCell('${row['enemy_fleet_name']}'),
@@ -770,6 +808,10 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
           _dropName(row['drop_ship_id']),
           color: const Color(0xff67bce9),
         ),
+        _TextCell('${row['flagship_name'] ?? '—'}', strong: true),
+        _TextCell('${row['escort_flagship_name'] ?? '—'}', strong: true),
+        _TextCell('${row['mvp_name'] ?? '—'}', strong: true),
+        _TextCell('${row['escort_mvp_name'] ?? '—'}', strong: true),
       ],
     ),
     _LogbookCategory.expedition => _TableSpec(
@@ -870,8 +912,13 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
     final area = row['map_area'] as int? ?? 0;
     final map = row['map_no'] as int? ?? 0;
     final number = '$area-$map';
-    final name = widget.battleController.gameState().mapName(area, map);
-    return name == null || name.isEmpty ? number : '$name（$number）';
+    final storedName = row['map_name']?.toString().trim() ?? '';
+    final name = storedName.isNotEmpty
+        ? storedName
+        : widget.battleController.gameState().mapName(area, map);
+    final difficulty = _mapDifficultyLabel(row['map_difficulty']);
+    final suffix = difficulty.isEmpty ? number : '$number $difficulty';
+    return name == null || name.isEmpty ? suffix : '$name ($suffix)';
   }
 }
 
@@ -898,7 +945,7 @@ class _LogbookFilterButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
     width: 68,
-    height: 28,
+    height: _logbookControlHeight,
     child: Material(
       color: active ? const Color(0xff60491f) : const Color(0xff102936),
       shape: RoundedRectangleBorder(
@@ -1167,8 +1214,28 @@ String _nodeLabel(Object? raw) {
     codes.add(65 + value % 26);
     value ~/= 26;
   }
-  return '${String.fromCharCodes(codes.reversed)} · 节点';
+  return String.fromCharCodes(codes.reversed);
 }
+
+String _sortieNodeLabel(
+  Object? node,
+  Object? nodeType, {
+  Object? resolvedLabel,
+}) {
+  final resolved = resolvedLabel?.toString().trim() ?? '';
+  final label = resolved.isNotEmpty ? resolved : _nodeLabel(node);
+  if (label == '—') return label;
+  final isBoss = nodeType?.toString().toLowerCase().contains('boss') ?? false;
+  return '$label${isBoss ? 'Boss' : '道中'}';
+}
+
+String _mapDifficultyLabel(Object? raw) => switch (raw as int? ?? 0) {
+  1 => '丁',
+  2 => '丙',
+  3 => '乙',
+  4 => '甲',
+  _ => '',
+};
 
 String _sortieStatus(Object? raw) {
   if (raw case final String label when label.trim().isNotEmpty) return label;

@@ -12,6 +12,9 @@ class GameStateSerializer {
       'hasUseItemData': state.hasUseItemData,
       'furnitureCoins': state.furnitureCoins,
       'hasFurnitureCoinData': state.hasFurnitureCoinData,
+      'mapDifficulties': state.mapDifficulties.map(
+        (key, value) => MapEntry(key.toString(), value),
+      ),
       'quests': state.quests.map(
         (k, v) => MapEntry(k.toString(), {
           'id': v.id,
@@ -160,6 +163,18 @@ class GameStateSerializer {
         }
       }
 
+      final mapDifficulties = <int, int>{};
+      final rawMapDifficulties = map['mapDifficulties'];
+      if (rawMapDifficulties is Map) {
+        for (final entry in rawMapDifficulties.entries) {
+          final key = int.tryParse('${entry.key}');
+          final rank = _int(entry.value);
+          if (key != null && key > 0 && rank != null && rank > 0) {
+            mapDifficulties[key] = rank;
+          }
+        }
+      }
+
       final fleets = <Fleet>[];
       final rawFleets = map['fleets'];
       if (rawFleets is List) {
@@ -269,6 +284,7 @@ class GameStateSerializer {
         hasUseItemData: map['hasUseItemData'] == true || useItems.isNotEmpty,
         furnitureCoins: _int(map['furnitureCoins']) ?? 0,
         hasFurnitureCoinData: map['hasFurnitureCoinData'] == true,
+        mapDifficulties: mapDifficulties,
         quests: quests,
         hasQuestData: map['hasQuestData'] == true,
         activeQuestCount: _int(map['activeQuestCount']) ?? 0,

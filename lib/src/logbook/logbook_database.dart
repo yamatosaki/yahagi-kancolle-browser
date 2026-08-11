@@ -19,7 +19,7 @@ class LogbookDatabase extends ChangeNotifier {
     final result = LogbookDatabase._init();
     result._database = await databaseFactoryFfiNoIsolate.openDatabase(
       inMemoryDatabasePath,
-      options: OpenDatabaseOptions(version: 3, onCreate: result._createDB),
+      options: OpenDatabaseOptions(version: 6, onCreate: result._createDB),
     );
     return result;
   }
@@ -61,7 +61,7 @@ class LogbookDatabase extends ChangeNotifier {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 6,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -75,13 +75,20 @@ class LogbookDatabase extends ChangeNotifier {
         timestamp INTEGER NOT NULL,
         map_area INTEGER NOT NULL,
         map_no INTEGER NOT NULL,
+        map_name TEXT NOT NULL DEFAULT '',
         node INTEGER NOT NULL,
+        node_label TEXT NOT NULL DEFAULT '',
         node_type INTEGER NOT NULL,
+        map_difficulty INTEGER NOT NULL DEFAULT 0,
         rank TEXT NOT NULL,
         drop_ship_id INTEGER,
         enemy_fleet_name TEXT NOT NULL,
         friend_fleet_state TEXT NOT NULL,
-        enemy_fleet_state TEXT NOT NULL
+        enemy_fleet_state TEXT NOT NULL,
+        flagship_name TEXT NOT NULL DEFAULT '—',
+        escort_flagship_name TEXT NOT NULL DEFAULT '—',
+        mvp_name TEXT NOT NULL DEFAULT '—',
+        escort_mvp_name TEXT NOT NULL DEFAULT '—'
       )
     ''');
 
@@ -136,6 +143,7 @@ class LogbookDatabase extends ChangeNotifier {
     await db.execute('''
       CREATE TABLE construction_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        dock_id INTEGER NOT NULL DEFAULT 0,
         timestamp INTEGER NOT NULL,
         construction_type TEXT NOT NULL,
         ship_id INTEGER,
@@ -221,18 +229,72 @@ class LogbookDatabase extends ChangeNotifier {
       await _createOperationTables(db);
       await _createOperationIndexes(db);
     }
+    if (oldVersion < 4) {
+      for (final column in <String>[
+        'flagship_name',
+        'escort_flagship_name',
+        'mvp_name',
+        'escort_mvp_name',
+      ]) {
+        await db.execute(
+          "ALTER TABLE battle_logs ADD COLUMN $column TEXT NOT NULL DEFAULT '—'",
+        );
+      }
+      if (oldVersion >= 3) {
+        await db.execute(
+          'ALTER TABLE construction_logs ADD COLUMN dock_id INTEGER NOT NULL DEFAULT 0',
+        );
+      }
+    }
+    if (oldVersion < 5) {
+      await db.execute(
+        'ALTER TABLE battle_logs ADD COLUMN map_difficulty INTEGER NOT NULL DEFAULT 0',
+      );
+    }
+    if (oldVersion < 6) {
+      await db.execute(
+        "ALTER TABLE battle_logs ADD COLUMN map_name TEXT NOT NULL DEFAULT ''",
+      );
+      await db.execute(
+        "ALTER TABLE battle_logs ADD COLUMN node_label TEXT NOT NULL DEFAULT ''",
+      );
+    }
   }
 
   /// Add a battle record to the log
-  Future<void> insertBattleRecord(BattleRecord record) async {
+  Future<void> insertBattleRecord(
+    BattleRecord record, {
+    int mapDifficulty = 0,
+    String mapName = '',
+    String nodeLabel = '',
+  }) async {
     final db = await database;
     final battle = record.battle;
+    String nameAt(List<BattleShipSnapshot> ships, int position) {
+      for (final ship in ships) {
+        if (ship.position == position) return ship.name;
+      }
+      return '—';
+    }
+
+    var mainMvp = '—';
+    var escortMvp = '—';
+    for (final position in battle.mvpPositions) {
+      if (position >= 6) {
+        escortMvp = nameAt(battle.friendEscort, position - 6);
+      } else {
+        mainMvp = nameAt(battle.friendMain, position);
+      }
+    }
     await db.insert('battle_logs', {
       'timestamp': record.completedAt.millisecondsSinceEpoch,
       'map_area': battle.context.mapAreaId,
       'map_no': battle.context.mapInfoNo,
+      'map_name': mapName,
       'node': battle.context.node,
+      'node_label': nodeLabel,
       'node_type': battle.context.nodeTypeLabel,
+      'map_difficulty': mapDifficulty,
       'rank': battle.rank.name,
       'drop_ship_id': battle.dropShipMasterId,
       'enemy_fleet_name': battle.enemyFleetName,
@@ -243,6 +305,14 @@ class LogbookDatabase extends ChangeNotifier {
           '${battle.friendShips.where((s) => !s.isSunk).length}/${battle.friendShips.length}',
       'enemy_fleet_state':
           '${battle.enemyShips.where((s) => !s.isSunk).length}/${battle.enemyShips.length}',
+      'flagship_name': battle.friendMain.isEmpty
+          ? '—'
+          : battle.friendMain.first.name,
+      'escort_flagship_name': battle.friendEscort.isEmpty
+          ? '—'
+          : battle.friendEscort.first.name,
+      'mvp_name': mainMvp,
+      'escort_mvp_name': escortMvp,
     });
     notifyListeners();
   }
@@ -325,7 +395,8 @@ class LogbookDatabase extends ChangeNotifier {
   }) =>
       _getOperationRecords('expedition_logs', limit: limit, beforeId: beforeId);
 
-  Future<void> insertConstructionRecord({
+  Future<int> insertConstructionRecord({
+    int dockId = 0,
     required int timestamp,
     required String constructionType,
     required int? shipId,
@@ -339,7 +410,8 @@ class LogbookDatabase extends ChangeNotifier {
     required String secretaryName,
   }) async {
     final db = await database;
-    await db.insert('construction_logs', {
+    final id = await db.insert('construction_logs', {
+      'dock_id': dockId,
       'timestamp': timestamp,
       'construction_type': constructionType,
       'ship_id': shipId,
@@ -353,6 +425,25 @@ class LogbookDatabase extends ChangeNotifier {
       'secretary_name': secretaryName,
     });
     notifyListeners();
+    return id;
+  }
+
+  Future<bool> updateConstructionResult({
+    required int dockId,
+    required int shipId,
+    required String shipName,
+    required String shipType,
+  }) async {
+    final db = await database;
+    final changed = await db.update(
+      'construction_logs',
+      {'ship_id': shipId, 'ship_name': shipName, 'ship_type': shipType},
+      where:
+          'id = (SELECT id FROM construction_logs WHERE dock_id = ? ORDER BY id DESC LIMIT 1)',
+      whereArgs: [dockId],
+    );
+    if (changed > 0) notifyListeners();
+    return changed > 0;
   }
 
   Future<List<Map<String, dynamic>>> getConstructionRecords({

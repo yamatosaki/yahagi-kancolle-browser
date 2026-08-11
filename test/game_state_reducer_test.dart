@@ -77,6 +77,40 @@ void main() {
       expect(updated.fleets, same(initial.fleets));
     });
 
+    test('map metadata keeps operation title and selected difficulty', () {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(
+        GameState.empty,
+        kcsapiEvent('/kcsapi/api_start2/getData', <String, Object?>{
+          'api_mst_mapinfo': <Object?>[
+            <String, Object?>{
+              'api_id': 622,
+              'api_maparea_id': 62,
+              'api_no': 2,
+              'api_name': '南沙諸島沖',
+              'api_opetext': 'オルモック沖/サンベルナルジノ海峡沖',
+            },
+          ],
+        }),
+      );
+
+      expect(state.mapName(62, 2), '南沙諸島沖/オルモック沖/サンベルナルジノ海峡沖');
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent('/kcsapi/api_get_member/mapinfo', <String, Object?>{
+          'api_map_info': <Object?>[
+            <String, Object?>{
+              'api_id': 622,
+              'api_eventmap': <String, Object?>{'api_selected_rank': 3},
+            },
+          ],
+        }),
+      );
+
+      expect(state.mapDifficulty(62, 2), 3);
+    });
+
     test('useitem endpoint captures special item counts', () {
       final state = GameStateReducer().reduce(
         GameState.empty,
