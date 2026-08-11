@@ -1124,32 +1124,30 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questCatalogStorageError => '任务资料保存失败，已保留当前版本。';
 
   @override
-  String get gameFrameRateTitle => '解除 60 FPS 上限';
+  String get gameFrameRateTitle => '游戏帧率';
 
   @override
-  String get gameFrameRateOff => '关闭';
+  String get gameFrameRateAutomatic => '自动';
 
   @override
-  String get gameFrameRateMax60 => '最高 60 FPS';
+  String get gameFrameRateStable30 => '稳定 30 FPS';
 
   @override
-  String get gameFrameRateFollowDisplay => '跟随屏幕';
+  String get gameFrameRatePrefer60 => '优先 60 FPS';
 
   @override
-  String get gameFrameRateOffDesc => '保持游戏原始帧率行为。';
+  String get gameFrameRateAutomaticDesc =>
+      '游戏就绪后优先以 60 FPS 运行；若本次运行持续不稳定，将自动降至 30 FPS。';
 
   @override
-  String get gameFrameRateMax60Desc => '使用 RAF 渲染，并将目标帧率限制为最高 60 FPS。';
+  String get gameFrameRateStable30Desc => '固定以 30 FPS 运行，优先降低掉帧、发热和耗电。';
 
   @override
-  String get gameFrameRateFollowDisplayDesc =>
-      '使用 GotoBrowser 同款主脚本补丁，让游戏跟随设备刷新率；可能增加耗电和发热。';
+  String get gameFrameRatePrefer60Desc => '优先保持 60 FPS，不自动降档；可能增加发热和耗电。';
 
   @override
-  String get gameFrameRateUnsupported => '当前 Android WebView 不支持解除帧率上限';
-
-  @override
-  String get gameFrameRateRestartRequired => '重新加载游戏页面后生效';
+  String get gameFrameRateUnsupported =>
+      '当前 Android WebView 不支持帧率调整，将保持游戏原始帧率。';
 
   @override
   String get gameRenderingModeTitle => '游戏渲染兼容模式';
@@ -2649,32 +2647,30 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get questCatalogStorageError => '任務資料儲存失敗，已保留目前版本。';
 
   @override
-  String get gameFrameRateTitle => '解除 60 FPS 限制';
+  String get gameFrameRateTitle => '遊戲幀率';
 
   @override
-  String get gameFrameRateOff => '關閉';
+  String get gameFrameRateAutomatic => '自動';
 
   @override
-  String get gameFrameRateMax60 => '最高 60 FPS';
+  String get gameFrameRateStable30 => '穩定 30 FPS';
 
   @override
-  String get gameFrameRateFollowDisplay => '跟隨螢幕';
+  String get gameFrameRatePrefer60 => '優先 60 FPS';
 
   @override
-  String get gameFrameRateOffDesc => '保持遊戲原始幀率行為。';
+  String get gameFrameRateAutomaticDesc =>
+      '遊戲就緒後優先以 60 FPS 執行；若本次執行持續不穩定，將自動降至 30 FPS。';
 
   @override
-  String get gameFrameRateMax60Desc => '使用 RAF 渲染，並將目標幀率限制為最高 60 FPS。';
+  String get gameFrameRateStable30Desc => '固定以 30 FPS 執行，優先降低掉幀、發熱與耗電。';
 
   @override
-  String get gameFrameRateFollowDisplayDesc =>
-      '使用與 GotoBrowser 相同的主腳本補丁，讓遊戲跟隨裝置更新率；可能增加耗電與發熱。';
+  String get gameFrameRatePrefer60Desc => '優先維持 60 FPS，不自動降檔；可能增加發熱與耗電。';
 
   @override
-  String get gameFrameRateUnsupported => '目前 Android WebView 不支援解除幀率上限';
-
-  @override
-  String get gameFrameRateRestartRequired => '重新載入遊戲頁面後生效';
+  String get gameFrameRateUnsupported =>
+      '目前 Android WebView 不支援幀率調整，將保持遊戲原始幀率。';
 
   @override
   String get gameRenderingModeTitle => '遊戲渲染相容模式';

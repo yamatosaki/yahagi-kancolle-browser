@@ -113,8 +113,6 @@ void main() {
       'statusSuccess',
       // The established formula name is written identically in both locales.
       'formula33',
-      // The numeric frame-rate label and FPS acronym are shared terminology.
-      'gameFrameRateMax60',
       // 改修 is the in-game term in both Chinese scripts; 受限 is unchanged.
       'improvement',
       'gadgetBypassRestricted',

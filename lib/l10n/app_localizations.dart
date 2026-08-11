@@ -2219,56 +2219,50 @@ abstract class AppLocalizations {
   /// No description provided for @gameFrameRateTitle.
   ///
   /// In zh, this message translates to:
-  /// **'解除 60 FPS 上限'**
+  /// **'游戏帧率'**
   String get gameFrameRateTitle;
 
-  /// No description provided for @gameFrameRateOff.
+  /// No description provided for @gameFrameRateAutomatic.
   ///
   /// In zh, this message translates to:
-  /// **'关闭'**
-  String get gameFrameRateOff;
+  /// **'自动'**
+  String get gameFrameRateAutomatic;
 
-  /// No description provided for @gameFrameRateMax60.
+  /// No description provided for @gameFrameRateStable30.
   ///
   /// In zh, this message translates to:
-  /// **'最高 60 FPS'**
-  String get gameFrameRateMax60;
+  /// **'稳定 30 FPS'**
+  String get gameFrameRateStable30;
 
-  /// No description provided for @gameFrameRateFollowDisplay.
+  /// No description provided for @gameFrameRatePrefer60.
   ///
   /// In zh, this message translates to:
-  /// **'跟随屏幕'**
-  String get gameFrameRateFollowDisplay;
+  /// **'优先 60 FPS'**
+  String get gameFrameRatePrefer60;
 
-  /// No description provided for @gameFrameRateOffDesc.
+  /// No description provided for @gameFrameRateAutomaticDesc.
   ///
   /// In zh, this message translates to:
-  /// **'保持游戏原始帧率行为。'**
-  String get gameFrameRateOffDesc;
+  /// **'游戏就绪后优先以 60 FPS 运行；若本次运行持续不稳定，将自动降至 30 FPS。'**
+  String get gameFrameRateAutomaticDesc;
 
-  /// No description provided for @gameFrameRateMax60Desc.
+  /// No description provided for @gameFrameRateStable30Desc.
   ///
   /// In zh, this message translates to:
-  /// **'使用 RAF 渲染，并将目标帧率限制为最高 60 FPS。'**
-  String get gameFrameRateMax60Desc;
+  /// **'固定以 30 FPS 运行，优先降低掉帧、发热和耗电。'**
+  String get gameFrameRateStable30Desc;
 
-  /// No description provided for @gameFrameRateFollowDisplayDesc.
+  /// No description provided for @gameFrameRatePrefer60Desc.
   ///
   /// In zh, this message translates to:
-  /// **'使用 GotoBrowser 同款主脚本补丁，让游戏跟随设备刷新率；可能增加耗电和发热。'**
-  String get gameFrameRateFollowDisplayDesc;
+  /// **'优先保持 60 FPS，不自动降档；可能增加发热和耗电。'**
+  String get gameFrameRatePrefer60Desc;
 
   /// No description provided for @gameFrameRateUnsupported.
   ///
   /// In zh, this message translates to:
-  /// **'当前 Android WebView 不支持解除帧率上限'**
+  /// **'当前 Android WebView 不支持帧率调整，将保持游戏原始帧率。'**
   String get gameFrameRateUnsupported;
-
-  /// No description provided for @gameFrameRateRestartRequired.
-  ///
-  /// In zh, this message translates to:
-  /// **'重新加载游戏页面后生效'**
-  String get gameFrameRateRestartRequired;
 
   /// No description provided for @gameRenderingModeTitle.
   ///

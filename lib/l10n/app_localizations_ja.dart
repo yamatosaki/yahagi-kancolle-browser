@@ -1131,33 +1131,32 @@ class AppLocalizationsJa extends AppLocalizations {
   String get questCatalogStorageError => '任務データを保存できませんでした。現在のバージョンを保持します。';
 
   @override
-  String get gameFrameRateTitle => '60 FPS 上限を解除';
+  String get gameFrameRateTitle => 'ゲームフレームレート';
 
   @override
-  String get gameFrameRateOff => 'オフ';
+  String get gameFrameRateAutomatic => '自動';
 
   @override
-  String get gameFrameRateMax60 => '最大 60 FPS';
+  String get gameFrameRateStable30 => '安定 30 FPS';
 
   @override
-  String get gameFrameRateFollowDisplay => '画面に合わせる';
+  String get gameFrameRatePrefer60 => '60 FPS 優先';
 
   @override
-  String get gameFrameRateOffDesc => 'ゲーム本来のフレームレート動作を維持します。';
+  String get gameFrameRateAutomaticDesc =>
+      'ゲーム準備後は 60 FPS を優先し、この起動中に不安定な状態が続いた場合は自動的に 30 FPS へ下げます。';
 
   @override
-  String get gameFrameRateMax60Desc => 'RAF を使用し、目標フレームレートを最大 60 FPS に制限します。';
+  String get gameFrameRateStable30Desc =>
+      '30 FPS に固定し、フレーム落ち・発熱・消費電力の低減を優先します。';
 
   @override
-  String get gameFrameRateFollowDisplayDesc =>
-      'GotoBrowser と同じメインスクリプトパッチで端末のリフレッシュレートに追従させます。消費電力と発熱が増える場合があります。';
+  String get gameFrameRatePrefer60Desc =>
+      '60 FPS の維持を優先し、自動では下げません。発熱や消費電力が増える場合があります。';
 
   @override
   String get gameFrameRateUnsupported =>
-      '現在の Android WebView は FPS 上限解除に対応していません';
-
-  @override
-  String get gameFrameRateRestartRequired => 'ゲームページを再読み込みすると反映されます';
+      '現在の Android WebView はフレームレート調整に対応していないため、ゲーム本来の動作を維持します。';
 
   @override
   String get gameRenderingModeTitle => 'ゲーム描画互換モード';
