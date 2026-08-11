@@ -118,7 +118,6 @@ void main() {
     };
     const reviewedJa = <String>{
       'appTitle',
-      'repair',
       'construction',
       // 入渠 and 泊地 are the established Japanese in-game repair mode names.
       'repairDockMode',

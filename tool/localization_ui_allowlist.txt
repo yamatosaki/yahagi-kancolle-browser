@@ -1,0 +1,2 @@
+# JSON-encoded exact entries: "relative/source/path.dart|reviewed literal"
+# Only original game data and internal diagnostics belong here.
