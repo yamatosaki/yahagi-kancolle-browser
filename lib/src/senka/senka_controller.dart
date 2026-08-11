@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../bridge/captured_api_event.dart';
 import '../game_state/game_api_event_pipeline.dart';
+import '../performance/frame_notification_coalescer.dart';
 import 'senka_catalog.dart';
 import 'senka_reducer.dart';
 import 'senka_state.dart';
@@ -14,13 +15,17 @@ class SenkaController extends ChangeNotifier implements GameApiEventConsumer {
     required this.store,
     this._reducer = const SenkaReducer(),
     DateTime Function()? now,
+    FrameNotificationCoalescer? captureNotifications,
   }) : _now = now ?? DateTime.now,
+       _captureNotifications =
+           captureNotifications ?? FrameNotificationCoalescer(),
        _state = SenkaState.forMonth(
          currentSenkaMonthKey((now ?? DateTime.now)()),
        );
 
   final SenkaStore store;
   final SenkaReducer _reducer;
+  final FrameNotificationCoalescer _captureNotifications;
   final DateTime Function() _now;
   SenkaState _state;
   Future<void> _queue = Future<void>.value();
@@ -55,7 +60,7 @@ class SenkaController extends ChangeNotifier implements GameApiEventConsumer {
       final next = _reducer.reduce(_state, event);
       if (identical(next, _state)) return;
       _state = next;
-      notifyListeners();
+      _captureNotifications.schedule(notifyListeners);
       await store.save(next);
     });
   }
@@ -83,6 +88,7 @@ class SenkaController extends ChangeNotifier implements GameApiEventConsumer {
   @override
   void dispose() {
     _disposed = true;
+    _captureNotifications.dispose();
     super.dispose();
   }
 }

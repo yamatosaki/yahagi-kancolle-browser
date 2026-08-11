@@ -17,6 +17,7 @@ import 'prediction/poi/poi_battle_prediction_engine.dart';
 import 'prediction/yahagi_battle_prediction_engine.dart';
 import '../settings/battle_prediction_settings.dart';
 import '../logbook/logbook_database.dart';
+import '../performance/frame_notification_coalescer.dart';
 import 'battle_damage_alert.dart';
 
 final class BattleController extends ChangeNotifier
@@ -33,8 +34,11 @@ final class BattleController extends ChangeNotifier
     this.yahagiEngineFactory,
     this.maxRecords = 100,
     this.nodeLabelResolver = const EmptyBattleNodeLabelResolver(),
+    FrameNotificationCoalescer? captureNotifications,
   }) : _friendlyHpUpdater = onFriendlyHpUpdated,
        _damageParser = damageParser ?? BattleDamageParser(),
+       _captureNotifications =
+           captureNotifications ?? FrameNotificationCoalescer(),
        assert(maxRecords > 0);
 
   static const Set<String> _mapPaths = <String>{
@@ -75,6 +79,7 @@ final class BattleController extends ChangeNotifier
   void Function(Map<int, int> hpByShipId, DateTime capturedAt)?
   _friendlyHpUpdater;
   final BattleDamageParser _damageParser;
+  final FrameNotificationCoalescer _captureNotifications;
   final BattleDamageAlertPort? damageAlertPort;
   final bool Function()? battleDamageVibrationEnabled;
   final BattlePredictionMethod Function()? predictionMethod;
@@ -152,11 +157,11 @@ final class BattleController extends ChangeNotifier
       try {
         _reduce(event);
         _lastError = null;
-        notifyListeners();
+        _captureNotifications.schedule(notifyListeners);
       } catch (error) {
         _session?.markUnconfirmed(stage: event.path, message: error.toString());
         _lastError = '战斗数据暂时无法解析（${error.runtimeType}）';
-        notifyListeners();
+        _captureNotifications.schedule(notifyListeners);
       }
     });
   }
@@ -826,6 +831,7 @@ final class BattleController extends ChangeNotifier
   @override
   void dispose() {
     _disposed = true;
+    _captureNotifications.dispose();
     super.dispose();
   }
 }

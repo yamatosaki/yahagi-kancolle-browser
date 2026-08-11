@@ -7,10 +7,34 @@ import 'package:yahagi_kancolle_browser/src/battle/prediction/battle_prediction_
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_reducer.dart';
 import 'package:yahagi_kancolle_browser/src/settings/battle_prediction_settings.dart';
+import 'package:yahagi_kancolle_browser/src/performance/frame_notification_coalescer.dart';
 
 import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
+  test('coalesces notifications from consecutive captured events', () async {
+    final scheduled = <void Function()>[];
+    final controller = BattleController(
+      gameState: () => GameState.empty,
+      captureNotifications: FrameNotificationCoalescer(
+        scheduleFrame: scheduled.add,
+      ),
+    );
+    addTearDown(controller.dispose);
+    var notifications = 0;
+    controller.addListener(() => notifications += 1);
+
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent);
+    await controller.idle;
+
+    expect(notifications, 0);
+    expect(scheduled, hasLength(1));
+    scheduled.single();
+    expect(notifications, 1);
+  });
+
   test(
     'alerts once when friendly damage newly reaches moderate damage',
     () async {

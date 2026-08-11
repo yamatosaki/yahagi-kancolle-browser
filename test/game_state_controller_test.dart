@@ -5,6 +5,7 @@ import 'package:yahagi_kancolle_browser/src/battle/battle_controller.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_store.dart';
+import 'package:yahagi_kancolle_browser/src/performance/frame_notification_coalescer.dart';
 
 import 'fixtures/kcsapi_fixtures.dart';
 
@@ -27,6 +28,36 @@ void main() {
       expect(controller.lastError, isNull);
       expect(controller.lastUpdatedPath, '/kcsapi/api_get_member/material');
     });
+
+    test(
+      'coalesces capture notifications while committing every state',
+      () async {
+        final scheduled = <void Function()>[];
+        final controller = GameStateController(
+          captureNotifications: FrameNotificationCoalescer(
+            scheduleFrame: scheduled.add,
+          ),
+        );
+        addTearDown(controller.dispose);
+        var notifications = 0;
+        controller.addListener(() => notifications += 1);
+
+        controller
+          ..accept(portEvent)
+          ..accept(
+            kcsapiEvent('/kcsapi/api_get_member/material', <Object?>[
+              <String, Object?>{'api_id': 1, 'api_value': 321},
+            ], sequence: 2),
+          );
+        await controller.idle;
+
+        expect(controller.state.resource(GameResourceType.fuel), 321);
+        expect(notifications, 0);
+        expect(scheduled, hasLength(1));
+        scheduled.single();
+        expect(notifications, 1);
+      },
+    );
 
     test('invalid event keeps the last valid state', () async {
       final controller = GameStateController();

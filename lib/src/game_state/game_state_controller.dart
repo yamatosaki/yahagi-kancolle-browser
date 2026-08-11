@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../bridge/captured_api_event.dart';
 import '../quest/quest_store.dart';
+import '../performance/frame_notification_coalescer.dart';
 import 'game_state.dart';
 import 'game_api_event_pipeline.dart';
 import 'game_state_reducer.dart';
@@ -19,8 +20,11 @@ final class GameStateController extends ChangeNotifier
     this.questStore,
     this.gameStateStore,
     LogbookEventRecorder? logbookRecorder,
+    FrameNotificationCoalescer? captureNotifications,
   }) : _reducer = reducer ?? GameStateReducer(),
-       _logbookRecorder = logbookRecorder ?? LogbookEventRecorder() {
+       _logbookRecorder = logbookRecorder ?? LogbookEventRecorder(),
+       _captureNotifications =
+           captureNotifications ?? FrameNotificationCoalescer() {
     _initQuests();
     _initGameState();
     _startExpirationTimer();
@@ -28,6 +32,7 @@ final class GameStateController extends ChangeNotifier
 
   final GameStateReducer _reducer;
   final LogbookEventRecorder _logbookRecorder;
+  final FrameNotificationCoalescer _captureNotifications;
   final AnchorageRepairTimerTracker _anchorageRepairTimer =
       AnchorageRepairTimerTracker();
   final QuestStore? questStore;
@@ -160,7 +165,7 @@ final class GameStateController extends ChangeNotifier
           _state = next;
           _lastUpdatedPath = event.path;
           _lastError = null;
-          notifyListeners();
+          _captureNotifications.schedule(notifyListeners);
 
           if ((event.path.contains('/api_get_member/questlist') ||
                   event.path.contains('/api_req_quest/clearitemget') ||
@@ -182,7 +187,7 @@ final class GameStateController extends ChangeNotifier
         }
       } catch (error) {
         _lastError = '游戏数据解析失败（${error.runtimeType}）';
-        notifyListeners();
+        _captureNotifications.schedule(notifyListeners);
       }
     });
   }
@@ -199,7 +204,7 @@ final class GameStateController extends ChangeNotifier
       );
       if (identical(next, previous)) return;
       _state = next;
-      notifyListeners();
+      _captureNotifications.schedule(notifyListeners);
       gameStateStore?.save(next);
     });
   }
@@ -208,6 +213,7 @@ final class GameStateController extends ChangeNotifier
   void dispose() {
     _expirationTimer?.cancel();
     _disposed = true;
+    _captureNotifications.dispose();
     if (gameStateStore != null) {
       unawaited(gameStateStore!.flush());
     }
