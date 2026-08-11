@@ -118,6 +118,14 @@ void main() {
       // 改修 is the in-game term in both Chinese scripts; 受限 is unchanged.
       'improvement',
       'gadgetBypassRestricted',
+      // Short game/UI terms conventionally share the same Han spelling.
+      'highSpeedPlus',
+      'all',
+      'clear',
+      'done',
+      'questSeasonal',
+      'questYearly',
+      'notCompleted',
     };
     const reviewedJa = <String>{
       'appTitle',
@@ -145,6 +153,11 @@ void main() {
       // 改修 and 画面 are established UI terms shared with Japanese.
       'improvement',
       'settingsTabScreen',
+      // These established game terms use the same spelling in Japanese.
+      'armor',
+      'evasion',
+      'highSpeedPlus',
+      'questRemodeling',
     };
 
     Set<String> identical(String locale) {

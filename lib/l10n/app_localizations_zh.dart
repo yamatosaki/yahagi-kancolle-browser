@@ -1358,6 +1358,174 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get networkUnknownProxyMode => '未知代理模式';
+
+  @override
+  String get shipGirl => '舰娘';
+
+  @override
+  String get equipment => '装备';
+
+  @override
+  String get inventoryTypeSuffix => ' 种';
+
+  @override
+  String get inventoryFilterResults => '筛选结果 ';
+
+  @override
+  String get shipName => '舰名';
+
+  @override
+  String get shipType => '舰种';
+
+  @override
+  String get level => '等级';
+
+  @override
+  String get armor => '装甲';
+
+  @override
+  String get luck => '幸运';
+
+  @override
+  String get evasion => '回避';
+
+  @override
+  String get lockedStatus => '锁定';
+
+  @override
+  String get equipmentName => '装备名称';
+
+  @override
+  String get equipmentTotalRemaining => '总数（剩余）';
+
+  @override
+  String get equipmentImprovementProficiency => '改修／熟练度';
+
+  @override
+  String get equipmentUsage => '着装情况';
+
+  @override
+  String get highSpeedPlus => '高速+';
+
+  @override
+  String get all => '全部';
+
+  @override
+  String get equipmentMainGun => '主炮';
+
+  @override
+  String get equipmentSecondaryGun => '副炮／高角炮';
+
+  @override
+  String get equipmentMachineGun => '机枪';
+
+  @override
+  String get equipmentTorpedo => '鱼雷／甲标';
+
+  @override
+  String get equipmentCarrierAircraft => '舰载机';
+
+  @override
+  String get equipmentSeaplane => '水上机';
+
+  @override
+  String get equipmentLandBasedAircraft => '陆航';
+
+  @override
+  String get equipmentRadar => '电探';
+
+  @override
+  String get equipmentLandingTransport => '登陆／运输';
+
+  @override
+  String get equipmentSupport => '辅助／其他';
+
+  @override
+  String get questAll => '全任务';
+
+  @override
+  String get searchQuest => '搜索任务';
+
+  @override
+  String get filterQuest => '筛选任务';
+
+  @override
+  String get searchQuestHint => '搜索编号、任务名或说明';
+
+  @override
+  String get clear => '清除';
+
+  @override
+  String get done => '完成';
+
+  @override
+  String get clearAll => '清除全部';
+
+  @override
+  String get questType => '任务类型';
+
+  @override
+  String get allTypes => '全部类型';
+
+  @override
+  String get questFormation => '编成';
+
+  @override
+  String get questSortie => '出击';
+
+  @override
+  String get questExercise => '演习';
+
+  @override
+  String get questSupplyRepair => '补给/入渠';
+
+  @override
+  String get questFactory => '工厂';
+
+  @override
+  String get questRemodeling => '改装';
+
+  @override
+  String get questPeriod => '任务周期';
+
+  @override
+  String get allPeriods => '全部周期';
+
+  @override
+  String get questSeasonal => '季常';
+
+  @override
+  String get questYearly => '年常';
+
+  @override
+  String get unlockStatus => '解锁状态';
+
+  @override
+  String get allStatuses => '全部状态';
+
+  @override
+  String get questUnlocked => '已解锁';
+
+  @override
+  String get questLocked => '未解锁';
+
+  @override
+  String get noDescription => '暂无说明';
+
+  @override
+  String get completionConditions => '完成条件';
+
+  @override
+  String get questRelations => '任务关系';
+
+  @override
+  String get prerequisiteQuests => '前置任务';
+
+  @override
+  String get followingQuests => '后置任务';
+
+  @override
+  String get notCompleted => '未完成';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -2715,4 +2883,172 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get networkUnknownProxyMode => '未知的代理模式';
+
+  @override
+  String get shipGirl => '艦娘';
+
+  @override
+  String get equipment => '裝備';
+
+  @override
+  String get inventoryTypeSuffix => ' 種';
+
+  @override
+  String get inventoryFilterResults => '篩選結果 ';
+
+  @override
+  String get shipName => '艦名';
+
+  @override
+  String get shipType => '艦種';
+
+  @override
+  String get level => '等級';
+
+  @override
+  String get armor => '裝甲';
+
+  @override
+  String get luck => '幸運';
+
+  @override
+  String get evasion => '迴避';
+
+  @override
+  String get lockedStatus => '鎖定';
+
+  @override
+  String get equipmentName => '裝備名稱';
+
+  @override
+  String get equipmentTotalRemaining => '總數（剩餘）';
+
+  @override
+  String get equipmentImprovementProficiency => '改修／熟練度';
+
+  @override
+  String get equipmentUsage => '裝備情況';
+
+  @override
+  String get highSpeedPlus => '高速+';
+
+  @override
+  String get all => '全部';
+
+  @override
+  String get equipmentMainGun => '主砲';
+
+  @override
+  String get equipmentSecondaryGun => '副砲／高角砲';
+
+  @override
+  String get equipmentMachineGun => '機槍';
+
+  @override
+  String get equipmentTorpedo => '魚雷／甲標';
+
+  @override
+  String get equipmentCarrierAircraft => '艦載機';
+
+  @override
+  String get equipmentSeaplane => '水上機';
+
+  @override
+  String get equipmentLandBasedAircraft => '陸航';
+
+  @override
+  String get equipmentRadar => '電探';
+
+  @override
+  String get equipmentLandingTransport => '登陸／運輸';
+
+  @override
+  String get equipmentSupport => '輔助／其他';
+
+  @override
+  String get questAll => '全部任務';
+
+  @override
+  String get searchQuest => '搜尋任務';
+
+  @override
+  String get filterQuest => '篩選任務';
+
+  @override
+  String get searchQuestHint => '搜尋編號、任務名稱或說明';
+
+  @override
+  String get clear => '清除';
+
+  @override
+  String get done => '完成';
+
+  @override
+  String get clearAll => '全部清除';
+
+  @override
+  String get questType => '任務類型';
+
+  @override
+  String get allTypes => '全部類型';
+
+  @override
+  String get questFormation => '編成';
+
+  @override
+  String get questSortie => '出擊';
+
+  @override
+  String get questExercise => '演習';
+
+  @override
+  String get questSupplyRepair => '補給/入渠';
+
+  @override
+  String get questFactory => '工廠';
+
+  @override
+  String get questRemodeling => '改裝';
+
+  @override
+  String get questPeriod => '任務週期';
+
+  @override
+  String get allPeriods => '全部週期';
+
+  @override
+  String get questSeasonal => '季常';
+
+  @override
+  String get questYearly => '年常';
+
+  @override
+  String get unlockStatus => '解鎖狀態';
+
+  @override
+  String get allStatuses => '全部狀態';
+
+  @override
+  String get questUnlocked => '已解鎖';
+
+  @override
+  String get questLocked => '未解鎖';
+
+  @override
+  String get noDescription => '暫無說明';
+
+  @override
+  String get completionConditions => '完成條件';
+
+  @override
+  String get questRelations => '任務關係';
+
+  @override
+  String get prerequisiteQuests => '前置任務';
+
+  @override
+  String get followingQuests => '後置任務';
+
+  @override
+  String get notCompleted => '未完成';
 }

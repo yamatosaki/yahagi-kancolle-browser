@@ -109,7 +109,7 @@ class PinnedQuestsSummary extends StatelessWidget {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              _getProgressText(q),
+                              _getProgressText(q, l10n),
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.bold,
@@ -143,12 +143,12 @@ class PinnedQuestsSummary extends StatelessWidget {
     );
   }
 
-  String _getProgressText(GameQuest q) {
-    if (q.isCompleted) return '完成';
+  String _getProgressText(GameQuest q, AppLocalizations l10n) {
+    if (q.isCompleted) return l10n.done;
     if (q.state == 2) {
       if (q.progressFlag == 1) return '50%';
       if (q.progressFlag == 2) return '80%';
-      return '进行中';
+      return l10n.inProgress;
     }
     return '';
   }

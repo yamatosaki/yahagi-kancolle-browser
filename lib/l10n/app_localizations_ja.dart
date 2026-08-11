@@ -1368,4 +1368,172 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get networkUnknownProxyMode => '不明なプロキシモードです';
+
+  @override
+  String get shipGirl => '艦娘';
+
+  @override
+  String get equipment => '装備';
+
+  @override
+  String get inventoryTypeSuffix => ' 種類';
+
+  @override
+  String get inventoryFilterResults => '絞り込み結果 ';
+
+  @override
+  String get shipName => '艦名';
+
+  @override
+  String get shipType => '艦種';
+
+  @override
+  String get level => 'レベル';
+
+  @override
+  String get armor => '装甲';
+
+  @override
+  String get luck => '運';
+
+  @override
+  String get evasion => '回避';
+
+  @override
+  String get lockedStatus => 'ロック';
+
+  @override
+  String get equipmentName => '装備名';
+
+  @override
+  String get equipmentTotalRemaining => '合計（残り）';
+
+  @override
+  String get equipmentImprovementProficiency => '改修／熟練度';
+
+  @override
+  String get equipmentUsage => '装備状況';
+
+  @override
+  String get highSpeedPlus => '高速+';
+
+  @override
+  String get all => 'すべて';
+
+  @override
+  String get equipmentMainGun => '主砲';
+
+  @override
+  String get equipmentSecondaryGun => '副砲／高角砲';
+
+  @override
+  String get equipmentMachineGun => '機銃';
+
+  @override
+  String get equipmentTorpedo => '魚雷／甲標的';
+
+  @override
+  String get equipmentCarrierAircraft => '艦載機';
+
+  @override
+  String get equipmentSeaplane => '水上機';
+
+  @override
+  String get equipmentLandBasedAircraft => '陸上機';
+
+  @override
+  String get equipmentRadar => '電探';
+
+  @override
+  String get equipmentLandingTransport => '上陸／輸送';
+
+  @override
+  String get equipmentSupport => '補助／その他';
+
+  @override
+  String get questAll => '全任務';
+
+  @override
+  String get searchQuest => '任務を検索';
+
+  @override
+  String get filterQuest => '任務を絞り込む';
+
+  @override
+  String get searchQuestHint => '番号、任務名、説明を検索';
+
+  @override
+  String get clear => 'クリア';
+
+  @override
+  String get done => '完了';
+
+  @override
+  String get clearAll => 'すべてクリア';
+
+  @override
+  String get questType => '任務種別';
+
+  @override
+  String get allTypes => 'すべての種別';
+
+  @override
+  String get questFormation => '編成';
+
+  @override
+  String get questSortie => '出撃';
+
+  @override
+  String get questExercise => '演習';
+
+  @override
+  String get questSupplyRepair => '補給/入渠';
+
+  @override
+  String get questFactory => '工廠';
+
+  @override
+  String get questRemodeling => '改装';
+
+  @override
+  String get questPeriod => '任務周期';
+
+  @override
+  String get allPeriods => 'すべての周期';
+
+  @override
+  String get questSeasonal => '季節';
+
+  @override
+  String get questYearly => '年間';
+
+  @override
+  String get unlockStatus => '解放状態';
+
+  @override
+  String get allStatuses => 'すべての状態';
+
+  @override
+  String get questUnlocked => '解放済み';
+
+  @override
+  String get questLocked => '未解放';
+
+  @override
+  String get noDescription => '説明はありません';
+
+  @override
+  String get completionConditions => '達成条件';
+
+  @override
+  String get questRelations => '関連任務';
+
+  @override
+  String get prerequisiteQuests => '前提任務';
+
+  @override
+  String get followingQuests => '後続任務';
+
+  @override
+  String get notCompleted => '未達成';
 }

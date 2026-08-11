@@ -2647,6 +2647,342 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'未知代理模式'**
   String get networkUnknownProxyMode;
+
+  /// No description provided for @shipGirl.
+  ///
+  /// In zh, this message translates to:
+  /// **'舰娘'**
+  String get shipGirl;
+
+  /// No description provided for @equipment.
+  ///
+  /// In zh, this message translates to:
+  /// **'装备'**
+  String get equipment;
+
+  /// No description provided for @inventoryTypeSuffix.
+  ///
+  /// In zh, this message translates to:
+  /// **' 种'**
+  String get inventoryTypeSuffix;
+
+  /// No description provided for @inventoryFilterResults.
+  ///
+  /// In zh, this message translates to:
+  /// **'筛选结果 '**
+  String get inventoryFilterResults;
+
+  /// No description provided for @shipName.
+  ///
+  /// In zh, this message translates to:
+  /// **'舰名'**
+  String get shipName;
+
+  /// No description provided for @shipType.
+  ///
+  /// In zh, this message translates to:
+  /// **'舰种'**
+  String get shipType;
+
+  /// No description provided for @level.
+  ///
+  /// In zh, this message translates to:
+  /// **'等级'**
+  String get level;
+
+  /// No description provided for @armor.
+  ///
+  /// In zh, this message translates to:
+  /// **'装甲'**
+  String get armor;
+
+  /// No description provided for @luck.
+  ///
+  /// In zh, this message translates to:
+  /// **'幸运'**
+  String get luck;
+
+  /// No description provided for @evasion.
+  ///
+  /// In zh, this message translates to:
+  /// **'回避'**
+  String get evasion;
+
+  /// No description provided for @lockedStatus.
+  ///
+  /// In zh, this message translates to:
+  /// **'锁定'**
+  String get lockedStatus;
+
+  /// No description provided for @equipmentName.
+  ///
+  /// In zh, this message translates to:
+  /// **'装备名称'**
+  String get equipmentName;
+
+  /// No description provided for @equipmentTotalRemaining.
+  ///
+  /// In zh, this message translates to:
+  /// **'总数（剩余）'**
+  String get equipmentTotalRemaining;
+
+  /// No description provided for @equipmentImprovementProficiency.
+  ///
+  /// In zh, this message translates to:
+  /// **'改修／熟练度'**
+  String get equipmentImprovementProficiency;
+
+  /// No description provided for @equipmentUsage.
+  ///
+  /// In zh, this message translates to:
+  /// **'着装情况'**
+  String get equipmentUsage;
+
+  /// No description provided for @highSpeedPlus.
+  ///
+  /// In zh, this message translates to:
+  /// **'高速+'**
+  String get highSpeedPlus;
+
+  /// No description provided for @all.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部'**
+  String get all;
+
+  /// No description provided for @equipmentMainGun.
+  ///
+  /// In zh, this message translates to:
+  /// **'主炮'**
+  String get equipmentMainGun;
+
+  /// No description provided for @equipmentSecondaryGun.
+  ///
+  /// In zh, this message translates to:
+  /// **'副炮／高角炮'**
+  String get equipmentSecondaryGun;
+
+  /// No description provided for @equipmentMachineGun.
+  ///
+  /// In zh, this message translates to:
+  /// **'机枪'**
+  String get equipmentMachineGun;
+
+  /// No description provided for @equipmentTorpedo.
+  ///
+  /// In zh, this message translates to:
+  /// **'鱼雷／甲标'**
+  String get equipmentTorpedo;
+
+  /// No description provided for @equipmentCarrierAircraft.
+  ///
+  /// In zh, this message translates to:
+  /// **'舰载机'**
+  String get equipmentCarrierAircraft;
+
+  /// No description provided for @equipmentSeaplane.
+  ///
+  /// In zh, this message translates to:
+  /// **'水上机'**
+  String get equipmentSeaplane;
+
+  /// No description provided for @equipmentLandBasedAircraft.
+  ///
+  /// In zh, this message translates to:
+  /// **'陆航'**
+  String get equipmentLandBasedAircraft;
+
+  /// No description provided for @equipmentRadar.
+  ///
+  /// In zh, this message translates to:
+  /// **'电探'**
+  String get equipmentRadar;
+
+  /// No description provided for @equipmentLandingTransport.
+  ///
+  /// In zh, this message translates to:
+  /// **'登陆／运输'**
+  String get equipmentLandingTransport;
+
+  /// No description provided for @equipmentSupport.
+  ///
+  /// In zh, this message translates to:
+  /// **'辅助／其他'**
+  String get equipmentSupport;
+
+  /// No description provided for @questAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'全任务'**
+  String get questAll;
+
+  /// No description provided for @searchQuest.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索任务'**
+  String get searchQuest;
+
+  /// No description provided for @filterQuest.
+  ///
+  /// In zh, this message translates to:
+  /// **'筛选任务'**
+  String get filterQuest;
+
+  /// No description provided for @searchQuestHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索编号、任务名或说明'**
+  String get searchQuestHint;
+
+  /// No description provided for @clear.
+  ///
+  /// In zh, this message translates to:
+  /// **'清除'**
+  String get clear;
+
+  /// No description provided for @done.
+  ///
+  /// In zh, this message translates to:
+  /// **'完成'**
+  String get done;
+
+  /// No description provided for @clearAll.
+  ///
+  /// In zh, this message translates to:
+  /// **'清除全部'**
+  String get clearAll;
+
+  /// No description provided for @questType.
+  ///
+  /// In zh, this message translates to:
+  /// **'任务类型'**
+  String get questType;
+
+  /// No description provided for @allTypes.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部类型'**
+  String get allTypes;
+
+  /// No description provided for @questFormation.
+  ///
+  /// In zh, this message translates to:
+  /// **'编成'**
+  String get questFormation;
+
+  /// No description provided for @questSortie.
+  ///
+  /// In zh, this message translates to:
+  /// **'出击'**
+  String get questSortie;
+
+  /// No description provided for @questExercise.
+  ///
+  /// In zh, this message translates to:
+  /// **'演习'**
+  String get questExercise;
+
+  /// No description provided for @questSupplyRepair.
+  ///
+  /// In zh, this message translates to:
+  /// **'补给/入渠'**
+  String get questSupplyRepair;
+
+  /// No description provided for @questFactory.
+  ///
+  /// In zh, this message translates to:
+  /// **'工厂'**
+  String get questFactory;
+
+  /// No description provided for @questRemodeling.
+  ///
+  /// In zh, this message translates to:
+  /// **'改装'**
+  String get questRemodeling;
+
+  /// No description provided for @questPeriod.
+  ///
+  /// In zh, this message translates to:
+  /// **'任务周期'**
+  String get questPeriod;
+
+  /// No description provided for @allPeriods.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部周期'**
+  String get allPeriods;
+
+  /// No description provided for @questSeasonal.
+  ///
+  /// In zh, this message translates to:
+  /// **'季常'**
+  String get questSeasonal;
+
+  /// No description provided for @questYearly.
+  ///
+  /// In zh, this message translates to:
+  /// **'年常'**
+  String get questYearly;
+
+  /// No description provided for @unlockStatus.
+  ///
+  /// In zh, this message translates to:
+  /// **'解锁状态'**
+  String get unlockStatus;
+
+  /// No description provided for @allStatuses.
+  ///
+  /// In zh, this message translates to:
+  /// **'全部状态'**
+  String get allStatuses;
+
+  /// No description provided for @questUnlocked.
+  ///
+  /// In zh, this message translates to:
+  /// **'已解锁'**
+  String get questUnlocked;
+
+  /// No description provided for @questLocked.
+  ///
+  /// In zh, this message translates to:
+  /// **'未解锁'**
+  String get questLocked;
+
+  /// No description provided for @noDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无说明'**
+  String get noDescription;
+
+  /// No description provided for @completionConditions.
+  ///
+  /// In zh, this message translates to:
+  /// **'完成条件'**
+  String get completionConditions;
+
+  /// No description provided for @questRelations.
+  ///
+  /// In zh, this message translates to:
+  /// **'任务关系'**
+  String get questRelations;
+
+  /// No description provided for @prerequisiteQuests.
+  ///
+  /// In zh, this message translates to:
+  /// **'前置任务'**
+  String get prerequisiteQuests;
+
+  /// No description provided for @followingQuests.
+  ///
+  /// In zh, this message translates to:
+  /// **'后置任务'**
+  String get followingQuests;
+
+  /// No description provided for @notCompleted.
+  ///
+  /// In zh, this message translates to:
+  /// **'未完成'**
+  String get notCompleted;
 }
 
 class _AppLocalizationsDelegate

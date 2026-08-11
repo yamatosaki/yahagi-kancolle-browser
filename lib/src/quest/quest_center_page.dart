@@ -60,37 +60,42 @@ class QuestModeTabs extends StatelessWidget {
   final ValueChanged<QuestCenterMode> onChanged;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 260,
-    height: 38,
-    child: Container(
-      key: const Key('quest-mode-tabs'),
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: const Color(0xff0b202d),
-        border: Border.all(color: const Color(0xff315064)),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _QuestModeButton(
-              selected: mode == QuestCenterMode.active,
-              label: '进行中',
-              onTap: () => onChanged(QuestCenterMode.active),
+  Widget build(BuildContext context) {
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
+    return SizedBox(
+      width: 260,
+      height: 38,
+      child: Container(
+        key: const Key('quest-mode-tabs'),
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: const Color(0xff0b202d),
+          border: Border.all(color: const Color(0xff315064)),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _QuestModeButton(
+                selected: mode == QuestCenterMode.active,
+                label: l10n.inProgress,
+                onTap: () => onChanged(QuestCenterMode.active),
+              ),
             ),
-          ),
-          Expanded(
-            child: _QuestModeButton(
-              selected: mode == QuestCenterMode.all,
-              label: '全任务',
-              onTap: () => onChanged(QuestCenterMode.all),
+            Expanded(
+              child: _QuestModeButton(
+                selected: mode == QuestCenterMode.all,
+                label: l10n.questAll,
+                onTap: () => onChanged(QuestCenterMode.all),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _QuestModeButton extends StatelessWidget {
@@ -138,33 +143,38 @@ class QuestHeaderControls extends StatelessWidget {
   final QuestFilterController filters;
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: filters,
-    builder: (context, _) => Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        QuestModeTabs(mode: mode, onChanged: onModeChanged),
-        if (mode == QuestCenterMode.all) ...[
-          const SizedBox(width: 6),
-          _QuestHeaderIconButton(
-            key: const Key('quest-search-button'),
-            icon: Icons.search,
-            active: filters.hasSearch,
-            tooltip: '搜索任务',
-            onPressed: () => _showQuestSearch(context, filters),
-          ),
-          const SizedBox(width: 4),
-          _QuestHeaderIconButton(
-            key: const Key('quest-filter-button'),
-            icon: Icons.filter_alt_outlined,
-            active: filters.hasFilters,
-            tooltip: '筛选任务',
-            onPressed: () => _showQuestFilters(context, filters),
-          ),
+  Widget build(BuildContext context) {
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
+    return AnimatedBuilder(
+      animation: filters,
+      builder: (context, _) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          QuestModeTabs(mode: mode, onChanged: onModeChanged),
+          if (mode == QuestCenterMode.all) ...[
+            const SizedBox(width: 6),
+            _QuestHeaderIconButton(
+              key: const Key('quest-search-button'),
+              icon: Icons.search,
+              active: filters.hasSearch,
+              tooltip: l10n.searchQuest,
+              onPressed: () => _showQuestSearch(context, filters),
+            ),
+            const SizedBox(width: 4),
+            _QuestHeaderIconButton(
+              key: const Key('quest-filter-button'),
+              icon: Icons.filter_alt_outlined,
+              active: filters.hasFilters,
+              tooltip: l10n.filterQuest,
+              onPressed: () => _showQuestFilters(context, filters),
+            ),
+          ],
         ],
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 class _QuestHeaderIconButton extends StatelessWidget {
@@ -208,19 +218,22 @@ Future<void> _showQuestSearch(
   BuildContext context,
   QuestFilterController filters,
 ) async {
+  final l10n =
+      AppLocalizations.of(context) ??
+      lookupAppLocalizations(const Locale('zh'));
   final textController = TextEditingController(text: filters.query);
   await showDialog<void>(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('搜索任务'),
+      title: Text(l10n.searchQuest),
       content: TextField(
         key: const Key('quest-search-field'),
         controller: textController,
         autofocus: true,
         onChanged: filters.setQuery,
-        decoration: const InputDecoration(
-          hintText: '搜索编号、任务名或说明',
-          prefixIcon: Icon(Icons.search),
+        decoration: InputDecoration(
+          hintText: l10n.searchQuestHint,
+          prefixIcon: const Icon(Icons.search),
         ),
       ),
       actions: [
@@ -229,12 +242,12 @@ Future<void> _showQuestSearch(
             textController.clear();
             filters.setQuery('');
           },
-          child: const Text('清除'),
+          child: Text(l10n.clear),
         ),
         FilledButton(
           key: const Key('quest-search-close'),
           onPressed: () => Navigator.pop(context),
-          child: const Text('完成'),
+          child: Text(l10n.done),
         ),
       ],
     ),
@@ -266,121 +279,132 @@ class _QuestFilterSheet extends StatelessWidget {
   final QuestFilterController filters;
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    key: const Key('quest-filter-sheet'),
-    animation: filters,
-    builder: (context, _) => Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text(
-                '筛选任务',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-              ),
-              const Spacer(),
-              TextButton(
-                key: const Key('quest-filter-clear'),
-                onPressed: filters.clear,
-                child: const Text('清除全部'),
-              ),
-              IconButton(
-                key: const Key('quest-filter-close'),
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text('任务类型'),
-          const SizedBox(height: 5),
-          Wrap(
-            runSpacing: 5,
-            children: [
-              _FilterChip(
-                key: const Key('quest-filter-category-all'),
-                label: '全部类型',
-                selected: filters.category == null,
-                onTap: () => filters.setCategory(null),
-              ),
-              for (final item in const <(int, String)>[
-                (2, '出击'),
-                (1, '编成'),
-                (3, '演习'),
-                (4, '远征'),
-                (5, '补给/入渠'),
-                (6, '工厂'),
-                (7, '改装'),
-                (0, '其他'),
-              ])
-                _FilterChip(
-                  key: Key('quest-filter-category-${item.$1}'),
-                  label: item.$2,
-                  selected: filters.category == item.$1,
-                  onTap: () => filters.setCategory(item.$1),
+  Widget build(BuildContext context) {
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
+    final categories = <(int, String)>[
+      (2, l10n.questSortie),
+      (1, l10n.questFormation),
+      (3, l10n.questExercise),
+      (4, l10n.expedition),
+      (5, l10n.questSupplyRepair),
+      (6, l10n.questFactory),
+      (7, l10n.questRemodeling),
+      (0, l10n.questOther),
+    ];
+    final periods = <(int, String)>[
+      (1, l10n.questDaily),
+      (2, l10n.questWeekly),
+      (3, l10n.questMonthly),
+      (4, l10n.questOneTime),
+      (5, l10n.questSeasonal),
+      (6, l10n.questYearly),
+    ];
+    return AnimatedBuilder(
+      key: const Key('quest-filter-sheet'),
+      animation: filters,
+      builder: (context, _) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  l10n.filterQuest,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          const Text('任务周期'),
-          const SizedBox(height: 5),
-          Wrap(
-            runSpacing: 5,
-            children: [
-              _FilterChip(
-                key: const Key('quest-filter-period-all'),
-                label: '全部周期',
-                selected: filters.period == null,
-                onTap: () => filters.setPeriod(null),
-              ),
-              for (final item in const <(int, String)>[
-                (1, '日常'),
-                (2, '周常'),
-                (3, '月常'),
-                (4, '单次'),
-                (5, '季常'),
-                (6, '年常'),
-              ])
-                _FilterChip(
-                  key: Key('quest-filter-period-${item.$1}'),
-                  label: item.$2,
-                  selected: filters.period == item.$1,
-                  onTap: () => filters.setPeriod(item.$1),
+                const Spacer(),
+                TextButton(
+                  key: const Key('quest-filter-clear'),
+                  onPressed: filters.clear,
+                  child: Text(l10n.clearAll),
                 ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          const Text('解锁状态'),
-          const SizedBox(height: 5),
-          Wrap(
-            children: [
-              _FilterChip(
-                key: const Key('quest-filter-unlock-all'),
-                label: '全部状态',
-                selected: filters.unlockState == null,
-                onTap: () => filters.setUnlockState(null),
-              ),
-              _FilterChip(
-                key: const Key('quest-filter-unlock-unlocked'),
-                label: '已解锁',
-                selected: filters.unlockState == QuestUnlockState.unlocked,
-                onTap: () => filters.setUnlockState(QuestUnlockState.unlocked),
-              ),
-              _FilterChip(
-                key: const Key('quest-filter-unlock-locked'),
-                label: '未解锁',
-                selected: filters.unlockState == QuestUnlockState.locked,
-                onTap: () => filters.setUnlockState(QuestUnlockState.locked),
-              ),
-            ],
-          ),
-        ],
+                IconButton(
+                  key: const Key('quest-filter-close'),
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(l10n.questType),
+            const SizedBox(height: 5),
+            Wrap(
+              runSpacing: 5,
+              children: [
+                _FilterChip(
+                  key: const Key('quest-filter-category-all'),
+                  label: l10n.allTypes,
+                  selected: filters.category == null,
+                  onTap: () => filters.setCategory(null),
+                ),
+                for (final item in categories)
+                  _FilterChip(
+                    key: Key('quest-filter-category-${item.$1}'),
+                    label: item.$2,
+                    selected: filters.category == item.$1,
+                    onTap: () => filters.setCategory(item.$1),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(l10n.questPeriod),
+            const SizedBox(height: 5),
+            Wrap(
+              runSpacing: 5,
+              children: [
+                _FilterChip(
+                  key: const Key('quest-filter-period-all'),
+                  label: l10n.allPeriods,
+                  selected: filters.period == null,
+                  onTap: () => filters.setPeriod(null),
+                ),
+                for (final item in periods)
+                  _FilterChip(
+                    key: Key('quest-filter-period-${item.$1}'),
+                    label: item.$2,
+                    selected: filters.period == item.$1,
+                    onTap: () => filters.setPeriod(item.$1),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(l10n.unlockStatus),
+            const SizedBox(height: 5),
+            Wrap(
+              children: [
+                _FilterChip(
+                  key: const Key('quest-filter-unlock-all'),
+                  label: l10n.allStatuses,
+                  selected: filters.unlockState == null,
+                  onTap: () => filters.setUnlockState(null),
+                ),
+                _FilterChip(
+                  key: const Key('quest-filter-unlock-unlocked'),
+                  label: l10n.questUnlocked,
+                  selected: filters.unlockState == QuestUnlockState.unlocked,
+                  onTap: () =>
+                      filters.setUnlockState(QuestUnlockState.unlocked),
+                ),
+                _FilterChip(
+                  key: const Key('quest-filter-unlock-locked'),
+                  label: l10n.questLocked,
+                  selected: filters.unlockState == QuestUnlockState.locked,
+                  onTap: () => filters.setUnlockState(QuestUnlockState.locked),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class QuestCenterPage extends StatefulWidget {
@@ -645,7 +669,9 @@ class _QuestHeader extends StatelessWidget {
         return Row(
           children: [
             Text(
-              AppLocalizations.of(context)?.quests ?? '任务',
+              (AppLocalizations.of(context) ??
+                      lookupAppLocalizations(const Locale('zh')))
+                  .quests,
               style: const TextStyle(
                 color: Color(0xffd4a85f),
                 fontSize: 17,
@@ -807,7 +833,7 @@ class _QuestCard extends StatelessWidget {
                     Row(
                       children: [
                         _SmallTag(
-                          label: entry.categoryLabel,
+                          label: entry.categoryLabel(context),
                           color: entry.categoryColor,
                         ),
                         const SizedBox(width: 5),
@@ -850,124 +876,138 @@ class _QuestDetail extends StatelessWidget {
   final ValueChanged<int> onRelationSelected;
 
   @override
-  Widget build(BuildContext context) => DefaultTextStyle.merge(
-    style: const TextStyle(
-      color: Colors.white,
-      fontFamily: 'HarmonyOS_Sans_SC',
-      fontFamilyFallback: <String>['HarmonyOS_Sans_TC', 'NotoSansJP'],
-    ),
-    child: SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            key: Key('quest-detail-title-${entry.id}'),
-            children: [
-              _QuestCodeTag(
-                key: Key('quest-detail-code-${entry.id}'),
-                code: entry.code,
-                large: true,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  entry.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) {
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
+    return DefaultTextStyle.merge(
+      style: const TextStyle(
+        color: Colors.white,
+        fontFamily: 'HarmonyOS_Sans_SC',
+        fontFamilyFallback: <String>['HarmonyOS_Sans_TC', 'NotoSansJP'],
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              key: Key('quest-detail-title-${entry.id}'),
+              children: [
+                _QuestCodeTag(
+                  key: Key('quest-detail-code-${entry.id}'),
+                  code: entry.code,
+                  large: true,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    entry.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 9),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _SmallTag(label: entry.categoryLabel, color: entry.categoryColor),
-              _SmallTag(
-                label: entry.periodLabel(context),
-                color: entry.periodColor,
-              ),
-              _SmallTag(label: entry.progressLabel, color: entry.progressColor),
-              _StatusBadge(
-                key: Key('quest-detail-status-${entry.id}'),
-                entry: entry,
-              ),
-              if (entry.exactProgress case final progress?)
-                _SmallTag(
-                  key: Key('quest-detail-exact-progress-${entry.id}'),
-                  label: progress,
-                  color: const Color(0xff8ec6e8),
-                ),
-            ],
-          ),
-          const SizedBox(height: 13),
-          _DetailCard(
-            title: AppLocalizations.of(context)?.questDesc ?? '任务说明',
-            child: Text(
-              entry.detail.isEmpty ? '暂无说明' : entry.detail,
-              style: const TextStyle(fontSize: 13, height: 1.45),
+              ],
             ),
-          ),
-          if (entry.memo.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            _DetailCard(title: '完成条件', child: Text(entry.memo)),
-          ],
-          const SizedBox(height: 8),
-          _DetailCard(
-            title: AppLocalizations.of(context)?.baseReward ?? '基础奖励',
-            child: entry.rewardsText.isNotEmpty
-                ? Text(entry.rewardsText)
-                : Wrap(
-                    spacing: 18,
-                    runSpacing: 9,
-                    children: [
-                      for (var index = 0; index < 4; index++)
-                        _MaterialReward(
-                          assetIndex: index + 1,
-                          value: entry.materials[index],
-                        ),
-                    ],
+            const SizedBox(height: 9),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _SmallTag(
+                  label: entry.categoryLabel(context),
+                  color: entry.categoryColor,
+                ),
+                _SmallTag(
+                  label: entry.periodLabel(context),
+                  color: entry.periodColor,
+                ),
+                _SmallTag(
+                  label: entry.progressLabel,
+                  color: entry.progressColor,
+                ),
+                _StatusBadge(
+                  key: Key('quest-detail-status-${entry.id}'),
+                  entry: entry,
+                ),
+                if (entry.exactProgress case final progress?)
+                  _SmallTag(
+                    key: Key('quest-detail-exact-progress-${entry.id}'),
+                    label: progress,
+                    color: const Color(0xff8ec6e8),
                   ),
-          ),
-          if (entry.prerequisites.isNotEmpty ||
-              entry.successors.isNotEmpty) ...[
+              ],
+            ),
+            const SizedBox(height: 13),
+            _DetailCard(
+              title: l10n.questDesc,
+              child: Text(
+                entry.detail.isEmpty ? l10n.noDescription : entry.detail,
+                style: const TextStyle(fontSize: 13, height: 1.45),
+              ),
+            ),
+            if (entry.memo.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _DetailCard(
+                title: l10n.completionConditions,
+                child: Text(entry.memo),
+              ),
+            ],
             const SizedBox(height: 8),
             _DetailCard(
-              title: '任务关系',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (entry.prerequisites.isNotEmpty)
-                    _RelationRow(
-                      label: '前置任务',
-                      entries: entry.prerequisites,
-                      keyPrefix: 'quest-relation-pre',
-                      onSelected: onRelationSelected,
+              title: l10n.baseReward,
+              child: entry.rewardsText.isNotEmpty
+                  ? Text(entry.rewardsText)
+                  : Wrap(
+                      spacing: 18,
+                      runSpacing: 9,
+                      children: [
+                        for (var index = 0; index < 4; index++)
+                          _MaterialReward(
+                            assetIndex: index + 1,
+                            value: entry.materials[index],
+                          ),
+                      ],
                     ),
-                  if (entry.successors.isNotEmpty) ...[
-                    if (entry.prerequisites.isNotEmpty)
-                      const SizedBox(height: 8),
-                    _RelationRow(
-                      label: '后置任务',
-                      entries: entry.successors,
-                      keyPrefix: 'quest-relation-post',
-                      onSelected: onRelationSelected,
-                    ),
-                  ],
-                ],
-              ),
             ),
+            if (entry.prerequisites.isNotEmpty ||
+                entry.successors.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _DetailCard(
+                title: l10n.questRelations,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (entry.prerequisites.isNotEmpty)
+                      _RelationRow(
+                        label: l10n.prerequisiteQuests,
+                        entries: entry.prerequisites,
+                        keyPrefix: 'quest-relation-pre',
+                        onSelected: onRelationSelected,
+                      ),
+                    if (entry.successors.isNotEmpty) ...[
+                      if (entry.prerequisites.isNotEmpty)
+                        const SizedBox(height: 8),
+                      _RelationRow(
+                        label: l10n.followingQuests,
+                        entries: entry.successors,
+                        keyPrefix: 'quest-relation-post',
+                        onSelected: onRelationSelected,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _RelationRow extends StatelessWidget {
@@ -1071,6 +1111,9 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
     final positive = entry.allMode ? !entry.locked : entry.completed;
     final color = positive ? const Color(0xff67d2a6) : const Color(0xffe0ad4f);
     return Container(
@@ -1082,8 +1125,8 @@ class _StatusBadge extends StatelessWidget {
       ),
       child: Text(
         entry.allMode
-            ? (entry.locked ? '未解锁' : '已解锁')
-            : (entry.completed ? '已完成' : '未完成'),
+            ? (entry.locked ? l10n.questLocked : l10n.questUnlocked)
+            : (entry.completed ? l10n.completed : l10n.notCompleted),
         style: TextStyle(
           color: color,
           fontSize: 10.5,
@@ -1310,16 +1353,21 @@ class _QuestViewEntry {
   final List<QuestCatalogEntry> prerequisites;
   final List<QuestCatalogEntry> successors;
 
-  String get categoryLabel => switch (category) {
-    1 => '编成',
-    2 => '出击',
-    3 => '演习',
-    4 => '远征',
-    5 => '补给/入渠',
-    6 => '工厂',
-    7 => '改装',
-    _ => '其他',
-  };
+  String categoryLabel(BuildContext context) {
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
+    return switch (category) {
+      1 => l10n.questFormation,
+      2 => l10n.questSortie,
+      3 => l10n.questExercise,
+      4 => l10n.expedition,
+      5 => l10n.questSupplyRepair,
+      6 => l10n.questFactory,
+      7 => l10n.questRemodeling,
+      _ => l10n.questOther,
+    };
+  }
 
   Color get categoryColor => switch (category) {
     1 => const Color(0xff19bb2e),
@@ -1332,15 +1380,20 @@ class _QuestViewEntry {
     _ => Colors.white,
   };
 
-  String periodLabel(BuildContext context) => switch (period) {
-    1 => AppLocalizations.of(context)?.questDaily ?? '日常',
-    2 => AppLocalizations.of(context)?.questWeekly ?? '周常',
-    3 => AppLocalizations.of(context)?.questMonthly ?? '月常',
-    4 => AppLocalizations.of(context)?.questOneTime ?? '单次',
-    5 => '季常',
-    6 => '年常',
-    _ => AppLocalizations.of(context)?.questOther ?? '其他',
-  };
+  String periodLabel(BuildContext context) {
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
+    return switch (period) {
+      1 => l10n.questDaily,
+      2 => l10n.questWeekly,
+      3 => l10n.questMonthly,
+      4 => l10n.questOneTime,
+      5 => l10n.questSeasonal,
+      6 => l10n.questYearly,
+      _ => l10n.questOther,
+    };
+  }
 
   Color get periodColor => switch (period) {
     1 => const Color(0xff4b9fd5),
