@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_browser_overlay.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_toolbar_controller.dart';
@@ -74,6 +74,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.getSize(gameFinder), hiddenSize);
+    controller.dispose();
+  });
+
+  testWidgets('removes the hidden toolbar after its exit animation', (
+    tester,
+  ) async {
+    final controller = GameToolbarController();
+
+    await tester.pumpWidget(_TestApp(controller: controller));
+    expect(find.byKey(const Key('fake-toolbar')), findsOneWidget);
+
+    controller.collapse();
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('fake-toolbar')), findsNothing);
+    expect(find.byKey(const Key('game-toolbar-swipe-zone')), findsOneWidget);
+    controller.dispose();
+  });
+
+  testWidgets('toolbar changes keep the game surface element stable', (
+    tester,
+  ) async {
+    final controller = GameToolbarController();
+
+    await tester.pumpWidget(_TestApp(controller: controller));
+    final before = tester.element(find.byKey(const Key('fake-game-surface')));
+
+    controller.collapse();
+    await tester.pumpAndSettle();
+    controller.reveal();
+    await tester.pumpAndSettle();
+
+    final after = tester.element(find.byKey(const Key('fake-game-surface')));
+    expect(identical(before, after), isTrue);
     controller.dispose();
   });
 }

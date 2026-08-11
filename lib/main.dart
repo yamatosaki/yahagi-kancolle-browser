@@ -24,6 +24,7 @@ import 'src/browser/game_browser_toolbar.dart';
 import 'src/browser/game_toolbar_controller.dart';
 import 'src/browser/game_toolbar_display_controller.dart';
 import 'src/browser/game_screenshot_controller.dart';
+import 'src/browser/game_surface_boundary.dart';
 import 'src/browser/game_environment_host.dart';
 import 'src/capture/battle_result_warning_overlay.dart';
 import 'src/capture/capture_mode_controller.dart';
@@ -764,7 +765,9 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                 child: Center(
                                   child: AspectRatio(
                                     aspectRatio: 1200 / 720,
-                                    child: widget.gameSurface,
+                                    child: GameSurfaceBoundary(
+                                      child: widget.gameSurface,
+                                    ),
                                   ),
                                 ),
                               );
