@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../bridge/captured_api_event.dart';
 import '../game_state/combat_state.dart';
 import '../game_state/game_api_decoder.dart';
+import '../game_state/game_api_event_pipeline.dart';
 import '../game_state/game_state.dart';
 import 'battle_damage_parser.dart';
 import 'battle_models.dart';
@@ -18,7 +19,8 @@ import '../settings/battle_prediction_settings.dart';
 import '../logbook/logbook_database.dart';
 import 'battle_damage_alert.dart';
 
-final class BattleController extends ChangeNotifier {
+final class BattleController extends ChangeNotifier
+    implements GameApiEventConsumer {
   BattleController({
     required this.gameState,
     BattleDamageParser? damageParser,
@@ -99,6 +101,7 @@ final class BattleController extends ChangeNotifier {
   String? get lastError => _lastError;
   BattleSession? get session => _session;
   List<BattleSession> get recentSessions => List.unmodifiable(_recentSessions);
+  @override
   Future<void> get idle => _queue;
 
   void bindFriendlyHpUpdater(
@@ -131,8 +134,9 @@ final class BattleController extends ChangeNotifier {
     notifyListeners();
   }
 
+  @override
   void accept(CapturedApiEvent event) {
-    if (_disposed || !_isSupported(event.path)) {
+    if (_disposed || !supportsPath(event.path)) {
       return;
     }
     if (event.sequence > 0 && !_acceptedSequences.add(event.sequence)) {
@@ -157,7 +161,8 @@ final class BattleController extends ChangeNotifier {
     });
   }
 
-  bool _isSupported(String path) =>
+  @override
+  bool supportsPath(String path) =>
       _mapPaths.contains(path) ||
       _battlePaths.contains(path) ||
       _resultPaths.contains(path) ||
@@ -173,7 +178,7 @@ final class BattleController extends ChangeNotifier {
       _predictionEngine = null;
       return;
     }
-    final data = GameApiDecoder.decodeData(event.responseBody);
+    final data = GameApiDecoder.decodeEventData(event);
     final map = _map(data);
     if (_mapPaths.contains(event.path)) {
       _context = _contextFromMap(map, event);

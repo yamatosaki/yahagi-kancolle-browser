@@ -34,6 +34,7 @@ class CapturedApiEvent {
     this.sourceOrigin = '',
     required this.capturedAt,
     this.sequence = 0,
+    this.decodedEnvelope,
   });
 
   final String method;
@@ -45,12 +46,30 @@ class CapturedApiEvent {
   final String sourceOrigin;
   final DateTime capturedAt;
   final int sequence;
+  final Map<String, Object?>? decodedEnvelope;
+
+  bool get hasDecodedEnvelope => decodedEnvelope != null;
+
+  CapturedApiEvent withDecodedEnvelope(Map<String, Object?> envelope) {
+    return CapturedApiEvent(
+      method: method,
+      path: path,
+      requestParams: requestParams,
+      responseBody: responseBody,
+      statusCode: statusCode,
+      source: source,
+      sourceOrigin: sourceOrigin,
+      capturedAt: capturedAt,
+      sequence: sequence,
+      decodedEnvelope: envelope,
+    );
+  }
 
   int? get apiResult {
     try {
-      final decoded = jsonDecode(responseBody);
-      if (decoded is Map<String, dynamic> && decoded['api_result'] is int) {
-        return decoded['api_result'] as int;
+      final decoded = decodedEnvelope ?? jsonDecode(responseBody);
+      if (decoded is Map && decoded['api_result'] is num) {
+        return (decoded['api_result'] as num).toInt();
       }
     } on FormatException {
       return null;

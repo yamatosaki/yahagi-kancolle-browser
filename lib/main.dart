@@ -43,6 +43,7 @@ import 'src/fleet/pre_sortie_check_summary.dart';
 
 import 'src/game_webview.dart';
 import 'src/game_state/game_state_controller.dart';
+import 'src/game_state/game_api_event_pipeline.dart';
 import 'src/game_state/game_state_store.dart';
 import 'src/layout/adaptive_layout.dart';
 import 'src/layout/workspace_navigation_side.dart';
@@ -226,12 +227,15 @@ Future<void> main() async {
     predictionMethod: () => battlePredictionSettingsController.method,
   );
   fcdMapController.addListener(battleController.refreshNodeLabel);
+  final gameApiEventPipeline = GameApiEventPipeline(
+    consumers: <GameApiEventConsumer>[
+      gameStateController,
+      senkaController,
+      battleController,
+    ],
+  );
   final gameCaptureController = GameCaptureController(
-    onAcceptedEvent: (event) {
-      gameStateController.accept(event);
-      senkaController.accept(event);
-      battleController.accept(event);
-    },
+    onAcceptedEvent: gameApiEventPipeline.add,
   );
   final releaseChecker = GitHubReleaseChecker();
   final screenAwakeController = await ScreenAwakeController.load(
@@ -256,6 +260,7 @@ Future<void> main() async {
       toolbarDisplayController: toolbarDisplayController,
       gameScreenshotController: gameScreenshotController,
       gameCaptureController: gameCaptureController,
+      gameApiEventPipeline: gameApiEventPipeline,
       gameStateController: gameStateController,
       senkaController: senkaController,
       battleController: battleController,
@@ -290,6 +295,7 @@ class YahagiApp extends StatelessWidget {
     required this.audioController,
     required this.toolbarController,
     required this.gameCaptureController,
+    this.gameApiEventPipeline,
     required this.gameStateController,
     this.senkaController,
     required this.battleController,
@@ -319,6 +325,7 @@ class YahagiApp extends StatelessWidget {
   final GameAudioController audioController;
   final GameToolbarController toolbarController;
   final GameCaptureController gameCaptureController;
+  final GameApiEventPipeline? gameApiEventPipeline;
   final GameStateController gameStateController;
   final SenkaController? senkaController;
   final BattleController battleController;
@@ -460,6 +467,7 @@ class YahagiApp extends StatelessWidget {
   Future<void> _waitForCaptureQueues() async {
     try {
       await Future.wait<void>([
+        ?gameApiEventPipeline?.idle,
         gameStateController.idle,
         ?senkaController?.idle,
         battleController.idle,

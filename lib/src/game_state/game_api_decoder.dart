@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import '../bridge/captured_api_event.dart';
+
 class GameApiParseException implements Exception {
   const GameApiParseException(this.message);
 
@@ -10,10 +12,7 @@ class GameApiParseException implements Exception {
 }
 
 abstract final class GameApiDecoder {
-  static Object? decodeData(
-    String responseBody, {
-    bool allowMissingData = false,
-  }) {
+  static Map<String, Object?> decodeEnvelope(String responseBody) {
     final body = responseBody.startsWith('svdata=')
         ? responseBody.substring('svdata='.length)
         : responseBody;
@@ -24,16 +23,43 @@ abstract final class GameApiDecoder {
     } on FormatException {
       throw const GameApiParseException('响应不是有效 JSON');
     }
-    if (decoded is! Map<String, dynamic>) {
+    if (decoded is! Map) {
       throw const GameApiParseException('响应外层不是对象');
     }
-    if (_asInt(decoded['api_result']) != 1) {
+    return Map<String, Object?>.from(decoded);
+  }
+
+  static Object? decodeData(
+    String responseBody, {
+    bool allowMissingData = false,
+  }) {
+    return _decodeEnvelopeData(
+      decodeEnvelope(responseBody),
+      allowMissingData: allowMissingData,
+    );
+  }
+
+  static Object? decodeEventData(
+    CapturedApiEvent event, {
+    bool allowMissingData = false,
+  }) {
+    return _decodeEnvelopeData(
+      event.decodedEnvelope ?? decodeEnvelope(event.responseBody),
+      allowMissingData: allowMissingData,
+    );
+  }
+
+  static Object? _decodeEnvelopeData(
+    Map<String, Object?> envelope, {
+    required bool allowMissingData,
+  }) {
+    if (_asInt(envelope['api_result']) != 1) {
       throw const GameApiParseException('游戏接口返回失败');
     }
-    if (!allowMissingData && !decoded.containsKey('api_data')) {
+    if (!allowMissingData && !envelope.containsKey('api_data')) {
       throw const GameApiParseException('响应缺少 api_data');
     }
-    return decoded['api_data'];
+    return envelope['api_data'];
   }
 
   static int _asInt(Object? value) {

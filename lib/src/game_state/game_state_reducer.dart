@@ -50,13 +50,15 @@ class GameStateReducer {
     '/kcsapi/api_req_practice/battle_result',
   };
 
+  bool supportsPath(String path) => _supportedPaths.contains(path);
+
   GameState reduce(GameState state, CapturedApiEvent event) {
-    if (!_supportedPaths.contains(event.path)) {
+    if (!supportsPath(event.path)) {
       return state;
     }
 
-    final data = GameApiDecoder.decodeData(
-      event.responseBody,
+    final data = GameApiDecoder.decodeEventData(
+      event,
       // The formation change response only contains api_result and
       // api_result_msg. Its state transition is driven by request parameters.
       allowMissingData:

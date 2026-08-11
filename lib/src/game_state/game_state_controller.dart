@@ -5,13 +5,15 @@ import 'package:flutter/foundation.dart';
 import '../bridge/captured_api_event.dart';
 import '../quest/quest_store.dart';
 import 'game_state.dart';
+import 'game_api_event_pipeline.dart';
 import 'game_state_reducer.dart';
 import 'game_state_store.dart';
 import '../logbook/logbook_database.dart';
 import '../logbook/logbook_event_recorder.dart';
 import '../fleet/anchorage_repair_timer.dart';
 
-final class GameStateController extends ChangeNotifier {
+final class GameStateController extends ChangeNotifier
+    implements GameApiEventConsumer {
   GameStateController({
     GameStateReducer? reducer,
     this.questStore,
@@ -125,8 +127,15 @@ final class GameStateController extends ChangeNotifier {
   String? get lastError => _lastError;
   String? get lastUpdatedPath => _lastUpdatedPath;
   DateTime? get anchorageRepairStartedAt => _anchorageRepairTimer.startedAt;
+  @override
   Future<void> get idle => _queue;
 
+  @override
+  bool supportsPath(String path) {
+    return _reducer.supportsPath(path) || _logbookRecorder.supports(path);
+  }
+
+  @override
   void accept(CapturedApiEvent event) {
     if (_disposed) {
       return;
