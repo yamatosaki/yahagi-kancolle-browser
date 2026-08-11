@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../bridge/captured_api_event.dart';
 import 'game_capture_port.dart';
+import 'game_capture_startup_sequence.dart';
 
 const MethodChannel _defaultGameCaptureChannel = MethodChannel(
   'app.yahagi.kancollebrowser/game_capture',
@@ -42,10 +43,21 @@ final class MethodChannelGameCapturePort implements GameCapturePort {
 
   @override
   Future<void> configure({required bool enabled, required String script}) {
-    return channel.invokeMethod<void>('configure', <String, Object?>{
-      'enabled': enabled,
-      'script': script,
-    });
+    return GameCaptureStartupSequence.configureWithRetry(
+      configure: () async {
+        try {
+          await channel.invokeMethod<void>('configure', <String, Object?>{
+            'enabled': enabled,
+            'script': script,
+          });
+        } on PlatformException catch (error) {
+          if (error.code == 'webview_not_found') {
+            throw const GameWebViewNotReadyException();
+          }
+          rethrow;
+        }
+      },
+    );
   }
 
   Future<void> _onMethodCall(MethodCall call) async {

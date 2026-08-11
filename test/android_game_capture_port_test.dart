@@ -80,4 +80,48 @@ void main() {
 
     expect(await port.isSupported(), isFalse);
   });
+
+  test('retries while the hybrid WebView is still mounting', () async {
+    var attempts = 0;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'configure') {
+        attempts++;
+        if (attempts < 3) {
+          throw PlatformException(code: 'webview_not_found');
+        }
+      }
+      return null;
+    });
+    final port = MethodChannelGameCapturePort(channel: channel);
+    addTearDown(port.dispose);
+
+    await port.configure(enabled: true, script: 'capture-script');
+
+    expect(attempts, 3);
+  });
+
+  test('does not retry permanent native configuration errors', () async {
+    var attempts = 0;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'configure') {
+        attempts++;
+        throw PlatformException(code: 'invalid_capture_script');
+      }
+      return null;
+    });
+    final port = MethodChannelGameCapturePort(channel: channel);
+    addTearDown(port.dispose);
+
+    await expectLater(
+      port.configure(enabled: true, script: 'capture-script'),
+      throwsA(
+        isA<PlatformException>().having(
+          (error) => error.code,
+          'code',
+          'invalid_capture_script',
+        ),
+      ),
+    );
+    expect(attempts, 1);
+  });
 }

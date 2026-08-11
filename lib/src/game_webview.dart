@@ -19,6 +19,7 @@ import 'capture/capture_mode_controller.dart';
 import 'capture/android_game_capture_port.dart';
 import 'capture/game_capture_controller.dart';
 import 'capture/game_capture_port.dart';
+import 'capture/game_capture_startup_sequence.dart';
 import 'prototype_status_controller.dart';
 import 'settings/network_settings_controller.dart';
 import 'settings/network_settings_store.dart';
@@ -215,13 +216,26 @@ class _GameWebViewState extends State<GameWebView> {
     // Initial Load Request
     final displayAddress = widget.browserController.displayAddress;
     final address = Uri.tryParse(displayAddress);
-    if (address != null &&
-        SafePageAddress.canNavigate(address) &&
-        widget.browserController.mode != GameBrowserMode.localPrototype) {
-      _webViewController.loadRequest(address);
-    } else {
-      _webViewController.loadRequest(GameLaunchConfig.dmmGameEntry);
-    }
+    final initialAddress =
+        address != null &&
+            SafePageAddress.canNavigate(address) &&
+            widget.browserController.mode != GameBrowserMode.localPrototype
+        ? address
+        : GameLaunchConfig.dmmGameEntry;
+
+    await GameCaptureStartupSequence.run(
+      waitForPlatformView: () async {
+        await WidgetsBinding.instance.endOfFrame;
+      },
+      configureCapture: () async {
+        if (!mounted) return;
+        await _prepareCapture();
+      },
+      navigate: () async {
+        if (!mounted) return;
+        await _webViewController.loadRequest(initialAddress);
+      },
+    );
   }
 
   Future<void> _attachAudioPortOnce() async {
