@@ -226,4 +226,39 @@ void main() {
       const Size(40, 40),
     );
   });
+
+  testWidgets('toolbar blur can be disabled for compatibility rendering', (
+    tester,
+  ) async {
+    Future<void> pumpToolbar({required bool enableBackdropBlur}) {
+      return tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: GameBrowserToolbar(
+              enableBackdropBlur: enableBackdropBlur,
+              mode: GameBrowserMode.realWeb,
+              loadState: GamePageLoadState.ready,
+              displayAddress: 'https://play.games.dmm.com/game/kancolle',
+              onBack: () async {},
+              onReload: () async {},
+              onHome: () async {},
+              onEnterDmm: () async {},
+              isMuted: false,
+              audioEnabled: true,
+              onToggleMuted: () async {},
+              onCollapse: () {},
+              onFitScreen: () {},
+            ),
+          ),
+        ),
+      );
+    }
+
+    await pumpToolbar(enableBackdropBlur: true);
+    expect(find.byType(BackdropFilter), findsOneWidget);
+
+    await pumpToolbar(enableBackdropBlur: false);
+    expect(find.byType(BackdropFilter), findsNothing);
+    expect(find.byKey(const Key('browser-back')), findsOneWidget);
+  });
 }
