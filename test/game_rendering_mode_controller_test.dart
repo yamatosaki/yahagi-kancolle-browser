@@ -81,25 +81,28 @@ void main() {
     expect(port.modes, isEmpty);
   });
 
-  test('restart failure rolls back persisted and active mode to standard', () async {
-    final store = MemoryGameRenderingModeStore();
-    final controller = await GameRenderingModeController.load(store);
-    final port = _FailFirstRestartPort();
-    controller.attachRestartPort(port);
-    addTearDown(controller.dispose);
+  test(
+    'restart failure rolls back persisted and active mode to standard',
+    () async {
+      final store = MemoryGameRenderingModeStore();
+      final controller = await GameRenderingModeController.load(store);
+      final port = _FailFirstRestartPort();
+      controller.attachRestartPort(port);
+      addTearDown(controller.dispose);
 
-    final result = await controller.changeMode(
-      GameRenderingMode.canvasCompatibility,
-    );
+      final result = await controller.changeMode(
+        GameRenderingMode.canvasCompatibility,
+      );
 
-    expect(result.status, GameRenderingModeChangeStatus.rolledBack);
-    expect(controller.mode, GameRenderingMode.standard);
-    expect(await store.load(), GameRenderingMode.standard);
-    expect(port.modes, <GameRenderingMode>[
-      GameRenderingMode.canvasCompatibility,
-      GameRenderingMode.standard,
-    ]);
-  });
+      expect(result.status, GameRenderingModeChangeStatus.rolledBack);
+      expect(controller.mode, GameRenderingMode.standard);
+      expect(await store.load(), GameRenderingMode.standard);
+      expect(port.modes, <GameRenderingMode>[
+        GameRenderingMode.canvasCompatibility,
+        GameRenderingMode.standard,
+      ]);
+    },
+  );
 }
 
 final class _RecordingRestartPort implements GameEnvironmentRestartPort {

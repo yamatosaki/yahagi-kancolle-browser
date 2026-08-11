@@ -35,7 +35,10 @@ void main() {
 
     expect(find.text('game-standard'), findsNothing);
     expect(find.text('game-compatibility'), findsNothing);
-    expect(find.byKey(const Key('game-environment-restarting')), findsOneWidget);
+    expect(
+      find.byKey(const Key('game-environment-restarting')),
+      findsOneWidget,
+    );
 
     await tester.pump();
     expect(find.text('game-compatibility'), findsOneWidget);
@@ -55,10 +58,8 @@ void main() {
       MaterialApp(
         home: GameEnvironmentHost(
           controller: controller,
-          gameBuilder: (context, mode, key) => SizedBox(
-            key: key,
-            child: Text('game-${mode.storageName}'),
-          ),
+          gameBuilder: (context, mode, key) =>
+              SizedBox(key: key, child: Text('game-${mode.storageName}')),
         ),
       ),
     );

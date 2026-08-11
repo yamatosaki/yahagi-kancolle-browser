@@ -28,9 +28,7 @@ final class SharedPreferencesGameRenderingModeStore
 }
 
 final class MemoryGameRenderingModeStore implements GameRenderingModeStore {
-  MemoryGameRenderingModeStore([
-    this._mode = GameRenderingMode.standard,
-  ]);
+  MemoryGameRenderingModeStore([this._mode = GameRenderingMode.standard]);
 
   GameRenderingMode _mode;
 
@@ -158,9 +156,7 @@ final class GameRenderingModeController extends ChangeNotifier {
     }
   }
 
-  GameRenderingModeChangeResult _finish(
-    GameRenderingModeChangeResult result,
-  ) {
+  GameRenderingModeChangeResult _finish(GameRenderingModeChangeResult result) {
     _lastResult = result;
     _isBusy = false;
     _notify();
