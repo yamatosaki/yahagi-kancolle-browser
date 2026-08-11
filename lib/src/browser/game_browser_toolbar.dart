@@ -23,6 +23,7 @@ class GameBrowserToolbar extends StatelessWidget {
     this.onScreenshot,
     this.persistent = false,
     this.enableBackdropBlur = true,
+    this.interactionEnabled = true,
   });
 
   final GameBrowserMode mode;
@@ -40,6 +41,7 @@ class GameBrowserToolbar extends StatelessWidget {
   final VoidCallback? onScreenshot;
   final bool persistent;
   final bool enableBackdropBlur;
+  final bool interactionEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -70,27 +72,27 @@ class GameBrowserToolbar extends StatelessWidget {
               key: const Key('browser-back'),
               icon: Icons.arrow_back,
               tooltip: l10n.back,
-              onPressed: onBack,
+              onPressed: interactionEnabled ? onBack : null,
               size: navigationActionSize,
             ),
             _ToolbarButton(
               key: const Key('browser-reload'),
               icon: Icons.refresh,
               tooltip: l10n.reload,
-              onPressed: onReload,
+              onPressed: interactionEnabled ? onReload : null,
               size: navigationActionSize,
             ),
             _ToolbarButton(
               key: const Key('browser-home'),
               icon: Icons.home_outlined,
               tooltip: l10n.home,
-              onPressed: onHome,
+              onPressed: interactionEnabled ? onHome : null,
               size: navigationActionSize,
             ),
           ] else
             TextButton.icon(
               key: const Key('browser-enter-dmm'),
-              onPressed: onEnterDmm,
+              onPressed: interactionEnabled ? onEnterDmm : null,
               icon: const Icon(Icons.login, size: 17),
               label: Text(l10n.enterDmm),
             ),
@@ -147,7 +149,9 @@ class GameBrowserToolbar extends StatelessWidget {
               key: const Key('game-audio-toggle'),
               padding: EdgeInsets.zero,
               tooltip: isMuted ? l10n.enableGameAudio : l10n.disableGameAudio,
-              onPressed: audioEnabled ? onToggleMuted : null,
+              onPressed: interactionEnabled && audioEnabled
+                  ? onToggleMuted
+                  : null,
               icon: Icon(
                 isMuted ? Icons.volume_off_outlined : Icons.volume_up_outlined,
                 size: 19,
@@ -160,7 +164,7 @@ class GameBrowserToolbar extends StatelessWidget {
               key: const Key('browser-screenshot'),
               padding: EdgeInsets.zero,
               tooltip: l10n.takeScreenshot,
-              onPressed: onScreenshot,
+              onPressed: interactionEnabled ? onScreenshot : null,
               icon: const Icon(
                 Icons.camera_alt_outlined,
                 size: 19,
@@ -174,7 +178,7 @@ class GameBrowserToolbar extends StatelessWidget {
               key: const Key('browser-fit-screen'),
               padding: EdgeInsets.zero,
               tooltip: l10n.fitGameScreen,
-              onPressed: onFitScreen,
+              onPressed: interactionEnabled ? onFitScreen : null,
               icon: const Icon(Icons.crop_free, size: 18),
             ),
           ),
@@ -184,7 +188,7 @@ class GameBrowserToolbar extends StatelessWidget {
               constraints: const BoxConstraints.tightFor(width: 40, height: 40),
               padding: EdgeInsets.zero,
               tooltip: l10n.collapseToolbar,
-              onPressed: onCollapse,
+              onPressed: interactionEnabled ? onCollapse : null,
               icon: const Icon(Icons.keyboard_arrow_up, size: 22),
             ),
           const SizedBox(width: 4),
@@ -214,7 +218,7 @@ class _ToolbarButton extends StatelessWidget {
 
   final IconData icon;
   final String tooltip;
-  final Future<void> Function() onPressed;
+  final Future<void> Function()? onPressed;
   final double size;
 
   @override

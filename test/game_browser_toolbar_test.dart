@@ -261,4 +261,50 @@ void main() {
     expect(find.byType(BackdropFilter), findsNothing);
     expect(find.byKey(const Key('browser-back')), findsOneWidget);
   });
+
+  testWidgets('toolbar interactions can be locked during a rebuild', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GameBrowserToolbar(
+            interactionEnabled: false,
+            mode: GameBrowserMode.realWeb,
+            loadState: GamePageLoadState.ready,
+            displayAddress: 'https://play.games.dmm.com/game/kancolle',
+            onBack: () async {},
+            onReload: () async {},
+            onHome: () async {},
+            onEnterDmm: () async {},
+            isMuted: false,
+            audioEnabled: true,
+            onToggleMuted: () async {},
+            onCollapse: () {},
+            onFitScreen: () {},
+            onScreenshot: () {},
+          ),
+        ),
+      ),
+    );
+
+    for (final key in <String>[
+      'browser-back',
+      'browser-reload',
+      'browser-home',
+      'game-audio-toggle',
+      'browser-screenshot',
+      'browser-fit-screen',
+      'browser-toolbar-collapse',
+    ]) {
+      final keyed = find.byKey(Key(key));
+      final keyedWidget = tester.widget(keyed);
+      final button = keyedWidget is IconButton
+          ? keyedWidget
+          : tester.widget<IconButton>(
+              find.descendant(of: keyed, matching: find.byType(IconButton)),
+            );
+      expect(button.onPressed, isNull);
+    }
+  });
 }

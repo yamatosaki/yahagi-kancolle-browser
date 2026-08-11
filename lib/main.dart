@@ -24,6 +24,7 @@ import 'src/browser/game_browser_toolbar.dart';
 import 'src/browser/game_toolbar_controller.dart';
 import 'src/browser/game_toolbar_display_controller.dart';
 import 'src/browser/game_screenshot_controller.dart';
+import 'src/browser/game_environment_host.dart';
 import 'src/capture/battle_result_warning_overlay.dart';
 import 'src/capture/capture_mode_controller.dart';
 import 'src/capture/capture_mode_store.dart';
@@ -72,6 +73,8 @@ import 'src/settings/startup_update_notice.dart';
 import 'src/settings/screen_awake_controller.dart';
 import 'src/settings/battle_prediction_settings.dart';
 import 'src/settings/game_frame_rate_settings.dart';
+import 'src/settings/game_rendering_mode_controller.dart';
+import 'src/settings/game_rendering_mode.dart';
 import 'src/senka/senka_controller.dart';
 import 'src/senka/senka_page.dart';
 import 'src/senka/senka_store.dart';
@@ -107,6 +110,9 @@ Future<void> main() async {
       await GameFrameRateSettingsController.load(
         SharedPreferencesGameFrameRateSettingsStore(),
       );
+  final gameRenderingModeController = await GameRenderingModeController.load(
+    SharedPreferencesGameRenderingModeStore(),
+  );
   applyOrientationPolicy(
     currentWindowSize(),
     displayModeController.displayMode,
@@ -239,6 +245,7 @@ Future<void> main() async {
       safetySettingsController: safetySettingsController,
       battlePredictionSettingsController: battlePredictionSettingsController,
       gameFrameRateSettingsController: gameFrameRateSettingsController,
+      gameRenderingModeController: gameRenderingModeController,
       displayModeController: displayModeController,
       controller: controller,
       browserController: browserController,
@@ -274,6 +281,7 @@ class YahagiApp extends StatelessWidget {
     required this.safetySettingsController,
     this.battlePredictionSettingsController,
     this.gameFrameRateSettingsController,
+    this.gameRenderingModeController,
     required this.displayModeController,
     required this.controller,
     required this.browserController,
@@ -302,6 +310,7 @@ class YahagiApp extends StatelessWidget {
   final SafetySettingsController safetySettingsController;
   final BattlePredictionSettingsController? battlePredictionSettingsController;
   final GameFrameRateSettingsController? gameFrameRateSettingsController;
+  final GameRenderingModeController? gameRenderingModeController;
   final DisplayModeController displayModeController;
   final PrototypeStatusController controller;
   final GameBrowserController browserController;
@@ -332,6 +341,7 @@ class YahagiApp extends StatelessWidget {
       animation: Listenable.merge(<Listenable>[
         layoutSettingsController,
         ?toolbarDisplayController,
+        ?gameRenderingModeController,
       ]),
       builder: (context, _) {
         return MaterialApp(
@@ -375,6 +385,7 @@ class YahagiApp extends StatelessWidget {
               battlePredictionSettingsController:
                   battlePredictionSettingsController,
               gameFrameRateSettingsController: gameFrameRateSettingsController,
+              gameRenderingModeController: gameRenderingModeController,
               displayModeController: displayModeController,
               controller: controller,
               browserController: browserController,
@@ -394,31 +405,69 @@ class YahagiApp extends StatelessWidget {
               toolbarDisplayController: toolbarDisplayController,
               gameScreenshotController: gameScreenshotController,
               showDeveloperDiagnostics: showDeveloperDiagnostics,
-              gameSurface: BattleResultWarningOverlay(
-                gameCaptureController: gameCaptureController,
-                battleController: battleController,
-                safetySettingsController: safetySettingsController,
-                child:
-                    gameSurface ??
-                    GameWebView(
-                      key: const GlobalObjectKey('yahagi_game_webview'),
-                      networkSettingsController: networkSettingsController,
-                      safetySettingsController: safetySettingsController,
-                      controller: controller,
-                      browserController: browserController,
-                      captureModeController: captureModeController,
-                      audioController: audioController,
-                      toolbarController: toolbarController,
-                      gameCaptureController: gameCaptureController,
-                      frameRateSettingsController:
-                          gameFrameRateSettingsController,
-                    ),
-              ),
+              gameSurface: _buildGameSurface(),
             ),
           ),
         );
       },
     );
+  }
+
+  Widget _buildGameSurface() {
+    Widget withBattleWarning(Widget child) => BattleResultWarningOverlay(
+      gameCaptureController: gameCaptureController,
+      battleController: battleController,
+      safetySettingsController: safetySettingsController,
+      child: child,
+    );
+
+    if (gameSurface case final injected?) {
+      return withBattleWarning(injected);
+    }
+    final renderingController = gameRenderingModeController;
+    if (renderingController == null) {
+      return withBattleWarning(
+        _buildGameWebView(const GlobalObjectKey('yahagi_game_webview')),
+      );
+    }
+    return GameEnvironmentHost(
+      controller: renderingController,
+      beforeRestart: _waitForCaptureQueues,
+      gameBuilder: (context, mode, key) =>
+          withBattleWarning(_buildGameWebView(key, renderingMode: mode)),
+    );
+  }
+
+  Widget _buildGameWebView(Key key, {GameRenderingMode? renderingMode}) =>
+      GameWebView(
+        key: key,
+        networkSettingsController: networkSettingsController,
+        safetySettingsController: safetySettingsController,
+        controller: controller,
+        browserController: browserController,
+        captureModeController: captureModeController,
+        audioController: audioController,
+        toolbarController: toolbarController,
+        gameCaptureController: gameCaptureController,
+        frameRateSettingsController: gameFrameRateSettingsController,
+        renderingMode:
+            renderingMode ??
+            gameRenderingModeController?.mode ??
+            GameRenderingMode.standard,
+      );
+
+  Future<void> _waitForCaptureQueues() async {
+    try {
+      await Future.wait<void>([
+        gameStateController.idle,
+        ?senkaController?.idle,
+        battleController.idle,
+      ]).timeout(const Duration(seconds: 5));
+    } on TimeoutException {
+      debugPrint(
+        'Timed out waiting for capture queues before WebView rebuild.',
+      );
+    }
   }
 }
 
@@ -439,6 +488,7 @@ class YahagiShell extends StatefulWidget {
     required this.safetySettingsController,
     this.battlePredictionSettingsController,
     this.gameFrameRateSettingsController,
+    this.gameRenderingModeController,
     required this.displayModeController,
     required this.controller,
     required this.browserController,
@@ -467,6 +517,7 @@ class YahagiShell extends StatefulWidget {
   final SafetySettingsController safetySettingsController;
   final BattlePredictionSettingsController? battlePredictionSettingsController;
   final GameFrameRateSettingsController? gameFrameRateSettingsController;
+  final GameRenderingModeController? gameRenderingModeController;
   final DisplayModeController displayModeController;
   final PrototypeStatusController controller;
   final GameBrowserController browserController;
@@ -723,8 +774,20 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                 animation: Listenable.merge([
                                   widget.browserController,
                                   widget.audioController,
+                                  ?widget.gameRenderingModeController,
                                 ]),
                                 builder: (context, _) => GameBrowserToolbar(
+                                  enableBackdropBlur:
+                                      widget
+                                          .gameRenderingModeController
+                                          ?.mode
+                                          .enablesToolbarBlur ??
+                                      true,
+                                  interactionEnabled:
+                                      !(widget
+                                              .gameRenderingModeController
+                                              ?.isBusy ??
+                                          false),
                                   mode: widget.browserController.mode,
                                   loadState: widget.browserController.loadState,
                                   displayAddress:
@@ -1024,6 +1087,11 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                 widget.battlePredictionSettingsController,
                             gameFrameRateSettingsController:
                                 widget.gameFrameRateSettingsController,
+                            gameRenderingModeController:
+                                widget.gameRenderingModeController,
+                            isBattleActive:
+                                widget.battleController.session != null &&
+                                !widget.battleController.session!.completed,
                             displayModeController: widget.displayModeController,
                             currentVersion: widget.currentVersion,
                             releaseChecker: widget.releaseChecker,
