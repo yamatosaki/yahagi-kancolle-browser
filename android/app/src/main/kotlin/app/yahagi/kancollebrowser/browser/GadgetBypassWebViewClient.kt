@@ -27,7 +27,7 @@ class GadgetBypassWebViewClient(
     private val engine: GadgetBypassEngine,
     private val isEnabled: () -> Boolean,
     private val endpoint: () -> String,
-    private val isFrameRateUnlockEnabled: () -> Boolean = { false },
+    private val shouldPatchMainScript: () -> Boolean = { false },
     private val mainScriptFetcher: GameMainScriptFetcher = GameMainScriptFetcher(),
 ) : WebViewClient() {
 
@@ -44,7 +44,7 @@ class GadgetBypassWebViewClient(
     ): WebResourceResponse? {
         val url = request.url?.toString() ?: return null
         if (request.method.equals("GET", ignoreCase = true) &&
-            isFrameRateUnlockEnabled() &&
+            shouldPatchMainScript() &&
             GameMainScriptPatcher.isMainScriptUrl(url)
         ) {
             servePatchedMainScript(url, request.requestHeaders)?.let { return it }
@@ -61,7 +61,7 @@ class GadgetBypassWebViewClient(
         if (url == null) {
             return null
         }
-        if (isFrameRateUnlockEnabled() && GameMainScriptPatcher.isMainScriptUrl(url)) {
+        if (shouldPatchMainScript() && GameMainScriptPatcher.isMainScriptUrl(url)) {
             servePatchedMainScript(url)?.let { return it }
         }
         if (isEnabled() && GadgetBypassRules.shouldIntercept(url, "GET")) {

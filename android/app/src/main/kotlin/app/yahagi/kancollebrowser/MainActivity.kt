@@ -33,6 +33,7 @@ import app.yahagi.kancollebrowser.browser.GadgetBypassManager
 import app.yahagi.kancollebrowser.browser.GadgetBypassWebViewClient
 import app.yahagi.kancollebrowser.browser.FixedCanvasScalePolicy
 import app.yahagi.kancollebrowser.browser.GameFrameRateManager
+import app.yahagi.kancollebrowser.browser.GameFrameRateMode
 import app.yahagi.kancollebrowser.capture.GameCaptureBridge
 import app.yahagi.kancollebrowser.capture.ScreenshotCaptureAttempt
 import app.yahagi.kancollebrowser.capture.ScreenshotCapturePolicy
@@ -288,14 +289,14 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, GameFrameRateM
         if (enabled) {
             installGadgetBypassLayoutListener()
             ensureGadgetBypassWrap()
-        } else if (gameFrameRateManager?.enabled != true) {
+        } else if (gameFrameRateManager?.patchesMainScript != true) {
             restoreGadgetBypassClient()
             removeGadgetBypassLayoutListener()
         }
     }
 
-    override fun onFrameRateUnlockChanged(enabled: Boolean) {
-        if (enabled) {
+    override fun onFrameRateModeChanged(mode: GameFrameRateMode) {
+        if (mode.patchesMainScript) {
             installGadgetBypassLayoutListener()
             ensureGadgetBypassWrap()
         } else if (gadgetBypassManager?.enabled != true) {
@@ -308,7 +309,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, GameFrameRateM
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = gadgetBypassManager ?: return
         val frameRateManager = gameFrameRateManager
-        if (!manager.enabled && frameRateManager?.enabled != true) return
+        if (!manager.enabled && frameRateManager?.patchesMainScript != true) return
 
         val webViews = mutableListOf<WebView>()
         collectWebViews(window.decorView, webViews)
@@ -325,7 +326,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, GameFrameRateM
                 engine = manager.engine,
                 isEnabled = { manager.enabled },
                 endpoint = { manager.endpoint },
-                isFrameRateUnlockEnabled = { frameRateManager?.enabled == true },
+                shouldPatchMainScript = { frameRateManager?.patchesMainScript == true },
             ),
         )
     }
