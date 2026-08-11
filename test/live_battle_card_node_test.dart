@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_controller.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_models.dart';
+import 'package:yahagi_kancolle_browser/src/battle/battle_node_label_resolver.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_pills.dart';
 import 'package:yahagi_kancolle_browser/src/battle/detailed_battle_panel.dart';
 import 'package:yahagi_kancolle_browser/src/battle/live_battle_card.dart';
@@ -95,11 +96,32 @@ Future<void> _pumpCard(
   );
   if (compact) {
     await tester.tap(find.byKey(const Key('battle-mode-compact')));
-    await tester.pumpAndSettle();
+    await tester.pump();
   }
 }
 
 void main() {
+  testWidgets('battle node and enemy name are vertically center aligned', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: AdaptiveBattleHeader(
+            nodeLabel: 'D',
+            enemyName: '敌方舰队',
+            enemyStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.getCenter(find.text('D')).dy,
+      closeTo(tester.getCenter(find.text('敌方舰队')).dy, 0.1),
+    );
+  });
+
   group('air superiority pill colors', () {
     test('ensure and advantage use green', () {
       expect(
@@ -377,6 +399,157 @@ void main() {
     expect(find.textContaining('1-1'), findsNothing);
   });
 
+  testWidgets('forecast omits the point suffix from mapped node labels', (
+    tester,
+  ) async {
+    final reducer = GameStateReducer();
+    var state = reducer.reduce(GameState.empty, start2Event);
+    state = reducer.reduce(state, portEvent);
+    final controller = BattleController(
+      gameState: () => state,
+      nodeLabelResolver: const MapBattleNodeLabelResolver(<String, String>{
+        '1-1-1': 'A3',
+      }),
+    );
+    addTearDown(controller.dispose);
+    controller.accept(mapStartEvent);
+    await controller.idle;
+
+    await _pumpCard(tester, controller);
+
+    expect(find.text('A3'), findsOneWidget);
+    expect(find.text('A3点'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('battle-mode-compact')));
+    await tester.pump();
+
+    expect(find.text('A3'), findsOneWidget);
+    expect(find.text('A3点'), findsNothing);
+  });
+
+  testWidgets(
+    'official enemy preview uses the battle ship name row style in both modes',
+    (tester) async {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(GameState.empty, start2Event);
+      state = reducer
+          .reduce(state, portEvent)
+          .copyWith(
+            masterShips: <int, MasterShip>{
+              ...state.masterShips,
+              1501: const MasterShip(id: 1501, name: '潜水ヨ級', shipTypeId: 13),
+              1502: const MasterShip(id: 1502, name: '潜水カ級', shipTypeId: 13),
+              1503: const MasterShip(id: 1503, name: '潜水ソ級', shipTypeId: 13),
+            },
+          );
+      final controller = BattleController(gameState: () => state);
+      addTearDown(controller.dispose);
+      controller.accept(
+        kcsapiEvent('/kcsapi/api_req_map/next', <String, Object?>{
+          'api_maparea_id': 1,
+          'api_mapinfo_no': 1,
+          'api_no': 2,
+          'api_e_deck_info': <Object?>[
+            <String, Object?>{
+              'api_kind': 1,
+              'api_ship_ids': <int>[1501, 1502, 1503],
+            },
+          ],
+        }, sequence: 988),
+      );
+      await controller.idle;
+
+      await _pumpCard(tester, controller, width: 360);
+
+      expect(find.byKey(const Key('official-enemy-preview')), findsOneWidget);
+      expect(find.text('敌方部队（战前预测）'), findsOneWidget);
+      final previewTitle = tester.widget<Text>(
+        find.byKey(const Key('official-enemy-preview-title')),
+      );
+      expect(previewTitle.style?.fontSize, 11);
+      expect(previewTitle.style?.fontWeight, FontWeight.w800);
+      expect(previewTitle.style?.color, const Color(0xffff8c78));
+      expect(find.text('潜水ヨ級'), findsOneWidget);
+      expect(find.text('潜水カ級'), findsOneWidget);
+      expect(find.text('潜水ソ級'), findsOneWidget);
+      final name = tester.widget<Text>(find.text('潜水ヨ級'));
+      expect(name.style?.fontSize, 11);
+      expect(name.style?.fontWeight, FontWeight.w700);
+      final row = tester.widget<Padding>(
+        find.byKey(const Key('official-enemy-preview-row-0')),
+      );
+      expect(
+        row.padding,
+        const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.byKey(const Key('battle-mode-compact')));
+      await tester.pump();
+
+      expect(find.byKey(const Key('official-enemy-preview')), findsOneWidget);
+      expect(find.text('敌方部队（战前预测）'), findsOneWidget);
+      expect(find.text('潜水ヨ級'), findsOneWidget);
+      expect(find.text('潜水カ級'), findsOneWidget);
+      expect(find.text('潜水ソ級'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('land-base raid is visible in detailed and compact forecast', (
+    tester,
+  ) async {
+    final reducer = GameStateReducer();
+    var state = reducer.reduce(GameState.empty, start2Event);
+    state = reducer
+        .reduce(state, portEvent)
+        .copyWith(
+          landBases: const <LandBaseState>[
+            LandBaseState(areaId: 47, baseId: 1, name: '第一基地航空队'),
+          ],
+        );
+    final controller = BattleController(gameState: () => state);
+    addTearDown(controller.dispose);
+    controller.accept(
+      kcsapiEvent('/kcsapi/api_req_map/next', <String, Object?>{
+        'api_maparea_id': 47,
+        'api_mapinfo_no': 1,
+        'api_no': 4,
+        'api_destruction_battle': <String, Object?>{
+          'api_f_nowhps': <int>[200],
+          'api_f_maxhps': <int>[200],
+          'api_air_base_attack': <String, Object?>{
+            'api_stage1': <String, Object?>{'api_disp_seiku': 1},
+            'api_stage3': <String, Object?>{
+              'api_fdam': <num>[48.9],
+            },
+          },
+        },
+      }, sequence: 992),
+    );
+    await controller.idle;
+
+    await _pumpCard(tester, controller, width: 360);
+
+    expect(find.byKey(const Key('land-base-raid-panel')), findsOneWidget);
+    expect(find.text('第一基地航空隊'), findsOneWidget);
+    expect(find.text('①'), findsNothing);
+    expect(find.text('制空：确保'), findsOneWidget);
+    expect(find.text('152/200（-48）'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byKey(const Key('battle-mode-compact')));
+    await tester.pump();
+
+    expect(find.byKey(const Key('land-base-raid-panel')), findsOneWidget);
+    expect(find.text('第一基地航空隊'), findsOneWidget);
+    expect(find.text('①'), findsNothing);
+    expect(find.text('制空：确保'), findsOneWidget);
+    expect(find.text('152/200（-48）'), findsOneWidget);
+    expect(find.textContaining('损失'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('compact battle hides drop before result and omits map', (
     tester,
   ) async {
@@ -638,6 +811,26 @@ void main() {
       const Color(0xff71818b),
     );
     expect(
+      find.byKey(const Key('compact-damage-hp-pulse-friend-0')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('compact-damage-row-pulse-friend-0')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('compact-damage-hp-pulse-enemy-0')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('compact-damage-hp-pulse-friend-1')),
+      findsNothing,
+    );
+    expect(
+      find.ancestor(of: crown, matching: find.byType(Opacity)),
+      findsNothing,
+    );
+    expect(
       tester
           .widget<LinearProgressIndicator>(
             find.descendant(
@@ -782,6 +975,36 @@ void main() {
     final tooltip = tester.widget<Tooltip>(find.byType(Tooltip).first);
     expect(tooltip.message, isNotEmpty);
     expect(find.byKey(const Key('battle-mvp-friend-0')), findsOneWidget);
+    expect(
+      find.byKey(const Key('battle-damage-row-pulse-friend-0')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('battle-damage-hp-pulse-friend-0')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('battle-damage-hp-pulse-enemy-0')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const Key('battle-damage-hp-pulse-friend-1')),
+      findsNothing,
+    );
+    expect(
+      find.ancestor(
+        of: find.byKey(const Key('battle-mvp-friend-0')),
+        matching: find.byType(Opacity),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.ancestor(
+        of: find.byType(Tooltip).first,
+        matching: find.byType(Opacity),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('forecast shows rank in compact and detailed modes', (

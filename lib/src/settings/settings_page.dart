@@ -16,6 +16,7 @@ import 'release_check_service.dart';
 import 'screen_awake_controller.dart';
 import '../battle/fcd_map_controller.dart';
 import '../quest/quest_catalog_controller.dart';
+import '../improvement/improvement_planner_controller.dart';
 import 'screen_settings_page.dart';
 import 'sound_settings_page.dart';
 import 'battle_settings_page.dart';
@@ -44,6 +45,7 @@ class SettingsPage extends StatelessWidget {
     this.toolbarDisplayController,
     this.fcdMapController,
     this.questCatalogController,
+    this.improvementPlannerController,
     this.showTitle = true,
     this.showDeveloperDiagnostics = false,
     this.battlePredictionSettingsController,
@@ -69,6 +71,7 @@ class SettingsPage extends StatelessWidget {
   final GameToolbarDisplayController? toolbarDisplayController;
   final FcdMapController? fcdMapController;
   final QuestCatalogController? questCatalogController;
+  final ImprovementPlannerController? improvementPlannerController;
   final bool showDeveloperDiagnostics;
   final BattlePredictionSettingsController? battlePredictionSettingsController;
   final GameFrameRateSettingsController? gameFrameRateSettingsController;
@@ -93,6 +96,7 @@ class SettingsPage extends StatelessWidget {
               battlePredictionSettingsController,
           fcdMapController: fcdMapController,
           questCatalogController: questCatalogController,
+          improvementPlannerController: improvementPlannerController,
           safetySettingsController: safetySettingsController,
         ),
         NetworkSettingsPageNew(

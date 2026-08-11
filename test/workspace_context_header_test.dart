@@ -4,6 +4,7 @@ import 'package:yahagi_kancolle_browser/src/game_state/combat_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/layout/workspace_context_header.dart';
 import 'package:yahagi_kancolle_browser/src/quest/quest_center_page.dart';
+import 'package:yahagi_kancolle_browser/src/senka/senka_state.dart';
 
 void main() {
   const state = GameState(
@@ -17,20 +18,43 @@ void main() {
   );
 
   testWidgets('game workspace alone shows resources', (tester) async {
+    var anchorageTapCount = 0;
+    final senkaState = SenkaState.forMonth('2026-08').copyWith(
+      rankingHistory: {
+        'player': [
+          SenkaRankingSnapshot(
+            rank: 370,
+            senka: 1120,
+            capturedAt: DateTime.utc(2026, 8, 11),
+            localSenkaAtCapture: 0,
+          ),
+        ],
+      },
+    );
     await tester.pumpWidget(
-      const MaterialApp(
+      MaterialApp(
         home: Scaffold(
           body: WorkspaceContextHeader(
             workspaceIndex: 0,
             state: state,
+            senkaState: senkaState,
+            anchorageRepairStartedAt: DateTime.utc(2026, 8, 11, 1),
+            onAnchorageTimerTap: () => anchorageTapCount++,
             selectedFleetId: 1,
           ),
         ),
       ),
     );
 
-    expect(find.byKey(const Key('resource-item-1')), findsOneWidget);
+    expect(find.byKey(const Key('header-resource-material-1')), findsOneWidget);
+    expect(find.text('战果：1120（#370）'), findsOneWidget);
+    expect(find.textContaining('泊地：'), findsOneWidget);
+    expect(find.text('泊地：--:--:--'), findsNothing);
     expect(find.byKey(const Key('workspace-title-fleet')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('header-resource-anchorage-timer')));
+    await tester.pump();
+    expect(anchorageTapCount, 1);
   });
 
   testWidgets('fleet workspace replaces resources with fleet switches', (
@@ -105,7 +129,29 @@ void main() {
       find.byKey(const Key('workspace-title-construction')),
       findsOneWidget,
     );
-    expect(find.text('建造'), findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(find.byKey(const Key('workspace-title-construction')))
+          .data,
+      '建造',
+    );
+  });
+
+  testWidgets('senka workspace shows the formal page title', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: WorkspaceContextHeader(
+            workspaceIndex: 9,
+            state: state,
+            selectedFleetId: 1,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('workspace-title-senka')), findsOneWidget);
+    expect(find.text('战果'), findsOneWidget);
   });
 
   testWidgets('quest workspace switches between active and all quests', (
@@ -226,7 +272,7 @@ void main() {
     expect(selectedShips, isFalse);
   });
 
-  testWidgets('logbook puts its four-section capsule in the top right', (
+  testWidgets('logbook puts its six-section capsule in the top right', (
     tester,
   ) async {
     var selectedTab = 0;
@@ -246,11 +292,12 @@ void main() {
     );
 
     expect(find.byKey(const Key('workspace-title-logbook')), findsOneWidget);
+    expect(find.text('航海日志'), findsOneWidget);
+    expect(find.text('Poi 航海日志'), findsNothing);
     expect(find.byKey(const Key('logbook-segmented')), findsOneWidget);
-    expect(find.text('本次出击'), findsOneWidget);
-    expect(find.text('历史战果'), findsOneWidget);
-    expect(find.text('资源趋势'), findsOneWidget);
-    expect(find.text('远征收益'), findsOneWidget);
+    for (final label in ['出击', '远征', '建造', '开发', '除籍', '资源']) {
+      expect(find.text(label), findsOneWidget);
+    }
 
     final title = tester.getRect(
       find.byKey(const Key('workspace-title-logbook')),
@@ -259,7 +306,7 @@ void main() {
     expect(switcher.left, greaterThan(title.right));
     expect(switcher.height, 38);
 
-    await tester.tap(find.byKey(const Key('logbook-tab-history')));
+    await tester.tap(find.byKey(const Key('logbook-tab-expedition')));
     expect(selectedTab, 1);
   });
 }

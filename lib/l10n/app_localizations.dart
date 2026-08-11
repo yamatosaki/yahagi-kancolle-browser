@@ -144,7 +144,7 @@ abstract class AppLocalizations {
   /// No description provided for @battleRecords.
   ///
   /// In zh, this message translates to:
-  /// **'战斗记录'**
+  /// **'航海日志'**
   String get battleRecords;
 
   /// No description provided for @settings.
@@ -180,8 +180,32 @@ abstract class AppLocalizations {
   /// No description provided for @autoZoom.
   ///
   /// In zh, this message translates to:
-  /// **'自动缩放游戏画面（默认推荐 65：35）'**
+  /// **'应用推荐显示比例（游戏与菜单比例 65:35）'**
   String get autoZoom;
+
+  /// No description provided for @enhancedDamagePulse.
+  ///
+  /// In zh, this message translates to:
+  /// **'加强受损呼吸提示'**
+  String get enhancedDamagePulse;
+
+  /// No description provided for @enhancedDamagePulseDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'按小破、中破、大破增强颜色、速度和头像内部光效。关闭后使用普通效果。'**
+  String get enhancedDamagePulseDesc;
+
+  /// No description provided for @workspaceMenuOnRight.
+  ///
+  /// In zh, this message translates to:
+  /// **'菜单栏置于右侧'**
+  String get workspaceMenuOnRight;
+
+  /// No description provided for @workspaceMenuOnRightDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'关闭时菜单栏保持在左侧。'**
+  String get workspaceMenuOnRightDesc;
 
   /// No description provided for @language.
   ///
@@ -744,8 +768,32 @@ abstract class AppLocalizations {
   /// No description provided for @logoutSnackbar.
   ///
   /// In zh, this message translates to:
-  /// **'退出登录功能已准备就绪，当前为保护您的测试账号暂未执行清除。'**
+  /// **'已退出登录并清除账号信息。'**
   String get logoutSnackbar;
+
+  /// No description provided for @logoutConfirmTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'退出登录并清除账号信息'**
+  String get logoutConfirmTitle;
+
+  /// No description provided for @logoutConfirmDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'将清除应用内游戏页面的 Cookie、本地存储和缓存，然后返回登录页面。确定继续吗？'**
+  String get logoutConfirmDesc;
+
+  /// No description provided for @logoutSucceeded.
+  ///
+  /// In zh, this message translates to:
+  /// **'已退出登录，请重新登录。'**
+  String get logoutSucceeded;
+
+  /// No description provided for @logoutFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'退出登录失败，请稍后重试。'**
+  String get logoutFailed;
 
   /// No description provided for @questCacheCleared.
   ///
@@ -768,7 +816,7 @@ abstract class AppLocalizations {
   /// No description provided for @clearLogbookDesc.
   ///
   /// In zh, this message translates to:
-  /// **'清除本地保存的所有历史战果、资源与远征记录。此操作不可逆。'**
+  /// **'清除本地保存的出击、远征、建造、开发、除籍与资源记录。此操作不可逆。'**
   String get clearLogbookDesc;
 
   /// No description provided for @clearLogbookConfirmTitle.
@@ -780,7 +828,7 @@ abstract class AppLocalizations {
   /// No description provided for @clearLogbookConfirmDesc.
   ///
   /// In zh, this message translates to:
-  /// **'确定要清空所有航海日志数据吗？这将会删除您积攒的历史战果和资源统计记录。此操作无法撤销。'**
+  /// **'确定要清空所有航海日志数据吗？出击、远征、建造、开发、除籍和资源记录都会被删除。此操作无法撤销。'**
   String get clearLogbookConfirmDesc;
 
   /// No description provided for @logbookCleared.
@@ -1727,8 +1775,14 @@ abstract class AppLocalizations {
   /// No description provided for @noPinnedQuests.
   ///
   /// In zh, this message translates to:
-  /// **'当前没有进行中的任务'**
+  /// **'当前无进行中任务'**
   String get noPinnedQuests;
+
+  /// No description provided for @questsNeedSync.
+  ///
+  /// In zh, this message translates to:
+  /// **'需进入任务界面同步信息'**
+  String get questsNeedSync;
 
   /// No description provided for @waitingQuestData.
   ///
@@ -2102,10 +2156,70 @@ abstract class AppLocalizations {
   /// **'数据保存失败，已保留当前版本。'**
   String get fcdMapStorageError;
 
+  /// No description provided for @questCatalogDataTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'任务资料'**
+  String get questCatalogDataTitle;
+
+  /// No description provided for @questCatalogDataVersion.
+  ///
+  /// In zh, this message translates to:
+  /// **'资料版本：{version}'**
+  String questCatalogDataVersion(String version);
+
+  /// No description provided for @questCatalogNeverChecked.
+  ///
+  /// In zh, this message translates to:
+  /// **'上次检查：尚未检查'**
+  String get questCatalogNeverChecked;
+
+  /// No description provided for @questCatalogLastChecked.
+  ///
+  /// In zh, this message translates to:
+  /// **'上次检查：{time}'**
+  String questCatalogLastChecked(String time);
+
+  /// No description provided for @questCatalogCheckUpdates.
+  ///
+  /// In zh, this message translates to:
+  /// **'检查任务资料更新'**
+  String get questCatalogCheckUpdates;
+
+  /// No description provided for @questCatalogUpToDate.
+  ///
+  /// In zh, this message translates to:
+  /// **'任务资料已经是最新版本。'**
+  String get questCatalogUpToDate;
+
+  /// No description provided for @questCatalogUpdated.
+  ///
+  /// In zh, this message translates to:
+  /// **'任务资料已从 {oldVersion} 更新至 {newVersion}，并已立即生效。'**
+  String questCatalogUpdated(String oldVersion, String newVersion);
+
+  /// No description provided for @questCatalogNetworkError.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法连接任务资料更新源，请稍后再试。'**
+  String get questCatalogNetworkError;
+
+  /// No description provided for @questCatalogValidationError.
+  ///
+  /// In zh, this message translates to:
+  /// **'下载的任务资料未通过验证，已保留当前版本。'**
+  String get questCatalogValidationError;
+
+  /// No description provided for @questCatalogStorageError.
+  ///
+  /// In zh, this message translates to:
+  /// **'任务资料保存失败，已保留当前版本。'**
+  String get questCatalogStorageError;
+
   /// No description provided for @gameFrameRateTitle.
   ///
   /// In zh, this message translates to:
-  /// **'游戏帧率'**
+  /// **'解除 60 FPS 上限'**
   String get gameFrameRateTitle;
 
   /// No description provided for @gameFrameRateOff.
@@ -2141,19 +2255,19 @@ abstract class AppLocalizations {
   /// No description provided for @gameFrameRateFollowDisplayDesc.
   ///
   /// In zh, this message translates to:
-  /// **'跟随设备屏幕刷新率；可能增加耗电和发热。'**
+  /// **'使用 GotoBrowser 同款主脚本补丁，让游戏跟随设备刷新率；可能增加耗电和发热。'**
   String get gameFrameRateFollowDisplayDesc;
 
   /// No description provided for @gameFrameRateUnsupported.
   ///
   /// In zh, this message translates to:
-  /// **'当前 Android WebView 不支持帧率模式'**
+  /// **'当前 Android WebView 不支持解除帧率上限'**
   String get gameFrameRateUnsupported;
 
   /// No description provided for @gameFrameRateRestartRequired.
   ///
   /// In zh, this message translates to:
-  /// **'重新启动游戏后生效'**
+  /// **'重新加载游戏页面后生效'**
   String get gameFrameRateRestartRequired;
 }
 

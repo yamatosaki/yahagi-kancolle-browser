@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/src/battle/battle_damage_alert.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_controller.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_models.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_node_label_resolver.dart';
@@ -10,6 +11,80 @@ import 'package:yahagi_kancolle_browser/src/settings/battle_prediction_settings.
 import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
+  test(
+    'alerts once when friendly damage newly reaches moderate damage',
+    () async {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(GameState.empty, start2Event);
+      state = reducer.reduce(state, portEvent);
+      final alerts = _RecordingDamageAlertPort();
+      final controller = BattleController(
+        gameState: () => state,
+        damageAlertPort: alerts,
+        battleDamageVibrationEnabled: () => true,
+      );
+      addTearDown(controller.dispose);
+
+      controller
+        ..accept(mapStartEvent)
+        ..accept(dayBattleEvent);
+      await controller.idle;
+      expect(alerts.alerts, isEmpty);
+
+      controller.accept(nightBattleEvent);
+      await controller.idle;
+
+      expect(alerts.alerts, <BattleDamageAlertSeverity>[
+        BattleDamageAlertSeverity.moderate,
+      ]);
+    },
+  );
+
+  test('does not alert in practice or while vibration is disabled', () async {
+    final reducer = GameStateReducer();
+    var state = reducer.reduce(GameState.empty, start2Event);
+    state = reducer.reduce(state, portEvent);
+    final alerts = _RecordingDamageAlertPort();
+    var enabled = false;
+    final controller = BattleController(
+      gameState: () => state,
+      damageAlertPort: alerts,
+      battleDamageVibrationEnabled: () => enabled,
+    );
+    addTearDown(controller.dispose);
+
+    controller
+      ..accept(mapStartEvent)
+      ..accept(dayBattleEvent)
+      ..accept(nightBattleEvent);
+    await controller.idle;
+    expect(alerts.alerts, isEmpty);
+
+    enabled = true;
+    controller.accept(
+      kcsapiEvent('/kcsapi/api_req_practice/battle', <String, Object?>{
+        'api_deck_id': 1,
+        'api_f_nowhps': <int>[-1, 30, 15],
+        'api_f_maxhps': <int>[-1, 30, 15],
+        'api_e_nowhps': <int>[-1, 20],
+        'api_e_maxhps': <int>[-1, 20],
+        'api_ship_ke': <int>[-1, 501],
+        'api_hougeki1': <String, Object?>{
+          'api_at_eflag': <int>[1],
+          'api_at_list': <int>[0],
+          'api_df_list': <Object?>[
+            <int>[0],
+          ],
+          'api_damage': <Object?>[
+            <num>[20],
+          ],
+        },
+      }, sequence: 998),
+    );
+    await controller.idle;
+    expect(alerts.alerts, isEmpty);
+  });
+
   test('locks the selected prediction engine for one battle session', () async {
     final reducer = GameStateReducer();
     var state = reducer.reduce(GameState.empty, start2Event);
@@ -74,6 +149,125 @@ void main() {
     expect(controller.current!.enemyShips, isEmpty);
     expect(controller.current!.rank, BattleRank.unknown);
   });
+
+  test(
+    'map response exposes at most three official enemy preview names',
+    () async {
+      final state = GameState(
+        masterShips: const <int, MasterShip>{
+          1501: MasterShip(id: 1501, name: '潜水ヨ級', shipTypeId: 13),
+          1502: MasterShip(id: 1502, name: '潜水カ級', shipTypeId: 13),
+          1503: MasterShip(id: 1503, name: '潜水ソ級', shipTypeId: 13),
+          1504: MasterShip(id: 1504, name: '潜水ロ級', shipTypeId: 13),
+        },
+      );
+      final controller = BattleController(gameState: () => state);
+      addTearDown(controller.dispose);
+
+      controller.accept(
+        kcsapiEvent('/kcsapi/api_req_map/next', <String, Object?>{
+          'api_maparea_id': 1,
+          'api_mapinfo_no': 1,
+          'api_no': 2,
+          'api_e_deck_info': <Object?>[
+            <String, Object?>{
+              'api_kind': 1,
+              'api_ship_ids': <int>[1501, 1502, 1503, 1504],
+            },
+          ],
+        }, sequence: 989),
+      );
+      await controller.idle;
+
+      expect(controller.current?.enemyPreviewNames, <String>[
+        '潜水ヨ級',
+        '潜水カ級',
+        '潜水ソ級',
+      ]);
+    },
+  );
+
+  test('map next exposes land-base raid result in the forecast', () async {
+    const state = GameState(
+      landBases: <LandBaseState>[
+        LandBaseState(areaId: 47, baseId: 1, name: '第一基地航空队'),
+        LandBaseState(areaId: 47, baseId: 2, name: '第二基地航空队'),
+      ],
+    );
+    final controller = BattleController(gameState: () => state);
+    addTearDown(controller.dispose);
+
+    controller.accept(
+      kcsapiEvent('/kcsapi/api_req_map/next', <String, Object?>{
+        'api_maparea_id': 47,
+        'api_mapinfo_no': 1,
+        'api_no': 4,
+        'api_destruction_battle': <String, Object?>{
+          'api_f_nowhps': <int>[200, 200],
+          'api_f_maxhps': <int>[200, 200],
+          'api_air_base_attack': <String, Object?>{
+            'api_stage3': <String, Object?>{
+              'api_fdam': <num>[48.9, 24.1],
+            },
+          },
+        },
+      }, sequence: 990),
+    );
+    await controller.idle;
+
+    expect(controller.current?.phaseLabel, '基地空袭');
+    expect(controller.current?.landBaseRaid?.bases, hasLength(2));
+    expect(controller.current?.landBaseRaid?.bases.first.name, '第一基地航空队');
+    expect(controller.current?.landBaseRaid?.bases.first.currentHp, 152);
+    expect(controller.current?.landBaseRaid?.bases.first.damage, 48);
+
+    controller.accept(
+      kcsapiEvent('/kcsapi/api_req_map/next', <String, Object?>{
+        'api_maparea_id': 47,
+        'api_mapinfo_no': 1,
+        'api_no': 5,
+      }, sequence: 991),
+    );
+    await controller.idle;
+
+    expect(controller.current?.landBaseRaid, isNull);
+  });
+
+  test(
+    'map next exposes a zero-damage land-base raid without stage3',
+    () async {
+      const state = GameState(
+        landBases: <LandBaseState>[
+          LandBaseState(areaId: 62, baseId: 1, name: '第一基地航空队'),
+        ],
+      );
+      final controller = BattleController(gameState: () => state);
+      addTearDown(controller.dispose);
+
+      controller.accept(
+        kcsapiEvent('/kcsapi/api_req_map/next', <String, Object?>{
+          'api_maparea_id': 62,
+          'api_mapinfo_no': 1,
+          'api_no': 19,
+          'api_destruction_battle': <String, Object?>{
+            'api_f_nowhps': <int>[200],
+            'api_f_maxhps': <int>[200],
+            'api_air_base_attack': <String, Object?>{
+              'api_stage_flag': <int>[1, 0, 0],
+              'api_stage1': <String, Object?>{'api_disp_seiku': 1},
+            },
+          },
+        }, sequence: 992),
+      );
+      await controller.idle;
+
+      expect(controller.current?.phaseLabel, '基地空袭');
+      expect(controller.current?.landBaseRaid?.bases, hasLength(1));
+      expect(controller.current?.landBaseRaid?.bases.single.currentHp, 200);
+      expect(controller.current?.landBaseRaid?.bases.single.damage, 0);
+      expect(controller.current?.landBaseRaid?.airSuperiority, '确保');
+    },
+  );
 
   test('falls back to internal ids instead of inventing alphabetic labels', () {
     expect(const BattleContext(node: 1).nodeLabel, '节点 1');
@@ -596,6 +790,15 @@ void main() {
       expect(controller.records, isEmpty);
     },
   );
+}
+
+final class _RecordingDamageAlertPort implements BattleDamageAlertPort {
+  final List<BattleDamageAlertSeverity> alerts = <BattleDamageAlertSeverity>[];
+
+  @override
+  Future<void> alert(BattleDamageAlertSeverity severity) async {
+    alerts.add(severity);
+  }
 }
 
 BattlePredictionEngineFactory _fixedEngineFactory(BattleRank rank) =>

@@ -125,82 +125,51 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                      SizedBox(
-                        width: 250,
-                        child: DropdownButtonFormField<int>(
-                          initialValue: missionId,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 9,
-                            ),
-                            border: OutlineInputBorder(),
-                          ),
-                          items: [
-                            for (final id in expeditionRules.keys)
-                              DropdownMenuItem(
-                                value: id,
-                                child: Text(
-                                  '${_displayId(id)} · ${state.masterMissions[id]?.name ?? '远征'}',
-                                  maxLines: 1,
-                                  softWrap: false,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
+                  LayoutBuilder(
+                    builder: (context, headerConstraints) {
+                      final normalResult =
+                          '${s.normalCheck}: ${ev.normalPassed ? s.passed : s.failed}';
+                      final greatResult =
+                          '${s.greatSuccess}: ${ev.greatSuccessPassed ? s.passed : s.failed} (${ev.greatSuccessRate.toStringAsFixed(2)}%)';
+                      final minimumControlsWidth = great ? 460.0 : 390.0;
+                      final estimatedResultsWidth = great ? 350.0 : 150.0;
+                      final resultsOnSecondLine =
+                          headerConstraints.maxWidth <
+                          minimumControlsWidth + estimatedResultsWidth + 12;
+                      final controls = _headerControls(
+                        state: state,
+                        strings: s,
+                      );
+                      final results = _headerResults(
+                        normalText: normalResult,
+                        normalPassed: ev.normalPassed,
+                        greatText: great ? greatResult : null,
+                        greatPassed: ev.greatSuccessPassed,
+                        fillAvailableWidth: resultsOnSecondLine,
+                      );
+
+                      if (resultsOnSecondLine) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            controls,
+                            const SizedBox(height: 8),
+                            results,
                           ],
-                          onChanged: (v) {
-                            if (v != null) setState(() => missionId = v);
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      _SegmentGroup(
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          _SegmentButton(
-                            label: s.success,
-                            selected: !great,
-                            onTap: () => setState(() => great = false),
-                          ),
-                          _SegmentButton(
-                            label: s.greatSuccess,
-                            selected: great,
-                            onTap: () => setState(() => great = true),
-                          ),
+                          Expanded(child: controls),
+                          const SizedBox(width: 12),
+                          results,
                         ],
-                      ),
-                      if (great) ...[
-                        const SizedBox(width: 12),
-                        _TargetMenu(
-                          target: target,
-                          onSelected: (v) => setState(() => target = v),
-                        ),
-                      ],
-                      const SizedBox(width: 12),
-                      _StatusCapsule(
-                        text:
-                            '${s.normalCheck}: ${ev.normalPassed ? s.passed : s.failed}',
-                        passed: ev.normalPassed,
-                      ),
-                      if (great) ...[
-                        const SizedBox(width: 12),
-                        _StatusCapsule(
-                          text:
-                              '${s.greatSuccess}: ${ev.greatSuccessPassed ? s.passed : s.failed} (${ev.greatSuccessRate.toStringAsFixed(2)}%)',
-                          passed: ev.greatSuccessPassed,
-                        ),
-                      ],
-                    ],
+                      );
+                    },
                   ),
-                ),
-                const SizedBox(height: 8),
-                if (c.maxWidth > 760)
+                  const SizedBox(height: 8),
+                  if (c.maxWidth > 760)
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -219,6 +188,107 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _headerControls({
+    required GameState state,
+    required ExpeditionStrings strings,
+  }) {
+    return Row(
+      key: const Key('expedition-header-controls'),
+      children: [
+        Expanded(
+          child: DropdownButtonFormField<int>(
+            initialValue: missionId,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              border: OutlineInputBorder(),
+            ),
+            items: [
+              for (final id in expeditionRules.keys)
+                DropdownMenuItem(
+                  value: id,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      '${_displayId(id)} · ${state.masterMissions[id]?.name ?? '远征'}',
+                      key: id == missionId
+                          ? const Key('expedition-mission-label')
+                          : null,
+                      maxLines: 1,
+                      softWrap: false,
+                    ),
+                  ),
+                ),
+            ],
+            onChanged: (value) {
+              if (value != null) setState(() => missionId = value);
+            },
+          ),
+        ),
+        const SizedBox(width: 8),
+        _SegmentGroup(
+          width: 190,
+          children: [
+            _SegmentButton(
+              label: strings.success,
+              selected: !great,
+              onTap: () => setState(() => great = false),
+            ),
+            _SegmentButton(
+              label: strings.greatSuccess,
+              selected: great,
+              onTap: () => setState(() => great = true),
+            ),
+          ],
+        ),
+        if (great) ...[
+          const SizedBox(width: 8),
+          _TargetMenu(
+            target: target,
+            onSelected: (value) => setState(() => target = value),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _headerResults({
+    required String normalText,
+    required bool normalPassed,
+    required String? greatText,
+    required bool greatPassed,
+    required bool fillAvailableWidth,
+  }) {
+    final normal = _StatusCapsule(
+      text: normalText,
+      passed: normalPassed,
+      scaleTextDown: fillAvailableWidth,
+    );
+    final greatStatus = greatText == null
+        ? null
+        : _StatusCapsule(
+            text: greatText,
+            passed: greatPassed,
+            scaleTextDown: fillAvailableWidth,
+          );
+    return Row(
+      key: const Key('expedition-header-results'),
+      mainAxisSize: fillAvailableWidth ? MainAxisSize.max : MainAxisSize.min,
+      children: [
+        if (fillAvailableWidth) Expanded(child: normal) else normal,
+        if (greatStatus != null) ...[
+          const SizedBox(width: 8),
+          if (fillAvailableWidth)
+            Expanded(flex: 2, child: greatStatus)
+          else
+            greatStatus,
+        ],
       ],
     );
   }
@@ -513,12 +583,13 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
 }
 
 class _SegmentGroup extends StatelessWidget {
-  const _SegmentGroup({required this.children});
+  const _SegmentGroup({required this.children, this.width = 260});
   final List<Widget> children;
+  final double width;
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 260, // Width for 4-character tabs style
+      width: width,
       height: 38,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
@@ -526,9 +597,7 @@ class _SegmentGroup extends StatelessWidget {
         border: Border.all(color: const Color(0xff315064)),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Row(
-        children: children.map((c) => Expanded(child: c)).toList(),
-      ),
+      child: Row(children: children.map((c) => Expanded(child: c)).toList()),
     );
   }
 }
@@ -600,40 +669,55 @@ class _TargetMenu extends StatelessWidget {
             ),
           ),
       ],
-      child: _SegmentGroup(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 7),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
+      child: Container(
+        key: const Key('expedition-target-menu'),
+        width: 82,
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 9),
+        decoration: BoxDecoration(
+          color: const Color(0xff0b202d),
+          border: Border.all(color: const Color(0xff315064)),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
                   '$target%',
+                  maxLines: 1,
                   style: const TextStyle(
                     fontSize: 13,
                     color: Color(0xffdce6eb),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const Icon(
-                  Icons.arrow_drop_down,
-                  size: 16,
-                  color: Color(0xffdce6eb),
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
+            const Icon(
+              Icons.arrow_drop_down,
+              size: 16,
+              color: Color(0xffdce6eb),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _StatusCapsule extends StatelessWidget {
-  const _StatusCapsule({required this.text, required this.passed});
+  const _StatusCapsule({
+    required this.text,
+    required this.passed,
+    this.scaleTextDown = false,
+  });
 
   final String text;
   final bool passed;
+  final bool scaleTextDown;
 
   @override
   Widget build(BuildContext context) {
@@ -648,14 +732,17 @@ class _StatusCapsule extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(9),
       ),
-      child: Text(
-        text,
-        maxLines: 1,
-        softWrap: false,
-        style: TextStyle(
-          fontSize: 13,
-          color: passed ? const Color(0xff67b579) : const Color(0xffc5525c),
-          fontWeight: FontWeight.w700,
+      child: FittedBox(
+        fit: scaleTextDown ? BoxFit.scaleDown : BoxFit.none,
+        child: Text(
+          text,
+          maxLines: 1,
+          softWrap: false,
+          style: TextStyle(
+            fontSize: 13,
+            color: passed ? const Color(0xff67b579) : const Color(0xffc5525c),
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );

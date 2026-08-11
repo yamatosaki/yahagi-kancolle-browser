@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'dart:async';
 
+import 'package:yahagi_kancolle_browser/src/battle/battle_controller.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_store.dart';
@@ -46,6 +47,117 @@ void main() {
       expect(controller.state, same(previous));
       expect(controller.lastError, '游戏数据解析失败（GameApiParseException）');
     });
+    test(
+      'battle forecast synchronizes friendly HP without a port refresh',
+      () async {
+        final controller = GameStateController();
+        final battleController = BattleController(
+          gameState: () => controller.state,
+        );
+        addTearDown(controller.dispose);
+        addTearDown(battleController.dispose);
+
+        controller
+          ..accept(start2Event)
+          ..accept(portEvent);
+        await controller.idle;
+        expect(controller.state.ships[9001]!.currentHp, 28);
+        expect(controller.state.ships[9002]!.currentHp, 8);
+
+        controller.accept(mapStartEvent);
+        battleController.accept(mapStartEvent);
+        await controller.idle;
+        await battleController.idle;
+
+        controller.accept(dayBattleEvent);
+        battleController.accept(dayBattleEvent);
+        await controller.idle;
+        await battleController.idle;
+        await controller.idle;
+
+        expect(controller.state.ships[9001]!.currentHp, 28);
+        expect(controller.state.ships[9002]!.currentHp, 8);
+
+        battleController.bindFriendlyHpUpdater(
+          controller.applyFriendlyBattleHp,
+        );
+        await controller.idle;
+
+        expect(controller.state.ships[9001]!.currentHp, 18);
+        expect(controller.state.ships[9002]!.currentHp, 15);
+
+        controller.accept(nightBattleEvent);
+        battleController.accept(nightBattleEvent);
+        await controller.idle;
+        await battleController.idle;
+        await controller.idle;
+
+        expect(controller.state.ships[9001]!.currentHp, 13);
+        expect(controller.state.ships[9002]!.currentHp, 15);
+      },
+    );
+
+    test('practice battle HP never overwrites the owned fleet', () async {
+      final controller = GameStateController();
+      final battleController = BattleController(
+        gameState: () => controller.state,
+        onFriendlyHpUpdated: controller.applyFriendlyBattleHp,
+      );
+      addTearDown(controller.dispose);
+      addTearDown(battleController.dispose);
+
+      controller
+        ..accept(start2Event)
+        ..accept(portEvent);
+      await controller.idle;
+
+      battleController.accept(
+        kcsapiEvent('/kcsapi/api_req_practice/battle', <String, Object?>{
+          'api_deck_id': 1,
+          'api_f_nowhps': <int>[28, 8],
+          'api_f_maxhps': <int>[30, 15],
+          'api_e_nowhps': <int>[20],
+          'api_e_maxhps': <int>[20],
+          'api_ship_ke': <int>[501],
+          'api_hougeki1': <String, Object?>{
+            'api_at_eflag': <int>[1],
+            'api_at_list': <int>[0],
+            'api_df_list': <Object?>[
+              <int>[0],
+            ],
+            'api_damage': <Object?>[
+              <num>[5],
+            ],
+          },
+        }, sequence: 2001),
+      );
+      await battleController.idle;
+
+      battleController.accept(
+        kcsapiEvent(
+          '/kcsapi/api_req_practice/midnight_battle',
+          <String, Object?>{
+            'api_hougeki': <String, Object?>{
+              'api_at_eflag': <int>[1],
+              'api_at_list': <int>[0],
+              'api_df_list': <Object?>[
+                <int>[0],
+              ],
+              'api_damage': <Object?>[
+                <num>[5],
+              ],
+            },
+          },
+          sequence: 2002,
+        ),
+      );
+      await battleController.idle;
+      await controller.idle;
+
+      expect(controller.state.ships[9001]!.currentHp, 28);
+      expect(controller.state.ships[9002]!.currentHp, 8);
+    });
+
     test(
       'delayed cache restore never overwrites an accepted live event',
       () async {

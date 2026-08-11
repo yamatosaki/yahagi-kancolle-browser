@@ -30,7 +30,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get quests => '任务';
 
   @override
-  String get battleRecords => '战斗记录';
+  String get battleRecords => '航海日志';
 
   @override
   String get settings => '设置';
@@ -48,7 +48,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get infoPanelWidth => '信息面板宽度（竖屏模式无效）';
 
   @override
-  String get autoZoom => '自动缩放游戏画面（默认推荐 65：35）';
+  String get autoZoom => '应用推荐显示比例（游戏与菜单比例 65:35）';
+
+  @override
+  String get enhancedDamagePulse => '加强受损呼吸提示';
+
+  @override
+  String get enhancedDamagePulseDesc => '按小破、中破、大破增强颜色、速度和头像内部光效。关闭后使用普通效果。';
+
+  @override
+  String get workspaceMenuOnRight => '菜单栏置于右侧';
+
+  @override
+  String get workspaceMenuOnRightDesc => '关闭时菜单栏保持在左侧。';
 
   @override
   String get language => '语言 (Language)';
@@ -336,7 +348,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get battleWarningConfirm => '弹框确认';
 
   @override
-  String get logoutSnackbar => '退出登录功能已准备就绪，当前为保护您的测试账号暂未执行清除。';
+  String get logoutSnackbar => '已退出登录并清除账号信息。';
+
+  @override
+  String get logoutConfirmTitle => '退出登录并清除账号信息';
+
+  @override
+  String get logoutConfirmDesc => '将清除应用内游戏页面的 Cookie、本地存储和缓存，然后返回登录页面。确定继续吗？';
+
+  @override
+  String get logoutSucceeded => '已退出登录，请重新登录。';
+
+  @override
+  String get logoutFailed => '退出登录失败，请稍后重试。';
 
   @override
   String get questCacheCleared => '已清除任务数据本地缓存';
@@ -348,14 +372,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get clearLogbook => '清理航海日志数据';
 
   @override
-  String get clearLogbookDesc => '清除本地保存的所有历史战果、资源与远征记录。此操作不可逆。';
+  String get clearLogbookDesc => '清除本地保存的出击、远征、建造、开发、除籍与资源记录。此操作不可逆。';
 
   @override
   String get clearLogbookConfirmTitle => '清理航海日志数据';
 
   @override
   String get clearLogbookConfirmDesc =>
-      '确定要清空所有航海日志数据吗？这将会删除您积攒的历史战果和资源统计记录。此操作无法撤销。';
+      '确定要清空所有航海日志数据吗？出击、远征、建造、开发、除籍和资源记录都会被删除。此操作无法撤销。';
 
   @override
   String get logbookCleared => '已清除所有航海日志数据';
@@ -848,7 +872,10 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String get noPinnedQuests => '当前没有进行中的任务';
+  String get noPinnedQuests => '当前无进行中任务';
+
+  @override
+  String get questsNeedSync => '需进入任务界面同步信息';
 
   @override
   String get waitingQuestData => '等待任务数据';
@@ -1061,7 +1088,43 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fcdMapStorageError => '数据保存失败，已保留当前版本。';
 
   @override
-  String get gameFrameRateTitle => '游戏帧率';
+  String get questCatalogDataTitle => '任务资料';
+
+  @override
+  String questCatalogDataVersion(String version) {
+    return '资料版本：$version';
+  }
+
+  @override
+  String get questCatalogNeverChecked => '上次检查：尚未检查';
+
+  @override
+  String questCatalogLastChecked(String time) {
+    return '上次检查：$time';
+  }
+
+  @override
+  String get questCatalogCheckUpdates => '检查任务资料更新';
+
+  @override
+  String get questCatalogUpToDate => '任务资料已经是最新版本。';
+
+  @override
+  String questCatalogUpdated(String oldVersion, String newVersion) {
+    return '任务资料已从 $oldVersion 更新至 $newVersion，并已立即生效。';
+  }
+
+  @override
+  String get questCatalogNetworkError => '无法连接任务资料更新源，请稍后再试。';
+
+  @override
+  String get questCatalogValidationError => '下载的任务资料未通过验证，已保留当前版本。';
+
+  @override
+  String get questCatalogStorageError => '任务资料保存失败，已保留当前版本。';
+
+  @override
+  String get gameFrameRateTitle => '解除 60 FPS 上限';
 
   @override
   String get gameFrameRateOff => '关闭';
@@ -1079,13 +1142,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gameFrameRateMax60Desc => '使用 RAF 渲染，并将目标帧率限制为最高 60 FPS。';
 
   @override
-  String get gameFrameRateFollowDisplayDesc => '跟随设备屏幕刷新率；可能增加耗电和发热。';
+  String get gameFrameRateFollowDisplayDesc =>
+      '使用 GotoBrowser 同款主脚本补丁，让游戏跟随设备刷新率；可能增加耗电和发热。';
 
   @override
-  String get gameFrameRateUnsupported => '当前 Android WebView 不支持帧率模式';
+  String get gameFrameRateUnsupported => '当前 Android WebView 不支持解除帧率上限';
 
   @override
-  String get gameFrameRateRestartRequired => '重新启动游戏后生效';
+  String get gameFrameRateRestartRequired => '重新加载游戏页面后生效';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1114,7 +1178,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get quests => '任務';
 
   @override
-  String get battleRecords => '戰鬥記錄';
+  String get battleRecords => '航海日誌';
 
   @override
   String get settings => '設定';
@@ -1132,7 +1196,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get infoPanelWidth => '資訊面板寬度（直屏模式無效）';
 
   @override
-  String get autoZoom => '自動縮放遊戲畫面（預設推薦 65：35）';
+  String get autoZoom => '套用建議顯示比例（遊戲與選單比例 65:35）';
+
+  @override
+  String get enhancedDamagePulse => '加強受損呼吸提示';
+
+  @override
+  String get enhancedDamagePulseDesc => '依小破、中破、大破增強顏色、速度與頭像內部光效。關閉後使用普通效果。';
+
+  @override
+  String get workspaceMenuOnRight => '選單列置於右側';
+
+  @override
+  String get workspaceMenuOnRightDesc => '關閉時選單列保持在左側。';
 
   @override
   String get language => '語言 (Language)';
@@ -1420,7 +1496,20 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get battleWarningConfirm => '彈框確認';
 
   @override
-  String get logoutSnackbar => '登出功能已準備就緒，目前為保護您的測試帳號暫未執行清除。';
+  String get logoutSnackbar => '已登出並清除帳號資訊。';
+
+  @override
+  String get logoutConfirmTitle => '登出並清除帳號資訊';
+
+  @override
+  String get logoutConfirmDesc =>
+      '將清除應用程式內遊戲頁面的 Cookie、本機儲存空間與快取，然後返回登入頁面。確定繼續嗎？';
+
+  @override
+  String get logoutSucceeded => '已登出，請重新登入。';
+
+  @override
+  String get logoutFailed => '登出失敗，請稍後再試。';
 
   @override
   String get questCacheCleared => '已清除任務資料本機快取';
@@ -1432,14 +1521,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get clearLogbook => '清理航海日誌資料';
 
   @override
-  String get clearLogbookDesc => '清除本機儲存的所有歷史戰果、資源與遠征記錄。此操作不可逆。';
+  String get clearLogbookDesc => '清除本機儲存的出擊、遠征、建造、開發、除籍與資源記錄。此操作不可逆。';
 
   @override
   String get clearLogbookConfirmTitle => '清理航海日誌資料';
 
   @override
   String get clearLogbookConfirmDesc =>
-      '確定要清空所有航海日誌資料嗎？這將會刪除您累積的歷史戰果和資源統計記錄。此操作無法撤銷。';
+      '確定要清空所有航海日誌資料嗎？出擊、遠征、建造、開發、除籍和資源記錄都會被刪除。此操作無法撤銷。';
 
   @override
   String get logbookCleared => '已清除所有航海日誌資料';
@@ -1932,7 +2021,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get noPinnedQuests => '目前沒有進行中的任務';
+  String get noPinnedQuests => '目前無進行中任務';
+
+  @override
+  String get questsNeedSync => '需進入任務介面同步資訊';
 
   @override
   String get waitingQuestData => '等待任務資料';
@@ -2145,7 +2237,43 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get fcdMapStorageError => '資料儲存失敗，已保留目前版本。';
 
   @override
-  String get gameFrameRateTitle => '遊戲幀率';
+  String get questCatalogDataTitle => '任務資料';
+
+  @override
+  String questCatalogDataVersion(String version) {
+    return '資料版本：$version';
+  }
+
+  @override
+  String get questCatalogNeverChecked => '上次檢查：尚未檢查';
+
+  @override
+  String questCatalogLastChecked(String time) {
+    return '上次檢查：$time';
+  }
+
+  @override
+  String get questCatalogCheckUpdates => '檢查任務資料更新';
+
+  @override
+  String get questCatalogUpToDate => '任務資料已是最新版本。';
+
+  @override
+  String questCatalogUpdated(String oldVersion, String newVersion) {
+    return '任務資料已從 $oldVersion 更新至 $newVersion，並已立即生效。';
+  }
+
+  @override
+  String get questCatalogNetworkError => '無法連線至任務資料更新來源，請稍後再試。';
+
+  @override
+  String get questCatalogValidationError => '下載的任務資料未通過驗證，已保留目前版本。';
+
+  @override
+  String get questCatalogStorageError => '任務資料儲存失敗，已保留目前版本。';
+
+  @override
+  String get gameFrameRateTitle => '解除 60 FPS 限制';
 
   @override
   String get gameFrameRateOff => '關閉';
@@ -2163,11 +2291,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get gameFrameRateMax60Desc => '使用 RAF 渲染，並將目標幀率限制為最高 60 FPS。';
 
   @override
-  String get gameFrameRateFollowDisplayDesc => '跟隨裝置螢幕更新率；可能增加耗電和發熱。';
+  String get gameFrameRateFollowDisplayDesc =>
+      '使用與 GotoBrowser 相同的主腳本補丁，讓遊戲跟隨裝置更新率；可能增加耗電與發熱。';
 
   @override
-  String get gameFrameRateUnsupported => '目前 Android WebView 不支援幀率模式';
+  String get gameFrameRateUnsupported => '目前 Android WebView 不支援解除幀率上限';
 
   @override
-  String get gameFrameRateRestartRequired => '重新啟動遊戲後生效';
+  String get gameFrameRateRestartRequired => '重新載入遊戲頁面後生效';
 }

@@ -6,8 +6,11 @@ import 'battle_models.dart';
 import 'battle_pills.dart';
 import '../fleet/dashboard_card.dart';
 import '../fleet/ship_status_style.dart';
+import '../fleet/ship_status_visuals.dart';
 import '../game_state/game_state.dart';
 import 'detailed_battle_panel.dart';
+import 'land_base_raid_panel.dart';
+import 'official_enemy_preview.dart';
 
 enum BattlePanelMode { compact, detailed }
 
@@ -17,11 +20,13 @@ class LiveBattleCard extends StatefulWidget {
     required this.controller,
     required this.collapsed,
     required this.onToggleCollapse,
+    this.damagePulseMode = DamagePulseMode.enhanced,
   });
 
   final BattleController controller;
   final bool collapsed;
   final VoidCallback onToggleCollapse;
+  final DamagePulseMode damagePulseMode;
 
   @override
   State<LiveBattleCard> createState() => _LiveBattleCardState();
@@ -69,11 +74,13 @@ class _LiveBattleCardState extends State<LiveBattleCard> {
                 DetailedBattlePanel(
                   battle: battle,
                   gameState: widget.controller.gameStateSnapshot,
+                  damagePulseMode: widget.damagePulseMode,
                 )
               else
                 _CompactBattlePanel(
                   battle: battle,
                   gameState: widget.controller.gameStateSnapshot,
+                  damagePulseMode: widget.damagePulseMode,
                 ),
             ],
           ),
@@ -159,17 +166,21 @@ class _ModeButton extends StatelessWidget {
 }
 
 class _CompactBattlePanel extends StatelessWidget {
-  const _CompactBattlePanel({required this.battle, required this.gameState});
+  const _CompactBattlePanel({
+    required this.battle,
+    required this.gameState,
+    required this.damagePulseMode,
+  });
 
   final LiveBattle battle;
   final GameState gameState;
+  final DamagePulseMode damagePulseMode;
 
   @override
   Widget build(BuildContext context) {
     final navigation = battle.displayStage == BattleDisplayStage.navigation;
     if (navigation) {
-      return Container(
-        key: const Key('compact-battle-panel'),
+      final navigationHeader = Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
         decoration: BoxDecoration(
           color: const Color(0xff10212e),
@@ -185,7 +196,7 @@ class _CompactBattlePanel extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                battle.context.nodeLabel,
+                battle.context.forecastNodeLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w700),
@@ -195,6 +206,29 @@ class _CompactBattlePanel extends StatelessWidget {
             NodeTypePill(label: battle.context.nodeTypeLabel),
           ],
         ),
+      );
+      final raid = battle.landBaseRaid;
+      final previewNames = battle.enemyPreviewNames ?? const <String>[];
+      if (raid == null && previewNames.isEmpty) {
+        return KeyedSubtree(
+          key: const Key('compact-battle-panel'),
+          child: navigationHeader,
+        );
+      }
+      return Column(
+        key: const Key('compact-battle-panel'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          navigationHeader,
+          if (previewNames.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 7),
+            OfficialEnemyPreview(names: previewNames),
+          ],
+          if (raid != null) ...<Widget>[
+            const SizedBox(height: 7),
+            LandBaseRaidPanel(result: raid, compact: true),
+          ],
+        ],
       );
     }
     final dropShipId = battle.dropShipMasterId ?? 0;
@@ -236,7 +270,7 @@ class _CompactBattlePanel extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   AdaptiveBattleHeader(
-                    nodeLabel: battle.context.nodeLabel,
+                    nodeLabel: battle.context.forecastNodeLabel,
                     enemyName: enemyName,
                     enemyStyle: TextStyle(
                       fontSize: 13,
@@ -264,16 +298,20 @@ class _CompactBattlePanel extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        _CompactFleetGrid(battle: battle),
+        _CompactFleetGrid(battle: battle, damagePulseMode: damagePulseMode),
       ],
     );
   }
 }
 
 class _CompactFleetGrid extends StatelessWidget {
-  const _CompactFleetGrid({required this.battle});
+  const _CompactFleetGrid({
+    required this.battle,
+    required this.damagePulseMode,
+  });
 
   final LiveBattle battle;
+  final DamagePulseMode damagePulseMode;
 
   @override
   Widget build(BuildContext context) {
@@ -294,6 +332,7 @@ class _CompactFleetGrid extends StatelessWidget {
           keyName: 'friend-main',
           ships: battle.friendMain,
           mvpPositions: mvpPositions,
+          damagePulseMode: damagePulseMode,
         ),
       );
       friendColumns.add(
@@ -302,6 +341,7 @@ class _CompactFleetGrid extends StatelessWidget {
           ships: battle.friendEscort,
           mvpPositions: mvpPositions,
           positionOffset: 6,
+          damagePulseMode: damagePulseMode,
         ),
       );
     } else {
@@ -310,6 +350,7 @@ class _CompactFleetGrid extends StatelessWidget {
           keyName: 'friend',
           ships: battle.friendMain,
           mvpPositions: mvpPositions,
+          damagePulseMode: damagePulseMode,
         ),
       );
     }
@@ -320,6 +361,7 @@ class _CompactFleetGrid extends StatelessWidget {
           ships: battle.enemyEscort,
           mvpPositions: const <int>[],
           positionOffset: 6,
+          damagePulseMode: damagePulseMode,
         ),
       );
       enemyColumns.add(
@@ -327,6 +369,7 @@ class _CompactFleetGrid extends StatelessWidget {
           keyName: 'enemy-main',
           ships: battle.enemyMain,
           mvpPositions: const <int>[],
+          damagePulseMode: damagePulseMode,
         ),
       );
     } else {
@@ -335,6 +378,7 @@ class _CompactFleetGrid extends StatelessWidget {
           keyName: 'enemy',
           ships: battle.enemyMain,
           mvpPositions: const <int>[],
+          damagePulseMode: damagePulseMode,
         ),
       );
     }
@@ -417,12 +461,14 @@ class _CompactFleetColumn extends StatelessWidget {
     required this.keyName,
     required this.ships,
     required this.mvpPositions,
+    required this.damagePulseMode,
     this.positionOffset = 0,
   });
 
   final String keyName;
   final List<BattleShipSnapshot> ships;
   final List<int> mvpPositions;
+  final DamagePulseMode damagePulseMode;
   final int positionOffset;
 
   @override
@@ -437,6 +483,7 @@ class _CompactFleetColumn extends StatelessWidget {
             keyName: keyName,
             index: index,
             isMvp: mvpPositions.contains(index + positionOffset),
+            damagePulseMode: damagePulseMode,
           ),
       ],
     );
@@ -449,12 +496,14 @@ class _CompactBarRow extends StatelessWidget {
     required this.keyName,
     required this.index,
     required this.isMvp,
+    required this.damagePulseMode,
   });
 
   final BattleShipSnapshot ship;
   final String keyName;
   final int index;
   final bool isMvp;
+  final DamagePulseMode damagePulseMode;
 
   @override
   Widget build(BuildContext context) {
@@ -467,10 +516,34 @@ class _CompactBarRow extends StatelessWidget {
     final hpText = ship.damageReceived > 0
         ? '${ship.currentHp} / ${ship.maxHp} (-${ship.damageReceived})'
         : '${ship.currentHp} / ${ship.maxHp}';
-    return Padding(
-      key: Key('compact-bar-$keyName-$index'),
-      padding: const EdgeInsets.fromLTRB(6, 3, 6, 3),
-      child: Column(
+
+    Widget hpContent({double opacity = 1, bool pulsing = false}) {
+      final hpNumber = Opacity(
+        key: pulsing ? Key('compact-damage-hp-number-$keyName-$index') : null,
+        opacity: opacity,
+        child: Text(
+          hpText,
+          style: TextStyle(
+            color: hpValueColor,
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+      final hpBar = Opacity(
+        key: pulsing ? Key('compact-damage-hp-bar-$keyName-$index') : null,
+        opacity: opacity,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: LinearProgressIndicator(
+            minHeight: 6,
+            value: ratio,
+            color: hpBarColor,
+            backgroundColor: const Color(0xff263e4d),
+          ),
+        ),
+      );
+      final content = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           FittedBox(
@@ -479,14 +552,7 @@ class _CompactBarRow extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Text(
-                  hpText,
-                  style: TextStyle(
-                    color: hpValueColor,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                hpNumber,
                 if (isMvp) ...<Widget>[
                   const SizedBox(width: 2),
                   Icon(
@@ -500,17 +566,34 @@ class _CompactBarRow extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: LinearProgressIndicator(
-              minHeight: 6,
-              value: ratio,
-              color: hpBarColor,
-              backgroundColor: const Color(0xff263e4d),
-            ),
-          ),
+          hpBar,
         ],
-      ),
+      );
+      return pulsing
+          ? KeyedSubtree(
+              key: Key('compact-damage-hp-pulse-$keyName-$index'),
+              child: content,
+            )
+          : content;
+    }
+
+    final shouldPulse =
+        ship.side == BattleSide.friend && ratio > 0 && ratio <= 0.75;
+    return Padding(
+      key: Key('compact-bar-$keyName-$index'),
+      padding: const EdgeInsets.fromLTRB(6, 3, 6, 3),
+      child: shouldPulse
+          ? DamagePulseBuilder(
+              ratio: ratio,
+              mode: damagePulseMode,
+              normalColor: hpBarColor,
+              builder: (context, spec, phase) => hpContent(
+                opacity:
+                    spec.minFrameOpacity + phase * (1 - spec.minFrameOpacity),
+                pulsing: true,
+              ),
+            )
+          : hpContent(),
     );
   }
 }

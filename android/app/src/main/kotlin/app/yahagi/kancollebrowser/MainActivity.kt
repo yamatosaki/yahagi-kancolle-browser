@@ -7,12 +7,16 @@ import android.os.Build
 import android.os.Bundle
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Rect
 import android.media.MediaScannerConnection
+import android.os.Handler
+import android.os.Looper
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
+import android.view.PixelCopy
 import android.view.ViewTreeObserver
 import android.view.WindowManager
 import android.webkit.WebView
@@ -30,14 +34,17 @@ import app.yahagi.kancollebrowser.browser.GadgetBypassWebViewClient
 import app.yahagi.kancollebrowser.browser.FixedCanvasScalePolicy
 import app.yahagi.kancollebrowser.browser.GameFrameRateManager
 import app.yahagi.kancollebrowser.capture.GameCaptureBridge
+import app.yahagi.kancollebrowser.capture.ScreenshotCaptureAttempt
+import app.yahagi.kancollebrowser.capture.ScreenshotCapturePolicy
 import app.yahagi.kancollebrowser.capture.ScreenshotDestination
+import app.yahagi.kancollebrowser.capture.ScreenshotViewCandidate
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
+class MainActivity : FlutterActivity(), GadgetBypassManager.Host, GameFrameRateManager.Host {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -61,6 +68,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
         const val SCREEN_AWAKE_CHANNEL = "app.yahagi.kancollebrowser/screen_awake"
         const val GAME_SCREENSHOT_CHANNEL = "app.yahagi.kancollebrowser/game_screenshot"
         const val GAME_FRAME_RATE_CHANNEL = "app.yahagi.kancollebrowser/game_frame_rate"
+        const val BATTLE_DAMAGE_ALERT_CHANNEL = "app.yahagi.kancollebrowser/battle_damage_alert"
         const val SCREENSHOT_PERMISSION_REQUEST = 2406
     }
 
@@ -76,6 +84,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
     private var fixedCanvasContentWidth: Int = 1200
     private var fixedCanvasContentHeight: Int = 720
     private var pendingScreenshotResult: MethodChannel.Result? = null
+    private var activeScreenshotResult: MethodChannel.Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -138,6 +147,27 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "captureWebView" -> captureGameWebView(result)
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            BATTLE_DAMAGE_ALERT_CHANNEL,
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "alert" -> {
+                    val severity = call.argument<String>("severity")
+                    if (severity != "moderate" && severity != "heavy") {
+                        result.error(
+                            "invalid_argument",
+                            "severity must be moderate or heavy",
+                            null,
+                        )
+                        return@setMethodCallHandler
+                    }
+                    result.success(BattleDamageVibrator.alert(this, severity))
+                }
                 else -> result.notImplemented()
             }
         }
@@ -224,6 +254,12 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
             null,
         )
         pendingScreenshotResult = null
+        activeScreenshotResult?.error(
+            "activity_destroyed",
+            "The screenshot request was cancelled.",
+            null,
+        )
+        activeScreenshotResult = null
         super.onDestroy()
     }
 
@@ -252,7 +288,17 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
         if (enabled) {
             installGadgetBypassLayoutListener()
             ensureGadgetBypassWrap()
-        } else {
+        } else if (gameFrameRateManager?.enabled != true) {
+            restoreGadgetBypassClient()
+            removeGadgetBypassLayoutListener()
+        }
+    }
+
+    override fun onFrameRateUnlockChanged(enabled: Boolean) {
+        if (enabled) {
+            installGadgetBypassLayoutListener()
+            ensureGadgetBypassWrap()
+        } else if (gadgetBypassManager?.enabled != true) {
             restoreGadgetBypassClient()
             removeGadgetBypassLayoutListener()
         }
@@ -261,7 +307,8 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
     private fun ensureGadgetBypassWrap() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = gadgetBypassManager ?: return
-        if (!manager.enabled) return
+        val frameRateManager = gameFrameRateManager
+        if (!manager.enabled && frameRateManager?.enabled != true) return
 
         val webViews = mutableListOf<WebView>()
         collectWebViews(window.decorView, webViews)
@@ -278,6 +325,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
                 engine = manager.engine,
                 isEnabled = { manager.enabled },
                 endpoint = { manager.endpoint },
+                isFrameRateUnlockEnabled = { frameRateManager?.enabled == true },
             ),
         )
     }
@@ -372,53 +420,308 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host {
             return
         }
 
+        if (activeScreenshotResult != null) {
+            result.error("screenshot_busy", "A screenshot is already in progress.", null)
+            return
+        }
+
         val webViews = mutableListOf<WebView>()
         collectWebViews(window.decorView, webViews)
-        if (webViews.size != 1) {
+        val candidates = webViews.mapIndexed { index, webView ->
+            val location = IntArray(2)
+            webView.getLocationInWindow(location)
+            ScreenshotViewCandidate(
+                index = index,
+                visible = webView.visibility == View.VISIBLE && webView.isShown,
+                attached = webView.isAttachedToWindow,
+                width = webView.width,
+                height = webView.height,
+                windowX = location[0],
+                windowY = location[1],
+            )
+        }
+        val selected = ScreenshotCapturePolicy.select(candidates)
+        if (selected == null) {
             result.error(
                 "webview_not_found",
-                "Expected one game WebView but found ${webViews.size}.",
+                "No visible game WebView with a valid size was found.",
                 null,
             )
             return
         }
-        val webView = webViews.single()
-        if (webView.width <= 0 || webView.height <= 0) {
-            result.error("invalid_size", "The game WebView has no visible size.", null)
+        val webView = webViews[selected.index]
+        activeScreenshotResult = result
+
+        try {
+            captureScreenshotAttempt(
+                webView = webView,
+                selected = selected,
+                attempts = ScreenshotCapturePolicy.captureAttempts(
+                    supportsPixelCopy = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O,
+                ),
+                attemptIndex = 0,
+                result = result,
+            )
+        } catch (error: Exception) {
+            completeScreenshotError(
+                result,
+                "screenshot_failed",
+                error.message ?: "Unable to capture the game WebView.",
+            )
+        }
+    }
+
+    private fun captureScreenshotAttempt(
+        webView: WebView,
+        selected: ScreenshotViewCandidate,
+        attempts: List<ScreenshotCaptureAttempt>,
+        attemptIndex: Int,
+        result: MethodChannel.Result,
+    ) {
+        if (activeScreenshotResult !== result) return
+        if (attemptIndex >= attempts.size) {
+            completeScreenshotError(
+                result,
+                "blank_screenshot",
+                "All WebView capture methods returned a blank or single-color image.",
+            )
             return
         }
 
-        var bitmap: Bitmap? = null
-        try {
-            bitmap = Bitmap.createBitmap(
-                webView.width,
-                webView.height,
+        when (attempts[attemptIndex]) {
+            ScreenshotCaptureAttempt.PIXEL_COPY_RECT -> captureRectWithPixelCopy(
+                webView,
+                selected,
+                attempts,
+                attemptIndex,
+                result,
+            )
+            ScreenshotCaptureAttempt.PIXEL_COPY_WINDOW -> captureWindowWithPixelCopy(
+                webView,
+                selected,
+                attempts,
+                attemptIndex,
+                result,
+            )
+            ScreenshotCaptureAttempt.WEB_VIEW_DRAW -> captureWithWebViewDraw(
+                webView,
+                selected,
+                attempts,
+                attemptIndex,
+                result,
+            )
+        }
+    }
+
+    private fun captureRectWithPixelCopy(
+        webView: WebView,
+        selected: ScreenshotViewCandidate,
+        attempts: List<ScreenshotCaptureAttempt>,
+        attemptIndex: Int,
+        result: MethodChannel.Result,
+    ) {
+        val bitmap = Bitmap.createBitmap(
+            selected.width,
+            selected.height,
+            Bitmap.Config.ARGB_8888,
+        )
+        val source = ScreenshotCapturePolicy.captureRect(selected)
+        val sourceRect = Rect(source.left, source.top, source.right, source.bottom)
+        requestPixelCopy(bitmap, sourceRect) { succeeded ->
+            handleScreenshotAttempt(
+                bitmap,
+                succeeded,
+                webView,
+                selected,
+                attempts,
+                attemptIndex,
+                result,
+            )
+        }
+    }
+
+    private fun captureWindowWithPixelCopy(
+        webView: WebView,
+        selected: ScreenshotViewCandidate,
+        attempts: List<ScreenshotCaptureAttempt>,
+        attemptIndex: Int,
+        result: MethodChannel.Result,
+    ) {
+        val decorView = window.decorView
+        if (decorView.width <= 0 || decorView.height <= 0) {
+            scheduleNextScreenshotAttempt(
+                webView, selected, attempts, attemptIndex, result,
+            )
+            return
+        }
+        val windowBitmap = Bitmap.createBitmap(
+            decorView.width,
+            decorView.height,
+            Bitmap.Config.ARGB_8888,
+        )
+        requestPixelCopy(windowBitmap, null) { succeeded ->
+            if (!succeeded || activeScreenshotResult !== result) {
+                windowBitmap.recycle()
+                if (activeScreenshotResult === result) {
+                    scheduleNextScreenshotAttempt(
+                        webView, selected, attempts, attemptIndex, result,
+                    )
+                }
+                return@requestPixelCopy
+            }
+            val cropped = Bitmap.createBitmap(
+                selected.width,
+                selected.height,
                 Bitmap.Config.ARGB_8888,
             )
-            webView.draw(Canvas(bitmap))
-            if (!hasVisualContent(bitmap)) {
-                result.error(
-                    "blank_screenshot",
-                    "The captured WebView image is blank or a single color.",
-                    null,
-                )
-                return
-            }
+            Canvas(cropped).drawBitmap(
+                windowBitmap,
+                -selected.windowX.toFloat(),
+                -selected.windowY.toFloat(),
+                null,
+            )
+            windowBitmap.recycle()
+            handleScreenshotAttempt(
+                cropped,
+                true,
+                webView,
+                selected,
+                attempts,
+                attemptIndex,
+                result,
+            )
+        }
+    }
 
+    private fun requestPixelCopy(
+        bitmap: Bitmap,
+        sourceRect: Rect?,
+        onComplete: (Boolean) -> Unit,
+    ) {
+        try {
+            val listener = PixelCopy.OnPixelCopyFinishedListener { copyResult ->
+                onComplete(copyResult == PixelCopy.SUCCESS)
+            }
+            if (sourceRect == null) {
+                PixelCopy.request(window, bitmap, listener, Handler(Looper.getMainLooper()))
+            } else {
+                PixelCopy.request(
+                    window,
+                    sourceRect,
+                    bitmap,
+                    listener,
+                    Handler(Looper.getMainLooper()),
+                )
+            }
+        } catch (_: Exception) {
+            onComplete(false)
+        }
+    }
+
+    private fun captureWithWebViewDraw(
+        webView: WebView,
+        selected: ScreenshotViewCandidate,
+        attempts: List<ScreenshotCaptureAttempt>,
+        attemptIndex: Int,
+        result: MethodChannel.Result,
+    ) {
+        webView.postOnAnimation {
+            if (activeScreenshotResult !== result) return@postOnAnimation
+            val bitmap = Bitmap.createBitmap(
+                selected.width,
+                selected.height,
+                Bitmap.Config.ARGB_8888,
+            )
+            try {
+                webView.draw(Canvas(bitmap))
+                handleScreenshotAttempt(
+                    bitmap,
+                    true,
+                    webView,
+                    selected,
+                    attempts,
+                    attemptIndex,
+                    result,
+                )
+            } catch (_: Exception) {
+                bitmap.recycle()
+                scheduleNextScreenshotAttempt(
+                    webView, selected, attempts, attemptIndex, result,
+                )
+            }
+        }
+    }
+
+    private fun handleScreenshotAttempt(
+        bitmap: Bitmap,
+        succeeded: Boolean,
+        webView: WebView,
+        selected: ScreenshotViewCandidate,
+        attempts: List<ScreenshotCaptureAttempt>,
+        attemptIndex: Int,
+        result: MethodChannel.Result,
+    ) {
+        if (activeScreenshotResult !== result) {
+            bitmap.recycle()
+            return
+        }
+        if (succeeded && hasVisualContent(bitmap)) {
+            finishScreenshot(bitmap, result)
+            return
+        }
+        bitmap.recycle()
+        scheduleNextScreenshotAttempt(webView, selected, attempts, attemptIndex, result)
+    }
+
+    private fun scheduleNextScreenshotAttempt(
+        webView: WebView,
+        selected: ScreenshotViewCandidate,
+        attempts: List<ScreenshotCaptureAttempt>,
+        attemptIndex: Int,
+        result: MethodChannel.Result,
+    ) {
+        webView.postOnAnimation {
+            captureScreenshotAttempt(
+                webView,
+                selected,
+                attempts,
+                attemptIndex + 1,
+                result,
+            )
+        }
+    }
+
+    private fun finishScreenshot(bitmap: Bitmap, result: MethodChannel.Result) {
+        if (activeScreenshotResult !== result) {
+            bitmap.recycle()
+            return
+        }
+        try {
             val timestamp = SimpleDateFormat("yyyyMMdd-HHmmss-SSS", Locale.US)
                 .format(Date())
             val destination = ScreenshotDestination.create(timestamp)
             saveScreenshotToGallery(bitmap, destination)
+            activeScreenshotResult = null
             result.success(destination.displayLocation)
         } catch (error: Exception) {
-            result.error(
+            completeScreenshotError(
+                result,
                 "screenshot_failed",
-                error.message ?: "Unable to capture the game WebView.",
-                null,
+                error.message ?: "Unable to save the game screenshot.",
             )
         } finally {
-            bitmap?.recycle()
+            bitmap.recycle()
         }
+    }
+
+    private fun completeScreenshotError(
+        result: MethodChannel.Result,
+        code: String,
+        message: String,
+    ) {
+        if (activeScreenshotResult !== result) return
+        activeScreenshotResult = null
+        result.error(code, message, null)
     }
 
     private fun saveScreenshotToGallery(

@@ -3,6 +3,8 @@ import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import '../battle/fcd_map_controller.dart';
 import '../quest/quest_catalog_controller.dart';
+import '../improvement/improvement_dataset_update_section.dart';
+import '../improvement/improvement_planner_controller.dart';
 import 'battle_prediction_settings.dart';
 import 'battle_prediction_settings_section.dart';
 import 'fcd_map_update_section.dart';
@@ -18,12 +20,14 @@ class BattleSettingsPage extends StatelessWidget with SettingsUIHelpers {
     this.fcdMapController,
     this.questCatalogController,
     required this.safetySettingsController,
+    this.improvementPlannerController,
   });
 
   final BattlePredictionSettingsController? battlePredictionSettingsController;
   final FcdMapController? fcdMapController;
   final QuestCatalogController? questCatalogController;
   final SafetySettingsController safetySettingsController;
+  final ImprovementPlannerController? improvementPlannerController;
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +42,20 @@ class BattleSettingsPage extends StatelessWidget with SettingsUIHelpers {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            buildSectionTitle('战斗提醒'),
+            buildCard(
+              child: AnimatedBuilder(
+                animation: safetySettingsController,
+                builder: (context, _) => buildSwitchTile(
+                  title: '战斗受损震动提醒',
+                  subtitle: '我方舰娘在战斗中刚进入中破或大破时震动提醒。',
+                  value: safetySettingsController.battleDamageVibrationEnabled,
+                  onChanged:
+                      safetySettingsController.setBattleDamageVibrationEnabled,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
             if (battlePredictionSettingsController != null) ...<Widget>[
               buildSectionTitle('战斗预测'),
               buildCard(
@@ -47,7 +65,9 @@ class BattleSettingsPage extends StatelessWidget with SettingsUIHelpers {
               ),
               const SizedBox(height: 24),
             ],
-            if (fcdMapController != null || questCatalogController != null) ...[
+            if (fcdMapController != null ||
+                questCatalogController != null ||
+                improvementPlannerController != null) ...[
               buildSectionTitle(l10n.fcdMapSectionTitle),
               buildCard(
                 child: Column(
@@ -59,6 +79,12 @@ class BattleSettingsPage extends StatelessWidget with SettingsUIHelpers {
                       const Divider(height: 1),
                     if (questCatalogController case final controller?)
                       QuestCatalogUpdateSection(controller: controller),
+                    if ((fcdMapController != null ||
+                            questCatalogController != null) &&
+                        improvementPlannerController != null)
+                      const Divider(height: 1),
+                    if (improvementPlannerController case final controller?)
+                      ImprovementDatasetUpdateSection(controller: controller),
                   ],
                 ),
               ),

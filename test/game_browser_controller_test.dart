@@ -1,4 +1,4 @@
-﻿import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_browser_controller.dart';
 import 'dart:async';
 import 'package:yahagi_kancolle_browser/src/browser/game_launch_config.dart';
@@ -106,6 +106,16 @@ void main() {
     port.reloadCompleter!.complete();
     await Future.wait(<Future<void>>[first, second]);
   });
+
+  test('logout clears the WebView session before loading DMM login', () async {
+    final port = FakeGameBrowserPort();
+    final controller = GameBrowserController(port: port);
+
+    await controller.logoutAndClearSession();
+
+    expect(port.clearSessionCalls, 1);
+    expect(port.loadedUris, <Uri>[GameLaunchConfig.dmmGameEntry]);
+  });
 }
 
 final class FakeGameBrowserPort implements GameBrowserPort {
@@ -116,6 +126,7 @@ final class FakeGameBrowserPort implements GameBrowserPort {
   var showLocalHomeCalls = 0;
   var reloadCalls = 0;
   var goBackCalls = 0;
+  var clearSessionCalls = 0;
   Completer<void>? reloadCompleter;
 
   @override
@@ -151,4 +162,9 @@ final class FakeGameBrowserPort implements GameBrowserPort {
 
   @override
   Future<void> clearCache() async {}
+
+  @override
+  Future<void> clearSession() async {
+    clearSessionCalls++;
+  }
 }

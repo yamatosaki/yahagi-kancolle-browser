@@ -27,6 +27,8 @@ class GadgetBypassWebViewClient(
     private val engine: GadgetBypassEngine,
     private val isEnabled: () -> Boolean,
     private val endpoint: () -> String,
+    private val isFrameRateUnlockEnabled: () -> Boolean = { false },
+    private val mainScriptFetcher: GameMainScriptFetcher = GameMainScriptFetcher(),
 ) : WebViewClient() {
 
     private companion object {
@@ -41,19 +43,56 @@ class GadgetBypassWebViewClient(
         request: WebResourceRequest,
     ): WebResourceResponse? {
         val url = request.url?.toString() ?: return null
-        if (!isEnabled() || !GadgetBypassRules.shouldIntercept(url, request.method)) {
-            return original.shouldInterceptRequest(view, request)
+        if (request.method.equals("GET", ignoreCase = true) &&
+            isFrameRateUnlockEnabled() &&
+            GameMainScriptPatcher.isMainScriptUrl(url)
+        ) {
+            servePatchedMainScript(url, request.requestHeaders)?.let { return it }
         }
-        return serveFromBypass(url) ?: original.shouldInterceptRequest(view, request)
+        if (isEnabled() && GadgetBypassRules.shouldIntercept(url, request.method)) {
+            return serveFromBypass(url) ?: original.shouldInterceptRequest(view, request)
+        }
+        return original.shouldInterceptRequest(view, request)
     }
 
     @SuppressLint("Deprecated")
     @Deprecated("Deprecated in WebView")
     override fun shouldInterceptRequest(view: WebView, url: String?): WebResourceResponse? {
-        if (url == null || !isEnabled() || !GadgetBypassRules.shouldIntercept(url, "GET")) {
-            return original.shouldInterceptRequest(view, url)
+        if (url == null) {
+            return null
         }
-        return serveFromBypass(url) ?: original.shouldInterceptRequest(view, url)
+        if (isFrameRateUnlockEnabled() && GameMainScriptPatcher.isMainScriptUrl(url)) {
+            servePatchedMainScript(url)?.let { return it }
+        }
+        if (isEnabled() && GadgetBypassRules.shouldIntercept(url, "GET")) {
+            return serveFromBypass(url) ?: original.shouldInterceptRequest(view, url)
+        }
+        return original.shouldInterceptRequest(view, url)
+    }
+
+    private fun servePatchedMainScript(
+        url: String,
+        requestHeaders: Map<String, String> = emptyMap(),
+    ): WebResourceResponse? = try {
+        val originalBytes = if (isEnabled() && GadgetBypassRules.shouldIntercept(url, "GET")) {
+            engine.fetch(url, endpoint())
+        } else {
+            mainScriptFetcher.fetch(url, requestHeaders)
+        } ?: return null
+        val originalScript = originalBytes.toString(Charsets.UTF_8)
+        val patchedScript = GameMainScriptPatcher.patch(originalScript)
+        if (patchedScript == originalScript) {
+            Log.w(TAG, "60 FPS unlock pattern not found in $url")
+        } else {
+            Log.d(TAG, "patched 60 FPS limit in $url")
+        }
+        WebResourceResponse(
+            "application/javascript",
+            "utf-8",
+            ByteArrayInputStream(patchedScript.toByteArray(Charsets.UTF_8)),
+        )
+    } catch (_: Exception) {
+        null
     }
 
     private fun serveFromBypass(url: String): WebResourceResponse? {

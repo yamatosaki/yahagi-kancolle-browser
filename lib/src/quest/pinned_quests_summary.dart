@@ -26,23 +26,34 @@ class PinnedQuestsSummary extends StatelessWidget {
       builder: (context, _) {
         final quests = controller.state.quests.values;
         final pinnedQuests = quests.where((q) => q.isAccepted).toList();
+        final state = controller.state;
+        final missingQuestCount = state.hasQuestData
+            ? (state.activeQuestCount - pinnedQuests.length).clamp(
+                0,
+                state.activeQuestCount,
+              )
+            : 1;
+        final l10n =
+            AppLocalizations.of(context) ??
+            lookupAppLocalizations(const Locale('zh'));
 
         return DashboardCard(
-          title: AppLocalizations.of(context)?.questBrief ?? '任务简报',
+          title: l10n.questBrief,
           icon: const Icon(Icons.assignment_outlined),
           collapsed: collapsed,
           onToggleCollapse: onToggleCollapse,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (pinnedQuests.isEmpty)
+              if (pinnedQuests.isEmpty &&
+                  (!state.hasQuestData || state.activeQuestCount == 0))
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Center(
                     child: Text(
-                      (AppLocalizations.of(context) ??
-                              lookupAppLocalizations(const Locale('zh')))
-                          .noPinnedQuests,
+                      state.hasQuestData
+                          ? l10n.noPinnedQuests
+                          : l10n.questsNeedSync,
                       style: const TextStyle(
                         color: Color(0xff8197a5),
                         fontSize: 13,
@@ -50,7 +61,7 @@ class PinnedQuestsSummary extends StatelessWidget {
                     ),
                   ),
                 )
-              else
+              else ...<Widget>[
                 ...pinnedQuests.map(
                   (q) => Material(
                     color: Colors.transparent,
@@ -111,6 +122,19 @@ class PinnedQuestsSummary extends StatelessWidget {
                     ),
                   ),
                 ),
+                for (var index = 0; index < missingQuestCount; index++)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: Text(
+                      l10n.questsNeedSync,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xff8197a5),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+              ],
               const SizedBox(height: 2),
             ],
           ),
@@ -120,7 +144,7 @@ class PinnedQuestsSummary extends StatelessWidget {
   }
 
   String _getProgressText(GameQuest q) {
-    if (q.state == 3) return '完成';
+    if (q.isCompleted) return '完成';
     if (q.state == 2) {
       if (q.progressFlag == 1) return '50%';
       if (q.progressFlag == 2) return '80%';
@@ -130,7 +154,7 @@ class PinnedQuestsSummary extends StatelessWidget {
   }
 
   Color _getProgressColor(GameQuest q) {
-    if (q.state == 3) return const Color(0xff4caf50);
+    if (q.isCompleted) return const Color(0xff4caf50);
     if (q.state == 2 && q.progressFlag > 0) return const Color(0xffd4a85f);
     return const Color(0xff8197a5);
   }

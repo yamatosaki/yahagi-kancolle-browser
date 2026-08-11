@@ -17,6 +17,10 @@ import 'package:yahagi_kancolle_browser/src/settings/display_mode_controller.dar
 import 'package:yahagi_kancolle_browser/src/settings/display_mode_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_store.dart';
+import 'package:yahagi_kancolle_browser/src/senka/senka_controller.dart';
+import 'package:yahagi_kancolle_browser/src/senka/senka_page.dart';
+import 'package:yahagi_kancolle_browser/src/senka/senka_state.dart';
+import 'package:yahagi_kancolle_browser/src/senka/senka_store.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_browser_controller.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_toolbar_controller.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_toolbar_display_controller.dart';
@@ -211,7 +215,7 @@ void main() {
       tester.getTopLeft(find.byKey(const Key('settings-auto-zoom-label'))).dx,
       closeTo(settingsLabelX, 0.1),
     );
-    expect(find.text('自动缩放游戏画面（默认推荐 65：35）'), findsOneWidget);
+    expect(find.text('应用推荐显示比例（游戏与菜单比例 65:35）'), findsOneWidget);
     await tester.ensureVisible(find.byKey(const Key('settings-logout-label')));
     await tester.pumpAndSettle();
     expect(
@@ -234,6 +238,7 @@ void main() {
       'workspace-nav-repair',
       'workspace-nav-construction',
       'workspace-nav-quests',
+      'workspace-nav-senka',
       'workspace-nav-battle-records',
     ]) {
       expect(find.byKey(Key(key)), findsOneWidget);
@@ -440,6 +445,133 @@ void main() {
     toolbarController.dispose();
   });
 
+  testWidgets('moves the workspace menu without disposing the game surface', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1280, 720);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final layoutSettingsController = await LayoutSettingsController.load(
+      _MemoryLayoutSettingsStore(),
+    );
+    final captureModeController = await CaptureModeController.load(
+      _MemoryModeStore(),
+    );
+    final gameStateController = GameStateController();
+    final senkaStore = _MemorySenkaStore(
+      SenkaState.forMonth('2026-08').copyWith(
+        rankingHistory: {
+          'player': [
+            SenkaRankingSnapshot(
+              rank: 370,
+              senka: 1120,
+              capturedAt: DateTime.utc(2026, 8, 11),
+              localSenkaAtCapture: 0,
+            ),
+          ],
+        },
+      ),
+    );
+    final senkaController = SenkaController(
+      store: senkaStore,
+      now: () => DateTime.utc(2026, 8, 11),
+    );
+    await senkaController.initialize();
+    final toolbarController = GameToolbarController();
+    var disposeCount = 0;
+
+    await tester.pumpWidget(
+      YahagiApp(
+        layoutSettingsController: layoutSettingsController,
+        networkSettingsController: NetworkSettingsController(
+          store: _MemoryNetworkSettingsStore(),
+        ),
+        gadgetBypassController: GadgetBypassController(
+          store: _MemoryGadgetBypassStore(),
+          port: _FakeGadgetBypassPort(),
+        ),
+        safetySettingsController: await SafetySettingsController.load(
+          MemorySafetySettingsStore(),
+        ),
+        displayModeController: await DisplayModeController.load(
+          MemoryDisplayModeStore(),
+        ),
+        controller: PrototypeStatusController(),
+        browserController: GameBrowserController(port: _NoopBrowserPort()),
+        captureModeController: captureModeController,
+        gameCaptureController: GameCaptureController(),
+        gameStateController: gameStateController,
+        senkaController: senkaController,
+        battleController: BattleController(
+          gameState: () => gameStateController.state,
+        ),
+        audioController: await GameAudioController.load(_MemoryAudioStore()),
+        toolbarController: toolbarController,
+        gameSurface: _LifecycleProbe(
+          key: const Key('side-switch-game-surface'),
+          onDispose: () => disposeCount++,
+        ),
+      ),
+    );
+
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('workspace-nav-senka')),
+        matching: find.byIcon(Icons.emoji_events_outlined),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('战果：1120（#370）'), findsOneWidget);
+    senkaStore.state = SenkaState.forMonth('2026-08').copyWith(
+      rankingHistory: {
+        'player': [
+          SenkaRankingSnapshot(
+            rank: 365,
+            senka: 1138,
+            capturedAt: DateTime.utc(2026, 8, 11, 1),
+            localSenkaAtCapture: 0,
+          ),
+        ],
+      },
+    );
+    await senkaController.initialize();
+    await tester.pump();
+    expect(find.text('战果：1138（#365）'), findsOneWidget);
+    final menuButton = find.byKey(const Key('workspace-nav-game'));
+    final gameSurface = find.byKey(const Key('side-switch-game-surface'));
+    expect(
+      tester.getCenter(menuButton).dx,
+      lessThan(tester.getCenter(gameSurface).dx),
+    );
+
+    await layoutSettingsController.setWorkspaceMenuOnRight(true);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getCenter(menuButton).dx,
+      greaterThan(tester.getCenter(gameSurface).dx),
+    );
+    expect(disposeCount, 0);
+
+    await tester.tap(find.byKey(const Key('header-senka-summary')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SenkaPage), findsOneWidget);
+    final senkaButton = tester.widget<IconButton>(
+      find.descendant(
+        of: find.byKey(const Key('workspace-nav-senka')),
+        matching: find.byType(IconButton),
+      ),
+    );
+    expect(
+      senkaButton.style?.backgroundColor?.resolve(<WidgetState>{}),
+      const Color(0xff2b2c22),
+    );
+    senkaController.dispose();
+    toolbarController.dispose();
+  });
+
   testWidgets('switches to fleet center without disposing the game surface', (
     tester,
   ) async {
@@ -584,7 +716,12 @@ void main() {
 
     await tester.tap(find.byKey(const Key('workspace-nav-construction')));
     await tester.pumpAndSettle();
-    expect(find.text('建造'), findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(find.byKey(const Key('workspace-title-construction')))
+          .data,
+      '建造',
+    );
 
     await tester.tap(find.byKey(const Key('workspace-nav-quests')));
     await tester.pumpAndSettle();
@@ -593,7 +730,12 @@ void main() {
     await tester.tap(find.byKey(const Key('workspace-nav-battle-records')));
     await tester.pumpAndSettle();
 
-    expect(find.text('本次出击'), findsOneWidget);
+    expect(find.text('出击'), findsOneWidget);
+    expect(find.text('远征'), findsOneWidget);
+    expect(find.text('建造'), findsWidgets);
+    expect(find.text('开发'), findsOneWidget);
+    expect(find.text('除籍'), findsOneWidget);
+    expect(find.text('资源'), findsOneWidget);
     expect(
       find.byKey(const Key('persistent-game-surface'), skipOffstage: false),
       findsOneWidget,
@@ -605,6 +747,15 @@ void main() {
 
     expect(find.byKey(const Key('information-panel')), findsOneWidget);
     expect(disposeCount, 0);
+
+    await tester.tap(find.byKey(const Key('header-resource-anchorage-timer')));
+    await tester.pumpAndSettle();
+
+    final anchorageCenter = tester.widget<FleetInformationCenter>(
+      find.byType(FleetInformationCenter),
+    );
+    expect(anchorageCenter.repairMode, RepairCenterMode.anchorage);
+    expect(anchorageCenter.initialFleetId, 1);
 
     gameCaptureController.dispose();
     gameStateController.dispose();
@@ -672,6 +823,8 @@ class _MemoryLayoutSettingsStore implements LayoutSettingsStore {
   double _ratio = 0.5;
   double _width = 300;
   bool _autoZoom = false;
+  bool _enhancedDamagePulse = true;
+  bool _workspaceMenuOnRight = false;
   List<String> _dashboardCardOrder = [
     'fleet',
     'expedition',
@@ -701,6 +854,22 @@ class _MemoryLayoutSettingsStore implements LayoutSettingsStore {
 
   @override
   Future<void> saveAutoZoom(bool autoZoom) async => _autoZoom = autoZoom;
+
+  @override
+  Future<bool> loadEnhancedDamagePulse() async => _enhancedDamagePulse;
+
+  @override
+  Future<void> saveEnhancedDamagePulse(bool enabled) async {
+    _enhancedDamagePulse = enabled;
+  }
+
+  @override
+  Future<bool> loadWorkspaceMenuOnRight() async => _workspaceMenuOnRight;
+
+  @override
+  Future<void> saveWorkspaceMenuOnRight(bool onRight) async {
+    _workspaceMenuOnRight = onRight;
+  }
 
   @override
   Future<List<String>> loadDashboardCardOrder() async {
@@ -797,6 +966,9 @@ final class _NoopBrowserPort implements GameBrowserPort {
 
   @override
   Future<void> clearCache() async {}
+
+  @override
+  Future<void> clearSession() async {}
 }
 
 final class _MemoryModeStore implements CaptureModeStore {
@@ -847,6 +1019,18 @@ class _FakeGadgetBypassPort implements GadgetBypassPort {
       kcsapi: GadgetBypassProbe(reachable: true, elapsedMs: 1),
     );
   }
+}
+
+final class _MemorySenkaStore implements SenkaStore {
+  _MemorySenkaStore(this.state);
+
+  SenkaState? state;
+
+  @override
+  Future<SenkaState?> load() async => state;
+
+  @override
+  Future<void> save(SenkaState state) async => this.state = state;
 }
 
 final class _FakeCapturePort implements GameCapturePort {

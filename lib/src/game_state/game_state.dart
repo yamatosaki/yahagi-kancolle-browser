@@ -145,6 +145,20 @@ class MasterMission {
   }
 }
 
+class MasterMapInfo {
+  const MasterMapInfo({
+    required this.id,
+    required this.mapAreaId,
+    required this.mapNo,
+    required this.name,
+  });
+
+  final int id;
+  final int mapAreaId;
+  final int mapNo;
+  final String name;
+}
+
 class OwnedShip {
   const OwnedShip({
     required this.id,
@@ -333,6 +347,9 @@ class GameQuest {
     required this.state,
     required this.progressFlag,
     this.materials = const <int>[0, 0, 0, 0],
+    this.progressCurrent,
+    this.progressRequired,
+    this.localCompletionVerified,
     this.updatedAt,
   });
 
@@ -344,10 +361,66 @@ class GameQuest {
   final int state;
   final int progressFlag;
   final List<int> materials;
+  final int? progressCurrent;
+  final int? progressRequired;
+
+  /// Whether additional client-observed conditions for local completion hold.
+  ///
+  /// `null` preserves the historical exact-progress behavior for quests that
+  /// do not need a separate condition check.
+  final bool? localCompletionVerified;
   final DateTime? updatedAt;
 
   bool get isAccepted => state >= 2;
-  bool get isCompleted => state == 3;
+  bool get isServerCompleted => state == 3;
+  bool get isLocallyCompleted =>
+      progressCurrent != null &&
+      progressRequired != null &&
+      progressRequired! > 0 &&
+      progressCurrent! >= progressRequired! &&
+      (localCompletionVerified ?? true);
+  bool get isCompleted => isServerCompleted || isLocallyCompleted;
+  String? get exactProgressLabel =>
+      progressCurrent == null || progressRequired == null
+      ? null
+      : '$progressCurrent/$progressRequired';
+
+  GameQuest incrementExactProgress(int delta, {DateTime? updatedAt}) {
+    final current = progressCurrent;
+    final required = progressRequired;
+    if (current == null || required == null || delta <= 0) return this;
+    return GameQuest(
+      id: id,
+      title: title,
+      detail: detail,
+      category: category,
+      type: type,
+      state: state,
+      progressFlag: progressFlag,
+      materials: materials,
+      progressCurrent: (current + delta).clamp(0, required),
+      progressRequired: required,
+      localCompletionVerified: localCompletionVerified,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  GameQuest withLocalCompletionVerified(bool verified, {DateTime? updatedAt}) {
+    return GameQuest(
+      id: id,
+      title: title,
+      detail: detail,
+      category: category,
+      type: type,
+      state: state,
+      progressFlag: progressFlag,
+      materials: materials,
+      progressCurrent: progressCurrent,
+      progressRequired: progressRequired,
+      localCompletionVerified: verified,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 
   String get progressPercentLabel {
     if (isCompleted) {
@@ -495,42 +568,88 @@ enum CombinedFleetType {
   }
 }
 
+class LandBaseState {
+  const LandBaseState({
+    required this.areaId,
+    required this.baseId,
+    required this.name,
+    this.actionKind = 0,
+    this.maxHp,
+    this.currentHp,
+    this.lastRaidDamage = 0,
+  });
+
+  final int areaId;
+  final int baseId;
+  final String name;
+  final int actionKind;
+  final int? maxHp;
+  final int? currentHp;
+  final int lastRaidDamage;
+}
+
 class GameState {
   const GameState({
     this.admiralLevel = 0,
     this.resources = const <GameResourceType, int>{},
+    Map<int, int> useItems = const <int, int>{},
+    bool hasUseItemData = false,
+    int furnitureCoins = 0,
+    bool hasFurnitureCoinData = false,
     this.masterShipTypes = const <int, MasterShipType>{},
     this.masterShips = const <int, MasterShip>{},
     this.masterSlotItems = const <int, MasterSlotItem>{},
     this.masterMissions = const <int, MasterMission>{},
+    this.masterMapInfos = const <int, MasterMapInfo>{},
     this.ships = const <int, OwnedShip>{},
     this.slotItems = const <int, OwnedSlotItem>{},
     this.fleets = const <Fleet>[],
     this.repairDocks = const <RepairDock>[],
     this.constructionDocks = const <ConstructionDock>[],
+    this.landBases = const <LandBaseState>[],
     this.quests = const <int, GameQuest>{},
+    this.hasQuestData = false,
+    this.activeQuestCount = 0,
+    this.questCapacity = 5,
     this.combinedFleetType = CombinedFleetType.none,
     this.serverOrigin = '',
     this.hasMasterData = false,
     this.hasPortData = false,
     this.combatState = CombatState.empty,
     this.updatedAt,
-  });
+  }) : // Private nullable backing fields keep pre-hot-reload instances safe.
+       // ignore: prefer_initializing_formals
+       _useItems = useItems,
+       // ignore: prefer_initializing_formals
+       _hasUseItemData = hasUseItemData,
+       // ignore: prefer_initializing_formals
+       _furnitureCoins = furnitureCoins,
+       // ignore: prefer_initializing_formals
+       _hasFurnitureCoinData = hasFurnitureCoinData;
 
   static const GameState empty = GameState();
 
   final int admiralLevel;
   final Map<GameResourceType, int> resources;
+  final Map<int, int>? _useItems;
+  final bool? _hasUseItemData;
+  final int? _furnitureCoins;
+  final bool? _hasFurnitureCoinData;
   final Map<int, MasterShipType> masterShipTypes;
   final Map<int, MasterShip> masterShips;
   final Map<int, MasterSlotItem> masterSlotItems;
   final Map<int, MasterMission> masterMissions;
+  final Map<int, MasterMapInfo> masterMapInfos;
   final Map<int, OwnedShip> ships;
   final Map<int, OwnedSlotItem> slotItems;
   final List<Fleet> fleets;
   final List<RepairDock> repairDocks;
   final List<ConstructionDock> constructionDocks;
+  final List<LandBaseState> landBases;
   final Map<int, GameQuest> quests;
+  final bool hasQuestData;
+  final int activeQuestCount;
+  final int questCapacity;
   final CombinedFleetType combinedFleetType;
   final String serverOrigin;
   final bool hasMasterData;
@@ -539,6 +658,11 @@ class GameState {
   final DateTime? updatedAt;
 
   int? resource(GameResourceType type) => resources[type];
+  Map<int, int> get useItems => _useItems ?? const <int, int>{};
+  bool get hasUseItemData => _hasUseItemData ?? false;
+  int? useItemCount(int id) => hasUseItemData ? (useItems[id] ?? 0) : null;
+  int get furnitureCoins => _furnitureCoins ?? 0;
+  bool get hasFurnitureCoinData => _hasFurnitureCoinData ?? false;
 
   List<OwnedShip> shipsForFleet(int fleetId) {
     Fleet? fleet;
@@ -561,6 +685,9 @@ class GameState {
     return master == null ? null : masterShipTypes[master.shipTypeId];
   }
 
+  String? mapName(int areaId, int mapNo) =>
+      masterMapInfos[areaId * 100 + mapNo]?.name;
+
   List<ShipEquipment> equipmentForShip(OwnedShip ship) {
     final ids = <int>[
       ...ship.slotIds.where((id) => id > 0),
@@ -576,16 +703,25 @@ class GameState {
   GameState copyWith({
     int? admiralLevel,
     Map<GameResourceType, int>? resources,
+    Map<int, int>? useItems,
+    bool? hasUseItemData,
+    int? furnitureCoins,
+    bool? hasFurnitureCoinData,
     Map<int, MasterShipType>? masterShipTypes,
     Map<int, MasterShip>? masterShips,
     Map<int, MasterSlotItem>? masterSlotItems,
     Map<int, MasterMission>? masterMissions,
+    Map<int, MasterMapInfo>? masterMapInfos,
     Map<int, OwnedShip>? ships,
     Map<int, OwnedSlotItem>? slotItems,
     List<Fleet>? fleets,
     List<RepairDock>? repairDocks,
     List<ConstructionDock>? constructionDocks,
+    List<LandBaseState>? landBases,
     Map<int, GameQuest>? quests,
+    bool? hasQuestData,
+    int? activeQuestCount,
+    int? questCapacity,
     CombinedFleetType? combinedFleetType,
     String? serverOrigin,
     bool? hasMasterData,
@@ -596,16 +732,25 @@ class GameState {
     return GameState(
       admiralLevel: admiralLevel ?? this.admiralLevel,
       resources: resources ?? this.resources,
+      useItems: useItems ?? this.useItems,
+      hasUseItemData: hasUseItemData ?? this.hasUseItemData,
+      furnitureCoins: furnitureCoins ?? this.furnitureCoins,
+      hasFurnitureCoinData: hasFurnitureCoinData ?? this.hasFurnitureCoinData,
       masterShipTypes: masterShipTypes ?? this.masterShipTypes,
       masterShips: masterShips ?? this.masterShips,
       masterSlotItems: masterSlotItems ?? this.masterSlotItems,
       masterMissions: masterMissions ?? this.masterMissions,
+      masterMapInfos: masterMapInfos ?? this.masterMapInfos,
       ships: ships ?? this.ships,
       slotItems: slotItems ?? this.slotItems,
       fleets: fleets ?? this.fleets,
       repairDocks: repairDocks ?? this.repairDocks,
       constructionDocks: constructionDocks ?? this.constructionDocks,
+      landBases: landBases ?? this.landBases,
       quests: quests ?? this.quests,
+      hasQuestData: hasQuestData ?? this.hasQuestData,
+      activeQuestCount: activeQuestCount ?? this.activeQuestCount,
+      questCapacity: questCapacity ?? this.questCapacity,
       combinedFleetType: combinedFleetType ?? this.combinedFleetType,
       serverOrigin: serverOrigin ?? this.serverOrigin,
       hasMasterData: hasMasterData ?? this.hasMasterData,

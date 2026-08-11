@@ -1,24 +1,30 @@
 import 'package:flutter/material.dart';
 
 import '../fleet/ship_status_style.dart';
+import '../fleet/ship_status_visuals.dart';
 import '../fleet/status_density.dart';
 import '../game_state/game_state.dart';
 import 'battle_models.dart';
 import 'battle_pills.dart';
+import 'land_base_raid_panel.dart';
+import 'official_enemy_preview.dart';
 
 class DetailedBattlePanel extends StatelessWidget {
   const DetailedBattlePanel({
     super.key,
     required this.battle,
     required this.gameState,
+    this.damagePulseMode = DamagePulseMode.enhanced,
   });
 
   final LiveBattle battle;
   final GameState gameState;
+  final DamagePulseMode damagePulseMode;
 
   @override
   Widget build(BuildContext context) {
     final navigation = battle.displayStage == BattleDisplayStage.navigation;
+    final enemyPreviewNames = battle.enemyPreviewNames ?? const <String>[];
     final friendMainTitle = battle.friendFormation > 0
         ? '我方主力（${formationLabel(battle.friendFormation)}）'
         : '我方主力';
@@ -33,6 +39,14 @@ class DetailedBattlePanel extends StatelessWidget {
           _NavigationOverview(context: battle.context)
         else
           _BattleOverview(battle: battle, gameState: gameState),
+        if (navigation && enemyPreviewNames.isNotEmpty) ...[
+          const SizedBox(height: 7),
+          OfficialEnemyPreview(names: enemyPreviewNames),
+        ],
+        if (navigation && battle.landBaseRaid != null) ...[
+          const SizedBox(height: 7),
+          LandBaseRaidPanel(result: battle.landBaseRaid!),
+        ],
         if (battle.displayStage == BattleDisplayStage.result &&
             !isPhoneDensity(context))
           _DropResult(battle: battle, gameState: gameState),
@@ -43,6 +57,7 @@ class DetailedBattlePanel extends StatelessWidget {
               title: '我方舰队',
               ships: battle.friendMain,
               mvpPositions: battle.mvpPositions,
+              damagePulseMode: damagePulseMode,
             )
           else
             Row(
@@ -54,6 +69,7 @@ class DetailedBattlePanel extends StatelessWidget {
                     title: '我方主力',
                     ships: battle.friendMain,
                     mvpPositions: battle.mvpPositions,
+                    damagePulseMode: damagePulseMode,
                   ),
                 ),
                 const SizedBox(width: 7),
@@ -63,6 +79,7 @@ class DetailedBattlePanel extends StatelessWidget {
                     ships: battle.friendEscort,
                     mvpPositions: battle.mvpPositions,
                     positionOffset: 6,
+                    damagePulseMode: damagePulseMode,
                   ),
                 ),
               ],
@@ -79,6 +96,7 @@ class DetailedBattlePanel extends StatelessWidget {
                   escortTitle: '我方随伴',
                   escortShips: battle.friendEscort,
                   mvpPositions: battle.mvpPositions,
+                  damagePulseMode: damagePulseMode,
                 ),
               ),
               const SizedBox(width: 7),
@@ -89,6 +107,7 @@ class DetailedBattlePanel extends StatelessWidget {
                   escortTitle: '敌方护卫',
                   escortShips: battle.enemyEscort,
                   mvpPositions: const <int>[],
+                  damagePulseMode: damagePulseMode,
                 ),
               ),
             ],
@@ -105,6 +124,7 @@ class _FleetColumn extends StatelessWidget {
     required this.escortTitle,
     required this.escortShips,
     required this.mvpPositions,
+    required this.damagePulseMode,
   });
 
   final String mainTitle;
@@ -112,6 +132,7 @@ class _FleetColumn extends StatelessWidget {
   final String escortTitle;
   final List<BattleShipSnapshot> escortShips;
   final List<int> mvpPositions;
+  final DamagePulseMode damagePulseMode;
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +143,7 @@ class _FleetColumn extends StatelessWidget {
           title: mainTitle,
           ships: mainShips,
           mvpPositions: mvpPositions,
+          damagePulseMode: damagePulseMode,
         ),
         if (escortShips.isNotEmpty) ...[
           const SizedBox(height: 7),
@@ -130,6 +152,7 @@ class _FleetColumn extends StatelessWidget {
             ships: escortShips,
             mvpPositions: mvpPositions,
             positionOffset: 6,
+            damagePulseMode: damagePulseMode,
           ),
         ],
       ],
@@ -163,7 +186,7 @@ class _NavigationOverview extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  this.context.nodeLabel,
+                  this.context.forecastNodeLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w800),
@@ -247,7 +270,7 @@ class _BattleOverview extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               AdaptiveBattleHeader(
-                nodeLabel: battle.context.nodeLabel,
+                nodeLabel: battle.context.forecastNodeLabel,
                 enemyName: enemyName,
                 enemyStyle: TextStyle(
                   color: enemyCombined ? const Color(0xffff8c78) : null,
@@ -311,12 +334,14 @@ class _FleetGroup extends StatelessWidget {
     required this.title,
     required this.ships,
     required this.mvpPositions,
+    required this.damagePulseMode,
     this.positionOffset = 0,
   });
 
   final String title;
   final List<BattleShipSnapshot> ships;
   final List<int> mvpPositions;
+  final DamagePulseMode damagePulseMode;
   final int positionOffset;
 
   @override
@@ -348,6 +373,7 @@ class _FleetGroup extends StatelessWidget {
               ship: ships[index],
               absolutePosition: index + positionOffset,
               isMvp: mvpPositions.contains(index + positionOffset),
+              damagePulseMode: damagePulseMode,
             ),
           ],
         ],
@@ -361,11 +387,13 @@ class _BattleShipRow extends StatelessWidget {
     required this.ship,
     required this.absolutePosition,
     required this.isMvp,
+    required this.damagePulseMode,
   });
 
   final BattleShipSnapshot ship;
   final int absolutePosition;
   final bool isMvp;
+  final DamagePulseMode damagePulseMode;
 
   @override
   Widget build(BuildContext context) {
@@ -376,78 +404,121 @@ class _BattleShipRow extends StatelessWidget {
     final isZeroHp = ship.currentHp <= 0;
     final hpValueColor = shipHpValueColor(ratio, isZeroHp: isZeroHp);
     final hpBarColor = shipHpBarColor(ratio, isZeroHp: isZeroHp);
-    return Padding(
-      key: Key('battle-ship-$side-$absolutePosition'),
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            flex: 3,
-            child: Row(
-              children: <Widget>[
-                Flexible(
-                  child: Tooltip(
-                    message: ship.name,
-                    child: Text(
-                      ship.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-                if (isMvp) ...<Widget>[
-                  const SizedBox(width: 2),
-                  Icon(
-                    Icons.emoji_events_rounded,
-                    key: Key('battle-mvp-$side-$absolutePosition'),
-                    size: 13,
-                    color: const Color(0xffffd65c),
-                  ),
-                ],
-              ],
+    final hpText = ship.damageReceived > 0
+        ? '${ship.currentHp} / ${ship.maxHp} (-${ship.damageReceived})'
+        : '${ship.currentHp} / ${ship.maxHp}';
+
+    Widget hpContent({double opacity = 1, bool pulsing = false}) => Opacity(
+      key: pulsing
+          ? Key('battle-damage-hp-pulse-$side-$absolutePosition')
+          : null,
+      opacity: opacity,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              hpText,
+              style: TextStyle(
+                color: hpValueColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          const SizedBox(width: 5),
-          Expanded(
-            flex: 2,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    ship.damageReceived > 0
-                        ? '${ship.currentHp} / ${ship.maxHp} (-${ship.damageReceived})'
-                        : '${ship.currentHp} / ${ship.maxHp}',
-                    style: TextStyle(
-                      color: hpValueColor,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    minHeight: 6,
-                    value: ratio,
-                    color: hpBarColor,
-                    backgroundColor: const Color(0xff263e4d),
-                  ),
-                ),
-              ],
+          const SizedBox(height: 2),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              minHeight: 6,
+              value: ratio,
+              color: hpBarColor,
+              backgroundColor: const Color(0xff263e4d),
             ),
           ),
         ],
       ),
+    );
+
+    Widget rowContent(Widget hp, {Widget? background}) => Stack(
+      children: <Widget>[
+        if (background != null) Positioned.fill(child: background),
+        Padding(
+          key: Key('battle-ship-$side-$absolutePosition'),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 3,
+                child: Row(
+                  children: <Widget>[
+                    Flexible(
+                      child: Tooltip(
+                        message: ship.name,
+                        child: Text(
+                          ship.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (isMvp) ...<Widget>[
+                      const SizedBox(width: 2),
+                      Icon(
+                        Icons.emoji_events_rounded,
+                        key: Key('battle-mvp-$side-$absolutePosition'),
+                        size: 13,
+                        color: const Color(0xffffd65c),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 5),
+              Expanded(flex: 2, child: hp),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    final shouldPulse =
+        ship.side == BattleSide.friend && ratio > 0 && ratio <= 0.75;
+    if (!shouldPulse) {
+      return rowContent(hpContent());
+    }
+    return DamagePulseBuilder(
+      ratio: ratio,
+      mode: damagePulseMode,
+      normalColor: hpBarColor,
+      builder: (context, spec, phase) {
+        final hpOpacity =
+            spec.minFrameOpacity + phase * (1 - spec.minFrameOpacity);
+        final minRowOpacity = spec.maxTintOpacity > 0
+            ? spec.minTintOpacity
+            : 0.035;
+        final maxRowOpacity = spec.maxTintOpacity > 0
+            ? spec.maxTintOpacity
+            : 0.12;
+        final rowOpacity =
+            minRowOpacity + phase * (maxRowOpacity - minRowOpacity);
+        return rowContent(
+          hpContent(opacity: hpOpacity, pulsing: true),
+          background: Opacity(
+            key: Key('battle-damage-row-pulse-$side-$absolutePosition'),
+            opacity: rowOpacity,
+            child: ColoredBox(color: spec.color),
+          ),
+        );
+      },
     );
   }
 }

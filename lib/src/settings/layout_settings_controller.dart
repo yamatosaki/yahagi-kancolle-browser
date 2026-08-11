@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'header_resource_settings.dart';
 import 'layout_settings_store.dart';
 
 class LayoutSettingsController extends ChangeNotifier {
@@ -8,6 +9,8 @@ class LayoutSettingsController extends ChangeNotifier {
     this._gameAreaRatio,
     this._informationPanelWidth,
     this._autoZoom,
+    this._enhancedDamagePulse,
+    this._workspaceMenuOnRight,
     this._dashboardCardOrder,
     this._dashboardCardCollapsed,
     this._dashboardCardHidden,
@@ -23,6 +26,8 @@ class LayoutSettingsController extends ChangeNotifier {
     final ratio = await store.loadGameAreaRatio();
     final width = await store.loadInformationPanelWidth();
     final autoZoom = await store.loadAutoZoom();
+    final enhancedDamagePulse = await store.loadEnhancedDamagePulse();
+    final workspaceMenuOnRight = await store.loadWorkspaceMenuOnRight();
     final dashboardCardOrder = await store.loadDashboardCardOrder();
     final dashboardCardCollapsed = await store.loadDashboardCardCollapsed();
     final dashboardCardHidden = await store.loadDashboardCardHidden();
@@ -33,11 +38,13 @@ class LayoutSettingsController extends ChangeNotifier {
     if (fontFamily != null && fontFamily != regionalFont) {
       await store.saveFontFamily(regionalFont);
     }
-    return LayoutSettingsController._(
+    final controller = LayoutSettingsController._(
       store,
       ratio,
       width,
       autoZoom,
+      enhancedDamagePulse,
+      workspaceMenuOnRight,
       dashboardCardOrder,
       dashboardCardCollapsed,
       dashboardCardHidden,
@@ -45,6 +52,54 @@ class LayoutSettingsController extends ChangeNotifier {
       localeCode,
       fontLocaleCode,
     );
+    final headerStore = store is HeaderResourceSettingsStore
+        ? store as HeaderResourceSettingsStore
+        : null;
+    if (headerStore != null) {
+      final savedOrder = await headerStore.loadHeaderResourceOrder();
+      final savedVisible = await headerStore.loadVisibleHeaderResourceIds();
+      final migratesSenka = !savedOrder.contains(headerSenkaId);
+      final migratesAnchorageTimer = !savedOrder.contains(
+        headerAnchorageTimerId,
+      );
+      controller._headerResourceOrder = normalizeHeaderResourceOrder(
+        savedOrder,
+      );
+      controller._visibleHeaderResourceIds = normalizeVisibleHeaderResourceIds(
+        savedVisible,
+      );
+      if (migratesSenka && savedVisible != null) {
+        controller._visibleHeaderResourceIds = <String>[
+          headerSenkaId,
+          ...controller._visibleHeaderResourceIds!.where(
+            (id) => id != headerSenkaId,
+          ),
+        ];
+      }
+      if (migratesAnchorageTimer &&
+          savedVisible != null &&
+          !controller._visibleHeaderResourceIds!.contains(
+            headerAnchorageTimerId,
+          )) {
+        final visible = controller._visibleHeaderResourceIds!;
+        final senkaIndex = visible.indexOf(headerSenkaId);
+        visible.insert(
+          senkaIndex < 0 ? 0 : senkaIndex + 1,
+          headerAnchorageTimerId,
+        );
+      }
+      if (migratesSenka || migratesAnchorageTimer) {
+        await headerStore.saveHeaderResourceOrder(
+          controller._headerResourceOrder!,
+        );
+        if (savedVisible != null) {
+          await headerStore.saveVisibleHeaderResourceIds(
+            controller._visibleHeaderResourceIds!,
+          );
+        }
+      }
+    }
+    return controller;
   }
 
   final LayoutSettingsStore _store;
@@ -52,21 +107,35 @@ class LayoutSettingsController extends ChangeNotifier {
   double _gameAreaRatio;
   double _informationPanelWidth;
   bool _autoZoom;
+  bool _enhancedDamagePulse;
+  bool _workspaceMenuOnRight;
   List<String> _dashboardCardOrder;
   List<String> _dashboardCardCollapsed;
   List<String> _dashboardCardHidden;
   String? _fontFamily;
   String? _localeCode;
   String _fontLocaleCode;
+  List<String>? _headerResourceOrder;
+  List<String>? _visibleHeaderResourceIds;
 
   double get gameAreaRatio => _gameAreaRatio;
+  double get effectiveInformationPanelRatio =>
+      _autoZoom ? 0.35 : 1.0 - _gameAreaRatio;
+  bool get canAdjustInformationPanelRatio => !_autoZoom;
   double get informationPanelWidth => _informationPanelWidth;
   bool get autoZoom => _autoZoom;
+  bool get enhancedDamagePulse => _enhancedDamagePulse;
+  bool get workspaceMenuOnRight => _workspaceMenuOnRight;
   List<String> get dashboardCardOrder => _dashboardCardOrder;
   List<String> get dashboardCardCollapsed => _dashboardCardCollapsed;
   List<String> get dashboardCardHidden => _dashboardCardHidden;
   String? get fontFamily => _fontFamily;
   String? get localeCode => _localeCode;
+  List<String> get headerResourceOrder =>
+      List<String>.unmodifiable(_headerResourceOrder ?? allHeaderResourceIds);
+  List<String> get visibleHeaderResourceIds => List<String>.unmodifiable(
+    _visibleHeaderResourceIds ?? defaultVisibleHeaderResourceIds,
+  );
   List<String> get fontFamilyFallback => switch (_fontLocaleCode) {
     'ja' => const <String>['HarmonyOS_Sans_TC', 'HarmonyOS_Sans_SC'],
     'zh_Hant' => const <String>['NotoSansJP', 'HarmonyOS_Sans_SC'],
@@ -100,6 +169,67 @@ class LayoutSettingsController extends ChangeNotifier {
     await _store.saveAutoZoom(autoZoom);
   }
 
+  Future<void> setEnhancedDamagePulse(bool enabled) async {
+    if (_enhancedDamagePulse == enabled) {
+      return;
+    }
+    _enhancedDamagePulse = enabled;
+    notifyListeners();
+    await _store.saveEnhancedDamagePulse(enabled);
+  }
+
+  Future<void> setWorkspaceMenuOnRight(bool onRight) async {
+    if (_workspaceMenuOnRight == onRight) return;
+    _workspaceMenuOnRight = onRight;
+    notifyListeners();
+    await _store.saveWorkspaceMenuOnRight(onRight);
+  }
+
+  Future<void> setHeaderResourceOrder(List<String> order) async {
+    _headerResourceOrder = normalizeHeaderResourceOrder(order);
+    notifyListeners();
+    final store = _headerResourceStore;
+    if (store != null) {
+      await store.saveHeaderResourceOrder(_headerResourceOrder!);
+    }
+  }
+
+  Future<void> toggleHeaderResourceVisible(String id) async {
+    if (!allHeaderResourceIds.contains(id)) return;
+    final visible = List<String>.from(visibleHeaderResourceIds);
+    if (visible.contains(id)) {
+      visible.remove(id);
+    } else {
+      visible.add(id);
+    }
+    _visibleHeaderResourceIds = visible;
+    notifyListeners();
+    final store = _headerResourceStore;
+    if (store != null) {
+      await store.saveVisibleHeaderResourceIds(visible);
+    }
+  }
+
+  Future<void> resetHeaderResources() async {
+    _headerResourceOrder = List<String>.from(allHeaderResourceIds);
+    _visibleHeaderResourceIds = List<String>.from(
+      defaultVisibleHeaderResourceIds,
+    );
+    notifyListeners();
+    final store = _headerResourceStore;
+    if (store != null) {
+      await Future.wait(<Future<void>>[
+        store.saveHeaderResourceOrder(_headerResourceOrder!),
+        store.saveVisibleHeaderResourceIds(_visibleHeaderResourceIds!),
+      ]);
+    }
+  }
+
+  HeaderResourceSettingsStore? get _headerResourceStore =>
+      _store is HeaderResourceSettingsStore
+      ? _store as HeaderResourceSettingsStore
+      : null;
+
   Future<void> setDashboardCardOrder(List<String> order) async {
     _dashboardCardOrder = List<String>.from(order);
     notifyListeners();
@@ -131,7 +261,9 @@ class LayoutSettingsController extends ChangeNotifier {
   }
 
   Future<void> resetDashboardCardOrder() async {
-    _dashboardCardOrder = List<String>.from(LayoutSettingsStore.defaultDashboardCardOrder);
+    _dashboardCardOrder = List<String>.from(
+      LayoutSettingsStore.defaultDashboardCardOrder,
+    );
     notifyListeners();
     await _store.saveDashboardCardOrder(_dashboardCardOrder);
   }
@@ -156,6 +288,17 @@ class LayoutSettingsController extends ChangeNotifier {
     await _store.saveLocaleCode(localeCode);
     await _store.saveFontFamily(_fontFamily);
   }
+}
+
+List<String> reorderDashboardCards(
+  List<String> cards,
+  int oldIndex,
+  int newIndex,
+) {
+  final reordered = List<String>.from(cards);
+  final item = reordered.removeAt(oldIndex);
+  reordered.insert(newIndex.clamp(0, reordered.length), item);
+  return reordered;
 }
 
 String _fontForLocale(String localeCode) => switch (localeCode) {

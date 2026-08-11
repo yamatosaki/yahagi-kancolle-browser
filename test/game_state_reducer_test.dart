@@ -42,6 +42,7 @@ void main() {
       expect(state.masterMissions[5]?.displayNumber, '05');
       expect(state.masterMissions[5]?.fuelConsumptionPercent, 50);
       expect(state.masterMissions[5]?.ammunitionConsumptionPercent, 0);
+      expect(state.mapName(2, 3), '东部奥廖尔海');
       expect(state.ships[9002]?.repairDurationMilliseconds, 5400000);
       expect(state.ships[9001]?.armor, 46);
       expect(state.ships[9001]?.evasion, 80);
@@ -74,6 +75,163 @@ void main() {
       expect(updated.resource(GameResourceType.ammunition), 138649);
       expect(updated.ships, same(initial.ships));
       expect(updated.fleets, same(initial.fleets));
+    });
+
+    test('useitem endpoint captures special item counts', () {
+      final state = GameStateReducer().reduce(
+        GameState.empty,
+        kcsapiEvent('/kcsapi/api_get_member/useitem', <Object?>[
+          <String, Object?>{'api_id': 54, 'api_count': 7},
+          <String, Object?>{'api_id': 68, 'api_count': 19},
+        ]),
+      );
+
+      expect(state.hasUseItemData, isTrue);
+      expect(state.useItemCount(54), 7);
+      expect(state.useItemCount(68), 19);
+      expect(state.useItemCount(61), 0);
+    });
+
+    test('require info captures embedded special item counts', () {
+      final state = GameStateReducer().reduce(
+        GameState.empty,
+        kcsapiEvent('/kcsapi/api_get_member/require_info', <String, Object?>{
+          'api_useitem': <Object?>[
+            <String, Object?>{'api_id': 61, 'api_count': 2},
+          ],
+        }),
+      );
+
+      expect(state.hasUseItemData, isTrue);
+      expect(state.useItemCount(61), 2);
+    });
+
+    test('mapinfo captures land bases and map next applies raid damage', () {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(
+        GameState.empty,
+        kcsapiEvent('/kcsapi/api_get_member/mapinfo', <String, Object?>{
+          'api_map_info': const <Object?>[],
+          'api_air_base': <Object?>[
+            <String, Object?>{
+              'api_area_id': 47,
+              'api_rid': 1,
+              'api_name': '第一基地航空队',
+              'api_action_kind': 1,
+            },
+            <String, Object?>{
+              'api_area_id': 47,
+              'api_rid': 2,
+              'api_name': '第二基地航空队',
+              'api_action_kind': 2,
+            },
+            <String, Object?>{
+              'api_area_id': 6,
+              'api_rid': 1,
+              'api_name': '其他海域基地',
+              'api_action_kind': 0,
+            },
+          ],
+        }),
+      );
+
+      expect(state.landBases, hasLength(3));
+      final firstBase = state.landBases.firstWhere(
+        (base) => base.areaId == 47 && base.baseId == 1,
+      );
+      expect(firstBase.name, '第一基地航空队');
+      expect(firstBase.actionKind, 1);
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent('/kcsapi/api_req_map/next', <String, Object?>{
+          'api_maparea_id': 47,
+          'api_mapinfo_no': 1,
+          'api_no': 4,
+          'api_destruction_battle': <String, Object?>{
+            'api_f_nowhps': <int>[200, 200],
+            'api_f_maxhps': <int>[200, 200],
+            'api_air_base_attack': <String, Object?>{
+              'api_stage3': <String, Object?>{
+                'api_fdam': <num>[48.9, 24.1],
+              },
+            },
+          },
+        }),
+      );
+
+      final raidedBases = state.landBases
+          .where((base) => base.areaId == 47)
+          .toList();
+      final otherArea = state.landBases.singleWhere((base) => base.areaId == 6);
+      expect(raidedBases[0].currentHp, 152);
+      expect(raidedBases[0].maxHp, 200);
+      expect(raidedBases[0].lastRaidDamage, 48);
+      expect(raidedBases[1].currentHp, 176);
+      expect(raidedBases[1].lastRaidDamage, 24);
+      expect(otherArea.currentHp, isNull);
+    });
+
+    test('land-base raid accepts nested JSON and port clears transient hp', () {
+      final reducer = GameStateReducer();
+      var state = const GameState(
+        landBases: <LandBaseState>[
+          LandBaseState(areaId: 47, baseId: 1, name: '第一基地航空队'),
+        ],
+      );
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent('/kcsapi/api_req_map/next', <String, Object?>{
+          'api_maparea_id': 47,
+          'api_mapinfo_no': 1,
+          'api_no': 4,
+          'api_destruction_battle': <String, Object?>{
+            'api_f_nowhps': <int>[200],
+            'api_f_maxhps': <int>[200],
+            'api_air_base_attack': '{"api_stage3":{"api_fdam":[48.9]}}',
+          },
+        }),
+      );
+
+      expect(state.landBases.single.currentHp, 152);
+      expect(state.landBases.single.lastRaidDamage, 48);
+
+      state = reducer.reduce(state, portEvent);
+
+      expect(state.landBases.single.currentHp, isNull);
+      expect(state.landBases.single.maxHp, isNull);
+      expect(state.landBases.single.lastRaidDamage, 0);
+    });
+
+    test('land-base raid records zero damage when stage3 is absent', () {
+      final reducer = GameStateReducer();
+      var state = const GameState(
+        landBases: <LandBaseState>[
+          LandBaseState(areaId: 62, baseId: 1, name: '第一基地航空队'),
+        ],
+      );
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent('/kcsapi/api_req_map/next', <String, Object?>{
+          'api_maparea_id': 62,
+          'api_mapinfo_no': 1,
+          'api_no': 19,
+          'api_destruction_battle': <String, Object?>{
+            'api_f_nowhps': <int>[200],
+            'api_f_maxhps': <int>[200],
+            'api_air_base_attack': <String, Object?>{
+              'api_stage_flag': <int>[1, 0, 0],
+              'api_stage1': <String, Object?>{'api_disp_seiku': 3},
+            },
+          },
+        }),
+      );
+
+      expect(state.landBases.single.maxHp, 200);
+      expect(state.landBases.single.currentHp, 200);
+      expect(state.landBases.single.lastRaidDamage, 0);
     });
 
     test(
@@ -389,6 +547,7 @@ void main() {
         kcsapiEvent(
           '/kcsapi/api_req_nyukyo/speedchange',
           const <String, Object?>{},
+          includeApiData: false,
           requestParams: const <String, Object?>{'api_ndock_id': '1'},
         ),
       );
@@ -428,6 +587,7 @@ void main() {
           kcsapiEvent(
             '/kcsapi/api_req_nyukyo/start',
             const <String, Object?>{},
+            includeApiData: false,
             requestParams: const <String, Object?>{
               'api_ndock_id': '2',
               'api_ship_id': '9002',
@@ -719,6 +879,402 @@ void main() {
         ).progressPercentLabel,
         '＜50%',
       );
+    });
+
+    test('quest list marks synchronization and trims stale cached quests', () {
+      final reducer = GameStateReducer();
+      final staleTime = DateTime.utc(2026, 7, 29);
+      final state = GameState(
+        quests: <int, GameQuest>{
+          101: GameQuest(
+            id: 101,
+            title: 'stale one',
+            detail: '',
+            category: 1,
+            type: 1,
+            state: 2,
+            progressFlag: 0,
+            updatedAt: staleTime,
+          ),
+          102: GameQuest(
+            id: 102,
+            title: 'stale two',
+            detail: '',
+            category: 1,
+            type: 1,
+            state: 2,
+            progressFlag: 0,
+            updatedAt: staleTime,
+          ),
+        },
+      );
+
+      final next = reducer.reduce(
+        state,
+        kcsapiEvent('/kcsapi/api_get_member/questlist', <String, Object?>{
+          'api_exec_count': 1,
+          'api_list': <Object?>[
+            <String, Object?>{
+              'api_no': 201,
+              'api_category': 2,
+              'api_type': 2,
+              'api_state': 2,
+              'api_progress_flag': 0,
+              'api_title': 'current',
+              'api_detail': '',
+            },
+          ],
+        }),
+      );
+
+      expect(next.hasQuestData, isTrue);
+      expect(next.activeQuestCount, 1);
+      expect(next.quests.keys, <int>[201]);
+    });
+
+    test('claiming an unknown quest still corrects the active count', () {
+      final reducer = GameStateReducer();
+      final state = GameState(
+        hasQuestData: true,
+        activeQuestCount: 2,
+        quests: const <int, GameQuest>{},
+      );
+
+      final next = reducer.reduce(
+        state,
+        kcsapiEvent(
+          '/kcsapi/api_req_quest/clearitemget',
+          const <String, Object?>{},
+          includeApiData: false,
+          requestParams: const <String, Object?>{'api_quest_id': '999'},
+        ),
+      );
+
+      expect(next.activeQuestCount, 1);
+    });
+
+    test('known quest goals count observed API events exactly', () {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(
+        GameState.empty,
+        kcsapiEvent('/kcsapi/api_get_member/questlist', <String, Object?>{
+          'api_exec_count': 1,
+          'api_list': <Object?>[
+            <String, Object?>{
+              'api_no': 503,
+              'api_category': 5,
+              'api_type': 1,
+              'api_state': 2,
+              'api_progress_flag': 0,
+              'api_title': 'repair quest',
+              'api_detail': '',
+            },
+          ],
+        }),
+      );
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent(
+          '/kcsapi/api_req_nyukyo/start',
+          const <String, Object?>{},
+          includeApiData: false,
+          requestParams: const <String, Object?>{
+            'api_ndock_id': '1',
+            'api_ship_id': '999',
+            'api_highspeed': '0',
+          },
+        ),
+      );
+
+      expect(state.quests[503]?.exactProgressLabel, '1/5');
+    });
+
+    test('known quest becomes locally completed immediately', () {
+      final reducer = GameStateReducer();
+      var state = GameState(
+        hasQuestData: true,
+        activeQuestCount: 1,
+        quests: <int, GameQuest>{
+          503: GameQuest(
+            id: 503,
+            title: 'repair quest',
+            detail: '',
+            category: 5,
+            type: 1,
+            state: 2,
+            progressFlag: 2,
+            progressCurrent: 4,
+            progressRequired: 5,
+          ),
+        },
+      );
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent(
+          '/kcsapi/api_req_nyukyo/start',
+          const <String, Object?>{},
+          includeApiData: false,
+          requestParams: const <String, Object?>{
+            'api_ndock_id': '1',
+            'api_ship_id': '999',
+            'api_highspeed': '0',
+          },
+        ),
+      );
+
+      expect(state.quests, contains(503));
+      expect(state.activeQuestCount, 1);
+      expect(state.quests[503]?.exactProgressLabel, '5/5');
+      expect(state.quests[503]?.isCompleted, isTrue);
+      expect(state.quests[503]?.progressPercentLabel, '100%');
+    });
+
+    test('server quest sync recalibrates local completion', () {
+      final reducer = GameStateReducer();
+      final state = GameState(
+        hasQuestData: true,
+        activeQuestCount: 1,
+        quests: <int, GameQuest>{
+          503: GameQuest(
+            id: 503,
+            title: 'repair quest',
+            detail: '',
+            category: 5,
+            type: 1,
+            state: 2,
+            progressFlag: 2,
+            progressCurrent: 5,
+            progressRequired: 5,
+          ),
+        },
+      );
+
+      final next = reducer.reduce(
+        state,
+        kcsapiEvent('/kcsapi/api_get_member/questlist', <String, Object?>{
+          'api_exec_count': 1,
+          'api_list': <Object?>[
+            <String, Object?>{
+              'api_no': 503,
+              'api_category': 5,
+              'api_type': 1,
+              'api_state': 2,
+              'api_progress_flag': 0,
+              'api_title': 'repair quest',
+              'api_detail': '',
+            },
+          ],
+        }),
+      );
+
+      expect(next.quests[503]?.isCompleted, isFalse);
+      expect(next.quests[503]?.progressCurrent, lessThan(5));
+    });
+
+    group('F96 live completion', () {
+      GameState f96State({
+        int furnitureCoins = 4000,
+        bool hasFurnitureCoinData = true,
+        int masterId4Count = 4,
+        int masterId6Count = 4,
+        int discardedMasterId = 2,
+      }) {
+        final slotItems = <int, OwnedSlotItem>{
+          100: OwnedSlotItem(id: 100, masterId: discardedMasterId),
+          for (var index = 0; index < masterId4Count; index++)
+            400 + index: OwnedSlotItem(id: 400 + index, masterId: 4),
+          for (var index = 0; index < masterId6Count; index++)
+            600 + index: OwnedSlotItem(id: 600 + index, masterId: 6),
+        };
+        return GameState(
+          furnitureCoins: furnitureCoins,
+          hasFurnitureCoinData: hasFurnitureCoinData,
+          slotItems: slotItems,
+          hasQuestData: true,
+          activeQuestCount: 1,
+          quests: const <int, GameQuest>{
+            1101: GameQuest(
+              id: 1101,
+              title: 'F96',
+              detail: '',
+              category: 6,
+              type: 4,
+              state: 2,
+              progressFlag: 2,
+              progressCurrent: 7,
+              progressRequired: 8,
+            ),
+          },
+        );
+      }
+
+      GameState destroyLastRequiredGun(GameState state) {
+        return GameStateReducer().reduce(
+          state,
+          kcsapiEvent(
+            '/kcsapi/api_req_kousyou/destroyitem2',
+            const <String, Object?>{},
+            requestParams: const <String, Object?>{'api_slotitem_ids': '100'},
+          ),
+        );
+      }
+
+      test('F96 completes after the eighth required gun is destroyed', () {
+        final next = destroyLastRequiredGun(f96State());
+
+        expect(next.slotItems, isNot(contains(100)));
+        expect(next.quests[1101]?.exactProgressLabel, '8/8');
+        expect(next.quests[1101]?.isCompleted, isTrue);
+      });
+
+      test('F96 does not complete with insufficient furniture coins', () {
+        final next = destroyLastRequiredGun(f96State(furnitureCoins: 3999));
+
+        expect(next.slotItems, isNot(contains(100)));
+        expect(next.quests[1101]?.exactProgressLabel, '8/8');
+        expect(next.quests[1101]?.isCompleted, isFalse);
+      });
+
+      test('F96 requires four of both prepared equipment types', () {
+        final cases = <String, GameState>{
+          'master ID 4': f96State(masterId4Count: 3),
+          'master ID 6': f96State(masterId6Count: 3),
+        };
+
+        for (final entry in cases.entries) {
+          final next = destroyLastRequiredGun(entry.value);
+
+          expect(next.slotItems, isNot(contains(100)), reason: entry.key);
+          expect(
+            next.quests[1101]?.exactProgressLabel,
+            '8/8',
+            reason: entry.key,
+          );
+          expect(next.quests[1101]?.isCompleted, isFalse, reason: entry.key);
+        }
+      });
+
+      test('F96 ignores destroyed equipment with another master ID', () {
+        final next = destroyLastRequiredGun(f96State(discardedMasterId: 1));
+
+        expect(next.slotItems, isNot(contains(100)));
+        expect(next.quests[1101]?.exactProgressLabel, '7/8');
+        expect(next.quests[1101]?.isCompleted, isFalse);
+      });
+
+      test('F96 does not complete before furniture coins are synced', () {
+        final next = destroyLastRequiredGun(
+          f96State(hasFurnitureCoinData: false),
+        );
+
+        expect(next.slotItems, isNot(contains(100)));
+        expect(next.quests[1101]?.exactProgressLabel, '8/8');
+        expect(next.quests[1101]?.isCompleted, isFalse);
+      });
+
+      test('F96 revalidates after furniture coins are synced', () {
+        final reducer = GameStateReducer();
+        final pending = destroyLastRequiredGun(
+          f96State(hasFurnitureCoinData: false),
+        );
+
+        final next = reducer.reduce(
+          pending,
+          kcsapiEvent(
+            '/kcsapi/api_get_member/require_info',
+            const <String, Object?>{
+              'api_basic': <String, Object?>{
+                'api_level': 120,
+                'api_fcoin': 4000,
+              },
+            },
+          ),
+        );
+
+        expect(next.furnitureCoins, 4000);
+        expect(next.hasFurnitureCoinData, isTrue);
+        expect(next.quests[1101]?.isCompleted, isTrue);
+      });
+
+      test('F96 server state recalibrates stale local completion', () {
+        final reducer = GameStateReducer();
+        final completed = destroyLastRequiredGun(f96State());
+
+        GameState syncQuest(int state) => reducer.reduce(
+          completed,
+          kcsapiEvent('/kcsapi/api_get_member/questlist', <String, Object?>{
+            'api_exec_count': 1,
+            'api_list': <Object?>[
+              <String, Object?>{
+                'api_no': 1101,
+                'api_category': 6,
+                'api_type': 4,
+                'api_state': state,
+                'api_progress_flag': state == 3 ? 0 : 2,
+                'api_title': 'F96',
+                'api_detail': '',
+              },
+            ],
+          }),
+        );
+
+        final active = syncQuest(2);
+        expect(active.quests[1101]?.exactProgressLabel, '7/8');
+        expect(active.quests[1101]?.isCompleted, isFalse);
+
+        final serverCompleted = syncQuest(3);
+        expect(serverCompleted.quests[1101]?.exactProgressLabel, '8/8');
+        expect(serverCompleted.quests[1101]?.isCompleted, isTrue);
+      });
+
+      test('F96 counts unique target instances in a batch only once', () {
+        final state = GameState(
+          furnitureCoins: 4000,
+          hasFurnitureCoinData: true,
+          slotItems: <int, OwnedSlotItem>{
+            100: const OwnedSlotItem(id: 100, masterId: 2),
+            101: const OwnedSlotItem(id: 101, masterId: 2),
+            for (var index = 0; index < 4; index++)
+              400 + index: OwnedSlotItem(id: 400 + index, masterId: 4),
+            for (var index = 0; index < 4; index++)
+              600 + index: OwnedSlotItem(id: 600 + index, masterId: 6),
+          },
+          hasQuestData: true,
+          activeQuestCount: 1,
+          quests: const <int, GameQuest>{
+            1101: GameQuest(
+              id: 1101,
+              title: 'F96',
+              detail: '',
+              category: 6,
+              type: 4,
+              state: 2,
+              progressFlag: 1,
+              progressCurrent: 5,
+              progressRequired: 8,
+              localCompletionVerified: false,
+            ),
+          },
+        );
+
+        final next = GameStateReducer().reduce(
+          state,
+          kcsapiEvent(
+            '/kcsapi/api_req_kousyou/destroyitem2',
+            const <String, Object?>{},
+            requestParams: const <String, Object?>{
+              'api_slotitem_ids': '100,101,100',
+            },
+          ),
+        );
+
+        expect(next.slotItems, isNot(contains(100)));
+        expect(next.slotItems, isNot(contains(101)));
+        expect(next.quests[1101]?.exactProgressLabel, '7/8');
+        expect(next.quests[1101]?.isCompleted, isFalse);
+      });
     });
 
     test('rejects invalid api result without replacing state', () {

@@ -3,6 +3,70 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/ship_status_style.dart';
 
 void main() {
+  test('normal damage pulse preserves the original shared visual settings', () {
+    for (final ratio in <double>[0.65, 0.42, 0.18]) {
+      final spec = damagePulseVisualSpec(
+        hpRatio: ratio,
+        mode: DamagePulseMode.normal,
+        normalColor: shipHpBarColor(ratio),
+      );
+
+      expect(spec.pulses, isTrue);
+      expect(spec.duration, const Duration(milliseconds: 2400));
+      expect(spec.minFrameOpacity, 0.35);
+      expect(spec.maxGlowRadius, 11);
+      expect(spec.maxTintOpacity, 0);
+      expect(spec.color, shipHpBarColor(ratio));
+    }
+  });
+
+  test('enhanced damage pulse separates minor moderate and heavy damage', () {
+    final minor = damagePulseVisualSpec(
+      hpRatio: 0.65,
+      mode: DamagePulseMode.enhanced,
+      normalColor: shipHpBarColor(0.65),
+    );
+    final moderate = damagePulseVisualSpec(
+      hpRatio: 0.42,
+      mode: DamagePulseMode.enhanced,
+      normalColor: shipHpBarColor(0.42),
+    );
+    final heavy = damagePulseVisualSpec(
+      hpRatio: 0.18,
+      mode: DamagePulseMode.enhanced,
+      normalColor: shipHpBarColor(0.18),
+    );
+
+    expect(minor.color, const Color(0xffffd34f));
+    expect(moderate.color, const Color(0xffff8418));
+    expect(heavy.color, const Color(0xffff2933));
+    expect(minor.duration, const Duration(milliseconds: 2200));
+    expect(moderate.duration, const Duration(milliseconds: 1450));
+    expect(heavy.duration, const Duration(milliseconds: 760));
+    expect(minor.maxTintOpacity, lessThan(moderate.maxTintOpacity));
+    expect(moderate.maxTintOpacity, lessThan(heavy.maxTintOpacity));
+    expect(heavy.strokeWidth, 4);
+  });
+
+  test('healthy and zero HP ships do not pulse', () {
+    expect(
+      damagePulseVisualSpec(
+        hpRatio: 0.76,
+        mode: DamagePulseMode.enhanced,
+        normalColor: yahagiStatusGreen,
+      ).pulses,
+      isFalse,
+    );
+    expect(
+      damagePulseVisualSpec(
+        hpRatio: 0,
+        mode: DamagePulseMode.enhanced,
+        normalColor: yahagiStatusZeroHp,
+      ).pulses,
+      isFalse,
+    );
+  });
+
   test('uses damage colors for HP bars and white healthy values', () {
     expect(shipHpBarColor(0, isZeroHp: true), const Color(0xff71818b));
     expect(shipHpValueColor(0, isZeroHp: true), const Color(0xff71818b));

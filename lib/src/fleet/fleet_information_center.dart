@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
@@ -8,15 +10,21 @@ import '../game_state/game_state_controller.dart';
 import 'combat_mechanism.dart';
 import 'anchorage_repair_view.dart';
 import 'equipment_display.dart';
+import 'equipment_type_icon.dart';
 import 'fleet_switcher_bar.dart';
+import 'fleet_line_of_sight_details.dart';
 import 'operation_status_views.dart';
 import 'ship_portrait.dart';
+import 'ship_repair_status.dart';
 import 'ship_speed_visual.dart';
 import 'ship_status_style.dart';
 import 'ship_status_visuals.dart';
 import 'status_density.dart';
 import '../expedition/expedition_check_page.dart';
-import 'expedition_summary_card.dart' show ExpeditionSummaryMode, ExpeditionModeSelector;
+import '../improvement/improvement_planner_controller.dart';
+import '../improvement/improvement_planner_view.dart';
+import 'expedition_summary_card.dart'
+    show ExpeditionSummaryMode, ExpeditionModeSelector;
 
 export 'fleet_switcher_bar.dart';
 
@@ -38,6 +46,10 @@ class FleetInformationCenter extends StatefulWidget {
     this.onFleetSelected,
     this.expeditionMode,
     this.onExpeditionModeChanged,
+    this.damagePulseMode = DamagePulseMode.enhanced,
+    this.clock,
+    this.constructionMode = ConstructionCenterMode.construction,
+    this.improvementController,
   });
 
   final GameStateController controller;
@@ -50,6 +62,10 @@ class FleetInformationCenter extends StatefulWidget {
   final ValueChanged<int>? onFleetSelected;
   final ExpeditionSummaryMode? expeditionMode;
   final ValueChanged<ExpeditionSummaryMode>? onExpeditionModeChanged;
+  final DamagePulseMode damagePulseMode;
+  final DateTime Function()? clock;
+  final ConstructionCenterMode constructionMode;
+  final ImprovementPlannerController? improvementController;
 
   @override
   State<FleetInformationCenter> createState() => _FleetInformationCenterState();
@@ -57,6 +73,21 @@ class FleetInformationCenter extends StatefulWidget {
 
 class _FleetInformationCenterState extends State<FleetInformationCenter> {
   late int _selectedFleetId = widget.initialFleetId ?? 1;
+  Timer? _clockTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _clockTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   void didUpdateWidget(FleetInformationCenter oldWidget) {
@@ -93,22 +124,25 @@ class _FleetInformationCenterState extends State<FleetInformationCenter> {
                   child: switch (widget.page) {
                     FleetInformationPage.fleet => _FleetView(
                       state: state,
+                      anchorageRepairStartedAt:
+                          widget.controller.anchorageRepairStartedAt,
+                      now: widget.clock?.call() ?? DateTime.now().toUtc(),
                       selectedFleetId: _selectedFleetId,
+                      damagePulseMode: widget.damagePulseMode,
                       onFleetSelected: (id) {
                         setState(() => _selectedFleetId = id);
                       },
                       showContextHeader: widget.showContextHeader,
                     ),
-                    FleetInformationPage.expedition => widget.expeditionMode == ExpeditionSummaryMode.check
-                        ? ExpeditionCheckPage(
-                            controller: widget.controller,
-                            showHeader: false,
-                            initialFleetId: _selectedFleetId,
-                            onBack: () {},
-                          )
-                        : ExpeditionStatusView(
-                            state: state,
-                          ),
+                    FleetInformationPage.expedition =>
+                      widget.expeditionMode == ExpeditionSummaryMode.check
+                          ? ExpeditionCheckPage(
+                              controller: widget.controller,
+                              showHeader: false,
+                              initialFleetId: _selectedFleetId,
+                              onBack: () {},
+                            )
+                          : ExpeditionStatusView(state: state),
                     FleetInformationPage.repair => RepairCenterView(
                       controller: widget.controller,
                       initialFleetId: widget.initialFleetId,
@@ -118,7 +152,14 @@ class _FleetInformationCenterState extends State<FleetInformationCenter> {
                       showModeTabs: widget.showRepairModeTabs,
                     ),
                     FleetInformationPage.construction =>
-                      ConstructionDockStatusView(state: state),
+                      widget.constructionMode ==
+                                  ConstructionCenterMode.improvement &&
+                              widget.improvementController != null
+                          ? ImprovementPlannerView(
+                              controller: widget.improvementController!,
+                              state: state,
+                            )
+                          : ConstructionDockStatusView(state: state),
                   },
                 ),
             ],
@@ -169,7 +210,9 @@ class _PageHeader extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          if (page == FleetInformationPage.expedition && expeditionMode != null && onExpeditionModeChanged != null)
+          if (page == FleetInformationPage.expedition &&
+              expeditionMode != null &&
+              onExpeditionModeChanged != null)
             ExpeditionModeSelector(
               mode: expeditionMode!,
               summaryLabel: '简报',
@@ -212,13 +255,19 @@ class _WaitingState extends StatelessWidget {
 class _FleetView extends StatefulWidget {
   const _FleetView({
     required this.state,
+    required this.anchorageRepairStartedAt,
+    required this.now,
     required this.selectedFleetId,
+    required this.damagePulseMode,
     required this.onFleetSelected,
     required this.showContextHeader,
   });
 
   final GameState state;
+  final DateTime? anchorageRepairStartedAt;
+  final DateTime now;
   final int selectedFleetId;
+  final DamagePulseMode damagePulseMode;
   final ValueChanged<int> onFleetSelected;
   final bool showContextHeader;
 
@@ -287,6 +336,16 @@ class _FleetViewState extends State<_FleetView> {
       return const _WaitingState();
     }
     final ships = state.shipsForFleet(fleet.id);
+    final repairStatuses = <int, ShipRepairStatus>{};
+    for (final ship in ships) {
+      final status = shipRepairStatusFor(
+        state: state,
+        shipId: ship.id,
+        anchorageRepairStartedAt: widget.anchorageRepairStartedAt,
+        now: widget.now,
+      );
+      if (status != null) repairStatuses[ship.id] = status;
+    }
     final metrics = _metricsFor(state, fleet);
     final specialAttack = detectFleetSpecialAttack(state, fleet);
     if (_lastButtonsState != state) {
@@ -354,7 +413,9 @@ class _FleetViewState extends State<_FleetView> {
                                 key: const Key('fleet-roster-panel'),
                                 state: state,
                                 ships: ships,
+                                repairStatuses: repairStatuses,
                                 selectedShipId: selectedShip!.id,
+                                damagePulseMode: widget.damagePulseMode,
                                 onSelected: (shipId) {
                                   setState(() {
                                     _selectedShipId = shipId;
@@ -453,13 +514,17 @@ class _FleetRosterPanel extends StatefulWidget {
     super.key,
     required this.state,
     required this.ships,
+    required this.repairStatuses,
     required this.selectedShipId,
+    required this.damagePulseMode,
     required this.onSelected,
   });
 
   final GameState state;
   final List<OwnedShip> ships;
+  final Map<int, ShipRepairStatus> repairStatuses;
   final int selectedShipId;
+  final DamagePulseMode damagePulseMode;
   final ValueChanged<int> onSelected;
 
   @override
@@ -467,17 +532,12 @@ class _FleetRosterPanel extends StatefulWidget {
 }
 
 class _FleetRosterPanelState extends State<_FleetRosterPanel>
-    with TickerProviderStateMixin {
-  late final AnimationController _damagePulse;
+    with SingleTickerProviderStateMixin {
   late final AnimationController _sparklePulse;
 
   @override
   void initState() {
     super.initState();
-    _damagePulse = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2400),
-    )..repeat();
     _sparklePulse = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1100),
@@ -486,7 +546,6 @@ class _FleetRosterPanelState extends State<_FleetRosterPanel>
 
   @override
   void dispose() {
-    _damagePulse.dispose();
     _sparklePulse.dispose();
     super.dispose();
   }
@@ -507,8 +566,9 @@ class _FleetRosterPanelState extends State<_FleetRosterPanel>
                 return _FleetRosterShipCapsule(
                   state: widget.state,
                   ship: ship,
+                  repairStatus: widget.repairStatuses[ship.id],
                   selected: ship.id == widget.selectedShipId,
-                  damagePulse: _damagePulse,
+                  damagePulseMode: widget.damagePulseMode,
                   sparklePulse: _sparklePulse,
                   onTap: () => widget.onSelected(ship.id),
                 );
@@ -525,16 +585,18 @@ class _FleetRosterShipCapsule extends StatelessWidget {
   const _FleetRosterShipCapsule({
     required this.state,
     required this.ship,
+    required this.repairStatus,
     required this.selected,
-    required this.damagePulse,
+    required this.damagePulseMode,
     required this.sparklePulse,
     required this.onTap,
   });
 
   final GameState state;
   final OwnedShip ship;
+  final ShipRepairStatus? repairStatus;
   final bool selected;
-  final Animation<double> damagePulse;
+  final DamagePulseMode damagePulseMode;
   final Animation<double> sparklePulse;
   final VoidCallback onTap;
 
@@ -587,14 +649,15 @@ class _FleetRosterShipCapsule extends StatelessWidget {
                   shipId: ship.id,
                   ratio: hpRatio,
                   color: shipHpBarColor(hpRatio, isZeroHp: ship.currentHp <= 0),
-                  pulses: ship.currentHp > 0 && hpRatio <= 0.75,
-                  animation: damagePulse,
+                  mode: damagePulseMode,
                 ),
                 ShipMoraleMark(
                   key: Key('fleet-morale-mark-${ship.id}'),
                   shipId: ship.id,
                   value: ship.condition,
                   sparklePulse: sparklePulse,
+                  repairLabel: repairStatus?.label,
+                  layout: ShipMoraleMarkLayout.detail,
                 ),
               ],
             ),
@@ -604,7 +667,6 @@ class _FleetRosterShipCapsule extends StatelessWidget {
     );
   }
 }
-
 
 class _FleetFocusPanel extends StatelessWidget {
   const _FleetFocusPanel({
@@ -1496,82 +1558,7 @@ class _MetricsBar extends StatelessWidget {
   }
 
   Future<void> _showLineOfSightDetails(BuildContext context) {
-    return showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xff142735),
-        title: Text(
-          AppLocalizations.of(context)?.losDetails ?? '索敌详情',
-          style: const TextStyle(fontWeight: FontWeight.w800),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _Formula33DetailRow(
-              label: AppLocalizations.of(context)?.totalLos ?? '总索敌',
-              value: '${metrics.lineOfSight}',
-            ),
-            const Divider(color: Color(0xff294052)),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 3),
-                child: Text(
-                  _fleetL10n(context).formula33,
-                  style: const TextStyle(
-                    color: Color(0xffdce6eb),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-            for (final result in metrics.formula33)
-              _Formula33DetailRow(
-                label: '× ${result.mapModifier.toInt()}',
-                value: result.total.toStringAsFixed(2),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(AppLocalizations.of(context)?.close ?? '关闭'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Formula33DetailRow extends StatelessWidget {
-  const _Formula33DetailRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(color: Color(0xff9fb4bf)),
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Color(0xffe1e9ed),
-              fontWeight: FontWeight.w800,
-              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-            ),
-          ),
-        ],
-      ),
-    );
+    return showFleetLineOfSightDetails(context, metrics);
   }
 }
 
@@ -2657,18 +2644,12 @@ class _EquipmentTypeIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final image = Image.asset(
-      'assets/images/slotitem/$iconId.png',
-      key: imageKey,
+    final image = EquipmentTypeIconImage(
+      iconId: iconId,
+      imageKey: imageKey,
       width: 26,
       height: 26,
       filterQuality: FilterQuality.medium,
-      errorBuilder: (context, error, stackTrace) => Image.asset(
-        'assets/images/slotitem/-1.png',
-        width: 26,
-        height: 26,
-        filterQuality: FilterQuality.medium,
-      ),
     );
 
     if (onSlot == null) {

@@ -801,6 +801,90 @@ void main() {
     await tester.tap(find.text('测试任务'));
     expect(openedQuestId, 101);
   });
+
+  testWidgets('任务简报区分未同步、空任务且不显示容量计数', (tester) async {
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PinnedQuestsSummary(
+            controller: controller,
+            collapsed: false,
+            onToggleCollapse: () {},
+            onOpenQuest: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('需进入任务界面同步信息'), findsOneWidget);
+
+    controller.accept(
+      kcsapiEvent('/kcsapi/api_get_member/questlist', <String, Object?>{
+        'api_exec_count': 0,
+        'api_list': const <Object?>[],
+      }),
+    );
+    await controller.idle;
+    await tester.pump();
+    expect(find.text('当前无进行中任务'), findsOneWidget);
+    expect(find.text('0/5'), findsNothing);
+  });
+
+  testWidgets('known quest completion appears immediately on home', (
+    tester,
+  ) async {
+    final controller = GameStateController(
+      questStore: _StaticQuestStore(<int, GameQuest>{
+        503: const GameQuest(
+          id: 503,
+          title: 'repair quest',
+          detail: '',
+          category: 5,
+          type: 1,
+          state: 2,
+          progressFlag: 2,
+          progressCurrent: 4,
+          progressRequired: 5,
+        ),
+      }),
+    );
+    addTearDown(controller.dispose);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PinnedQuestsSummary(
+            controller: controller,
+            collapsed: false,
+            onToggleCollapse: () {},
+            onOpenQuest: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    controller.accept(
+      kcsapiEvent(
+        '/kcsapi/api_req_nyukyo/start',
+        const <String, Object?>{},
+        includeApiData: false,
+        requestParams: const <String, Object?>{
+          'api_ndock_id': '1',
+          'api_ship_id': '999',
+          'api_highspeed': '0',
+        },
+      ),
+    );
+    await controller.idle;
+    await tester.pump();
+
+    expect(find.text('repair quest'), findsOneWidget);
+    expect(find.text('完成'), findsOneWidget);
+  });
 }
 
 class _StaticStore extends GameStateStore {

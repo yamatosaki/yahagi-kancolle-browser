@@ -133,7 +133,12 @@ class BattleDamageParser {
           sourceKey: 'api_air_base_attack[$index]',
         ),
       );
-      _applyAerial(map, battle, friendRole: friendRole, enemyRole: enemyRole);
+      _applyAerial(
+        map,
+        battle,
+        friendRole: BattleFleetRole.main,
+        enemyRole: BattleFleetRole.main,
+      );
     }
     aerial('api_friendly_kouku', BattleStageKind.friendlyAirCombat);
     aerial('api_kouku', BattleStageKind.aerialCombat);

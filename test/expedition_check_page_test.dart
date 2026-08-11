@@ -36,4 +36,98 @@ void main() {
     expect(find.text('100%'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('大成功模式在宽屏完整单行显示且不使用横向滚动', (tester) async {
+    tester.view.physicalSize = const Size(1100, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ExpeditionCheckPage(
+          controller: controller,
+          onBack: () {},
+          showHeader: false,
+        ),
+      ),
+    );
+    await tester.tap(find.text('大成功'));
+    await tester.pumpAndSettle();
+
+    final controls = find.byKey(const Key('expedition-header-controls'));
+    final results = find.byKey(const Key('expedition-header-results'));
+    expect(controls, findsOneWidget);
+    expect(results, findsOneWidget);
+    expect(
+      (tester.getCenter(controls).dy - tester.getCenter(results).dy).abs(),
+      lessThan(2),
+    );
+    expect(
+      tester
+          .widgetList<SingleChildScrollView>(find.byType(SingleChildScrollView))
+          .where((scroll) => scroll.scrollDirection == Axis.horizontal),
+      isEmpty,
+    );
+    expect(
+      tester
+          .widget<Text>(find.byKey(const Key('expedition-mission-label')))
+          .overflow,
+      isNot(TextOverflow.ellipsis),
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('大成功模式在窄屏仅将两个检查结果换到第二行', (tester) async {
+    tester.view.physicalSize = const Size(700, 720);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ExpeditionCheckPage(
+          controller: controller,
+          onBack: () {},
+          showHeader: false,
+        ),
+      ),
+    );
+    await tester.tap(find.text('大成功'));
+    await tester.pumpAndSettle();
+
+    final controls = find.byKey(const Key('expedition-header-controls'));
+    final results = find.byKey(const Key('expedition-header-results'));
+    expect(controls, findsOneWidget);
+    expect(results, findsOneWidget);
+    expect(
+      tester.getTopLeft(results).dy,
+      greaterThan(tester.getBottomLeft(controls).dy),
+    );
+    expect(
+      find.descendant(of: results, matching: find.byType(Text)),
+      findsNWidgets(2),
+    );
+    expect(
+      tester
+          .widgetList<SingleChildScrollView>(find.byType(SingleChildScrollView))
+          .where((scroll) => scroll.scrollDirection == Axis.horizontal),
+      isEmpty,
+    );
+    expect(tester.takeException(), isNull);
+  });
 }

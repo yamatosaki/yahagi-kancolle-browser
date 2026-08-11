@@ -21,6 +21,8 @@ abstract interface class GameBrowserPort {
   Future<void> runJavaScript(String javascript);
 
   Future<void> clearCache();
+
+  Future<void> clearSession();
 }
 
 final class GameBrowserController extends ChangeNotifier {
@@ -105,6 +107,18 @@ final class GameBrowserController extends ChangeNotifier {
     if (port != null) {
       await port.clearCache();
     }
+  }
+
+  Future<void> logoutAndClearSession() async {
+    final port = _readyPort();
+    if (port == null) {
+      return;
+    }
+    await port.clearSession();
+    _mode = GameBrowserMode.realWeb;
+    _errorMessage = null;
+    notifyListeners();
+    await port.loadUri(GameLaunchConfig.dmmGameEntry);
   }
 
   void onPageStarted(String url) {

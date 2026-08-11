@@ -1,5 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'header_resource_settings.dart';
+
 abstract class LayoutSettingsStore {
   Future<double> loadGameAreaRatio();
   Future<void> saveGameAreaRatio(double ratio);
@@ -9,6 +11,12 @@ abstract class LayoutSettingsStore {
 
   Future<bool> loadAutoZoom();
   Future<void> saveAutoZoom(bool autoZoom);
+
+  Future<bool> loadEnhancedDamagePulse();
+  Future<void> saveEnhancedDamagePulse(bool enabled);
+
+  Future<bool> loadWorkspaceMenuOnRight();
+  Future<void> saveWorkspaceMenuOnRight(bool onRight);
 
   Future<List<String>> loadDashboardCardOrder();
   Future<void> saveDashboardCardOrder(List<String> order);
@@ -36,10 +44,56 @@ abstract class LayoutSettingsStore {
   Future<void> saveLocaleCode(String? localeCode);
 }
 
-class SharedPreferencesLayoutSettingsStore implements LayoutSettingsStore {
+abstract interface class HeaderResourceSettingsStore {
+  Future<List<String>> loadHeaderResourceOrder();
+  Future<void> saveHeaderResourceOrder(List<String> order);
+  Future<List<String>?> loadVisibleHeaderResourceIds();
+  Future<void> saveVisibleHeaderResourceIds(List<String> visibleIds);
+}
+
+class SharedPreferencesLayoutSettingsStore
+    implements LayoutSettingsStore, HeaderResourceSettingsStore {
   static const _keyGameAreaRatio = 'layout_game_area_ratio';
   static const _keyInformationPanelWidth = 'layout_information_panel_width';
   static const _keyAutoZoom = 'layout_auto_zoom';
+  static const _keyEnhancedDamagePulse = 'layout_enhanced_damage_pulse';
+  static const _keyWorkspaceMenuOnRight = 'layout_workspace_menu_on_right';
+  static const _keyHeaderResourceOrder = 'layout_header_resource_order';
+  static const _keyVisibleHeaderResourceIds =
+      'layout_visible_header_resource_ids';
+
+  @override
+  Future<List<String>> loadHeaderResourceOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_keyHeaderResourceOrder) ?? const <String>[];
+  }
+
+  @override
+  Future<void> saveHeaderResourceOrder(List<String> order) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _keyHeaderResourceOrder,
+      normalizeHeaderResourceOrder(order),
+    );
+  }
+
+  @override
+  Future<List<String>?> loadVisibleHeaderResourceIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!prefs.containsKey(_keyVisibleHeaderResourceIds)) return null;
+    return normalizeVisibleHeaderResourceIds(
+      prefs.getStringList(_keyVisibleHeaderResourceIds),
+    );
+  }
+
+  @override
+  Future<void> saveVisibleHeaderResourceIds(List<String> visibleIds) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _keyVisibleHeaderResourceIds,
+      normalizeVisibleHeaderResourceIds(visibleIds),
+    );
+  }
 
   @override
   Future<double> loadGameAreaRatio() async {
@@ -77,6 +131,30 @@ class SharedPreferencesLayoutSettingsStore implements LayoutSettingsStore {
     await prefs.setBool(_keyAutoZoom, autoZoom);
   }
 
+  @override
+  Future<bool> loadEnhancedDamagePulse() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyEnhancedDamagePulse) ?? true;
+  }
+
+  @override
+  Future<void> saveEnhancedDamagePulse(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyEnhancedDamagePulse, enabled);
+  }
+
+  @override
+  Future<bool> loadWorkspaceMenuOnRight() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyWorkspaceMenuOnRight) ?? false;
+  }
+
+  @override
+  Future<void> saveWorkspaceMenuOnRight(bool onRight) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyWorkspaceMenuOnRight, onRight);
+  }
+
   static const _keyDashboardCardOrder = 'layout_dashboard_card_order';
   static const _keyDashboardCardCollapsed = 'layout_dashboard_card_collapsed';
 
@@ -90,7 +168,9 @@ class SharedPreferencesLayoutSettingsStore implements LayoutSettingsStore {
         if (!list.contains(key)) list.add(key);
       }
       // Remove any keys that are no longer supported (e.g. expedition_check)
-      list.removeWhere((key) => !LayoutSettingsStore.defaultDashboardCardOrder.contains(key));
+      list.removeWhere(
+        (key) => !LayoutSettingsStore.defaultDashboardCardOrder.contains(key),
+      );
       return list;
     }
     return List<String>.from(LayoutSettingsStore.defaultDashboardCardOrder);

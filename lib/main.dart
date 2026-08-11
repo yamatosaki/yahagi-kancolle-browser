@@ -8,6 +8,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import 'src/battle/battle_controller.dart';
+import 'src/battle/battle_damage_alert.dart';
 import 'src/battle/fcd_map_controller.dart';
 import 'src/battle/fcd_map_store.dart';
 import 'src/battle/fcd_map_update_service.dart';
@@ -30,6 +31,7 @@ import 'src/capture/game_capture_controller.dart';
 import 'src/capture/game_capture_port.dart';
 import 'src/fleet/fleet_information_center.dart';
 import 'src/fleet/ship_status_style.dart';
+import 'src/fleet/anchorage_repair_navigation.dart';
 import 'src/fleet/anchorage_repair_view.dart';
 import 'src/fleet/fleet_summary_card.dart';
 import 'src/fleet/expedition_summary_card.dart';
@@ -41,8 +43,13 @@ import 'src/game_webview.dart';
 import 'src/game_state/game_state_controller.dart';
 import 'src/game_state/game_state_store.dart';
 import 'src/layout/adaptive_layout.dart';
+import 'src/layout/workspace_navigation_side.dart';
 import 'src/layout/workspace_context_header.dart';
 import 'src/inventory/owned_inventory_page.dart';
+import 'src/improvement/improvement_dataset_store.dart';
+import 'src/improvement/improvement_dataset_update_service.dart';
+import 'src/improvement/improvement_favorites_store.dart';
+import 'src/improvement/improvement_planner_controller.dart';
 import 'src/prototype_status_controller.dart';
 import 'src/quest/pinned_quests_summary.dart';
 import 'src/quest/quest_center_page.dart';
@@ -65,6 +72,9 @@ import 'src/settings/startup_update_notice.dart';
 import 'src/settings/screen_awake_controller.dart';
 import 'src/settings/battle_prediction_settings.dart';
 import 'src/settings/game_frame_rate_settings.dart';
+import 'src/senka/senka_controller.dart';
+import 'src/senka/senka_page.dart';
+import 'src/senka/senka_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -124,6 +134,28 @@ Future<void> main() async {
     questStore: questStore,
     gameStateStore: gameStateStore,
   );
+  final senkaController = SenkaController(
+    store: await SharedPreferencesSenkaStore.create(),
+  );
+  await senkaController.initialize();
+  ImprovementDatasetStorage improvementStorage;
+  try {
+    improvementStorage = await ApplicationImprovementDatasetStorage.create();
+  } catch (error) {
+    debugPrint('改修资料目录不可用，改用内置数据: $error');
+    improvementStorage = const BundledOnlyImprovementDatasetStorage();
+  }
+  final improvementStore = ImprovementDatasetStore(improvementStorage);
+  final improvementDataset = await improvementStore.loadBestAvailable();
+  final improvementPlannerController = ImprovementPlannerController(
+    dataset: improvementDataset,
+    favoritesStore: SharedPreferencesImprovementFavoritesStore(),
+    updater: ImprovementDatasetUpdateService(
+      client: http.Client(),
+      store: improvementStore,
+    ),
+  );
+  await improvementPlannerController.loadFavorites();
   final currentVersion = (await PackageInfo.fromPlatform()).version;
   FcdMapStorage fcdMapStorage;
   try {
@@ -179,6 +211,10 @@ Future<void> main() async {
   );
   final battleController = BattleController(
     gameState: () => gameStateController.state,
+    onFriendlyHpUpdated: gameStateController.applyFriendlyBattleHp,
+    damageAlertPort: const MethodChannelBattleDamageAlertPort(),
+    battleDamageVibrationEnabled: () =>
+        safetySettingsController.battleDamageVibrationEnabled,
     nodeLabelResolver: fcdMapController,
     predictionMethod: () => battlePredictionSettingsController.method,
   );
@@ -186,6 +222,7 @@ Future<void> main() async {
   final gameCaptureController = GameCaptureController(
     onAcceptedEvent: (event) {
       gameStateController.accept(event);
+      senkaController.accept(event);
       battleController.accept(event);
     },
   );
@@ -212,9 +249,11 @@ Future<void> main() async {
       gameScreenshotController: gameScreenshotController,
       gameCaptureController: gameCaptureController,
       gameStateController: gameStateController,
+      senkaController: senkaController,
       battleController: battleController,
       fcdMapController: fcdMapController,
       questCatalogController: questCatalogController,
+      improvementPlannerController: improvementPlannerController,
       currentVersion: currentVersion,
       releaseChecker: releaseChecker,
       screenAwakeController: screenAwakeController,
@@ -243,9 +282,11 @@ class YahagiApp extends StatelessWidget {
     required this.toolbarController,
     required this.gameCaptureController,
     required this.gameStateController,
+    this.senkaController,
     required this.battleController,
     this.fcdMapController,
     this.questCatalogController,
+    this.improvementPlannerController,
     this.gameSurface,
     this.currentVersion = '1.0.2',
     this.releaseChecker,
@@ -269,9 +310,11 @@ class YahagiApp extends StatelessWidget {
   final GameToolbarController toolbarController;
   final GameCaptureController gameCaptureController;
   final GameStateController gameStateController;
+  final SenkaController? senkaController;
   final BattleController battleController;
   final FcdMapController? fcdMapController;
   final QuestCatalogController? questCatalogController;
+  final ImprovementPlannerController? improvementPlannerController;
   final Widget? gameSurface;
   final String currentVersion;
   final ReleaseChecker? releaseChecker;
@@ -282,6 +325,9 @@ class YahagiApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    battleController.bindFriendlyHpUpdater(
+      gameStateController.applyFriendlyBattleHp,
+    );
     return AnimatedBuilder(
       animation: Listenable.merge(<Listenable>[
         layoutSettingsController,
@@ -337,9 +383,11 @@ class YahagiApp extends StatelessWidget {
               toolbarController: toolbarController,
               gameCaptureController: gameCaptureController,
               gameStateController: gameStateController,
+              senkaController: senkaController,
               battleController: battleController,
               fcdMapController: fcdMapController,
               questCatalogController: questCatalogController,
+              improvementPlannerController: improvementPlannerController,
               currentVersion: currentVersion,
               releaseChecker: releaseChecker,
               screenAwakeController: screenAwakeController,
@@ -400,6 +448,7 @@ class YahagiShell extends StatefulWidget {
     required this.gameSurface,
     required this.gameCaptureController,
     required this.gameStateController,
+    this.senkaController,
     required this.battleController,
     required this.currentVersion,
     this.releaseChecker,
@@ -408,6 +457,7 @@ class YahagiShell extends StatefulWidget {
     this.gameScreenshotController,
     this.fcdMapController,
     this.questCatalogController,
+    this.improvementPlannerController,
     this.showDeveloperDiagnostics = false,
   });
 
@@ -426,9 +476,11 @@ class YahagiShell extends StatefulWidget {
   final Widget gameSurface;
   final GameCaptureController gameCaptureController;
   final GameStateController gameStateController;
+  final SenkaController? senkaController;
   final BattleController battleController;
   final FcdMapController? fcdMapController;
   final QuestCatalogController? questCatalogController;
+  final ImprovementPlannerController? improvementPlannerController;
   final String currentVersion;
   final ReleaseChecker? releaseChecker;
   final ScreenAwakeController? screenAwakeController;
@@ -453,6 +505,8 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   QuestCenterMode _questCenterMode = QuestCenterMode.active;
   final QuestFilterController _questFilters = QuestFilterController();
   ExpeditionSummaryMode _expeditionCenterMode = ExpeditionSummaryMode.summary;
+  ConstructionCenterMode _constructionCenterMode =
+      ConstructionCenterMode.construction;
 
   @override
   void initState() {
@@ -533,13 +587,44 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                     'ヤハギ',
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: AnimatedBuilder(
-                      animation: widget.gameStateController,
+                      animation: Listenable.merge(<Listenable>[
+                        widget.gameStateController,
+                        if (widget.senkaController != null)
+                          widget.senkaController!,
+                      ]),
                       builder: (context, _) => WorkspaceContextHeader(
                         workspaceIndex: _workspaceIndex,
                         state: widget.gameStateController.state,
+                        senkaState: widget.senkaController?.state,
+                        onSenkaTap: widget.senkaController == null
+                            ? null
+                            : () => setState(() => _workspaceIndex = 9),
+                        anchorageRepairStartedAt:
+                            widget.gameStateController.anchorageRepairStartedAt,
+                        onAnchorageTimerTap: () {
+                          final startedAt = widget
+                              .gameStateController
+                              .anchorageRepairStartedAt;
+                          final now = DateTime.now().toUtc();
+                          final elapsed =
+                              startedAt == null || now.isBefore(startedAt)
+                              ? Duration.zero
+                              : now.difference(startedAt);
+                          final fleetId = preferredAnchorageRepairFleetId(
+                            state: widget.gameStateController.state,
+                            elapsed: elapsed,
+                          );
+                          setState(() {
+                            _repairCenterMode = RepairCenterMode.anchorage;
+                            _repairCenterInitialFleetId = fleetId;
+                            _workspaceIndex = 3;
+                          });
+                        },
+                        layoutSettingsController:
+                            widget.layoutSettingsController,
                         selectedFleetId: _fleetCenterInitialFleetId ?? 1,
                         onFleetSelected: (fleetId) {
                           setState(() {
@@ -571,6 +656,10 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                         onExpeditionModeChanged: (mode) {
                           setState(() => _expeditionCenterMode = mode);
                         },
+                        constructionMode: _constructionCenterMode,
+                        onConstructionModeChanged: (mode) {
+                          setState(() => _constructionCenterMode = mode);
+                        },
                       ),
                     ),
                   ),
@@ -579,9 +668,15 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
             ),
             Expanded(
               child: Row(
+                textDirection: workspaceNavigationTextDirection(
+                  menuOnRight:
+                      widget.layoutSettingsController.workspaceMenuOnRight,
+                ),
                 children: [
                   _WorkspaceNavigation(
                     selectedIndex: _workspaceIndex,
+                    onRight:
+                        widget.layoutSettingsController.workspaceMenuOnRight,
                     onSelected: (index) {
                       setState(() => _workspaceIndex = index);
                     },
@@ -876,6 +971,9 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                             controller: widget.gameStateController,
                             page: FleetInformationPage.construction,
                             showContextHeader: false,
+                            constructionMode: _constructionCenterMode,
+                            improvementController:
+                                widget.improvementPlannerController,
                           ),
                         if (_workspaceIndex == 5)
                           QuestCenterPage(
@@ -935,12 +1033,16 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                             fcdMapController: widget.fcdMapController,
                             questCatalogController:
                                 widget.questCatalogController,
+                            improvementPlannerController:
+                                widget.improvementPlannerController,
                             showTitle: false,
                             showDeveloperDiagnostics:
                                 widget.showDeveloperDiagnostics,
                             selectedIndex: _settingsTabIndex,
                           ),
-                        if (_workspaceIndex == 9) const SizedBox(),
+                        if (_workspaceIndex == 9 &&
+                            widget.senkaController != null)
+                          SenkaPage(controller: widget.senkaController!),
                       ],
                     ),
                   ),
@@ -957,19 +1059,21 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
 class _WorkspaceNavigation extends StatelessWidget {
   const _WorkspaceNavigation({
     required this.selectedIndex,
+    required this.onRight,
     required this.onSelected,
   });
 
   final int selectedIndex;
+  final bool onRight;
   final ValueChanged<int> onSelected;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 58,
-      decoration: const BoxDecoration(
-        color: Color(0xff0a1823),
-        border: Border(right: BorderSide(color: Color(0xff294052))),
+      decoration: BoxDecoration(
+        color: const Color(0xff0a1823),
+        border: workspaceNavigationBorder(menuOnRight: onRight),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -1026,6 +1130,14 @@ class _WorkspaceNavigation extends StatelessWidget {
                       label: AppLocalizations.of(context)?.quests ?? '任务',
                       selected: selectedIndex == 5,
                       onTap: () => onSelected(5),
+                    ),
+                    const SizedBox(height: 8),
+                    _NavigationButton(
+                      key: const Key('workspace-nav-senka'),
+                      icon: Icons.emoji_events_outlined,
+                      label: '战果',
+                      selected: selectedIndex == 9,
+                      onTap: () => onSelected(9),
                     ),
                     const SizedBox(height: 8),
                     _NavigationButton(

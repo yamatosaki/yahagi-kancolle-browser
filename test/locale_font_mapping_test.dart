@@ -53,6 +53,14 @@ final class _MemoryLayoutStore implements LayoutSettingsStore {
   @override
   Future<void> saveAutoZoom(bool autoZoom) async {}
   @override
+  Future<bool> loadEnhancedDamagePulse() async => true;
+  @override
+  Future<void> saveEnhancedDamagePulse(bool enabled) async {}
+  @override
+  Future<bool> loadWorkspaceMenuOnRight() async => false;
+  @override
+  Future<void> saveWorkspaceMenuOnRight(bool onRight) async {}
+  @override
   Future<List<String>> loadDashboardCardOrder() async => <String>[];
   @override
   Future<void> saveDashboardCardOrder(List<String> order) async {}

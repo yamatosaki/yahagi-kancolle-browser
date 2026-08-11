@@ -439,6 +439,13 @@ final class WebViewGameBrowserPort implements GameBrowserPort {
 
   @override
   Future<void> clearCache() => controller.clearCache();
+
+  @override
+  Future<void> clearSession() async {
+    await WebViewCookieManager().clearCookies();
+    await controller.clearLocalStorage();
+    await controller.clearCache();
+  }
 }
 
 final class _AndroidWebViewCompatibilityPort

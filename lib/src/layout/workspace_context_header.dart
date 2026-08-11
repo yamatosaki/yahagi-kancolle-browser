@@ -8,14 +8,21 @@ import '../fleet/expedition_summary_card.dart'
 import '../fleet/resource_grid.dart';
 import '../game_state/game_state.dart';
 import '../inventory/owned_inventory_page.dart';
+import '../improvement/improvement_planner_controller.dart';
 import '../logbook/logbook_page.dart';
 import '../quest/quest_center_page.dart';
+import '../settings/layout_settings_controller.dart';
+import '../senka/senka_state.dart';
 
 class WorkspaceContextHeader extends StatelessWidget {
   const WorkspaceContextHeader({
     super.key,
     required this.workspaceIndex,
     required this.state,
+    this.senkaState,
+    this.onSenkaTap,
+    this.anchorageRepairStartedAt,
+    this.onAnchorageTimerTap,
     required this.selectedFleetId,
     this.onFleetSelected,
     this.inventoryShowShips = true,
@@ -31,10 +38,17 @@ class WorkspaceContextHeader extends StatelessWidget {
     this.questFilters,
     this.expeditionMode = ExpeditionSummaryMode.summary,
     this.onExpeditionModeChanged,
+    this.constructionMode = ConstructionCenterMode.construction,
+    this.onConstructionModeChanged,
+    this.layoutSettingsController,
   });
 
   final int workspaceIndex;
   final GameState state;
+  final SenkaState? senkaState;
+  final VoidCallback? onSenkaTap;
+  final DateTime? anchorageRepairStartedAt;
+  final VoidCallback? onAnchorageTimerTap;
   final int selectedFleetId;
   final ValueChanged<int>? onFleetSelected;
   final bool inventoryShowShips;
@@ -50,6 +64,9 @@ class WorkspaceContextHeader extends StatelessWidget {
   final QuestFilterController? questFilters;
   final ExpeditionSummaryMode expeditionMode;
   final ValueChanged<ExpeditionSummaryMode>? onExpeditionModeChanged;
+  final ConstructionCenterMode constructionMode;
+  final ValueChanged<ConstructionCenterMode>? onConstructionModeChanged;
+  final LayoutSettingsController? layoutSettingsController;
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +74,16 @@ class WorkspaceContextHeader extends StatelessWidget {
         AppLocalizations.of(context) ??
         lookupAppLocalizations(const Locale('zh'));
     if (workspaceIndex == 0) {
-      return CompactResourceBar(state: state);
+      final playerRanking = senkaState?.playerRankingRow;
+      return CompactResourceBar(
+        state: state,
+        senka: playerRanking?.senka,
+        rank: playerRanking?.rank,
+        onSenkaTap: onSenkaTap,
+        anchorageRepairStartedAt: anchorageRepairStartedAt,
+        onAnchorageTimerTap: onAnchorageTimerTap,
+        settingsController: layoutSettingsController,
+      );
     }
     if (workspaceIndex == 1) {
       return FleetSwitcherBar(
@@ -87,6 +113,26 @@ class WorkspaceContextHeader extends StatelessWidget {
               mode: repairMode,
               onChanged: onRepairModeChanged ?? (_) {},
             ),
+          ),
+        ],
+      );
+    }
+    if (workspaceIndex == 4) {
+      return Row(
+        children: [
+          Text(
+            l10n.construction,
+            key: const Key('workspace-title-construction'),
+            style: const TextStyle(
+              color: Color(0xffe0b25c),
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const Spacer(),
+          ConstructionModeTabs(
+            mode: constructionMode,
+            onChanged: onConstructionModeChanged ?? (_) {},
           ),
         ],
       );
@@ -194,6 +240,21 @@ class WorkspaceContextHeader extends StatelessWidget {
         ],
       );
     }
+    if (workspaceIndex == 9) {
+      return const Row(
+        children: [
+          Text(
+            '战果',
+            key: Key('workspace-title-senka'),
+            style: TextStyle(
+              color: Color(0xffe0b25c),
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      );
+    }
 
     final page = _workspacePage(workspaceIndex, l10n);
     return Row(
@@ -228,7 +289,7 @@ class WorkspaceContextHeader extends StatelessWidget {
         5 => ('quest', l10n.quests),
         6 => ('logbook', l10n.battleRecords),
         8 => ('settings', l10n.settings),
-        9 => ('expedition-check', l10n.preSortieCheck),
+        9 => ('senka', '战果'),
         _ => ('unknown', ''),
       };
 
@@ -238,6 +299,59 @@ class WorkspaceContextHeader extends StatelessWidget {
       : l10n.localeName.contains('Hant')
       ? '持有一覽'
       : '持有一览';
+}
+
+class ConstructionModeTabs extends StatelessWidget {
+  const ConstructionModeTabs({
+    super.key,
+    required this.mode,
+    required this.onChanged,
+  });
+  final ConstructionCenterMode mode;
+  final ValueChanged<ConstructionCenterMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('construction-mode-tabs'),
+    width: 260,
+    height: 38,
+    padding: const EdgeInsets.all(3),
+    decoration: BoxDecoration(
+      color: const Color(0xff0b202d),
+      border: Border.all(color: const Color(0xff315064)),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Row(
+      children: [
+        for (final value in ConstructionCenterMode.values)
+          Expanded(
+            child: Material(
+              color: mode == value
+                  ? const Color(0xff8a6628)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                key: Key('construction-mode-${value.name}'),
+                borderRadius: BorderRadius.circular(16),
+                onTap: () => onChanged(value),
+                child: Center(
+                  child: Text(
+                    value == ConstructionCenterMode.construction ? '建造' : '改修',
+                    style: TextStyle(
+                      color: mode == value
+                          ? const Color(0xffffdc88)
+                          : const Color(0xff9fb3bf),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
 }
 
 class SettingsSegmented extends StatelessWidget {

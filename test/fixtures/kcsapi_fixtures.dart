@@ -69,6 +69,14 @@ final CapturedApiEvent start2Event = kcsapiEvent(
       },
       <String, Object?>{'api_id': 21, 'api_name': '北方鼠輸送作戦', 'api_time': 140},
     ],
+    'api_mst_mapinfo': <Object?>[
+      <String, Object?>{
+        'api_id': 23,
+        'api_maparea_id': 2,
+        'api_no': 3,
+        'api_name': '东部奥廖尔海',
+      },
+    ],
     'api_mst_slotitem': <Object?>[
       <String, Object?>{
         'api_id': 201,

@@ -739,9 +739,9 @@ void main() {
           .getTopLeft(find.byKey(const Key('fleet-focus-meta-content-9001')))
           .dx,
       closeTo(
-        tester.getTopLeft(
-          find.byKey(const Key('fleet-focus-fuel-icon-9001')),
-        ).dx,
+        tester
+            .getTopLeft(find.byKey(const Key('fleet-focus-fuel-icon-9001')))
+            .dx,
         1,
       ),
     );
@@ -939,7 +939,7 @@ void main() {
   });
 
   testWidgets(
-    'fleet roster shows outward hp frames and synchronized status animations',
+    'fleet roster shows outward hp frames and tiered enhanced animations',
     (tester) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(1180, 720);
@@ -1020,10 +1020,15 @@ void main() {
               .widget<Opacity>(find.byKey(Key('fleet-damage-pulse-$id')))
               .opacity,
       ];
-      expect(pulseOpacities.toSet(), hasLength(1));
+      expect(pulseOpacities.toSet(), hasLength(3));
       expect(pulseOpacities.first - dimOpacity, greaterThan(0.25));
       expect(find.byKey(const Key('fleet-damage-pulse-9101')), findsNothing);
       expect(find.byKey(const Key('fleet-damage-pulse-9105')), findsNothing);
+      for (final id in <int>[9102, 9103, 9104]) {
+        expect(find.byKey(Key('fleet-damage-tint-$id')), findsOneWidget);
+      }
+      expect(find.byKey(const Key('fleet-damage-tint-9101')), findsNothing);
+      expect(find.byKey(const Key('fleet-damage-tint-9105')), findsNothing);
 
       for (final shipId in <int>[9101, 9102]) {
         expect(find.byKey(Key('fleet-morale-stars-$shipId')), findsOneWidget);
@@ -1071,6 +1076,22 @@ void main() {
       final fatigueSpans = (fatigueText.textSpan! as TextSpan).children!;
       expect((fatigueSpans[0] as TextSpan).style?.color, shipFatigueColor(18));
       expect((fatigueSpans[1] as TextSpan).style?.color, shipFatigueColor(18));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FleetInformationCenter(
+              controller: controller,
+              damagePulseMode: DamagePulseMode.normal,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      for (final id in <int>[9102, 9103, 9104]) {
+        expect(find.byKey(Key('fleet-damage-pulse-$id')), findsOneWidget);
+        expect(find.byKey(Key('fleet-damage-tint-$id')), findsNothing);
+      }
     },
   );
 
@@ -2112,4 +2133,35 @@ void main() {
     expect(hpBar.color, const Color(0xff29a634));
     expect(tester.takeException(), isNull);
   }, skip: true);
+
+  testWidgets('fleet detail portraits show repair and fatigue badges together', (
+    tester,
+  ) async {
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1180,
+            height: 720,
+            child: FleetInformationCenter(controller: controller),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const Key('fleet-repair-badge-9001')), findsOneWidget);
+    expect(find.byKey(const Key('fleet-repair-badge-9002')), findsOneWidget);
+    expect(find.text('入渠'), findsNWidgets(2));
+    expect(find.byKey(const Key('fleet-fatigue-badge-9001')), findsOneWidget);
+    expect(find.byKey(const Key('fleet-fatigue-badge-9002')), findsOneWidget);
+  });
 }

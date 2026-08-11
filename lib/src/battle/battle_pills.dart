@@ -31,7 +31,7 @@ class AdaptiveBattleHeader extends StatelessWidget {
       fontWeight: FontWeight.w800,
     );
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
         Text(nodeLabel, style: nodeStyle),
         const SizedBox(width: 6),

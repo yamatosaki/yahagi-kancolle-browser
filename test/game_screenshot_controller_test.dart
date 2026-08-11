@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_screenshot_controller.dart';
 
@@ -36,6 +37,24 @@ void main() {
       expect(port.calls, 1);
     },
   );
+
+  test('preserves PixelCopy failure details from Android', () async {
+    final port = _FakeScreenshotPort.future(
+      Future<String>.error(
+        PlatformException(
+          code: 'pixel_copy_failed',
+          message: 'PixelCopy failed with code 3.',
+        ),
+      ),
+    );
+    final controller = GameScreenshotController(port);
+
+    final result = await controller.capture();
+
+    expect(result.path, isNull);
+    expect(result.errorMessage, contains('pixel_copy_failed'));
+    expect(result.errorMessage, contains('code 3'));
+  });
 }
 
 final class _FakeScreenshotPort implements GameScreenshotPort {

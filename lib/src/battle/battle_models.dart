@@ -14,6 +14,8 @@ String battleEnemyFleetDisplayName(String name) {
 enum BattleDisplayStage { navigation, battle, result }
 
 const _unsetNodeDisplayLabel = Object();
+const _unsetLandBaseRaid = Object();
+const _unsetEnemyPreviewNames = Object();
 
 enum BattleRank {
   ss('SS'),
@@ -77,6 +79,11 @@ class BattleContext {
       return '$label点';
     }
     return node > 0 ? '节点 $node' : '节点未知';
+  }
+
+  String get forecastNodeLabel {
+    final label = nodeDisplayLabel?.trim();
+    return label != null && label.isNotEmpty ? label : nodeLabel;
   }
 
   String get nodeTypeLabel {
@@ -215,6 +222,36 @@ class BattleShipSnapshot {
   }
 }
 
+class LandBaseRaidSnapshot {
+  const LandBaseRaidSnapshot({
+    required this.baseId,
+    required this.name,
+    required this.currentHp,
+    required this.maxHp,
+    required this.damage,
+  });
+
+  final int baseId;
+  final String name;
+  final int currentHp;
+  final int maxHp;
+  final int damage;
+
+  double get hpRatio => maxHp <= 0 ? 0 : currentHp / maxHp;
+}
+
+class LandBaseRaidResult {
+  const LandBaseRaidResult({
+    required this.areaId,
+    required this.bases,
+    this.airSuperiority = '未知',
+  });
+
+  final int areaId;
+  final List<LandBaseRaidSnapshot> bases;
+  final String airSuperiority;
+}
+
 class LiveBattle {
   const LiveBattle({
     required this.context,
@@ -235,6 +272,8 @@ class LiveBattle {
     this.dropItemId,
     this.dropItemName,
     this.airSuperiority,
+    this.landBaseRaid,
+    this.enemyPreviewNames,
   });
 
   final BattleContext context;
@@ -255,6 +294,8 @@ class LiveBattle {
   final int? dropItemId;
   final String? dropItemName;
   final String? airSuperiority;
+  final LandBaseRaidResult? landBaseRaid;
+  final List<String>? enemyPreviewNames;
 
   List<BattleShipSnapshot> get friendShips =>
       List.unmodifiable(<BattleShipSnapshot>[...friendMain, ...friendEscort]);
@@ -291,6 +332,8 @@ class LiveBattle {
     int? dropItemId,
     String? dropItemName,
     String? airSuperiority,
+    Object? landBaseRaid = _unsetLandBaseRaid,
+    Object? enemyPreviewNames = _unsetEnemyPreviewNames,
   }) {
     return LiveBattle(
       context: context ?? this.context,
@@ -311,6 +354,12 @@ class LiveBattle {
       dropItemId: dropItemId ?? this.dropItemId,
       dropItemName: dropItemName ?? this.dropItemName,
       airSuperiority: airSuperiority ?? this.airSuperiority,
+      landBaseRaid: identical(landBaseRaid, _unsetLandBaseRaid)
+          ? this.landBaseRaid
+          : landBaseRaid as LandBaseRaidResult?,
+      enemyPreviewNames: identical(enemyPreviewNames, _unsetEnemyPreviewNames)
+          ? this.enemyPreviewNames
+          : enemyPreviewNames as List<String>?,
     );
   }
 }

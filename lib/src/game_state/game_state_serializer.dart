@@ -8,6 +8,10 @@ class GameStateSerializer {
       'resources': state.resources.map(
         (k, v) => MapEntry(k.apiId.toString(), v),
       ),
+      'useItems': state.useItems.map((k, v) => MapEntry(k.toString(), v)),
+      'hasUseItemData': state.hasUseItemData,
+      'furnitureCoins': state.furnitureCoins,
+      'hasFurnitureCoinData': state.hasFurnitureCoinData,
       'quests': state.quests.map(
         (k, v) => MapEntry(k.toString(), {
           'id': v.id,
@@ -18,9 +22,15 @@ class GameStateSerializer {
           'state': v.state,
           'progressFlag': v.progressFlag,
           'materials': v.materials,
+          'progressCurrent': v.progressCurrent,
+          'progressRequired': v.progressRequired,
+          'localCompletionVerified': v.localCompletionVerified,
           'updatedAt': v.updatedAt?.millisecondsSinceEpoch,
         }),
       ),
+      'hasQuestData': state.hasQuestData,
+      'activeQuestCount': state.activeQuestCount,
+      'questCapacity': state.questCapacity,
       'fleets': state.fleets
           .map(
             (f) => {
@@ -65,6 +75,16 @@ class GameStateSerializer {
             },
           )
           .toList(),
+      'landBases': state.landBases
+          .map(
+            (base) => {
+              'areaId': base.areaId,
+              'baseId': base.baseId,
+              'name': base.name,
+              'actionKind': base.actionKind,
+            },
+          )
+          .toList(),
       'updatedAt': state.updatedAt?.millisecondsSinceEpoch,
     });
   }
@@ -90,6 +110,18 @@ class GameStateSerializer {
         }
       }
 
+      final useItems = <int, int>{};
+      final rawUseItems = map['useItems'];
+      if (rawUseItems is Map) {
+        for (final entry in rawUseItems.entries) {
+          final id = int.tryParse('${entry.key}');
+          final count = _int(entry.value);
+          if (id != null && id > 0 && count != null) {
+            useItems[id] = count.clamp(0, 1 << 31).toInt();
+          }
+        }
+      }
+
       final quests = <int, GameQuest>{};
       final rawQuests = map['quests'];
       if (rawQuests is Map) {
@@ -100,15 +132,27 @@ class GameStateSerializer {
             continue;
           }
           final updatedAt = _int(v['updatedAt']);
+          final state = _int(v['state']) ?? 0;
+          final progressCurrent = _int(v['progressCurrent']);
+          final progressRequired = _int(v['progressRequired']);
           quests[id] = GameQuest(
             id: id,
             title: _string(v['title']),
             detail: _string(v['detail']),
             category: _int(v['category']) ?? 0,
             type: _int(v['type']) ?? 0,
-            state: _int(v['state']) ?? 0,
+            state: state,
             progressFlag: _int(v['progressFlag']) ?? 0,
             materials: _intList(v['materials']),
+            progressCurrent: progressCurrent,
+            progressRequired: progressRequired,
+            localCompletionVerified: _completionVerification(
+              v,
+              id: id,
+              state: state,
+              current: progressCurrent,
+              required: progressRequired,
+            ),
             updatedAt: updatedAt != null
                 ? DateTime.fromMillisecondsSinceEpoch(updatedAt)
                 : null,
@@ -198,14 +242,41 @@ class GameStateSerializer {
         }
       }
 
+      final landBases = <LandBaseState>[];
+      final rawLandBases = map['landBases'];
+      if (rawLandBases is List) {
+        for (final item in rawLandBases) {
+          if (item is! Map) continue;
+          final areaId = _int(item['areaId']) ?? 0;
+          final baseId = _int(item['baseId']) ?? 0;
+          if (areaId <= 0 || baseId <= 0) continue;
+          landBases.add(
+            LandBaseState(
+              areaId: areaId,
+              baseId: baseId,
+              name: _string(item['name']),
+              actionKind: _int(item['actionKind']) ?? 0,
+            ),
+          );
+        }
+      }
+
       final updatedAt = _int(map['updatedAt']);
       return GameState(
         admiralLevel: _int(map['admiralLevel']) ?? 0,
         resources: resources,
+        useItems: useItems,
+        hasUseItemData: map['hasUseItemData'] == true || useItems.isNotEmpty,
+        furnitureCoins: _int(map['furnitureCoins']) ?? 0,
+        hasFurnitureCoinData: map['hasFurnitureCoinData'] == true,
         quests: quests,
+        hasQuestData: map['hasQuestData'] == true,
+        activeQuestCount: _int(map['activeQuestCount']) ?? 0,
+        questCapacity: _int(map['questCapacity']) ?? 5,
         fleets: fleets,
         repairDocks: repairDocks,
         constructionDocks: constructionDocks,
+        landBases: landBases,
         updatedAt: updatedAt != null
             ? DateTime.fromMillisecondsSinceEpoch(updatedAt)
             : null,
@@ -229,6 +300,28 @@ class GameStateSerializer {
   }
 
   static String _string(Object? value) => value?.toString() ?? '';
+
+  static bool? _completionVerification(
+    Map<dynamic, dynamic> map, {
+    required int id,
+    required int state,
+    required int? current,
+    required int? required,
+  }) {
+    if (map.containsKey('localCompletionVerified')) {
+      final value = map['localCompletionVerified'];
+      if (value is bool) return value;
+    }
+    if (id == 1101 &&
+        state == 2 &&
+        current != null &&
+        required != null &&
+        required > 0 &&
+        current >= required) {
+      return false;
+    }
+    return null;
+  }
 
   static List<int> _intList(Object? value) {
     if (value is! List) {

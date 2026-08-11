@@ -30,7 +30,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get quests => '任務';
 
   @override
-  String get battleRecords => '戦闘記録';
+  String get battleRecords => '航海日誌';
 
   @override
   String get settings => '設定';
@@ -48,7 +48,20 @@ class AppLocalizationsJa extends AppLocalizations {
   String get infoPanelWidth => '情報パネルの幅';
 
   @override
-  String get autoZoom => 'ゲーム画面を自動ズーム（既定の推奨比率 65：35）';
+  String get autoZoom => '推奨表示比率を適用（ゲームとメニューの比率 65:35）';
+
+  @override
+  String get enhancedDamagePulse => '損傷パルス表示を強化';
+
+  @override
+  String get enhancedDamagePulseDesc =>
+      '小破・中破・大破に応じて色、速度、艦娘画像内の光を強調します。オフにすると通常表示になります。';
+
+  @override
+  String get workspaceMenuOnRight => 'メニューバーを右側に表示';
+
+  @override
+  String get workspaceMenuOnRightDesc => 'オフの場合はメニューバーを左側に表示します。';
 
   @override
   String get language => '言語 (Language)';
@@ -337,7 +350,20 @@ class AppLocalizationsJa extends AppLocalizations {
   String get battleWarningConfirm => '確認ダイアログ';
 
   @override
-  String get logoutSnackbar => 'ログアウト機能は準備完了ですが、テストアカウント保護のため現在は実行されません。';
+  String get logoutSnackbar => 'ログアウトしてアカウント情報を消去しました。';
+
+  @override
+  String get logoutConfirmTitle => 'ログアウトしてアカウント情報を消去';
+
+  @override
+  String get logoutConfirmDesc =>
+      'アプリ内ゲームページの Cookie、ローカルストレージ、キャッシュを消去してログイン画面へ戻ります。続行しますか？';
+
+  @override
+  String get logoutSucceeded => 'ログアウトしました。再度ログインしてください。';
+
+  @override
+  String get logoutFailed => 'ログアウトに失敗しました。しばらくしてからもう一度お試しください。';
 
   @override
   String get questCacheCleared => '任務データのローカルキャッシュを消去しました';
@@ -349,14 +375,15 @@ class AppLocalizationsJa extends AppLocalizations {
   String get clearLogbook => '航海日誌データの消去';
 
   @override
-  String get clearLogbookDesc => 'ローカルに保存された戦果、資源、遠征記録をすべて消去します。この操作は元に戻せません。';
+  String get clearLogbookDesc =>
+      'ローカルに保存された出撃、遠征、建造、開発、除籍、資源記録を消去します。この操作は元に戻せません。';
 
   @override
   String get clearLogbookConfirmTitle => '航海日誌データの消去';
 
   @override
   String get clearLogbookConfirmDesc =>
-      '航海日誌のデータをすべて消去しますか？蓄積された戦果や資源統計の記録がすべて削除されます。この操作は元に戻せません。';
+      '航海日誌のデータをすべて消去しますか？出撃、遠征、建造、開発、除籍、資源記録が削除されます。この操作は元に戻せません。';
 
   @override
   String get logbookCleared => '航海日誌データをすべて消去しました';
@@ -851,7 +878,10 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
-  String get noPinnedQuests => '進行中の任務はありません';
+  String get noPinnedQuests => '現在進行中の任務はありません';
+
+  @override
+  String get questsNeedSync => '任務画面を開いて情報を同期してください';
 
   @override
   String get waitingQuestData => '任務データ待機中';
@@ -1064,7 +1094,44 @@ class AppLocalizationsJa extends AppLocalizations {
   String get fcdMapStorageError => 'データを保存できなかったため、現在のバージョンを保持しました。';
 
   @override
-  String get gameFrameRateTitle => 'ゲームフレームレート';
+  String get questCatalogDataTitle => '任務データ';
+
+  @override
+  String questCatalogDataVersion(String version) {
+    return 'データバージョン：$version';
+  }
+
+  @override
+  String get questCatalogNeverChecked => '最終確認：未確認';
+
+  @override
+  String questCatalogLastChecked(String time) {
+    return '最終確認：$time';
+  }
+
+  @override
+  String get questCatalogCheckUpdates => '任務データの更新を確認';
+
+  @override
+  String get questCatalogUpToDate => '任務データは最新です。';
+
+  @override
+  String questCatalogUpdated(String oldVersion, String newVersion) {
+    return '任務データを $oldVersion から $newVersion に更新し、すぐに適用しました。';
+  }
+
+  @override
+  String get questCatalogNetworkError => '任務データの更新元に接続できません。後でもう一度お試しください。';
+
+  @override
+  String get questCatalogValidationError =>
+      'ダウンロードした任務データを検証できませんでした。現在のバージョンを保持します。';
+
+  @override
+  String get questCatalogStorageError => '任務データを保存できませんでした。現在のバージョンを保持します。';
+
+  @override
+  String get gameFrameRateTitle => '60 FPS 上限を解除';
 
   @override
   String get gameFrameRateOff => 'オフ';
@@ -1083,12 +1150,12 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get gameFrameRateFollowDisplayDesc =>
-      '端末の画面リフレッシュレートに合わせます。消費電力と発熱が増える場合があります。';
+      'GotoBrowser と同じメインスクリプトパッチで端末のリフレッシュレートに追従させます。消費電力と発熱が増える場合があります。';
 
   @override
   String get gameFrameRateUnsupported =>
-      '現在の Android WebView はフレームレートモードに対応していません';
+      '現在の Android WebView は FPS 上限解除に対応していません';
 
   @override
-  String get gameFrameRateRestartRequired => 'ゲームを再起動すると反映されます';
+  String get gameFrameRateRestartRequired => 'ゲームページを再読み込みすると反映されます';
 }

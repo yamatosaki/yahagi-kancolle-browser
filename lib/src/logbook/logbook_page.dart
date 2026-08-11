@@ -1,21 +1,37 @@
 import 'package:flutter/material.dart';
 
 import '../battle/battle_controller.dart';
-import '../battle/battle_records_page.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'logbook_database.dart';
-import '../../l10n/app_localizations.dart';
+import '../fleet/equipment_type_icon.dart';
+import '../fleet/header_resource_catalog.dart';
 import '../fleet/resource_trend_page.dart';
+import '../game_state/game_state.dart';
+import '../widgets/frozen_data_table.dart';
+import 'logbook_database.dart';
+import 'logbook_filter_panel.dart';
+
+enum _LogbookCategory {
+  sortie('出击'),
+  expedition('远征'),
+  construction('建造'),
+  development('开发'),
+  retirement('除籍'),
+  resource('资源');
+
+  const _LogbookCategory(this.label);
+  final String label;
+}
 
 class LogbookPage extends StatefulWidget {
   const LogbookPage({
     super.key,
     required this.battleController,
+    this.database,
     this.selectedTabIndex = 0,
     this.onTabChanged,
   });
 
   final BattleController battleController;
+  final LogbookDatabase? database;
   final int selectedTabIndex;
   final ValueChanged<int>? onTabChanged;
 
@@ -31,9 +47,12 @@ class _LogbookPageState extends State<LogbookPage>
   @override
   void initState() {
     super.initState();
-    _reportedTabIndex = widget.selectedTabIndex.clamp(0, 3);
+    _reportedTabIndex = widget.selectedTabIndex.clamp(
+      0,
+      _LogbookCategory.values.length - 1,
+    );
     _tabController = TabController(
-      length: 4,
+      length: _LogbookCategory.values.length,
       initialIndex: _reportedTabIndex,
       vsync: this,
     )..addListener(_reportTabChange);
@@ -42,7 +61,10 @@ class _LogbookPageState extends State<LogbookPage>
   @override
   void didUpdateWidget(covariant LogbookPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final nextIndex = widget.selectedTabIndex.clamp(0, 3);
+    final nextIndex = widget.selectedTabIndex.clamp(
+      0,
+      _LogbookCategory.values.length - 1,
+    );
     if (_tabController.index != nextIndex) {
       _reportedTabIndex = nextIndex;
       _tabController.animateTo(nextIndex);
@@ -66,15 +88,39 @@ class _LogbookPageState extends State<LogbookPage>
 
   @override
   Widget build(BuildContext context) {
+    final database = widget.database ?? LogbookDatabase.instance;
     return ColoredBox(
       color: const Color(0xff081521),
       child: TabBarView(
         controller: _tabController,
+        physics: const NeverScrollableScrollPhysics(),
         children: [
-          _CurrentSessionTab(controller: widget.battleController),
-          _BattleStatsTab(controller: widget.battleController),
+          _LogbookTablePage(
+            category: _LogbookCategory.sortie,
+            database: database,
+            battleController: widget.battleController,
+          ),
+          _LogbookTablePage(
+            category: _LogbookCategory.expedition,
+            database: database,
+            battleController: widget.battleController,
+          ),
+          _LogbookTablePage(
+            category: _LogbookCategory.construction,
+            database: database,
+            battleController: widget.battleController,
+          ),
+          _LogbookTablePage(
+            category: _LogbookCategory.development,
+            database: database,
+            battleController: widget.battleController,
+          ),
+          _LogbookTablePage(
+            category: _LogbookCategory.retirement,
+            database: database,
+            battleController: widget.battleController,
+          ),
           const ResourceTrendPage(),
-          const _ExpeditionStatsTab(),
         ],
       ),
     );
@@ -92,49 +138,37 @@ class LogbookSegmented extends StatelessWidget {
   final ValueChanged<int> onChanged;
 
   @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final labels = <String>[
-      l10n?.thisSortie ?? '本次出击',
-      l10n?.historicalRecords ?? '历史战果',
-      l10n?.resourceTrend ?? '资源趋势',
-      l10n?.expeditionIncome ?? '远征收益',
-    ];
-    return Align(
-      alignment: Alignment.centerRight,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
-        child: Container(
-          key: const Key('logbook-segmented'),
-          height: 38,
-          padding: const EdgeInsets.all(3),
-          decoration: BoxDecoration(
-            color: const Color(0xff0b202d),
-            border: Border.all(color: const Color(0xff315064)),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            children: [
-              for (var index = 0; index < labels.length; index++)
-                Expanded(
-                  child: _LogbookSegmentButton(
-                    key: Key(switch (index) {
-                      0 => 'logbook-tab-sortie',
-                      1 => 'logbook-tab-history',
-                      2 => 'logbook-tab-resources',
-                      _ => 'logbook-tab-expeditions',
-                    }),
-                    selected: index == selectedIndex,
-                    label: labels[index],
-                    onTap: () => onChanged(index),
+  Widget build(BuildContext context) => Align(
+    alignment: Alignment.centerRight,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 680),
+      child: Container(
+        key: const Key('logbook-segmented'),
+        height: 38,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: const Color(0xff0b202d),
+          border: Border.all(color: const Color(0xff315064)),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          children: [
+            for (var index = 0; index < _LogbookCategory.values.length; index++)
+              Expanded(
+                child: _LogbookSegmentButton(
+                  key: Key(
+                    'logbook-tab-${_LogbookCategory.values[index].name}',
                   ),
+                  selected: index == selectedIndex,
+                  label: _LogbookCategory.values[index].label,
+                  onTap: () => onChanged(index),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _LogbookSegmentButton extends StatelessWidget {
@@ -157,14 +191,17 @@ class _LogbookSegmentButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Center(
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: selected ? const Color(0xffffdc88) : const Color(0xff9fb3bf),
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected
+                  ? const Color(0xffffdc88)
+                  : const Color(0xff9fb3bf),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
       ),
@@ -172,323 +209,991 @@ class _LogbookSegmentButton extends StatelessWidget {
   );
 }
 
-class _CurrentSessionTab extends StatelessWidget {
-  const _CurrentSessionTab({required this.controller});
-  final BattleController controller;
+class _LogbookTablePage extends StatefulWidget {
+  const _LogbookTablePage({
+    required this.category,
+    required this.database,
+    required this.battleController,
+  });
+
+  final _LogbookCategory category;
+  final LogbookDatabase database;
+  final BattleController battleController;
 
   @override
-  Widget build(BuildContext context) {
-    // We pass hideTitle parameter so we can hide the redundant '战斗记录' text
-    return BattleRecordsPage(controller: controller, hideTitle: true);
-  }
+  State<_LogbookTablePage> createState() => _LogbookTablePageState();
 }
 
-class _BattleStatsTab extends StatelessWidget {
-  const _BattleStatsTab({required this.controller});
-  final BattleController controller;
+class _LogbookTablePageState extends State<_LogbookTablePage> {
+  static const _batchSize = 50;
+  final _searchController = TextEditingController();
+  final _filterButtonAnchor = GlobalKey();
+  final List<Map<String, dynamic>> _records = [];
+  bool _loading = false;
+  bool _refreshing = false;
+  bool _hasMore = true;
+  Map<String, String> _filters = const <String, String>{};
 
-  String _alphabeticNode(int node) {
-    var value = node;
-    final characters = <int>[];
-    while (value > 0) {
-      value--;
-      characters.add(65 + value % 26);
-      value ~/= 26;
+  @override
+  void initState() {
+    super.initState();
+    widget.database.addListener(_refreshLatest);
+    if (widget.category == _LogbookCategory.sortie) {
+      widget.battleController.addListener(_refreshAfterBattleChange);
     }
-    return String.fromCharCodes(characters.reversed);
+    _loadMore();
+  }
+
+  @override
+  void didUpdateWidget(covariant _LogbookTablePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.database != widget.database) {
+      oldWidget.database.removeListener(_refreshLatest);
+      widget.database.addListener(_refreshLatest);
+    }
+    if (oldWidget.battleController != widget.battleController &&
+        widget.category == _LogbookCategory.sortie) {
+      oldWidget.battleController.removeListener(_refreshAfterBattleChange);
+      widget.battleController.addListener(_refreshAfterBattleChange);
+    }
+    _refreshLatest();
+  }
+
+  @override
+  void dispose() {
+    widget.database.removeListener(_refreshLatest);
+    if (widget.category == _LogbookCategory.sortie) {
+      widget.battleController.removeListener(_refreshAfterBattleChange);
+    }
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _refreshAfterBattleChange() {
+    Future<void>.delayed(const Duration(milliseconds: 120), _refreshLatest);
+  }
+
+  Future<void> _refreshLatest() async {
+    if (_refreshing || _loading || !mounted) return;
+    _refreshing = true;
+    try {
+      final latest = await _queryRecords();
+      if (!mounted || latest.isEmpty) return;
+      final knownIds = _records.map((row) => row['id']).toSet();
+      final additions = latest
+          .where((row) => !knownIds.contains(row['id']))
+          .toList(growable: false);
+      if (additions.isNotEmpty) {
+        setState(() => _records.insertAll(0, additions));
+      }
+    } finally {
+      _refreshing = false;
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loading || !_hasMore) return;
+    _loading = true;
+    try {
+      final beforeId = _records.isEmpty ? null : _records.last['id'] as int?;
+      final next = await _queryRecords(beforeId: beforeId);
+      if (!mounted) return;
+      setState(() {
+        _records.addAll(next);
+        _hasMore = next.length == _batchSize;
+      });
+    } finally {
+      _loading = false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _queryRecords({int? beforeId}) =>
+      switch (widget.category) {
+        _LogbookCategory.sortie => widget.database.getBattleRecords(
+          limit: _batchSize,
+          beforeId: beforeId,
+        ),
+        _LogbookCategory.expedition => widget.database.getExpeditionRecords(
+          limit: _batchSize,
+          beforeId: beforeId,
+        ),
+        _LogbookCategory.construction => widget.database.getConstructionRecords(
+          limit: _batchSize,
+          beforeId: beforeId,
+        ),
+        _LogbookCategory.development => widget.database.getDevelopmentRecords(
+          limit: _batchSize,
+          beforeId: beforeId,
+        ),
+        _LogbookCategory.retirement => widget.database.getRetirementRecords(
+          limit: _batchSize,
+          beforeId: beforeId,
+        ),
+        _LogbookCategory.resource => Future.value(
+          const <Map<String, dynamic>>[],
+        ),
+      };
+
+  List<Map<String, dynamic>> get _visibleRecords {
+    final query = _searchController.text.trim().toLowerCase();
+    return _records
+        .where((record) {
+          if (query.isNotEmpty &&
+              !record.values.any(
+                (value) => value.toString().toLowerCase().contains(query),
+              )) {
+            return false;
+          }
+          return _matchesFilter(record);
+        })
+        .toList(growable: false);
+  }
+
+  bool _matchesFilter(Map<String, dynamic> record) {
+    final date = _filters['date'] ?? '全部日期';
+    final timestamp = record['timestamp'] as int? ?? 0;
+    if (date != '全部日期') {
+      final days = date == '最近 7 天' ? 7 : 30;
+      final threshold = DateTime.now()
+          .subtract(Duration(days: days))
+          .millisecondsSinceEpoch;
+      if (timestamp < threshold) return false;
+    }
+
+    bool selected(String key, String allLabel, Object? actual) {
+      final expected = _filters[key] ?? allLabel;
+      return expected == allLabel || expected == '$actual';
+    }
+
+    return switch (widget.category) {
+      _LogbookCategory.sortie =>
+        selected('map', '全部海域', _mapLabel(record)) &&
+            selected('status', '全部状态', _sortieStatus(record['node_type'])) &&
+            selected('rank', '全部评价', '${record['rank']}'.toUpperCase()),
+      _LogbookCategory.expedition =>
+        selected('mission', '全部远征', record['name']) &&
+            selected('result', '全部结果', _expeditionResult(record['result'])) &&
+            _matchesRewardFilter(record),
+      _LogbookCategory.construction =>
+        selected('constructionType', '全部类型', record['construction_type']) &&
+            selected('shipType', '全部舰种', record['ship_type']) &&
+            selected('secretary', '全部秘书舰', record['secretary_name']),
+      _LogbookCategory.development =>
+        selected(
+              'result',
+              '全部结果',
+              (record['success'] as int? ?? 0) > 0 ? '成功' : '失败',
+            ) &&
+            selected('equipmentType', '全部类型', record['equipment_type']) &&
+            selected('secretary', '全部秘书舰', record['secretary_name']),
+      _LogbookCategory.retirement =>
+        selected('type', '全部类型', record['type']) &&
+            selected('shipType', '全部舰种', record['ship_type']) &&
+            selected('ship', '全部舰娘', record['ship_name']),
+      _LogbookCategory.resource => true,
+    };
+  }
+
+  bool _matchesRewardFilter(Map<String, dynamic> record) {
+    final expected = _filters['item'] ?? '全部道具';
+    if (expected == '全部道具') return true;
+    final hasItem =
+        (record['item1_count'] as int? ?? 0) > 0 ||
+        (record['item2_count'] as int? ?? 0) > 0;
+    return expected == (hasItem ? '有道具' : '无道具');
+  }
+
+  List<String> _distinct(String allLabel, Iterable<String> values) {
+    final options = values.where((value) => value.isNotEmpty).toSet().toList()
+      ..sort();
+    return <String>[allLabel, ...options];
+  }
+
+  Map<String, String> get _filterDefaults => switch (widget.category) {
+    _LogbookCategory.sortie => const {
+      'date': '全部日期',
+      'map': '全部海域',
+      'status': '全部状态',
+      'rank': '全部评价',
+    },
+    _LogbookCategory.expedition => const {
+      'date': '全部日期',
+      'mission': '全部远征',
+      'result': '全部结果',
+      'item': '全部道具',
+    },
+    _LogbookCategory.construction => const {
+      'date': '全部日期',
+      'constructionType': '全部类型',
+      'shipType': '全部舰种',
+      'secretary': '全部秘书舰',
+    },
+    _LogbookCategory.development => const {
+      'date': '全部日期',
+      'result': '全部结果',
+      'equipmentType': '全部类型',
+      'secretary': '全部秘书舰',
+    },
+    _LogbookCategory.retirement => const {
+      'date': '全部日期',
+      'type': '全部类型',
+      'shipType': '全部舰种',
+      'ship': '全部舰娘',
+    },
+    _LogbookCategory.resource => const <String, String>{},
+  };
+
+  List<LogbookFilterField> get _filterFields {
+    const dates = <String>['全部日期', '最近 7 天', '最近 30 天'];
+    return switch (widget.category) {
+      _LogbookCategory.sortie => [
+        const LogbookFilterField(keyName: 'date', label: '日期', options: dates),
+        LogbookFilterField(
+          keyName: 'map',
+          label: '海域',
+          options: _distinct('全部海域', _records.map(_mapLabel)),
+        ),
+        const LogbookFilterField(
+          keyName: 'status',
+          label: '状态',
+          options: [
+            '全部状态',
+            '普通战斗',
+            'Boss 战',
+            '空袭战',
+            '长距离空袭战',
+            '航空战',
+            '夜战',
+            '敌联合舰队',
+            '进击',
+          ],
+        ),
+        const LogbookFilterField(
+          keyName: 'rank',
+          label: '评价',
+          options: ['全部评价', 'S', 'A', 'B', 'C', 'D', 'E'],
+        ),
+      ],
+      _LogbookCategory.expedition => [
+        const LogbookFilterField(keyName: 'date', label: '日期', options: dates),
+        LogbookFilterField(
+          keyName: 'mission',
+          label: '远征',
+          options: _distinct('全部远征', _records.map((row) => '${row['name']}')),
+        ),
+        const LogbookFilterField(
+          keyName: 'result',
+          label: '结果',
+          options: ['全部结果', '大成功', '成功', '失败'],
+        ),
+        const LogbookFilterField(
+          keyName: 'item',
+          label: '道具',
+          options: ['全部道具', '有道具', '无道具'],
+        ),
+      ],
+      _LogbookCategory.construction => [
+        const LogbookFilterField(keyName: 'date', label: '日期', options: dates),
+        const LogbookFilterField(
+          keyName: 'constructionType',
+          label: '建造类型',
+          options: ['全部类型', '普通建造', '大型建造'],
+        ),
+        LogbookFilterField(
+          keyName: 'shipType',
+          label: '舰种',
+          options: _distinct(
+            '全部舰种',
+            _records.map((row) => '${row['ship_type']}'),
+          ),
+        ),
+        LogbookFilterField(
+          keyName: 'secretary',
+          label: '秘书舰',
+          options: _distinct(
+            '全部秘书舰',
+            _records.map((row) => '${row['secretary_name']}'),
+          ),
+        ),
+      ],
+      _LogbookCategory.development => [
+        const LogbookFilterField(keyName: 'date', label: '日期', options: dates),
+        const LogbookFilterField(
+          keyName: 'result',
+          label: '结果',
+          options: ['全部结果', '成功', '失败'],
+        ),
+        LogbookFilterField(
+          keyName: 'equipmentType',
+          label: '装备类型',
+          options: _distinct(
+            '全部类型',
+            _records.map((row) => '${row['equipment_type']}'),
+          ),
+        ),
+        LogbookFilterField(
+          keyName: 'secretary',
+          label: '秘书舰',
+          options: _distinct(
+            '全部秘书舰',
+            _records.map((row) => '${row['secretary_name']}'),
+          ),
+        ),
+      ],
+      _LogbookCategory.retirement => [
+        const LogbookFilterField(keyName: 'date', label: '日期', options: dates),
+        const LogbookFilterField(
+          keyName: 'type',
+          label: '类型',
+          options: ['全部类型', '改修', '解体'],
+        ),
+        LogbookFilterField(
+          keyName: 'shipType',
+          label: '舰种',
+          options: _distinct(
+            '全部舰种',
+            _records.map((row) => '${row['ship_type']}'),
+          ),
+        ),
+        LogbookFilterField(
+          keyName: 'ship',
+          label: '舰娘',
+          options: _distinct(
+            '全部舰娘',
+            _records.map((row) => '${row['ship_name']}'),
+          ),
+        ),
+      ],
+      _LogbookCategory.resource => const <LogbookFilterField>[],
+    };
+  }
+
+  Future<void> _showFilter() async {
+    final button =
+        _filterButtonAnchor.currentContext?.findRenderObject() as RenderBox?;
+    if (button == null) return;
+    final origin = button.localToGlobal(Offset.zero);
+    final defaults = _filterDefaults;
+    final selected = await showLogbookFilterPanel(
+      context: context,
+      anchor: origin & button.size,
+      title: '筛选${widget.category.label}记录',
+      fields: _filterFields,
+      values: <String, String>{...defaults, ..._filters},
+      defaults: defaults,
+    );
+    if (selected != null && mounted) setState(() => _filters = selected);
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: LogbookDatabase.instance.getBattleRecords(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final records = snapshot.data!;
-        if (records.isEmpty) {
-          return Center(
-            child: Text(
-              AppLocalizations.of(context)?.noHistoricalRecords ?? '暂无历史战果',
-              style: const TextStyle(color: Color(0xff8197a5)),
-            ),
-          );
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: records.length,
-          itemBuilder: (context, index) {
-            final record = records[index];
-            final dropShipId = record['drop_ship_id'] as int?;
-            final dropShipName = dropShipId != null && dropShipId > 0
-                ? (controller.gameState().masterShips[dropShipId]?.name ??
-                      'ID: $dropShipId')
-                : (AppLocalizations.of(context)?.none ?? '无');
-
-            final mapArea = record['map_area'];
-            final mapNo = record['map_no'];
-            final node = record['node'] as int;
-            final nodeLabel = node > 0
-                ? '${_alphabeticNode(node)}${AppLocalizations.of(context)?.node ?? "点"}'
-                : (AppLocalizations.of(context)?.unknownNode ?? '未知点');
-
-            final friendState = record['friend_fleet_state'] ?? '?/?';
-            final enemyState = record['enemy_fleet_state'] ?? '?/?';
-
-            final rank = record['rank'] as String;
-
-            return Card(
-              color: const Color(0xff142735),
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                leading: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: const Color(0xff292314),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: const Color(0xffd4a85f).withValues(alpha: 0.5),
-                    ),
-                  ),
-                  alignment: Alignment.center,
+    final rows = _visibleRecords;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 32,
+            child: Row(
+              children: [
+                Expanded(
                   child: Text(
-                    rank,
+                    '共 ${rows.length} 条',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Color(0xffd4a85f),
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                      color: Color(0xff8ba2af),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-                title: Text(
-                  '${record['enemy_fleet_name']}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 4.0),
-                  child: Text(
-                    '$mapArea-$mapNo · $nodeLabel  ${AppLocalizations.of(context)?.friend ?? "我方"} $friendState  ${AppLocalizations.of(context)?.enemy ?? "敌方"} $enemyState  ${AppLocalizations.of(context)?.drop ?? "掉落"}: $dropShipName',
+                SizedBox(
+                  width: 210,
+                  height: 28,
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (_) => setState(() {}),
+                    textAlignVertical: TextAlignVertical.center,
                     style: const TextStyle(
-                      color: Color(0xff8197a5),
+                      color: Color(0xffd7e3e9),
                       fontSize: 12,
                     ),
+                    decoration: InputDecoration(
+                      isCollapsed: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                      ),
+                      hintText: _searchHint,
+                      hintStyle: const TextStyle(
+                        color: Color(0xff667f8d),
+                        fontSize: 11,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Color(0xff315064)),
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: const BorderSide(color: Color(0xffb7832a)),
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                    ),
                   ),
                 ),
-                trailing: Text(
-                  DateTime.fromMillisecondsSinceEpoch(
-                    record['timestamp'] as int,
-                  ).toString().split('.')[0].substring(11),
-                  style: const TextStyle(
-                    color: Color(0xff567080),
-                    fontSize: 12,
+                const SizedBox(width: 6),
+                KeyedSubtree(
+                  key: _filterButtonAnchor,
+                  child: _LogbookFilterButton(
+                    key: const Key('logbook-filter-button'),
+                    active: _filters.entries.any(
+                      (entry) => _filterDefaults[entry.key] != entry.value,
+                    ),
+                    onTap: _showFilter,
                   ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-class _ExpeditionStatsTab extends StatelessWidget {
-  const _ExpeditionStatsTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: LogbookDatabase.instance.getDailyExpeditionYields(limitDays: 7),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final data = snapshot.data!;
-        if (data.isEmpty) {
-          return Center(
-            child: Text(
-              AppLocalizations.of(context)?.noExpeditionRecords ?? '暂无远征记录',
-              style: const TextStyle(color: Color(0xff8197a5)),
-            ),
-          );
-        }
-
-        final barGroups = <BarChartGroupData>[];
-        double maxYield = 0;
-
-        for (var i = 0; i < data.length; i++) {
-          final row = data[i];
-          final f = (row['fuel'] as num).toDouble();
-          final a = (row['ammo'] as num).toDouble();
-          final s = (row['steel'] as num).toDouble();
-          final b = (row['bauxite'] as num).toDouble();
-
-          final total = f + a + s + b;
-          if (total > maxYield) maxYield = total;
-
-          barGroups.add(
-            BarChartGroupData(
-              x: i,
-              barRods: [
-                BarChartRodData(
-                  toY: total,
-                  width: 16,
-                  borderRadius: BorderRadius.circular(4),
-                  rodStackItems: [
-                    BarChartRodStackItem(0, f, const Color(0xff4B9FD5)),
-                    BarChartRodStackItem(f, f + a, const Color(0xffE58C4F)),
-                    BarChartRodStackItem(
-                      f + a,
-                      f + a + s,
-                      const Color(0xff8197a5),
-                    ),
-                    BarChartRodStackItem(
-                      f + a + s,
-                      total,
-                      const Color(0xffE0C345),
-                    ),
-                  ],
                 ),
               ],
             ),
-          );
-        }
-
-        return Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                AppLocalizations.of(context)?.expeditionIncomeChart ??
-                    '远征收益统计 (最近 7 天)',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xffd4a85f),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _Indicator(
-                    color: const Color(0xff4B9FD5),
-                    text: AppLocalizations.of(context)?.fuel ?? '燃料',
-                  ),
-                  const SizedBox(width: 12),
-                  _Indicator(
-                    color: const Color(0xffE58C4F),
-                    text: AppLocalizations.of(context)?.ammo ?? '弹药',
-                  ),
-                  const SizedBox(width: 12),
-                  _Indicator(
-                    color: const Color(0xff8197a5),
-                    text: AppLocalizations.of(context)?.steel ?? '钢材',
-                  ),
-                  const SizedBox(width: 12),
-                  _Indicator(
-                    color: const Color(0xffE0C345),
-                    text: AppLocalizations.of(context)?.bauxite ?? '铝土',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Expanded(
-                child: BarChart(
-                  BarChartData(
-                    alignment: BarChartAlignment.spaceAround,
-                    maxY: maxYield > 0 ? maxYield * 1.1 : 100,
-                    barTouchData: BarTouchData(enabled: false),
-                    titlesData: FlTitlesData(
-                      show: true,
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          getTitlesWidget: (double value, TitleMeta meta) {
-                            final idx = value.toInt();
-                            if (idx >= 0 && idx < data.length) {
-                              final dayStr = data[idx]['day'] as String;
-                              // e.g., '2023-10-25' -> '10-25'
-                              return Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Text(
-                                  dayStr.substring(5),
-                                  style: const TextStyle(
-                                    color: Color(0xff8197a5),
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              );
-                            }
-                            return const SizedBox();
-                          },
-                        ),
-                      ),
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 40,
-                          getTitlesWidget: (val, _) => Text(
-                            val.toInt().toString(),
-                            style: const TextStyle(
-                              color: Color(0xff8197a5),
-                              fontSize: 10,
-                            ),
+          ),
+          const SizedBox(height: 6),
+          Expanded(
+            child: Stack(
+              children: [
+                Positioned.fill(child: _buildTable(rows)),
+                if (rows.isEmpty && !_loading)
+                  const Positioned.fill(
+                    child: IgnorePointer(
+                      child: Center(
+                        child: Text(
+                          '暂无记录',
+                          style: TextStyle(
+                            color: Color(0xff8197a5),
+                            fontSize: 12,
                           ),
                         ),
                       ),
-                      topTitles: AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                      rightTitles: AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
                     ),
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: false,
-                      getDrawingHorizontalLine: (value) => FlLine(
-                        color: const Color(0xff294052),
-                        strokeWidth: 1,
-                      ),
-                    ),
-                    borderData: FlBorderData(show: false),
-                    barGroups: barGroups,
                   ),
-                ),
-              ),
-            ],
+                if (rows.isEmpty && _loading)
+                  const Positioned.fill(
+                    child: IgnorePointer(
+                      child: Center(
+                        child: SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  String get _searchHint => switch (widget.category) {
+    _LogbookCategory.sortie => '搜索海域、敌舰队、掉落…',
+    _LogbookCategory.expedition => '搜索远征、道具…',
+    _LogbookCategory.construction => '搜索舰娘、舰种、秘书舰…',
+    _LogbookCategory.development => '搜索装备、类型、秘书舰…',
+    _LogbookCategory.retirement => '搜索舰娘、舰种…',
+    _LogbookCategory.resource => '搜索…',
+  };
+
+  Widget _buildTable(List<Map<String, dynamic>> rows) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final spec = _tableSpecForWidth(constraints.maxWidth);
+        return FrozenDataTable(
+          key: Key('logbook-table-${widget.category.name}'),
+          keyPrefix: 'logbook-${widget.category.name}',
+          frozenColumnWidths: const [112],
+          frozenHeaders: const [_HeaderCell('时间')],
+          frozenCells: (index) => [
+            _TextCell(_formatTime(rows[index]['timestamp'])),
+          ],
+          scrollableColumnWidths: spec.widths,
+          scrollableHeaders: spec.headers,
+          scrollableCells: (index) => spec.cells(rows[index]),
+          rowHeights: List<double>.filled(
+            rows.length,
+            FrozenDataTable.minimumRowHeight,
+          ),
+          onEndReached: _loadMore,
         );
       },
     );
   }
-}
 
-class _Indicator extends StatelessWidget {
-  final Color color;
-  final String text;
-
-  const _Indicator({required this.color, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: const TextStyle(color: Color(0xff8197a5), fontSize: 12),
-        ),
+  _TableSpec _tableSpecForWidth(double availableWidth) {
+    if (widget.category != _LogbookCategory.retirement) return _tableSpec;
+    final scrollableWidth = (availableWidth - 112).clamp(
+      452.0,
+      double.infinity,
+    );
+    final typeWidth = scrollableWidth * 0.2;
+    final shipTypeWidth = scrollableWidth * 0.28;
+    return _TableSpec(
+      widths: [
+        typeWidth,
+        shipTypeWidth,
+        scrollableWidth - typeWidth - shipTypeWidth,
+      ],
+      headers: const [_HeaderCell('类型'), _HeaderCell('舰种'), _HeaderCell('舰娘')],
+      cells: (row) => [
+        _RetirementTypeCell('${row['type']}'),
+        _TextCell('${row['ship_type']}'),
+        _TextCell('${row['ship_name']} Lv.${row['level']}', strong: true),
       ],
     );
   }
+
+  _TableSpec get _tableSpec => switch (widget.category) {
+    _LogbookCategory.sortie => _TableSpec(
+      widths: const [155, 85, 85, 68, 180, 120],
+      headers: const [
+        _HeaderCell('海域'),
+        _HeaderCell('节点'),
+        _HeaderCell('状态'),
+        _HeaderCell('评价'),
+        _HeaderCell('敌舰队'),
+        _HeaderCell('掉落'),
+      ],
+      cells: (row) => [
+        _TextCell(_mapLabel(row)),
+        _TextCell(_nodeLabel(row['node'])),
+        _TextCell(_sortieStatus(row['node_type']), strong: true),
+        _RankCell('${row['rank']}'),
+        _TextCell('${row['enemy_fleet_name']}'),
+        _TextCell(
+          _dropName(row['drop_ship_id']),
+          color: const Color(0xff67bce9),
+        ),
+      ],
+    ),
+    _LogbookCategory.expedition => _TableSpec(
+      widths: const [205, 86, 82, 82, 82, 82, 270],
+      headers: const [
+        _HeaderCell('远征'),
+        _HeaderCell('结果'),
+        _ResourceHeader(GameResourceType.fuel),
+        _ResourceHeader(GameResourceType.ammunition),
+        _ResourceHeader(GameResourceType.steel),
+        _ResourceHeader(GameResourceType.bauxite),
+        _HeaderCell('道具'),
+      ],
+      cells: (row) => [
+        _TextCell(
+          '${_expeditionDisplayId(row['expedition_id'])} · ${row['name']}',
+          strong: true,
+        ),
+        _ResultCell(_expeditionResult(row['result'])),
+        _TextCell('${row['yield_fuel'] ?? 0}'),
+        _TextCell('${row['yield_ammo'] ?? 0}'),
+        _TextCell('${row['yield_steel'] ?? 0}'),
+        _TextCell('${row['yield_bauxite'] ?? 0}'),
+        _RewardItemsCell(row),
+      ],
+    ),
+    _LogbookCategory.construction => _TableSpec(
+      widths: const [110, 105, 95, 82, 82, 82, 82, 105, 190],
+      headers: const [
+        _HeaderCell('建造类型'),
+        _HeaderCell('舰娘'),
+        _HeaderCell('舰种'),
+        _ResourceHeader(GameResourceType.fuel),
+        _ResourceHeader(GameResourceType.ammunition),
+        _ResourceHeader(GameResourceType.steel),
+        _ResourceHeader(GameResourceType.bauxite),
+        _ResourceHeader(GameResourceType.developmentMaterial),
+        _HeaderCell('秘书舰'),
+      ],
+      cells: (row) => [
+        _TextCell('${row['construction_type']}'),
+        _TextCell('${row['ship_name']}', strong: true),
+        _TextCell('${row['ship_type']}'),
+        _TextCell('${row['fuel']}'),
+        _TextCell('${row['ammo']}'),
+        _TextCell('${row['steel']}'),
+        _TextCell('${row['bauxite']}'),
+        _TextCell('${row['development_material']}'),
+        _TextCell('${row['secretary_name']}'),
+      ],
+    ),
+    _LogbookCategory.development => _TableSpec(
+      widths: const [82, 220, 120, 82, 82, 82, 82, 190],
+      headers: const [
+        _HeaderCell('结果'),
+        _HeaderCell('开发装备'),
+        _HeaderCell('装备类型'),
+        _ResourceHeader(GameResourceType.fuel),
+        _ResourceHeader(GameResourceType.ammunition),
+        _ResourceHeader(GameResourceType.steel),
+        _ResourceHeader(GameResourceType.bauxite),
+        _HeaderCell('秘书舰'),
+      ],
+      cells: (row) => [
+        _ResultCell((row['success'] as int? ?? 0) > 0 ? '成功' : '失败'),
+        _EquipmentCell(
+          name: '${row['equipment_name']}',
+          iconId: row['equipment_icon_id'] as int? ?? -1,
+        ),
+        _TextCell('${row['equipment_type']}'),
+        _TextCell('${row['fuel']}'),
+        _TextCell('${row['ammo']}'),
+        _TextCell('${row['steel']}'),
+        _TextCell('${row['bauxite']}'),
+        _TextCell('${row['secretary_name']}'),
+      ],
+    ),
+    _LogbookCategory.retirement => _TableSpec(
+      widths: const [92, 130, 230],
+      headers: const [_HeaderCell('类型'), _HeaderCell('舰种'), _HeaderCell('舰娘')],
+      cells: (row) => [
+        _RetirementTypeCell('${row['type']}'),
+        _TextCell('${row['ship_type']}'),
+        _TextCell('${row['ship_name']} Lv.${row['level']}', strong: true),
+      ],
+    ),
+    _LogbookCategory.resource => throw StateError('资源页不使用日志表格'),
+  };
+
+  String _dropName(Object? value) {
+    final id = value as int? ?? 0;
+    if (id <= 0) return '—';
+    return widget.battleController.gameState().masterShips[id]?.name ??
+        'ID: $id';
+  }
+
+  String _mapLabel(Map<String, dynamic> row) {
+    final area = row['map_area'] as int? ?? 0;
+    final map = row['map_no'] as int? ?? 0;
+    final number = '$area-$map';
+    final name = widget.battleController.gameState().mapName(area, map);
+    return name == null || name.isEmpty ? number : '$name（$number）';
+  }
+}
+
+class _TableSpec {
+  const _TableSpec({
+    required this.widths,
+    required this.headers,
+    required this.cells,
+  });
+  final List<double> widths;
+  final List<Widget> headers;
+  final List<Widget> Function(Map<String, dynamic>) cells;
+}
+
+class _LogbookFilterButton extends StatelessWidget {
+  const _LogbookFilterButton({
+    super.key,
+    required this.active,
+    required this.onTap,
+  });
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 68,
+    height: 28,
+    child: Material(
+      color: active ? const Color(0xff60491f) : const Color(0xff102936),
+      shape: RoundedRectangleBorder(
+        side: BorderSide(
+          color: active ? const Color(0xffb7832a) : const Color(0xff315064),
+        ),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(9),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12),
+          child: Center(
+            child: Text(
+              '筛选',
+              style: TextStyle(
+                color: Color(0xffa8bac4),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _HeaderCell extends StatelessWidget {
+  const _HeaderCell(this.label);
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        label,
+        maxLines: 1,
+        style: const TextStyle(
+          color: Color(0xff9fb3bf),
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    ),
+  );
+}
+
+class _ResourceHeader extends StatelessWidget {
+  const _ResourceHeader(this.type);
+  final GameResourceType type;
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = headerResourceById['material-${type.apiId}']!;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Row(
+        children: [
+          Image.asset(
+            spec.assetPath,
+            key: Key('logbook-resource-icon-${type.name}'),
+            width: 18,
+            height: 18,
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              type.label,
+              maxLines: 1,
+              style: const TextStyle(
+                color: Color(0xff9fb3bf),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TextCell extends StatelessWidget {
+  const _TextCell(
+    this.value, {
+    this.color = const Color(0xffd7e3e9),
+    this.strong = false,
+  });
+  final String value;
+  final Color color;
+  final bool strong;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.clip,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: strong ? FontWeight.w900 : FontWeight.w600,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
+    ),
+  );
+}
+
+class _ResultCell extends StatelessWidget {
+  const _ResultCell(this.value);
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => _TextCell(
+    value,
+    color: switch (value) {
+      '大成功' => const Color(0xffffc857),
+      '成功' => const Color(0xff48d88a),
+      '失败' => const Color(0xffff6464),
+      _ => const Color(0xffd7e3e9),
+    },
+    strong: true,
+  );
+}
+
+class _RankCell extends StatelessWidget {
+  const _RankCell(this.value);
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = value.toUpperCase();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: DecoratedBox(
+          key: Key('logbook-rank-$label'),
+          decoration: BoxDecoration(
+            color: const Color(0xff2c2015),
+            border: Border.all(color: const Color(0xfff9a825)),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: SizedBox(
+            width: 32,
+            height: 22,
+            child: Center(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xffffd700),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RetirementTypeCell extends StatelessWidget {
+  const _RetirementTypeCell(this.value);
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => _TextCell(
+    value,
+    color: value == '改修' ? const Color(0xff67bce9) : const Color(0xffff6464),
+    strong: true,
+  );
+}
+
+class _EquipmentCell extends StatelessWidget {
+  const _EquipmentCell({required this.name, required this.iconId});
+  final String name;
+  final int iconId;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    child: Row(
+      children: [
+        EquipmentTypeIconImage(
+          iconId: iconId,
+          width: 24,
+          height: 24,
+          imageKey: const Key('logbook-development-equipment-icon'),
+        ),
+        const SizedBox(width: 5),
+        Expanded(child: _TextCell(name, strong: true)),
+      ],
+    ),
+  );
+}
+
+class _RewardItemsCell extends StatelessWidget {
+  const _RewardItemsCell(this.row);
+  final Map<String, dynamic> row;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <InlineSpan>[];
+    void add(String? name, Object? count) {
+      if (name == null || name.isEmpty || (count as int? ?? 0) <= 0) return;
+      if (items.isNotEmpty) items.add(const TextSpan(text: '　'));
+      items
+        ..add(TextSpan(text: '$name '))
+        ..add(
+          TextSpan(
+            text: 'X$count',
+            style: const TextStyle(
+              color: Color(0xff67bce9),
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        );
+    }
+
+    add(row['item1_name'] as String?, row['item1_count']);
+    add(row['item2_name'] as String?, row['item2_count']);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text.rich(
+          TextSpan(
+            children: items.isEmpty ? const [TextSpan(text: '—')] : items,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.clip,
+          style: const TextStyle(
+            color: Color(0xffd7e3e9),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _formatTime(Object? raw) {
+  final timestamp = raw as int? ?? 0;
+  final value = DateTime.fromMillisecondsSinceEpoch(timestamp);
+  String two(int number) => number.toString().padLeft(2, '0');
+  return '${two(value.month)}-${two(value.day)} ${two(value.hour)}:${two(value.minute)}';
+}
+
+String _nodeLabel(Object? raw) {
+  var value = raw as int? ?? 0;
+  if (value <= 0) return '—';
+  final codes = <int>[];
+  while (value > 0) {
+    value--;
+    codes.add(65 + value % 26);
+    value ~/= 26;
+  }
+  return '${String.fromCharCodes(codes.reversed)} · 节点';
+}
+
+String _sortieStatus(Object? raw) {
+  if (raw case final String label when label.trim().isNotEmpty) return label;
+  return switch (raw as int? ?? 0) {
+    6 => '空袭战',
+    7 => '航空战',
+    8 => '夜战',
+    1 => '进击',
+    _ => '进击',
+  };
+}
+
+String _expeditionResult(Object? raw) => switch (raw as int? ?? 0) {
+  >= 2 => '大成功',
+  1 => '成功',
+  _ => '失败',
+};
+
+String _expeditionDisplayId(Object? raw) {
+  final id = raw as int? ?? 0;
+  return switch (id) {
+    >= 100 && <= 105 => 'A${id - 99}',
+    >= 110 && <= 115 => 'B${id - 109}',
+    >= 131 && <= 133 => 'D${id - 130}',
+    >= 141 && <= 142 => 'E${id - 140}',
+    _ => '$id',
+  };
 }

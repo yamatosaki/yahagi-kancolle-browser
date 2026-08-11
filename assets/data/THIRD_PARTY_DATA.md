@@ -27,3 +27,20 @@
 ## 生成与复核
 
 数据集由 `tool/akashi_bonus/` 下的 Dart 工具生成，执行四轮数据检查与一轮代码审查后方可发布。详见 `docs/superpowers/plans/2026-08-04-wiki-equipment-bonus-dataset.md`。
+
+## 改修规划资料
+
+`improvement/planner_snapshot.json` 由 [PlannerRemoteRawData](https://github.com/auluu/PlannerRemoteRawData) 的关系数据规范化生成，用于离线展示每日改修条件、消耗和进化路线。生成时锁定不可变 Git 提交，并保留资料版本和提交号；装备名称与图标由游戏运行时 master 数据补齐。
+
+截至首次接入检查，该仓库未声明 LICENSE。公开分发前需要由项目维护者确认转载及再分发授权；本项目不主张原始资料的所有权，资料也可能存在错误或更新延迟，实际内容以游戏为准。
+
+## 道具图标
+
+以下舰队 Collection 道具图标由[舰娘百科](https://zh.kcwiki.cn/wiki/道具)收录的游戏缓存图片缩放为 75×75 PNG，用于本地离线展示；本项目不主张这些图像的所有权。
+
+| 本地文件 | 道具 | 来源文件 |
+| --- | --- | --- |
+| `assets/images/material/useitem_54.png` | 给粮舰「间宫」 | [ItemCard054.png](https://zh.kcwiki.cn/wiki/File:ItemCard054.png) |
+| `assets/images/material/useitem_59.png` | 给粮舰「伊良湖」 | [ItemCard059.png](https://zh.kcwiki.cn/wiki/File:ItemCard059.png) |
+| `assets/images/material/useitem_61.png` | 甲种勋章 | [ItemCard061.png](https://zh.kcwiki.cn/wiki/File:ItemCard061.png) |
+| `assets/images/material/useitem_68.png` | 秋刀鱼 | [ItemCard068.png](https://zh.kcwiki.cn/wiki/File:ItemCard068.png) |

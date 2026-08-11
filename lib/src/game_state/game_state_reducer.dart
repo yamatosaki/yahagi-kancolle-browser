@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../bridge/captured_api_event.dart';
 import 'combat_state.dart';
 import 'game_api_decoder.dart';
@@ -10,6 +12,7 @@ class GameStateReducer {
     '/kcsapi/api_start2/getData',
     '/kcsapi/api_port/port',
     '/kcsapi/api_get_member/require_info',
+    '/kcsapi/api_get_member/useitem',
     '/kcsapi/api_get_member/material',
     '/kcsapi/api_get_member/deck',
     '/kcsapi/api_get_member/ship2',
@@ -19,6 +22,7 @@ class GameStateReducer {
     '/kcsapi/api_get_member/ndock',
     '/kcsapi/api_get_member/kdock',
     '/kcsapi/api_get_member/questlist',
+    '/kcsapi/api_get_member/mapinfo',
     '/kcsapi/api_req_hokyu/charge',
     '/kcsapi/api_req_kaisou/slotset',
     '/kcsapi/api_req_kaisou/slotset_ex',
@@ -26,6 +30,8 @@ class GameStateReducer {
     '/kcsapi/api_req_kaisou/slot_deprive',
     '/kcsapi/api_req_kaisou/slot_exchange_index',
     '/kcsapi/api_req_kousyou/createship',
+    '/kcsapi/api_req_kousyou/createitem',
+    '/kcsapi/api_req_kousyou/destroyitem2',
     '/kcsapi/api_req_kousyou/createship_speedchange',
     '/kcsapi/api_req_kousyou/getship',
     '/kcsapi/api_req_hensei/change',
@@ -41,6 +47,7 @@ class GameStateReducer {
     '/kcsapi/api_req_sortie/battleresult',
     '/kcsapi/api_req_mission/result',
     '/kcsapi/api_req_mission/start',
+    '/kcsapi/api_req_practice/battle_result',
   };
 
   GameState reduce(GameState state, CapturedApiEvent event) {
@@ -56,20 +63,24 @@ class GameStateReducer {
           event.path == '/kcsapi/api_req_hensei/change' ||
           event.path == '/kcsapi/api_req_kaisou/slotset' ||
           event.path == '/kcsapi/api_req_kaisou/slotset_ex' ||
-          event.path == '/kcsapi/api_req_kaisou/unsetslot_all',
+          event.path == '/kcsapi/api_req_kaisou/unsetslot_all' ||
+          event.path == '/kcsapi/api_req_nyukyo/start' ||
+          event.path == '/kcsapi/api_req_nyukyo/speedchange' ||
+          event.path == '/kcsapi/api_req_quest/clearitemget' ||
+          event.path == '/kcsapi/api_req_quest/stop',
     );
     final origin = event.sourceOrigin.isEmpty
         ? state.serverOrigin
         : event.sourceOrigin;
 
-    return switch (event.path) {
+    final reduced = switch (event.path) {
       '/kcsapi/api_start2/getData' => _start2(
         state,
         _requiredMap(data, 'start2'),
         event,
         origin,
       ),
-      '/kcsapi/api_port/port' => _snapshot(
+      '/kcsapi/api_port/port' => _portSnapshot(
         state,
         _requiredMap(data, 'port'),
         event,
@@ -87,6 +98,12 @@ class GameStateReducer {
           _requiredList(data, 'material'),
           state.resources,
         ),
+        serverOrigin: origin,
+        updatedAt: event.capturedAt,
+      ),
+      '/kcsapi/api_get_member/useitem' => state.copyWith(
+        useItems: _parseUseItems(_requiredList(data, 'useitem')),
+        hasUseItemData: true,
         serverOrigin: origin,
         updatedAt: event.capturedAt,
       ),
@@ -112,14 +129,17 @@ class GameStateReducer {
         serverOrigin: origin,
         updatedAt: event.capturedAt,
       ),
-      '/kcsapi/api_get_member/questlist' => state.copyWith(
-        quests: _parseQuests(
-          _requiredMap(data, 'questlist'),
-          state.quests,
-          event.capturedAt,
-        ),
-        serverOrigin: origin,
-        updatedAt: event.capturedAt,
+      '/kcsapi/api_get_member/questlist' => _questList(
+        state,
+        _requiredMap(data, 'questlist'),
+        event,
+        origin,
+      ),
+      '/kcsapi/api_get_member/mapinfo' => _mapInfo(
+        state,
+        _requiredMap(data, 'mapinfo'),
+        event,
+        origin,
       ),
       '/kcsapi/api_req_hokyu/charge' => _charge(
         state,
@@ -158,6 +178,11 @@ class GameStateReducer {
       ),
       '/kcsapi/api_req_kousyou/createship_speedchange' =>
         _constructionSpeedChange(state, event, origin),
+      '/kcsapi/api_req_kousyou/destroyitem2' => _destroySlotItems(
+        state,
+        event,
+        origin,
+      ),
       '/kcsapi/api_req_kousyou/getship' => _getShip(
         state,
         _requiredMap(data, 'getship'),
@@ -228,6 +253,90 @@ class GameStateReducer {
       ),
       _ => state,
     };
+    return _revalidateF96(
+      _applyKnownQuestProgress(reduced, event, data),
+      event.capturedAt,
+    );
+  }
+
+  GameState _destroySlotItems(
+    GameState state,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final rawIds = event.requestParams['api_slotitem_ids']?.toString() ?? '';
+    final ids = rawIds.split(',').map(_asInt).where((id) => id > 0).toSet();
+    if (ids.isEmpty) {
+      return state.copyWith(serverOrigin: origin, updatedAt: event.capturedAt);
+    }
+
+    final removed = <OwnedSlotItem>[for (final id in ids) ?state.slotItems[id]];
+    final slotItems = Map<int, OwnedSlotItem>.of(state.slotItems)
+      ..removeWhere((id, _) => ids.contains(id));
+
+    final quest = state.quests[_f96QuestId];
+    final destroyedRequired = removed
+        .where((item) => item.masterId == _f96DiscardMasterId)
+        .length;
+    if (quest == null || !quest.isAccepted || destroyedRequired == 0) {
+      return state.copyWith(
+        slotItems: slotItems,
+        serverOrigin: origin,
+        updatedAt: event.capturedAt,
+      );
+    }
+
+    final quests = Map<int, GameQuest>.of(state.quests);
+    quests[_f96QuestId] = quest.incrementExactProgress(
+      destroyedRequired,
+      updatedAt: event.capturedAt,
+    );
+    return state.copyWith(
+      slotItems: slotItems,
+      quests: quests,
+      serverOrigin: origin,
+      updatedAt: event.capturedAt,
+    );
+  }
+
+  GameState _revalidateF96(GameState state, DateTime updatedAt) {
+    final quest = state.quests[_f96QuestId];
+    if (quest == null || !quest.isAccepted || quest.isServerCompleted) {
+      return state;
+    }
+    final verified =
+        state.hasFurnitureCoinData &&
+        state.furnitureCoins >= _f96RequiredFurnitureCoins &&
+        _slotItemCount(state.slotItems, _f96PreparedMasterId4) >= 4 &&
+        _slotItemCount(state.slotItems, _f96PreparedMasterId6) >= 4;
+    if (quest.localCompletionVerified == verified) return state;
+    final quests = Map<int, GameQuest>.of(state.quests);
+    quests[_f96QuestId] = quest.withLocalCompletionVerified(
+      verified,
+      updatedAt: updatedAt,
+    );
+    return state.copyWith(quests: quests);
+  }
+
+  int _slotItemCount(Map<int, OwnedSlotItem> items, int masterId) =>
+      items.values.where((item) => item.masterId == masterId).length;
+
+  GameState applyFriendlyBattleHp(
+    GameState state,
+    Map<int, int> hpByShipId,
+    DateTime capturedAt,
+  ) {
+    Map<int, OwnedShip>? updatedShips;
+    for (final entry in hpByShipId.entries) {
+      final ship = state.ships[entry.key];
+      if (ship == null) continue;
+      final currentHp = entry.value.clamp(0, ship.maxHp).toInt();
+      if (currentHp == ship.currentHp) continue;
+      updatedShips ??= Map<int, OwnedShip>.of(state.ships);
+      updatedShips[ship.id] = _copyShip(ship, currentHp: currentHp);
+    }
+    if (updatedShips == null) return state;
+    return state.copyWith(ships: updatedShips, updatedAt: capturedAt);
   }
 
   GameState _charge(
@@ -593,10 +702,113 @@ class GameStateReducer {
         state: state,
         progressFlag: _asInt(item['api_progress_flag']),
         materials: materials,
+        progressCurrent: _serverAlignedQuestCount(
+          existing[id]?.progressCurrent ?? _knownQuestGoals[id]?.initial ?? 0,
+          _knownQuestGoals[id]?.required,
+          _asInt(item['api_progress_flag']),
+          state == 3,
+        ),
+        progressRequired: _knownQuestGoals[id]?.required,
+        localCompletionVerified: id == _f96QuestId && state != 3
+            ? false
+            : existing[id]?.localCompletionVerified,
         updatedAt: updatedAt,
       );
     }
     return quests;
+  }
+
+  GameState _applyKnownQuestProgress(
+    GameState state,
+    CapturedApiEvent event,
+    Object? data,
+  ) {
+    final events = <_QuestProgressEvent>[];
+    switch (event.path) {
+      case '/kcsapi/api_req_nyukyo/start':
+        events.add(_QuestProgressEvent.repair);
+      case '/kcsapi/api_req_hokyu/charge':
+        events.add(_QuestProgressEvent.supply);
+      case '/kcsapi/api_req_kousyou/createitem':
+        events.add(_QuestProgressEvent.createItem);
+      case '/kcsapi/api_req_kousyou/createship':
+        events.add(_QuestProgressEvent.createShip);
+      case '/kcsapi/api_req_mission/result':
+        final result = _optionalMap(data);
+        if (_asInt(result?['api_clear_result']) > 0) {
+          events.add(_QuestProgressEvent.missionSuccess);
+        }
+      case '/kcsapi/api_req_sortie/battleresult':
+        events.add(_QuestProgressEvent.battle);
+        final result = _optionalMap(data);
+        if (<String>{
+          'S',
+          'A',
+          'B',
+        }.contains(_asString(result?['api_win_rank']))) {
+          events.add(_QuestProgressEvent.battleWin);
+        }
+      case '/kcsapi/api_req_practice/battle_result':
+        events.add(_QuestProgressEvent.practice);
+        final result = _optionalMap(data);
+        if (<String>{
+          'S',
+          'A',
+          'B',
+        }.contains(_asString(result?['api_win_rank']))) {
+          events.add(_QuestProgressEvent.practiceWin);
+        }
+    }
+    if (events.isEmpty || state.quests.isEmpty) return state;
+
+    var changed = false;
+    final quests = <int, GameQuest>{};
+    for (final entry in state.quests.entries) {
+      final goal = _knownQuestGoals[entry.key];
+      final quest = entry.value;
+      if (goal != null && quest.isAccepted && events.contains(goal.event)) {
+        final next = quest.incrementExactProgress(
+          1,
+          updatedAt: event.capturedAt,
+        );
+        quests[entry.key] = next;
+        changed = changed || !identical(next, quest);
+      } else {
+        quests[entry.key] = quest;
+      }
+    }
+    return changed ? state.copyWith(quests: quests) : state;
+  }
+
+  GameState _questList(
+    GameState state,
+    Map<String, Object?> data,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final activeCount = _asInt(data['api_exec_count']).clamp(0, 99);
+    final quests = _parseQuests(data, state.quests, event.capturedAt);
+    if (quests.length > activeCount) {
+      final newest = quests.values.toList()
+        ..sort((a, b) {
+          final epoch = DateTime.fromMillisecondsSinceEpoch(0);
+          final byTime = (b.updatedAt ?? epoch).compareTo(a.updatedAt ?? epoch);
+          return byTime != 0 ? byTime : a.id.compareTo(b.id);
+        });
+      final retained = <int, GameQuest>{
+        for (final quest in newest.take(activeCount)) quest.id: quest,
+      };
+      quests
+        ..clear()
+        ..addAll(retained);
+    }
+    return state.copyWith(
+      quests: quests,
+      hasQuestData: true,
+      activeQuestCount: activeCount,
+      serverOrigin: origin,
+      updatedAt: event.capturedAt,
+    );
   }
 
   GameState _removeQuest(
@@ -605,13 +817,16 @@ class GameStateReducer {
     CapturedApiEvent event,
     String origin,
   ) {
-    if (questId <= 0 || !state.quests.containsKey(questId)) {
+    if (questId <= 0) {
       return state;
     }
     final quests = Map<int, GameQuest>.of(state.quests);
     quests.remove(questId);
     return state.copyWith(
       quests: quests,
+      activeQuestCount: state.activeQuestCount > 0
+          ? state.activeQuestCount - 1
+          : 0,
       serverOrigin: origin,
       updatedAt: event.capturedAt,
     );
@@ -795,6 +1010,9 @@ class GameStateReducer {
       masterMissions: _parseMasterMissions(
         _optionalList(data['api_mst_mission']),
       ),
+      masterMapInfos: _parseMasterMapInfos(
+        _optionalList(data['api_mst_mapinfo']),
+      ),
       serverOrigin: origin,
       hasMasterData: ships.isNotEmpty,
       updatedAt: event.capturedAt,
@@ -811,12 +1029,22 @@ class GameStateReducer {
     final basic = _optionalMap(data['api_basic']);
     return state.copyWith(
       admiralLevel: basic == null ? null : _asInt(basic['api_level']),
+      furnitureCoins: basic?.containsKey('api_fcoin') == true
+          ? _asInt(basic!['api_fcoin'])
+          : null,
+      hasFurnitureCoinData: basic?.containsKey('api_fcoin') == true
+          ? true
+          : null,
       resources: data.containsKey('api_material')
           ? _parseResources(
               _optionalList(data['api_material']),
               state.resources,
             )
           : null,
+      useItems: data.containsKey('api_useitem')
+          ? _parseUseItems(_optionalList(data['api_useitem']))
+          : null,
+      hasUseItemData: data.containsKey('api_useitem') ? true : null,
       ships: data.containsKey('api_ship')
           ? _parseShips(_optionalList(data['api_ship']))
           : null,
@@ -834,12 +1062,77 @@ class GameStateReducer {
       combinedFleetType: data.containsKey('api_combined_flag')
           ? CombinedFleetType.fromApiValue(_asInt(data['api_combined_flag']))
           : null,
+      questCapacity: data.containsKey('api_parallel_quest_count')
+          ? _asInt(data['api_parallel_quest_count'], state.questCapacity)
+          : null,
       slotItems: data.containsKey('api_slot_item')
           ? _parseSlotItems(_optionalList(data['api_slot_item']))
           : null,
       serverOrigin: origin,
       hasPortData: hasPortData ? true : null,
       combatState: hasPortData ? CombatState.empty : null,
+      updatedAt: event.capturedAt,
+    );
+  }
+
+  GameState _portSnapshot(
+    GameState state,
+    Map<String, Object?> data,
+    CapturedApiEvent event,
+    String origin, {
+    bool hasPortData = false,
+  }) {
+    final snapshot = _snapshot(
+      state,
+      data,
+      event,
+      origin,
+      hasPortData: hasPortData,
+    );
+    return snapshot.copyWith(
+      landBases: <LandBaseState>[
+        for (final base in snapshot.landBases)
+          LandBaseState(
+            areaId: base.areaId,
+            baseId: base.baseId,
+            name: base.name,
+            actionKind: base.actionKind,
+          ),
+      ],
+    );
+  }
+
+  GameState _mapInfo(
+    GameState state,
+    Map<String, Object?> data,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    if (!data.containsKey('api_air_base')) {
+      return state.copyWith(serverOrigin: origin, updatedAt: event.capturedAt);
+    }
+    final bases = <LandBaseState>[];
+    for (final value in _optionalList(data['api_air_base'])) {
+      final item = _optionalMap(value);
+      final areaId = _asInt(item?['api_area_id']);
+      final baseId = _asInt(item?['api_rid']);
+      if (item == null || areaId <= 0 || baseId <= 0) continue;
+      bases.add(
+        LandBaseState(
+          areaId: areaId,
+          baseId: baseId,
+          name: _asString(item['api_name'], '第 $baseId 基地航空队'),
+          actionKind: _asInt(item['api_action_kind']),
+        ),
+      );
+    }
+    bases.sort((left, right) {
+      final byArea = left.areaId.compareTo(right.areaId);
+      return byArea != 0 ? byArea : left.baseId.compareTo(right.baseId);
+    });
+    return state.copyWith(
+      landBases: bases,
+      serverOrigin: origin,
       updatedAt: event.capturedAt,
     );
   }
@@ -929,6 +1222,17 @@ class GameStateReducer {
       serverOrigin: origin,
       updatedAt: event.capturedAt,
     );
+  }
+
+  Map<int, int> _parseUseItems(List<Object?> values) {
+    final result = <int, int>{};
+    for (final value in values) {
+      final item = _optionalMap(value);
+      final id = _asInt(item?['api_id']);
+      if (id <= 0) continue;
+      result[id] = _asInt(item?['api_count']).clamp(0, 1 << 31).toInt();
+    }
+    return result;
   }
 
   Map<GameResourceType, int> _parseResources(
@@ -1076,6 +1380,31 @@ class GameStateReducer {
         ammunitionConsumptionRate: _asDouble(item['api_use_bull']),
         winItem1: _intList(item['api_win_item1'], includeNonPositive: true),
         winItem2: _intList(item['api_win_item2'], includeNonPositive: true),
+      );
+    }
+    return result;
+  }
+
+  Map<int, MasterMapInfo> _parseMasterMapInfos(List<Object?> values) {
+    final result = <int, MasterMapInfo>{};
+    for (final value in values) {
+      final item = _optionalMap(value);
+      final id = _asInt(item?['api_id']);
+      final mapAreaId = _asInt(item?['api_maparea_id']);
+      final mapNo = _asInt(item?['api_no']);
+      final name = _asString(item?['api_name']);
+      if (item == null ||
+          id <= 0 ||
+          mapAreaId <= 0 ||
+          mapNo <= 0 ||
+          name.isEmpty) {
+        continue;
+      }
+      result[mapAreaId * 100 + mapNo] = MasterMapInfo(
+        id: id,
+        mapAreaId: mapAreaId,
+        mapNo: mapNo,
+        name: name,
       );
     }
     return result;
@@ -1326,7 +1655,9 @@ class GameStateReducer {
     final mapArea = _asInt(data['api_maparea_id']);
     final mapInfo = _asInt(data['api_mapinfo_no']);
     final sortieFleetId = _asInt(event.requestParams['api_deck_id']);
+    final landBases = _applyLandBaseRaid(state.landBases, data, mapArea);
     return state.copyWith(
+      landBases: landBases,
       combatState: state.combatState
           .copyWith(
             sortieFleetId: sortieFleetId > 0 ? sortieFleetId : null,
@@ -1335,6 +1666,87 @@ class GameStateReducer {
           )
           .moveNext(nextNode),
     );
+  }
+
+  List<LandBaseState> _applyLandBaseRaid(
+    List<LandBaseState> existing,
+    Map<String, Object?> data,
+    int areaId,
+  ) {
+    final destruction = _optionalMap(data['api_destruction_battle']);
+    if (destruction == null || areaId <= 0) return existing;
+    final maxHp = _optionalList(destruction['api_f_maxhps']);
+    final nowHp = _optionalList(destruction['api_f_nowhps']);
+    final rawAttack = _decodeNestedJson(destruction['api_air_base_attack']);
+    final attack = _optionalMap(rawAttack);
+    final stage3 = _optionalMap(attack?['api_stage3']);
+    var damage = _optionalList(stage3?['api_fdam']);
+    if (attack == null) return existing;
+    if (damage.length > maxHp.length &&
+        damage.isNotEmpty &&
+        _asInt(damage.first) < 0) {
+      damage = damage.sublist(1);
+    }
+    final count = <int>[
+      maxHp.length,
+      nowHp.length,
+      damage.length,
+    ].reduce((left, right) => left > right ? left : right);
+    if (count == 0) return existing;
+
+    final result = <LandBaseState>[...existing];
+    for (var index = 0; index < count; index++) {
+      final baseId = index + 1;
+      final found = result.indexWhere(
+        (base) => base.areaId == areaId && base.baseId == baseId,
+      );
+      final previous = found >= 0
+          ? result[found]
+          : LandBaseState(
+              areaId: areaId,
+              baseId: baseId,
+              name: '第 $baseId 基地航空队',
+            );
+      final maximum = index < maxHp.length
+          ? _asInt(maxHp[index])
+          : previous.maxHp;
+      final initial = index < nowHp.length
+          ? _asInt(nowHp[index])
+          : previous.currentHp;
+      final lost = index < damage.length
+          ? _asInt(damage[index]).clamp(0, 1 << 30)
+          : 0;
+      if (maximum == null || initial == null) continue;
+      final current = (initial - lost).clamp(0, maximum);
+      final updated = LandBaseState(
+        areaId: previous.areaId,
+        baseId: previous.baseId,
+        name: previous.name,
+        actionKind: previous.actionKind,
+        maxHp: maximum,
+        currentHp: current,
+        lastRaidDamage: lost,
+      );
+      if (found >= 0) {
+        result[found] = updated;
+      } else {
+        result.add(updated);
+      }
+    }
+    result.sort((left, right) {
+      final byArea = left.areaId.compareTo(right.areaId);
+      return byArea != 0 ? byArea : left.baseId.compareTo(right.baseId);
+    });
+    return result;
+  }
+
+  static Object? _decodeNestedJson(Object? value) {
+    if (value is! String) return value;
+    try {
+      return jsonDecode(value);
+    } on FormatException {
+      return null;
+    }
   }
 
   GameState _battle(
@@ -1395,4 +1807,73 @@ class GameStateReducer {
       ),
     );
   }
+}
+
+enum _QuestProgressEvent {
+  battle,
+  battleWin,
+  practice,
+  practiceWin,
+  missionSuccess,
+  repair,
+  supply,
+  createItem,
+  createShip,
+  destroyItem,
+}
+
+class _KnownQuestGoal {
+  const _KnownQuestGoal(this.event, this.required, {this.initial = 0});
+
+  final _QuestProgressEvent event;
+  final int required;
+  final int initial;
+}
+
+const Map<int, _KnownQuestGoal> _knownQuestGoals = <int, _KnownQuestGoal>{
+  201: _KnownQuestGoal(_QuestProgressEvent.battleWin, 1),
+  216: _KnownQuestGoal(_QuestProgressEvent.battle, 1),
+  210: _KnownQuestGoal(_QuestProgressEvent.battle, 10),
+  303: _KnownQuestGoal(_QuestProgressEvent.practice, 3),
+  304: _KnownQuestGoal(_QuestProgressEvent.practiceWin, 5),
+  402: _KnownQuestGoal(_QuestProgressEvent.missionSuccess, 3),
+  403: _KnownQuestGoal(_QuestProgressEvent.missionSuccess, 10),
+  503: _KnownQuestGoal(_QuestProgressEvent.repair, 5),
+  504: _KnownQuestGoal(_QuestProgressEvent.supply, 15),
+  605: _KnownQuestGoal(_QuestProgressEvent.createItem, 1),
+  606: _KnownQuestGoal(_QuestProgressEvent.createShip, 1),
+  607: _KnownQuestGoal(_QuestProgressEvent.createItem, 4, initial: 1),
+  608: _KnownQuestGoal(_QuestProgressEvent.createShip, 4, initial: 1),
+  1101: _KnownQuestGoal(_QuestProgressEvent.destroyItem, 8),
+};
+
+const int _f96QuestId = 1101;
+const int _f96DiscardMasterId = 2;
+const int _f96PreparedMasterId4 = 4;
+const int _f96PreparedMasterId6 = 6;
+const int _f96RequiredFurnitureCoins = 4000;
+
+int? _serverAlignedQuestCount(
+  int current,
+  int? required,
+  int progressFlag,
+  bool completed,
+) {
+  if (required == null) return null;
+  if (completed) return required;
+  final maximum = required - 1;
+  return switch (progressFlag) {
+    1 => _limitQuestCount(
+      current,
+      (required * 0.5).ceil(),
+      (required * 0.8).ceil() - 1,
+    ),
+    2 => _limitQuestCount(current, (required * 0.8).ceil(), maximum),
+    _ => _limitQuestCount(current, 0, (required * 0.5).ceil() - 1),
+  };
+}
+
+int _limitQuestCount(int current, int minimum, int maximum) {
+  final raised = current < minimum ? minimum : current;
+  return raised > maximum ? maximum : raised;
 }
