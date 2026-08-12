@@ -98,4 +98,26 @@ void main() {
     expect(entry['pre'], <String>['Bm8', 'Cd1']);
     expect(merged, isNot(contains('中文')));
   });
+
+  test('uses game id when upstream quest codes differ', () {
+    final merged = mergeQuestCatalogJson(
+      japaneseJson: jsonEncode(<String, Object?>{
+        '199': <String, Object?>{
+          'code': 'L2606A1',
+          'name': '期間限定任務',
+          'desc': '日本語説明',
+        },
+      }),
+      relationJson: jsonEncode(<String, Object?>{
+        '199': <String, Object?>{
+          'code': '2606Am1',
+          'pre': <String>['Fd4'],
+        },
+      }),
+    );
+
+    final entry = (jsonDecode(merged) as Map<String, dynamic>)['199'];
+    expect(entry['code'], 'L2606A1');
+    expect(entry['pre'], <String>['Fd4']);
+  });
 }

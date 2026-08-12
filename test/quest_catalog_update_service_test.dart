@@ -121,7 +121,7 @@ void main() {
           utf8.encode(
             jsonEncode(<String, Object?>{
               '1': <String, Object?>{
-                'code': 'Bq11',
+                'code': 'L2606A1',
                 'name': '日本語任務名',
                 'desc': '日本語説明',
                 'rewards': '日本語報酬',
@@ -135,10 +135,10 @@ void main() {
         utf8.encode(
           jsonEncode(<String, Object?>{
             '1': <String, Object?>{
-              'code': 'Bq11',
+              'code': '2606Am1',
               'name': '中文任务名',
               'desc': '中文说明',
-              'pre': <String>['Bm8'],
+              'pre': <String>['Fd4'],
             },
           }),
         ),
@@ -163,10 +163,11 @@ void main() {
     expect(storage.saved?.version.displayCommitSha, displaySha);
     expect(storage.saved?.version.relationCommitSha, relationSha);
     final saved = storage.saved!.catalog.byGameId(1)!;
+    expect(saved.code, 'L2606A1');
     expect(saved.name, '日本語任務名');
     expect(saved.description, '日本語説明');
     expect(saved.rewards, '日本語報酬');
-    expect(saved.prerequisites, <String>['Bm8']);
+    expect(saved.prerequisites, <String>['Fd4']);
   });
 
   test('keeps current catalog when either upstream fails', () async {

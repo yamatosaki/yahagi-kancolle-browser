@@ -23,12 +23,6 @@ String mergeQuestCatalogJson({
     final relation = relationValue == null
         ? const <String, dynamic>{}
         : _decodeEntry(relationValue, 'Quest relation entry');
-    final relationCode = relation['code'];
-    if (relationCode is String &&
-        relationCode.trim().isNotEmpty &&
-        relationCode.trim() != code) {
-      throw FormatException('Quest code mismatch for game id $gameId');
-    }
     final prerequisites = relation['pre'];
     if (prerequisites != null &&
         (prerequisites is! List ||
