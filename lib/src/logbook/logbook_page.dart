@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../battle/battle_controller.dart';
@@ -6,6 +8,7 @@ import '../fleet/header_resource_catalog.dart';
 import '../fleet/resource_trend_page.dart';
 import '../game_state/game_state.dart';
 import '../widgets/frozen_data_table.dart';
+import 'expedition_log_catalog.dart';
 import 'logbook_database.dart';
 import 'logbook_filter_panel.dart';
 
@@ -354,8 +357,15 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
     final query = _searchController.text.trim().toLowerCase();
     return _records
         .where((record) {
+          final searchableValues = <Object?>[...record.values];
+          if (widget.category == _LogbookCategory.expedition) {
+            searchableValues.addAll([
+              _expeditionLabel(record),
+              for (final reward in _expeditionRewards(record)) reward.name,
+            ]);
+          }
           if (query.isNotEmpty &&
-              !record.values.any(
+              !searchableValues.any(
                 (value) => value.toString().toLowerCase().contains(query),
               )) {
             return false;
@@ -384,10 +394,14 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
     return switch (widget.category) {
       _LogbookCategory.sortie =>
         selected('map', '全部海域', _fullMapLabel(record)) &&
-            selected('status', '全部状态', _sortieStatus(record['node_type'])) &&
+            selected(
+              'status',
+              '全部状态',
+              sortieStatusLabel(record['node_type']),
+            ) &&
             selected('rank', '全部评价', '${record['rank']}'.toUpperCase()),
       _LogbookCategory.expedition =>
-        selected('mission', '全部远征', record['name']) &&
+        selected('mission', '全部远征', _expeditionName(record)) &&
             selected('result', '全部结果', _expeditionResult(record['result'])) &&
             _matchesRewardFilter(record),
       _LogbookCategory.construction =>
@@ -472,7 +486,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
           label: '状态',
           options: _distinct(
             '全部状态',
-            _records.map((row) => _sortieStatus(row['node_type'])),
+            _records.map((row) => sortieStatusLabel(row['node_type'])),
           ),
         ),
         const LogbookFilterField(
@@ -486,7 +500,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
         LogbookFilterField(
           keyName: 'mission',
           label: '远征',
-          options: _distinct('全部远征', _records.map((row) => '${row['name']}')),
+          options: _distinct('全部远征', _records.map(_expeditionName)),
         ),
         const LogbookFilterField(
           keyName: 'result',
@@ -732,6 +746,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
 
   List<double> get _frozenColumnWidths => switch (widget.category) {
     _LogbookCategory.sortie => const [220],
+    _LogbookCategory.expedition => const [205],
     _LogbookCategory.construction => const [105],
     _LogbookCategory.development => const [220],
     _LogbookCategory.retirement => const [],
@@ -740,6 +755,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
 
   List<Widget> get _frozenHeaders => switch (widget.category) {
     _LogbookCategory.sortie => const [_HeaderCell('海域')],
+    _LogbookCategory.expedition => const [_HeaderCell('远征')],
     _LogbookCategory.construction => const [_HeaderCell('舰娘')],
     _LogbookCategory.development => const [_HeaderCell('开发装备')],
     _LogbookCategory.retirement => const [],
@@ -749,6 +765,9 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
   List<Widget> _frozenCells(Map<String, dynamic> row) =>
       switch (widget.category) {
         _LogbookCategory.sortie => [_TextCell(_mapLabel(row))],
+        _LogbookCategory.expedition => [
+          _TextCell(_expeditionLabel(row), strong: true),
+        ],
         _LogbookCategory.construction => [
           _TextCell('${row['ship_name']}', strong: true),
         ],
@@ -829,7 +848,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
             resolvedLabel: row['node_label'],
           ),
         ),
-        _TextCell(_sortieStatus(row['node_type']), strong: true),
+        _TextCell(sortieStatusLabel(row['node_type']), strong: true),
         _RankCell('${row['rank']}'),
         _TextCell('${row['enemy_fleet_name']}'),
         _TextCell(
@@ -843,9 +862,9 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
       ],
     ),
     _LogbookCategory.expedition => _TableSpec(
-      widths: const [205, 86, 82, 82, 82, 82, 270],
+      widths: const [112, 86, 82, 82, 82, 82, 480],
       headers: const [
-        _HeaderCell('远征'),
+        _HeaderCell('时间'),
         _HeaderCell('结果'),
         _ResourceHeader(GameResourceType.fuel),
         _ResourceHeader(GameResourceType.ammunition),
@@ -854,10 +873,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
         _HeaderCell('道具'),
       ],
       cells: (row) => [
-        _TextCell(
-          '${_expeditionDisplayId(row['expedition_id'])} · ${row['name']}',
-          strong: true,
-        ),
+        _TextCell(_formatTime(row['timestamp'])),
         _ResultCell(_expeditionResult(row['result'])),
         _TextCell('${row['yield_fuel'] ?? 0}'),
         _TextCell('${row['yield_ammo'] ?? 0}'),
@@ -943,6 +959,35 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
       _formatMapLabel(row, truncateName: true);
 
   String _fullMapLabel(Map<String, dynamic> row) => _formatMapLabel(row);
+
+  String _expeditionLabel(Map<String, dynamic> row) {
+    final id = row['expedition_id'] as int? ?? 0;
+    final master = _expeditionMaster(row);
+    final displayNumber = master?.displayNumber.trim() ?? '';
+    return '${displayNumber.isEmpty ? _expeditionDisplayId(id) : displayNumber}'
+        ' · ${_expeditionName(row)}';
+  }
+
+  String _expeditionName(Map<String, dynamic> row) {
+    final masterName = _expeditionMaster(row)?.name.trim();
+    return masterName == null || masterName.isEmpty
+        ? '${row['name']}'
+        : masterName;
+  }
+
+  MasterMission? _expeditionMaster(Map<String, dynamic> row) {
+    final missions = widget.battleController.gameStateSnapshot.masterMissions;
+    final id = row['expedition_id'] as int? ?? 0;
+    final byId = missions[id];
+    if (byId != null) return byId;
+
+    final storedName = row['name']?.toString().trim() ?? '';
+    if (storedName.isEmpty) return null;
+    for (final mission in missions.values) {
+      if (mission.name.trim() == storedName) return mission;
+    }
+    return null;
+  }
 
   String _formatMapLabel(
     Map<String, dynamic> row, {
@@ -1200,14 +1245,32 @@ class _RewardItemsCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = <InlineSpan>[];
-    void add(String? name, Object? count) {
-      if (name == null || name.isEmpty || (count as int? ?? 0) <= 0) return;
+    void add(_ExpeditionRewardData reward) {
+      final id = reward.id;
       if (items.isNotEmpty) items.add(const TextSpan(text: '　'));
+      final spec = expeditionRewardCatalog[id];
+      if (spec != null) {
+        items.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: Image.asset(
+                spec.assetPath,
+                key: Key('logbook-expedition-reward-icon-$id'),
+                width: 18,
+                height: 18,
+                filterQuality: FilterQuality.medium,
+              ),
+            ),
+          ),
+        );
+      }
       items
-        ..add(TextSpan(text: '$name '))
+        ..add(TextSpan(text: '${reward.name} '))
         ..add(
           TextSpan(
-            text: 'X$count',
+            text: 'X${reward.count}',
             style: const TextStyle(
               color: Color(0xff67bce9),
               fontWeight: FontWeight.w900,
@@ -1216,8 +1279,9 @@ class _RewardItemsCell extends StatelessWidget {
         );
     }
 
-    add(row['item1_name'] as String?, row['item1_count']);
-    add(row['item2_name'] as String?, row['item2_count']);
+    for (final reward in _expeditionRewards(row)) {
+      add(reward);
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
       child: Align(
@@ -1239,9 +1303,64 @@ class _RewardItemsCell extends StatelessWidget {
   }
 }
 
+final class _ExpeditionRewardData {
+  const _ExpeditionRewardData({
+    required this.id,
+    required this.name,
+    required this.count,
+  });
+
+  final int id;
+  final String name;
+  final int count;
+}
+
+List<_ExpeditionRewardData> _expeditionRewards(Map<String, dynamic> row) {
+  final rewards = <_ExpeditionRewardData>[];
+
+  void add(Object? rawId, Object? rawName, Object? rawCount) {
+    final id = rawId is int ? rawId : int.tryParse('$rawId') ?? 0;
+    final count = rawCount is int ? rawCount : int.tryParse('$rawCount') ?? 0;
+    if (id <= 0 || count <= 0) return;
+    rewards.add(
+      _ExpeditionRewardData(
+        id: id,
+        name: expeditionRewardName(id, rawName?.toString()),
+        count: count,
+      ),
+    );
+  }
+
+  final encoded = row['reward_items_json']?.toString() ?? '';
+  if (encoded.isNotEmpty) {
+    try {
+      final decoded = jsonDecode(encoded);
+      if (decoded is List) {
+        for (final value in decoded) {
+          if (value is Map) {
+            add(value['id'], value['name'], value['count']);
+          }
+        }
+      }
+    } on FormatException {
+      // Older or partially written rows fall back to the two legacy columns.
+    }
+  }
+  if (rewards.isNotEmpty) return rewards;
+
+  add(row['item1_id'], row['item1_name'], row['item1_count']);
+  add(row['item2_id'], row['item2_name'], row['item2_count']);
+  return rewards;
+}
+
 String _formatTime(Object? raw) {
   final timestamp = raw as int? ?? 0;
-  final value = DateTime.fromMillisecondsSinceEpoch(timestamp);
+  // API capture times are stored as absolute instants and always displayed
+  // in Japan Standard Time, regardless of the phone's configured time zone.
+  final value = DateTime.fromMillisecondsSinceEpoch(
+    timestamp,
+    isUtc: true,
+  ).add(const Duration(hours: 9));
   String two(int number) => number.toString().padLeft(2, '0');
   return '${two(value.month)}-${two(value.day)} ${two(value.hour)}:${two(value.minute)}';
 }
@@ -1284,15 +1403,14 @@ String _truncateMapName(String name, {int maxCharacters = 10}) {
   return '${String.fromCharCodes(characters.take(maxCharacters))}…';
 }
 
-String _sortieStatus(Object? raw) {
-  if (raw case final String label when label.trim().isNotEmpty) return label;
-  return switch (raw as int? ?? 0) {
-    6 => '空袭战',
-    7 => '航空战',
-    8 => '夜战',
-    1 => '进击',
-    _ => '进击',
-  };
+String sortieStatusLabel(Object? raw) {
+  if (raw case final String label) {
+    final trimmed = label.trim();
+    if (trimmed.isNotEmpty && int.tryParse(trimmed) == null) {
+      return trimmed;
+    }
+  }
+  return '旧版记录';
 }
 
 String _expeditionResult(Object? raw) => switch (raw as int? ?? 0) {

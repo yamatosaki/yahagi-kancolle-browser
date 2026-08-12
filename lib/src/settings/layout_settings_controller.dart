@@ -11,6 +11,7 @@ class LayoutSettingsController extends ChangeNotifier {
     this._autoZoom,
     this._enhancedDamagePulse,
     this._workspaceMenuOnRight,
+    this._workspaceMenuOrder,
     this._dashboardCardOrder,
     this._dashboardCardCollapsed,
     this._dashboardCardHidden,
@@ -28,6 +29,12 @@ class LayoutSettingsController extends ChangeNotifier {
     final autoZoom = await store.loadAutoZoom();
     final enhancedDamagePulse = await store.loadEnhancedDamagePulse();
     final workspaceMenuOnRight = await store.loadWorkspaceMenuOnRight();
+    final workspaceMenuStore = store is WorkspaceMenuOrderSettingsStore
+        ? store as WorkspaceMenuOrderSettingsStore
+        : null;
+    final workspaceMenuOrder = workspaceMenuStore == null
+        ? List<String>.from(LayoutSettingsStore.defaultWorkspaceMenuOrder)
+        : await workspaceMenuStore.loadWorkspaceMenuOrder();
     final dashboardCardOrder = await store.loadDashboardCardOrder();
     final dashboardCardCollapsed = await store.loadDashboardCardCollapsed();
     final dashboardCardHidden = await store.loadDashboardCardHidden();
@@ -45,6 +52,7 @@ class LayoutSettingsController extends ChangeNotifier {
       autoZoom,
       enhancedDamagePulse,
       workspaceMenuOnRight,
+      workspaceMenuOrder,
       dashboardCardOrder,
       dashboardCardCollapsed,
       dashboardCardHidden,
@@ -109,6 +117,7 @@ class LayoutSettingsController extends ChangeNotifier {
   bool _autoZoom;
   bool _enhancedDamagePulse;
   bool _workspaceMenuOnRight;
+  List<String> _workspaceMenuOrder;
   List<String> _dashboardCardOrder;
   List<String> _dashboardCardCollapsed;
   List<String> _dashboardCardHidden;
@@ -126,6 +135,8 @@ class LayoutSettingsController extends ChangeNotifier {
   bool get autoZoom => _autoZoom;
   bool get enhancedDamagePulse => _enhancedDamagePulse;
   bool get workspaceMenuOnRight => _workspaceMenuOnRight;
+  List<String> get workspaceMenuOrder =>
+      List<String>.unmodifiable(_workspaceMenuOrder);
   List<String> get dashboardCardOrder => _dashboardCardOrder;
   List<String> get dashboardCardCollapsed => _dashboardCardCollapsed;
   List<String> get dashboardCardHidden => _dashboardCardHidden;
@@ -184,6 +195,31 @@ class LayoutSettingsController extends ChangeNotifier {
     notifyListeners();
     await _store.saveWorkspaceMenuOnRight(onRight);
   }
+
+  Future<void> setWorkspaceMenuOrder(List<String> order) async {
+    final normalized = normalizeWorkspaceMenuOrder(order);
+    if (listEquals(_workspaceMenuOrder, normalized)) return;
+    _workspaceMenuOrder = normalized;
+    notifyListeners();
+    final store = _store is WorkspaceMenuOrderSettingsStore
+        ? _store as WorkspaceMenuOrderSettingsStore
+        : null;
+    if (store != null) await store.saveWorkspaceMenuOrder(normalized);
+  }
+
+  Future<void> reorderWorkspaceMenu(int oldIndex, int newIndex) async {
+    if (oldIndex < 0 || oldIndex >= _workspaceMenuOrder.length) return;
+    if (newIndex < 0 || newIndex >= _workspaceMenuOrder.length) {
+      return;
+    }
+    final reordered = List<String>.from(_workspaceMenuOrder);
+    final item = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, item);
+    await setWorkspaceMenuOrder(reordered);
+  }
+
+  Future<void> resetWorkspaceMenuOrder() =>
+      setWorkspaceMenuOrder(LayoutSettingsStore.defaultWorkspaceMenuOrder);
 
   Future<void> setHeaderResourceOrder(List<String> order) async {
     _headerResourceOrder = normalizeHeaderResourceOrder(order);

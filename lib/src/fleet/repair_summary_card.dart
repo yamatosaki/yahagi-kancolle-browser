@@ -11,6 +11,11 @@ import 'dashboard_card.dart';
 import 'operation_progress.dart';
 import 'ship_portrait.dart';
 
+const _repairSummaryTimeStyle = TextStyle(
+  fontSize: 10,
+  fontWeight: FontWeight.w700,
+);
+
 class RepairSummaryCard extends StatefulWidget {
   const RepairSummaryCard({
     super.key,
@@ -196,7 +201,7 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
                 completedText: strings.completed,
                 completedColor: const Color(0xff4caf50),
                 countingColor: const Color(0xffd4a85f),
-                style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                style: _repairSummaryTimeStyle,
                 maxLines: 1,
               ),
             )
@@ -304,11 +309,7 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
         child: Text(
           visual.label,
           maxLines: 1,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            color: visual.color,
-          ),
+          style: _repairSummaryTimeStyle.copyWith(color: visual.color),
         ),
       ),
       onTap: () => widget.onOpenRepair(

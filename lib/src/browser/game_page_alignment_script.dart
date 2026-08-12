@@ -23,6 +23,8 @@ const String gamePageAlignmentScript = r'''
       min-width: 1200px !important;
       min-height: 720px !important;
       overflow: hidden !important;
+      overscroll-behavior: none !important;
+      touch-action: none !important;
     }
 
     #w,
@@ -50,6 +52,8 @@ const String gamePageAlignmentScript = r'''
       border: 0 !important;
       transform: none !important;
       transform-origin: 0 0 !important;
+      overscroll-behavior: none !important;
+      touch-action: none !important;
     }
 
     .naviapp,
@@ -64,7 +68,29 @@ const String gamePageAlignmentScript = r'''
 
   window.__yahagiMobileAlignGame = () => {
     window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+
+    const gameFrame = document.getElementById('game_frame');
+    if (gameFrame) {
+      gameFrame.setAttribute('scrolling', 'no');
+      try {
+        gameFrame.contentWindow?.scrollTo(0, 0);
+      } catch (_) {
+        // A cross-origin game frame is still locked by touch-action above.
+      }
+    }
   };
+
+  if (window.__yahagiMobileScrollLock) {
+    window.removeEventListener('scroll', window.__yahagiMobileScrollLock);
+  }
+  window.__yahagiMobileScrollLock = () => {
+    window.__yahagiMobileAlignGame();
+  };
+  window.addEventListener('scroll', window.__yahagiMobileScrollLock, {
+    passive: true,
+  });
   
   if (document.readyState === 'complete') {
     window.__yahagiMobileAlignGame();

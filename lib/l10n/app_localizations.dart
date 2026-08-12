@@ -2267,37 +2267,37 @@ abstract class AppLocalizations {
   /// No description provided for @gameRenderingModeTitle.
   ///
   /// In zh, this message translates to:
-  /// **'游戏渲染兼容模式'**
+  /// **'游戏渲染模式'**
   String get gameRenderingModeTitle;
 
   /// No description provided for @gameRenderingModeStandard.
   ///
   /// In zh, this message translates to:
-  /// **'标准模式'**
+  /// **'高性能模式'**
   String get gameRenderingModeStandard;
 
   /// No description provided for @gameRenderingModeStandardDesc.
   ///
   /// In zh, this message translates to:
-  /// **'Texture Layer + WebGL，保留工具栏模糊效果。'**
+  /// **'Texture Layer + WebGL，保留工具栏模糊效果。性能损耗大，可能会卡顿。'**
   String get gameRenderingModeStandardDesc;
 
   /// No description provided for @gameRenderingModeCompatibility.
   ///
   /// In zh, this message translates to:
-  /// **'兼容模式'**
+  /// **'标准模式（推荐）'**
   String get gameRenderingModeCompatibility;
 
   /// No description provided for @gameRenderingModeCompatibilityDesc.
   ///
   /// In zh, this message translates to:
-  /// **'Hybrid Composition + WebGL，关闭工具栏模糊；适合华为、荣耀设备卡顿时尝试。'**
+  /// **'Hybrid Composition + WebGL，关闭工具栏模糊；性能损耗平均。'**
   String get gameRenderingModeCompatibilityDesc;
 
   /// No description provided for @gameRenderingModeCanvas.
   ///
   /// In zh, this message translates to:
-  /// **'深度兼容模式'**
+  /// **'兼容模式'**
   String get gameRenderingModeCanvas;
 
   /// No description provided for @gameRenderingModeCanvasDesc.

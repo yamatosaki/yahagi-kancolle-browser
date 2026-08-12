@@ -915,7 +915,7 @@ void main() {
       );
     });
 
-    test('quest list marks synchronization and trims stale cached quests', () {
+    test('partial quest pages do not guess which cached quest is stale', () {
       final reducer = GameStateReducer();
       final staleTime = DateTime.utc(2026, 7, 29);
       final state = GameState(
@@ -930,9 +930,9 @@ void main() {
             progressFlag: 0,
             updatedAt: staleTime,
           ),
-          102: GameQuest(
-            id: 102,
-            title: 'stale two',
+          900: GameQuest(
+            id: 900,
+            title: 'active quest on another page',
             detail: '',
             category: 1,
             type: 1,
@@ -946,7 +946,7 @@ void main() {
       final next = reducer.reduce(
         state,
         kcsapiEvent('/kcsapi/api_get_member/questlist', <String, Object?>{
-          'api_exec_count': 1,
+          'api_exec_count': 2,
           'api_list': <Object?>[
             <String, Object?>{
               'api_no': 201,
@@ -962,8 +962,64 @@ void main() {
       );
 
       expect(next.hasQuestData, isTrue);
+      expect(next.activeQuestCount, 2);
+      expect(next.quests.keys, containsAll(<int>[101, 900, 201]));
+    });
+
+    test('complete quest snapshot replaces stale cached quests atomically', () {
+      final reducer = GameStateReducer();
+      final state = GameState(
+        quests: <int, GameQuest>{
+          101: GameQuest(
+            id: 101,
+            title: 'completed in another browser',
+            detail: '',
+            category: 1,
+            type: 1,
+            state: 2,
+            progressFlag: 0,
+            updatedAt: DateTime.utc(2026, 7, 29),
+          ),
+          900: GameQuest(
+            id: 900,
+            title: 'still active',
+            detail: '',
+            category: 1,
+            type: 1,
+            state: 2,
+            progressFlag: 0,
+            updatedAt: DateTime.utc(2026, 7, 29),
+          ),
+        },
+      );
+
+      final next = reducer.reduce(
+        state,
+        kcsapiEvent(
+          '/kcsapi/api_get_member/questlist',
+          <String, Object?>{
+            'api_exec_count': 1,
+            'api_list': <Object?>[
+              <String, Object?>{
+                'api_no': 900,
+                'api_category': 1,
+                'api_type': 1,
+                'api_state': 2,
+                'api_progress_flag': 0,
+                'api_title': 'still active',
+                'api_detail': '',
+              },
+            ],
+          },
+          requestParams: const <String, Object?>{
+            'yahagi_full_quest_snapshot': '1',
+          },
+        ),
+      );
+
+      expect(next.hasQuestData, isTrue);
       expect(next.activeQuestCount, 1);
-      expect(next.quests.keys, <int>[201]);
+      expect(next.quests.keys, <int>[900]);
     });
 
     test('claiming an unknown quest still corrects the active count', () {
@@ -1340,7 +1396,7 @@ void main() {
             'api_quest_name': '敵艦隊を撃破せよ！',
             'api_get_material': <int>[100, 0, 0, 0],
           },
-          requestParams: const <String, Object?>{'api_mission_id': '5'},
+          requestParams: const <String, Object?>{'api_deck_id': '1'},
         ),
       );
 
@@ -1363,7 +1419,9 @@ void main() {
             'api_clear_result': 1,
             'api_get_material': <int>[100, 0, 0, 0],
           },
-          requestParams: const <String, Object?>{'api_mission_id': '5'},
+          requestParams: <String, Object?>{
+            'api_deck_id': '${returningFleet.id}',
+          },
         ),
       );
 

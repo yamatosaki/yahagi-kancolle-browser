@@ -27,7 +27,6 @@ final class GameAudioController extends ChangeNotifier {
   GameAudioPort? _port;
   bool _isMuted;
   bool _backgroundPlaybackEnabled;
-  bool _isForeground = true;
   bool? _lastAppliedMuted;
   bool _isBusy = false;
   GameAudioAvailability _availability = GameAudioAvailability.checking;
@@ -35,8 +34,7 @@ final class GameAudioController extends ChangeNotifier {
 
   bool get isMuted => _isMuted;
   bool get backgroundPlaybackEnabled => _backgroundPlaybackEnabled;
-  bool get effectiveMuted =>
-      _isMuted || (!_backgroundPlaybackEnabled && !_isForeground);
+  bool get effectiveMuted => _isMuted;
   bool get isBusy => _isBusy;
   GameAudioAvailability get availability => _availability;
   String? get errorMessage => _errorMessage;
@@ -72,8 +70,7 @@ final class GameAudioController extends ChangeNotifier {
     final previous = _isMuted;
     final next = !previous;
     final previousEffective = effectiveMuted;
-    final nextEffective =
-        next || (!_backgroundPlaybackEnabled && !_isForeground);
+    final nextEffective = next;
     _isBusy = true;
     _errorMessage = null;
     notifyListeners();
@@ -118,14 +115,7 @@ final class GameAudioController extends ChangeNotifier {
     }
   }
 
-  Future<void> handleLifecycleState(AppLifecycleState state) async {
-    final foreground = state == AppLifecycleState.resumed;
-    if (_isForeground == foreground) {
-      return;
-    }
-    _isForeground = foreground;
-    await _applyEffectiveMuted();
-  }
+  Future<void> handleLifecycleState(AppLifecycleState _) async {}
 
   Future<void> _applyEffectiveMuted() async {
     final port = _port;

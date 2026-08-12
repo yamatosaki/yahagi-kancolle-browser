@@ -130,6 +130,13 @@ class ScreenSettingsPage extends StatelessWidget with SettingsUIHelpers {
                       value: layoutSettingsController.workspaceMenuOnRight,
                       onChanged:
                           layoutSettingsController.setWorkspaceMenuOnRight,
+                      trailingBeforeSwitch: OutlinedButton.icon(
+                        key: const Key('settings-reset-workspace-menu-order'),
+                        onPressed:
+                            layoutSettingsController.resetWorkspaceMenuOrder,
+                        icon: const Icon(Icons.restore, size: 18),
+                        label: Text(l10n.restoreDefaultOrder),
+                      ),
                     ),
                     const Divider(color: Color(0xff294052), height: 1),
                     buildSwitchTile(

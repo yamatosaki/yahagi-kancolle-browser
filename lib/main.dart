@@ -461,7 +461,7 @@ class YahagiApp extends StatelessWidget {
         renderingMode:
             renderingMode ??
             gameRenderingModeController?.mode ??
-            GameRenderingMode.standard,
+            GameRenderingMode.compatibility,
       );
 
   Future<void> _waitForCaptureQueues() async {
@@ -733,7 +733,8 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                       widget.layoutSettingsController.workspaceMenuOnRight,
                 ),
                 children: [
-                  _WorkspaceNavigation(
+                  WorkspaceNavigation(
+                    controller: widget.layoutSettingsController,
                     selectedIndex: _workspaceIndex,
                     onRight:
                         widget.layoutSettingsController.workspaceMenuOnRight,
@@ -1135,13 +1136,16 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   }
 }
 
-class _WorkspaceNavigation extends StatelessWidget {
-  const _WorkspaceNavigation({
+class WorkspaceNavigation extends StatelessWidget {
+  const WorkspaceNavigation({
+    super.key,
+    required this.controller,
     required this.selectedIndex,
     required this.onRight,
     required this.onSelected,
   });
 
+  final LayoutSettingsController controller;
   final int selectedIndex;
   final bool onRight;
   final ValueChanged<int> onSelected;
@@ -1155,105 +1159,124 @@ class _WorkspaceNavigation extends StatelessWidget {
         color: const Color(0xff0a1823),
         border: workspaceNavigationBorder(menuOnRight: onRight),
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: IntrinsicHeight(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 10),
-                    _NavigationButton(
-                      key: const Key('workspace-nav-game'),
-                      icon: Icons.videogame_asset_outlined,
-                      label: l10n.game,
-                      selected: selectedIndex == 0,
-                      onTap: () => onSelected(0),
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (context, _) {
+          final destinations = _workspaceDestinations(l10n);
+          final ordered = controller.workspaceMenuOrder
+              .map((id) => destinations[id])
+              .whereType<_WorkspaceDestination>()
+              .toList(growable: false);
+          return ReorderableListView.builder(
+            key: const Key('workspace-navigation-list'),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            buildDefaultDragHandles: false,
+            itemCount: ordered.length,
+            onReorderItem: controller.reorderWorkspaceMenu,
+            itemBuilder: (context, index) {
+              final destination = ordered[index];
+              return SizedBox(
+                key: ValueKey('workspace-nav-item-${destination.id}'),
+                height: 50,
+                child: Center(
+                  child: ReorderableDelayedDragStartListener(
+                    index: index,
+                    child: _NavigationButton(
+                      key: Key('workspace-nav-${destination.id}'),
+                      icon: destination.icon,
+                      label: destination.label,
+                      selected: selectedIndex == destination.pageIndex,
+                      onTap: () => onSelected(destination.pageIndex),
                     ),
-                    const SizedBox(height: 8),
-                    _NavigationButton(
-                      key: const Key('workspace-nav-fleet'),
-                      icon: Icons.directions_boat_outlined,
-                      label: l10n.fleet,
-                      selected: selectedIndex == 1,
-                      onTap: () => onSelected(1),
-                    ),
-                    const SizedBox(height: 8),
-                    _NavigationButton(
-                      key: const Key('workspace-nav-expedition'),
-                      icon: Icons.explore_outlined,
-                      label: l10n.expedition,
-                      selected: selectedIndex == 2,
-                      onTap: () => onSelected(2),
-                    ),
-                    const SizedBox(height: 8),
-                    _NavigationButton(
-                      key: const Key('workspace-nav-repair'),
-                      icon: Icons.build_circle_outlined,
-                      label: l10n.repair,
-                      selected: selectedIndex == 3,
-                      onTap: () => onSelected(3),
-                    ),
-                    const SizedBox(height: 8),
-                    _NavigationButton(
-                      key: const Key('workspace-nav-construction'),
-                      icon: Icons.handyman_outlined,
-                      label: l10n.construction,
-                      selected: selectedIndex == 4,
-                      onTap: () => onSelected(4),
-                    ),
-                    const SizedBox(height: 8),
-                    _NavigationButton(
-                      key: const Key('workspace-nav-quests'),
-                      icon: Icons.assignment_outlined,
-                      label: l10n.quests,
-                      selected: selectedIndex == 5,
-                      onTap: () => onSelected(5),
-                    ),
-                    const SizedBox(height: 8),
-                    _NavigationButton(
-                      key: const Key('workspace-nav-senka'),
-                      icon: Icons.emoji_events_outlined,
-                      label: l10n.senka,
-                      selected: selectedIndex == 9,
-                      onTap: () => onSelected(9),
-                    ),
-                    const SizedBox(height: 8),
-                    _NavigationButton(
-                      key: const Key('workspace-nav-battle-records'),
-                      icon: Icons.menu_book_outlined,
-                      label: l10n.battleRecords,
-                      selected: selectedIndex == 6,
-                      onTap: () => onSelected(6),
-                    ),
-                    const SizedBox(height: 8),
-                    _NavigationButton(
-                      key: const Key('workspace-nav-owned-inventory'),
-                      icon: Icons.inventory_2_outlined,
-                      label: l10n.ownedInventory,
-                      selected: selectedIndex == 7,
-                      onTap: () => onSelected(7),
-                    ),
-                    const Spacer(),
-                    _NavigationButton(
-                      key: const Key('workspace-nav-settings'),
-                      icon: Icons.settings_outlined,
-                      label: l10n.settings,
-                      selected: selectedIndex == 8,
-                      onTap: () => onSelected(8),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
       ),
     );
   }
 }
+
+final class _WorkspaceDestination {
+  const _WorkspaceDestination({
+    required this.id,
+    required this.pageIndex,
+    required this.icon,
+    required this.label,
+  });
+
+  final String id;
+  final int pageIndex;
+  final IconData icon;
+  final String label;
+}
+
+Map<String, _WorkspaceDestination> _workspaceDestinations(
+  AppLocalizations l10n,
+) => <String, _WorkspaceDestination>{
+  'game': _WorkspaceDestination(
+    id: 'game',
+    pageIndex: 0,
+    icon: Icons.videogame_asset_outlined,
+    label: l10n.game,
+  ),
+  'fleet': _WorkspaceDestination(
+    id: 'fleet',
+    pageIndex: 1,
+    icon: Icons.directions_boat_outlined,
+    label: l10n.fleet,
+  ),
+  'expedition': _WorkspaceDestination(
+    id: 'expedition',
+    pageIndex: 2,
+    icon: Icons.explore_outlined,
+    label: l10n.expedition,
+  ),
+  'repair': _WorkspaceDestination(
+    id: 'repair',
+    pageIndex: 3,
+    icon: Icons.build_circle_outlined,
+    label: l10n.repair,
+  ),
+  'construction': _WorkspaceDestination(
+    id: 'construction',
+    pageIndex: 4,
+    icon: Icons.handyman_outlined,
+    label: l10n.construction,
+  ),
+  'quests': _WorkspaceDestination(
+    id: 'quests',
+    pageIndex: 5,
+    icon: Icons.assignment_outlined,
+    label: l10n.quests,
+  ),
+  'senka': _WorkspaceDestination(
+    id: 'senka',
+    pageIndex: 9,
+    icon: Icons.emoji_events_outlined,
+    label: l10n.senka,
+  ),
+  'battle-records': _WorkspaceDestination(
+    id: 'battle-records',
+    pageIndex: 6,
+    icon: Icons.menu_book_outlined,
+    label: l10n.battleRecords,
+  ),
+  'owned-inventory': _WorkspaceDestination(
+    id: 'owned-inventory',
+    pageIndex: 7,
+    icon: Icons.inventory_2_outlined,
+    label: l10n.ownedInventory,
+  ),
+  'settings': _WorkspaceDestination(
+    id: 'settings',
+    pageIndex: 8,
+    icon: Icons.settings_outlined,
+    label: l10n.settings,
+  ),
+};
 
 class _NavigationButton extends StatelessWidget {
   const _NavigationButton({
@@ -1273,6 +1296,7 @@ class _NavigationButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: label,
+      triggerMode: TooltipTriggerMode.manual,
       child: IconButton(
         onPressed: onTap,
         style: IconButton.styleFrom(

@@ -68,7 +68,7 @@ void main() {
   });
 
   test(
-    'background playback defaults off and temporarily mutes lifecycle',
+    'background lifecycle never mutes the WebView so the game keeps running',
     () async {
       final store = _MemoryAudioStore();
       final port = _RecordingAudioPort();
@@ -81,7 +81,7 @@ void main() {
 
       expect(controller.backgroundPlaybackEnabled, isFalse);
       expect(controller.isMuted, isFalse);
-      expect(port.mutedValues, <bool>[true, false]);
+      expect(port.mutedValues, isEmpty);
     },
   );
 
@@ -118,15 +118,18 @@ void main() {
     expect(port.mutedValues, isEmpty);
   });
 
-  test('a port attached while backgrounded is muted immediately', () async {
-    final port = _RecordingAudioPort();
-    final controller = await GameAudioController.load(_MemoryAudioStore());
+  test(
+    'a port attached while backgrounded preserves the user sound setting',
+    () async {
+      final port = _RecordingAudioPort();
+      final controller = await GameAudioController.load(_MemoryAudioStore());
 
-    await controller.handleLifecycleState(AppLifecycleState.paused);
-    await controller.attachPort(port);
+      await controller.handleLifecycleState(AppLifecycleState.paused);
+      await controller.attachPort(port);
 
-    expect(port.mutedValues, <bool>[true]);
-  });
+      expect(port.mutedValues, <bool>[false]);
+    },
+  );
 }
 
 final class _MemoryAudioStore implements GameAudioStore {

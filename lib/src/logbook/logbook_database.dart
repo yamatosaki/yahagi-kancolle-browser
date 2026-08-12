@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
@@ -19,7 +20,7 @@ class LogbookDatabase extends ChangeNotifier {
     final result = LogbookDatabase._init();
     result._database = await databaseFactoryFfiNoIsolate.openDatabase(
       inMemoryDatabasePath,
-      options: OpenDatabaseOptions(version: 6, onCreate: result._createDB),
+      options: OpenDatabaseOptions(version: 7, onCreate: result._createDB),
     );
     return result;
   }
@@ -61,7 +62,7 @@ class LogbookDatabase extends ChangeNotifier {
 
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -126,7 +127,8 @@ class LogbookDatabase extends ChangeNotifier {
         item1_count INTEGER NOT NULL DEFAULT 0,
         item2_id INTEGER,
         item2_name TEXT,
-        item2_count INTEGER NOT NULL DEFAULT 0
+        item2_count INTEGER NOT NULL DEFAULT 0,
+        reward_items_json TEXT NOT NULL DEFAULT '[]'
       )
     ''');
 
@@ -259,6 +261,11 @@ class LogbookDatabase extends ChangeNotifier {
         "ALTER TABLE battle_logs ADD COLUMN node_label TEXT NOT NULL DEFAULT ''",
       );
     }
+    if (oldVersion < 7) {
+      await db.execute(
+        "ALTER TABLE expedition_logs ADD COLUMN reward_items_json TEXT NOT NULL DEFAULT '[]'",
+      );
+    }
   }
 
   /// Add a battle record to the log
@@ -366,6 +373,7 @@ class LogbookDatabase extends ChangeNotifier {
     int? item2Id,
     String? item2Name,
     int item2Count = 0,
+    List<Map<String, Object?>> rewardItems = const <Map<String, Object?>>[],
     int? timestamp,
   }) async {
     final db = await database;
@@ -385,6 +393,7 @@ class LogbookDatabase extends ChangeNotifier {
       'item2_id': item2Id,
       'item2_name': item2Name,
       'item2_count': item2Count,
+      'reward_items_json': jsonEncode(rewardItems),
     });
     notifyListeners();
   }

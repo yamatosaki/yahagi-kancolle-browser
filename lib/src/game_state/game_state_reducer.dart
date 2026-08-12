@@ -789,21 +789,13 @@ class GameStateReducer {
     String origin,
   ) {
     final activeCount = _asInt(data['api_exec_count']).clamp(0, 99);
-    final quests = _parseQuests(data, state.quests, event.capturedAt);
-    if (quests.length > activeCount) {
-      final newest = quests.values.toList()
-        ..sort((a, b) {
-          final epoch = DateTime.fromMillisecondsSinceEpoch(0);
-          final byTime = (b.updatedAt ?? epoch).compareTo(a.updatedAt ?? epoch);
-          return byTime != 0 ? byTime : a.id.compareTo(b.id);
-        });
-      final retained = <int, GameQuest>{
-        for (final quest in newest.take(activeCount)) quest.id: quest,
-      };
-      quests
-        ..clear()
-        ..addAll(retained);
-    }
+    final isCompleteSnapshot =
+        _asInt(event.requestParams['yahagi_full_quest_snapshot']) == 1;
+    final quests = _parseQuests(
+      data,
+      isCompleteSnapshot ? const <int, GameQuest>{} : state.quests,
+      event.capturedAt,
+    );
     return state.copyWith(
       quests: quests,
       hasQuestData: true,
@@ -1800,11 +1792,13 @@ class GameStateReducer {
     CapturedApiEvent event,
     String origin,
   ) {
-    final missionId = _asInt(event.requestParams['api_mission_id']);
+    final requestedMissionId = _asInt(event.requestParams['api_mission_id']);
+    final deckId = _asInt(event.requestParams['api_deck_id']);
     final fleets = <Fleet>[
       for (final fleet in state.fleets)
-        if (missionId > 0 &&
-            fleet.mission.missionId == missionId &&
+        if (((deckId > 0 && fleet.id == deckId) ||
+                (requestedMissionId > 0 &&
+                    fleet.mission.missionId == requestedMissionId)) &&
             fleet.mission.isActive)
           Fleet(
             id: fleet.id,

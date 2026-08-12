@@ -10,6 +10,41 @@ import 'package:yahagi_kancolle_browser/src/game_state/game_state_reducer.dart';
 import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
+  testWidgets('首页远征检查默认选择远征 1', (tester) async {
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ExpeditionSummaryCard(
+            controller: controller,
+            collapsed: false,
+            onToggleCollapse: () {},
+            onOpenExpedition: () {},
+            onOpenExpeditionCheck: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('expedition-mode-check')));
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<DropdownButtonFormField<int>>(
+            find.byType(DropdownButtonFormField<int>).first,
+          )
+          .initialValue,
+      1,
+    );
+  });
+
   testWidgets('远征检查默认状态不绘制独有边框', (tester) async {
     final controller = GameStateController();
     addTearDown(controller.dispose);

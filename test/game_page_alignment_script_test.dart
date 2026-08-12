@@ -42,4 +42,26 @@ void main() {
     expect(gamePageAlignmentScript, contains('window.__yahagiMobileAlignGame'));
     expect(gamePageAlignmentScript, contains('window.scrollTo(0, 0)'));
   });
+
+  test(
+    'alignment prevents touch panning from exposing content below the game',
+    () {
+      expect(
+        gamePageAlignmentScript,
+        contains('touch-action: none !important'),
+      );
+      expect(
+        gamePageAlignmentScript,
+        contains('overscroll-behavior: none !important'),
+      );
+      expect(
+        gamePageAlignmentScript,
+        contains("window.addEventListener('scroll'"),
+      );
+      expect(
+        gamePageAlignmentScript,
+        contains("setAttribute('scrolling', 'no')"),
+      );
+    },
+  );
 }

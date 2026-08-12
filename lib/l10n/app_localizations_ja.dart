@@ -1159,24 +1159,24 @@ class AppLocalizationsJa extends AppLocalizations {
       '現在の Android WebView はフレームレート調整に対応していないため、ゲーム本来の動作を維持します。';
 
   @override
-  String get gameRenderingModeTitle => 'ゲーム描画互換モード';
+  String get gameRenderingModeTitle => 'ゲーム描画モード';
 
   @override
-  String get gameRenderingModeStandard => '標準モード';
+  String get gameRenderingModeStandard => '高性能モード';
 
   @override
   String get gameRenderingModeStandardDesc =>
-      'Texture Layer + WebGL。ツールバーのぼかし効果を維持します。';
+      'Texture Layer + WebGL。ツールバーのぼかし効果を維持します。性能負荷が大きく、動作が重くなる場合があります。';
 
   @override
-  String get gameRenderingModeCompatibility => '互換モード';
+  String get gameRenderingModeCompatibility => '標準モード（推奨）';
 
   @override
   String get gameRenderingModeCompatibilityDesc =>
-      'Hybrid Composition + WebGL。ぼかしを無効化し、Huawei・HONOR 端末のカクつきを軽減します。';
+      'Hybrid Composition + WebGL。ぼかしを無効化します。性能負荷は平均的です。';
 
   @override
-  String get gameRenderingModeCanvas => '高度互換モード';
+  String get gameRenderingModeCanvas => '互換モード';
 
   @override
   String get gameRenderingModeCanvasDesc =>

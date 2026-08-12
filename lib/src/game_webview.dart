@@ -52,7 +52,7 @@ class GameWebView extends StatefulWidget {
     required this.toolbarController,
     required this.gameCaptureController,
     this.frameRateSettingsController,
-    this.renderingMode = GameRenderingMode.standard,
+    this.renderingMode = GameRenderingMode.compatibility,
   });
 
   final NetworkSettingsController networkSettingsController;

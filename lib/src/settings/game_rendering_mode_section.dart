@@ -31,18 +31,18 @@ class GameRenderingModeSection extends StatelessWidget {
             ),
           _modeTile(
             context,
-            key: const Key('rendering-mode-standard'),
-            mode: GameRenderingMode.standard,
-            title: l10n.gameRenderingModeStandard,
-            subtitle: l10n.gameRenderingModeStandardDesc,
-          ),
-          const Divider(color: Color(0xff294052), height: 1),
-          _modeTile(
-            context,
             key: const Key('rendering-mode-compatibility'),
             mode: GameRenderingMode.compatibility,
             title: l10n.gameRenderingModeCompatibility,
             subtitle: l10n.gameRenderingModeCompatibilityDesc,
+          ),
+          const Divider(color: Color(0xff294052), height: 1),
+          _modeTile(
+            context,
+            key: const Key('rendering-mode-standard'),
+            mode: GameRenderingMode.standard,
+            title: l10n.gameRenderingModeStandard,
+            subtitle: l10n.gameRenderingModeStandardDesc,
           ),
           const Divider(color: Color(0xff294052), height: 1),
           _modeTile(
@@ -67,6 +67,9 @@ class GameRenderingModeSection extends StatelessWidget {
     final selected = controller.mode == mode;
     return ListTile(
       key: key,
+      contentPadding: const EdgeInsets.only(left: 4, right: 16),
+      minLeadingWidth: 0,
+      horizontalTitleGap: 0,
       enabled: !controller.isBusy,
       selected: selected,
       title: Text(title),

@@ -49,7 +49,7 @@ abstract final class GameWebViewCompatibility {
   static Future<void> configure(
     GameWebViewCompatibilityPort port, {
     required String currentUserAgent,
-    GameRenderingMode renderingMode = GameRenderingMode.standard,
+    GameRenderingMode renderingMode = GameRenderingMode.compatibility,
   }) async {
     await port.allowThirdPartyCookies();
     await port.setUserAgent(userAgentFor(renderingMode, currentUserAgent));

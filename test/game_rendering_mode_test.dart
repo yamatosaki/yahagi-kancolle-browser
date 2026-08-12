@@ -26,12 +26,15 @@ void main() {
     expect(mode.enablesToolbarBlur, isFalse);
   });
 
-  test('stored names round-trip and invalid values fall back to standard', () {
+  test('stored names round-trip and invalid values fall back to compatibility', () {
     for (final mode in GameRenderingMode.values) {
       expect(GameRenderingModeCodec.decode(mode.storageName), mode);
     }
 
-    expect(GameRenderingModeCodec.decode(null), GameRenderingMode.standard);
-    expect(GameRenderingModeCodec.decode('broken'), GameRenderingMode.standard);
+    expect(GameRenderingModeCodec.decode(null), GameRenderingMode.compatibility);
+    expect(
+      GameRenderingModeCodec.decode('broken'),
+      GameRenderingMode.compatibility,
+    );
   });
 }

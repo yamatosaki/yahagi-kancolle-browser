@@ -28,9 +28,9 @@ void main() {
       ),
     );
 
-    expect(find.text('game-standard'), findsOneWidget);
+    expect(find.text('game-compatibility'), findsOneWidget);
 
-    final changing = controller.changeMode(GameRenderingMode.compatibility);
+    final changing = controller.changeMode(GameRenderingMode.standard);
     await tester.pump();
 
     expect(find.text('game-standard'), findsNothing);
@@ -41,7 +41,7 @@ void main() {
     );
 
     await tester.pump();
-    expect(find.text('game-compatibility'), findsOneWidget);
+    expect(find.text('game-standard'), findsOneWidget);
     expect((await changing).status, GameRenderingModeChangeStatus.applied);
     expect(beforeRestartCalls, 1);
   });
@@ -65,9 +65,9 @@ void main() {
     );
 
     for (final mode in <GameRenderingMode>[
-      GameRenderingMode.compatibility,
-      GameRenderingMode.canvasCompatibility,
       GameRenderingMode.standard,
+      GameRenderingMode.canvasCompatibility,
+      GameRenderingMode.compatibility,
     ]) {
       final changing = controller.changeMode(mode);
       await tester.pump();
@@ -94,7 +94,7 @@ void main() {
     );
     await tester.pumpWidget(const SizedBox());
 
-    final result = await controller.changeMode(GameRenderingMode.compatibility);
+    final result = await controller.changeMode(GameRenderingMode.standard);
     expect(result.status, GameRenderingModeChangeStatus.unavailable);
   });
 }

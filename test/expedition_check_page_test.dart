@@ -6,6 +6,32 @@ import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dar
 import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
+  testWidgets('远征检查详情默认选择远征 1', (tester) async {
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(portEvent)
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ExpeditionCheckPage(controller: controller, onBack: () {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<DropdownButtonFormField<int>>(
+            find.byType(DropdownButtonFormField<int>).first,
+          )
+          .initialValue,
+      1,
+    );
+  });
+
   testWidgets('详情页在窄屏显示耗时、消耗、收入与条件', (tester) async {
     tester.view.physicalSize = const Size(430, 900);
     tester.view.devicePixelRatio = 1;

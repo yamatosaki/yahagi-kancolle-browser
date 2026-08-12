@@ -26,7 +26,7 @@ class ExpeditionCheckPage extends StatefulWidget {
 
 class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
   late int fleetId = widget.initialFleetId ?? 2;
-  int missionId = 14, target = 100;
+  int missionId = 1, target = 100;
   bool great = false;
   @override
   Widget build(BuildContext context) {

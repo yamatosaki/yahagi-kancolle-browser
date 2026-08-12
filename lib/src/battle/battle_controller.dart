@@ -209,7 +209,7 @@ final class BattleController extends ChangeNotifier
           BattleFleetRole.escort,
           nowHp: const <Object?>[],
           maxHp: const <Object?>[],
-          enabled: state.combinedFleetType != CombinedFleetType.none,
+          enabled: _context.combinedFleetType != CombinedFleetType.none,
         ),
         phaseLabel: landBaseRaid == null ? '航行中' : '基地空袭',
         displayStage: BattleDisplayStage.navigation,
@@ -265,13 +265,17 @@ final class BattleController extends ChangeNotifier
     final mapAreaId = _positive(data['api_maparea_id'], _context.mapAreaId);
     final mapInfoNo = _positive(data['api_mapinfo_no'], _context.mapInfoNo);
     final node = _positive(data['api_no'], _context.node);
+    final deckId = _positive(
+      event.requestParams['api_deck_id'],
+      _context.deckId,
+    );
     return BattleContext(
       mapAreaId: mapAreaId,
       mapInfoNo: mapInfoNo,
       node: node,
       bossNode: _positive(data['api_bosscell_no'], _context.bossNode),
-      deckId: _positive(event.requestParams['api_deck_id'], _context.deckId),
-      combinedFleetType: gameState().combinedFleetType,
+      deckId: deckId,
+      combinedFleetType: _combinedFleetTypeForDeck(gameState(), deckId),
       eventId: _int(data['api_event_id']),
       eventKind: _int(data['api_event_kind']),
       nodeDisplayLabel: nodeLabelResolver.resolve(
@@ -395,11 +399,14 @@ final class BattleController extends ChangeNotifier
     final practice =
         _context.practice || event.path.startsWith('/kcsapi/api_req_practice/');
     final deckId = _positive(data['api_deck_id'], _context.deckId);
-    if (practice) {
-      _context = _context.copyWith(deckId: deckId, practice: true);
-    } else if (deckId != _context.deckId) {
-      _context = _context.copyWith(deckId: deckId);
-    }
+    final combinedFleetType = practice
+        ? CombinedFleetType.none
+        : _combinedFleetTypeForDeck(state, deckId);
+    _context = _context.copyWith(
+      deckId: deckId,
+      practice: practice,
+      combinedFleetType: combinedFleetType,
+    );
 
     final previous = _current;
     final previousBattle = previous?.displayStage == BattleDisplayStage.battle
@@ -413,9 +420,7 @@ final class BattleController extends ChangeNotifier
       maxHp: _fleetArray(data['api_f_maxhps']),
       previous: previousBattle?.friendMain,
     );
-    final combined =
-        _context.combinedFleetType != CombinedFleetType.none ||
-        state.combinedFleetType != CombinedFleetType.none;
+    final combined = combinedFleetType != CombinedFleetType.none;
     final friendEscort = _friendFleet(
       state,
       2,
@@ -423,7 +428,7 @@ final class BattleController extends ChangeNotifier
       nowHp: _fleetArray(data['api_f_nowhps_combined']),
       maxHp: _fleetArray(data['api_f_maxhps_combined']),
       previous: previousBattle?.friendEscort,
-      enabled: combined || (previous?.friendEscort.isNotEmpty ?? false),
+      enabled: combined,
     );
     final enemyMain = _enemyFleet(
       state,
@@ -695,6 +700,14 @@ final class BattleController extends ChangeNotifier
           ],
         ),
     ];
+  }
+
+  CombinedFleetType _combinedFleetTypeForDeck(GameState state, int deckId) {
+    // A player can keep fleets 1 and 2 combined while separately sending the
+    // seven-ship striking force in fleet 3. Only deck 1 represents the friendly
+    // combined fleet; treating every sortie as combined also makes position 6
+    // resolve to escort ship 1 instead of striking-force ship 7.
+    return deckId == 1 ? state.combinedFleetType : CombinedFleetType.none;
   }
 
   List<BattleShipSnapshot> _enemyFleet(

@@ -1150,24 +1150,24 @@ class AppLocalizationsZh extends AppLocalizations {
       '当前 Android WebView 不支持帧率调整，将保持游戏原始帧率。';
 
   @override
-  String get gameRenderingModeTitle => '游戏渲染兼容模式';
+  String get gameRenderingModeTitle => '游戏渲染模式';
 
   @override
-  String get gameRenderingModeStandard => '标准模式';
+  String get gameRenderingModeStandard => '高性能模式';
 
   @override
   String get gameRenderingModeStandardDesc =>
-      'Texture Layer + WebGL，保留工具栏模糊效果。';
+      'Texture Layer + WebGL，保留工具栏模糊效果。性能损耗大，可能会卡顿。';
 
   @override
-  String get gameRenderingModeCompatibility => '兼容模式';
+  String get gameRenderingModeCompatibility => '标准模式（推荐）';
 
   @override
   String get gameRenderingModeCompatibilityDesc =>
-      'Hybrid Composition + WebGL，关闭工具栏模糊；适合华为、荣耀设备卡顿时尝试。';
+      'Hybrid Composition + WebGL，关闭工具栏模糊；性能损耗平均。';
 
   @override
-  String get gameRenderingModeCanvas => '深度兼容模式';
+  String get gameRenderingModeCanvas => '兼容模式';
 
   @override
   String get gameRenderingModeCanvasDesc =>
@@ -2673,24 +2673,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '目前 Android WebView 不支援幀率調整，將保持遊戲原始幀率。';
 
   @override
-  String get gameRenderingModeTitle => '遊戲渲染相容模式';
+  String get gameRenderingModeTitle => '遊戲渲染模式';
 
   @override
-  String get gameRenderingModeStandard => '標準模式';
+  String get gameRenderingModeStandard => '高效能模式';
 
   @override
   String get gameRenderingModeStandardDesc =>
-      'Texture Layer + WebGL，保留工具列模糊效果。';
+      'Texture Layer + WebGL，保留工具列模糊效果。效能損耗大，可能會卡頓。';
 
   @override
-  String get gameRenderingModeCompatibility => '相容模式';
+  String get gameRenderingModeCompatibility => '標準模式（推薦）';
 
   @override
   String get gameRenderingModeCompatibilityDesc =>
-      'Hybrid Composition + WebGL，關閉工具列模糊；適合華為、榮耀裝置卡頓時嘗試。';
+      'Hybrid Composition + WebGL，關閉工具列模糊；效能損耗平均。';
 
   @override
-  String get gameRenderingModeCanvas => '深度相容模式';
+  String get gameRenderingModeCanvas => '相容模式';
 
   @override
   String get gameRenderingModeCanvasDesc =>

@@ -39,5 +39,13 @@ void main() {
       );
       expect(nativeGameCaptureScript, contains('input.clone().text()'));
     });
+
+    test('builds a complete quest snapshot after a quest page opens', () {
+      expect(nativeGameCaptureScript, contains('syncCompleteQuestSnapshot'));
+      expect(nativeGameCaptureScript, contains('api_get_member/questlist'));
+      expect(nativeGameCaptureScript, contains('api_page_no'));
+      expect(nativeGameCaptureScript, contains('api_exec_count'));
+      expect(nativeGameCaptureScript, contains('yahagi_full_quest_snapshot'));
+    });
   });
 }

@@ -26,7 +26,7 @@ class _ExpeditionCheckContentState extends State<ExpeditionCheckContent> {
   bool _greatSuccess = false;
   int _target = 100;
   int _fleetId = 2;
-  int _missionId = 14;
+  int _missionId = 1;
 
   @override
   Widget build(BuildContext context) {

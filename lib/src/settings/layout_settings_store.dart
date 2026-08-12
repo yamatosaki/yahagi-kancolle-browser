@@ -18,6 +18,19 @@ abstract class LayoutSettingsStore {
   Future<bool> loadWorkspaceMenuOnRight();
   Future<void> saveWorkspaceMenuOnRight(bool onRight);
 
+  static const defaultWorkspaceMenuOrder = <String>[
+    'game',
+    'fleet',
+    'expedition',
+    'repair',
+    'construction',
+    'quests',
+    'senka',
+    'battle-records',
+    'owned-inventory',
+    'settings',
+  ];
+
   Future<List<String>> loadDashboardCardOrder();
   Future<void> saveDashboardCardOrder(List<String> order);
 
@@ -44,6 +57,11 @@ abstract class LayoutSettingsStore {
   Future<void> saveLocaleCode(String? localeCode);
 }
 
+abstract interface class WorkspaceMenuOrderSettingsStore {
+  Future<List<String>> loadWorkspaceMenuOrder();
+  Future<void> saveWorkspaceMenuOrder(List<String> order);
+}
+
 abstract interface class HeaderResourceSettingsStore {
   Future<List<String>> loadHeaderResourceOrder();
   Future<void> saveHeaderResourceOrder(List<String> order);
@@ -52,12 +70,16 @@ abstract interface class HeaderResourceSettingsStore {
 }
 
 class SharedPreferencesLayoutSettingsStore
-    implements LayoutSettingsStore, HeaderResourceSettingsStore {
+    implements
+        LayoutSettingsStore,
+        HeaderResourceSettingsStore,
+        WorkspaceMenuOrderSettingsStore {
   static const _keyGameAreaRatio = 'layout_game_area_ratio';
   static const _keyInformationPanelWidth = 'layout_information_panel_width';
   static const _keyAutoZoom = 'layout_auto_zoom';
   static const _keyEnhancedDamagePulse = 'layout_enhanced_damage_pulse';
   static const _keyWorkspaceMenuOnRight = 'layout_workspace_menu_on_right';
+  static const _keyWorkspaceMenuOrder = 'layout_workspace_menu_order';
   static const _keyHeaderResourceOrder = 'layout_header_resource_order';
   static const _keyVisibleHeaderResourceIds =
       'layout_visible_header_resource_ids';
@@ -155,6 +177,23 @@ class SharedPreferencesLayoutSettingsStore
     await prefs.setBool(_keyWorkspaceMenuOnRight, onRight);
   }
 
+  @override
+  Future<List<String>> loadWorkspaceMenuOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    return normalizeWorkspaceMenuOrder(
+      prefs.getStringList(_keyWorkspaceMenuOrder),
+    );
+  }
+
+  @override
+  Future<void> saveWorkspaceMenuOrder(List<String> order) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _keyWorkspaceMenuOrder,
+      normalizeWorkspaceMenuOrder(order),
+    );
+  }
+
   static const _keyDashboardCardOrder = 'layout_dashboard_card_order';
   static const _keyDashboardCardCollapsed = 'layout_dashboard_card_collapsed';
 
@@ -245,4 +284,18 @@ class SharedPreferencesLayoutSettingsStore
       await prefs.setString(_keyLocaleCode, localeCode);
     }
   }
+}
+
+List<String> normalizeWorkspaceMenuOrder(Iterable<String>? savedOrder) {
+  final normalized = <String>[];
+  final known = LayoutSettingsStore.defaultWorkspaceMenuOrder.toSet();
+  for (final id in savedOrder ?? const <String>[]) {
+    if (known.contains(id) && !normalized.contains(id)) {
+      normalized.add(id);
+    }
+  }
+  for (final id in LayoutSettingsStore.defaultWorkspaceMenuOrder) {
+    if (!normalized.contains(id)) normalized.add(id);
+  }
+  return normalized;
 }

@@ -1,6 +1,7 @@
 import '../bridge/captured_api_event.dart';
 import '../game_state/game_api_decoder.dart';
 import '../game_state/game_state.dart';
+import 'expedition_log_catalog.dart';
 import 'logbook_database.dart';
 
 final class LogbookEventRecorder {
@@ -26,7 +27,7 @@ final class LogbookEventRecorder {
     if (!supports(event.path) || event.apiResult != 1) return;
     switch (event.path) {
       case '/kcsapi/api_req_mission/result':
-        await _recordExpedition(event);
+        await _recordExpedition(event, state);
       case '/kcsapi/api_req_kousyou/createitem':
         await _recordDevelopment(event, state);
       case '/kcsapi/api_req_kousyou/createship':
@@ -42,26 +43,88 @@ final class LogbookEventRecorder {
     }
   }
 
-  Future<void> _recordExpedition(CapturedApiEvent event) async {
+  Future<void> _recordExpedition(
+    CapturedApiEvent event,
+    GameState state,
+  ) async {
     final data = _data(event);
+    final expeditionId = _expeditionId(event, state, data);
+    final master = state.masterMissions[expeditionId];
     final materials = _intList(data['api_get_material']);
-    final item1 = _rewardItem(data['api_get_item1']);
-    final item2 = _rewardItem(data['api_get_item2']);
+    final rewards = _rewardItems(data);
+    final item1 = rewards.isNotEmpty ? rewards[0] : const _RewardItem();
+    final item2 = rewards.length > 1 ? rewards[1] : const _RewardItem();
     await _database.insertExpeditionResult(
-      expeditionId: _int(event.requestParams['api_mission_id']),
-      name: data['api_quest_name']?.toString() ?? '远征',
+      expeditionId: expeditionId,
+      name: master?.name ?? data['api_quest_name']?.toString() ?? '远征',
       result: _int(data['api_clear_result']),
       materials: materials,
-      bucketYield:
-          (item1.id == 1 ? item1.count : 0) + (item2.id == 1 ? item2.count : 0),
+      bucketYield: rewards
+          .where((item) => item.id == 1)
+          .fold<int>(0, (total, item) => total + item.count),
       item1Id: item1.id > 0 ? item1.id : null,
       item1Name: item1.name,
       item1Count: item1.count,
       item2Id: item2.id > 0 ? item2.id : null,
       item2Name: item2.name,
       item2Count: item2.count,
+      rewardItems: [for (final item in rewards) item.toJson()],
       timestamp: event.capturedAt.millisecondsSinceEpoch,
     );
+  }
+
+  int _expeditionId(
+    CapturedApiEvent event,
+    GameState state,
+    Map<String, Object?> data,
+  ) {
+    final requestedId = _int(event.requestParams['api_mission_id']);
+    if (requestedId > 0) return requestedId;
+
+    final deckId = _int(event.requestParams['api_deck_id']);
+    for (final fleet in state.fleets) {
+      if (fleet.id == deckId && fleet.mission.missionId > 0) {
+        return fleet.mission.missionId;
+      }
+    }
+
+    final name = data['api_quest_name']?.toString().trim() ?? '';
+    if (name.isNotEmpty) {
+      for (final mission in state.masterMissions.values) {
+        if (mission.name.trim() == name) return mission.id;
+      }
+    }
+    return 0;
+  }
+
+  List<_RewardItem> _rewardItems(Map<String, Object?> data) {
+    final result = <_RewardItem>[];
+
+    void collect(Object? value) {
+      if (value is List) {
+        for (final item in value) {
+          collect(item);
+        }
+        return;
+      }
+      final reward = _rewardItem(value);
+      if (reward.id > 0 && reward.count > 0) result.add(reward);
+    }
+
+    final modern = data['api_get_items'];
+    if (modern is List) {
+      collect(modern);
+    } else {
+      final numberedKeys =
+          data.keys
+              .where((key) => key.startsWith('api_get_item'))
+              .toList(growable: false)
+            ..sort();
+      for (final key in numberedKeys) {
+        collect(data[key]);
+      }
+    }
+    return result;
   }
 
   Future<void> _recordDevelopment(
@@ -311,19 +374,10 @@ final class LogbookEventRecorder {
     final id = _int(item['api_useitem_id']);
     return _RewardItem(
       id: id,
-      name: item['api_useitem_name']?.toString() ?? _useItemName(id),
+      name: expeditionRewardName(id, item['api_useitem_name']?.toString()),
       count: _int(item['api_useitem_count']),
     );
   }
-
-  String _useItemName(int id) => switch (id) {
-    1 => '高速修复材',
-    2 => '高速建造材',
-    10 => '家具箱（小）',
-    11 => '家具箱（中）',
-    12 => '家具箱（大）',
-    _ => '道具 $id',
-  };
 }
 
 final class _PendingConstruction {
@@ -353,4 +407,10 @@ final class _RewardItem {
   final int id;
   final String? name;
   final int count;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'id': id,
+    'name': name,
+    'count': count,
+  };
 }

@@ -602,6 +602,85 @@ void main() {
   });
 
   test(
+    'third fleet sortie stays a seven-ship striking force while fleets one and two are combined',
+    () async {
+      final state = _strikingForceStateWithCombinedFleet();
+      final controller = BattleController(gameState: () => state);
+      addTearDown(controller.dispose);
+
+      controller.accept(
+        kcsapiEvent(
+          '/kcsapi/api_req_map/start',
+          <String, Object?>{
+            'api_maparea_id': 1,
+            'api_mapinfo_no': 1,
+            'api_no': 1,
+          },
+          sequence: 300,
+          requestParams: <String, Object?>{'api_deck_id': '3'},
+        ),
+      );
+      await controller.idle;
+
+      expect(controller.current!.context.deckId, 3);
+      expect(
+        controller.current!.context.combinedFleetType,
+        CombinedFleetType.none,
+      );
+      expect(controller.current!.friendMain, hasLength(7));
+      expect(controller.current!.friendEscort, isEmpty);
+    },
+  );
+
+  test(
+    'enemy damage to position seven stays on the third-fleet striking force',
+    () async {
+      final state = _strikingForceStateWithCombinedFleet();
+      final controller = BattleController(gameState: () => state);
+      addTearDown(controller.dispose);
+
+      controller
+        ..accept(
+          kcsapiEvent(
+            '/kcsapi/api_req_map/start',
+            <String, Object?>{
+              'api_maparea_id': 1,
+              'api_mapinfo_no': 1,
+              'api_no': 1,
+            },
+            sequence: 301,
+            requestParams: <String, Object?>{'api_deck_id': '3'},
+          ),
+        )
+        ..accept(
+          kcsapiEvent('/kcsapi/api_req_sortie/battle', <String, Object?>{
+            'api_deck_id': 3,
+            'api_f_nowhps': <int>[-1, 33, 33, 33, 33, 33, 33, 33],
+            'api_f_maxhps': <int>[-1, 33, 33, 33, 33, 33, 33, 33],
+            'api_e_nowhps': <int>[-1, 20],
+            'api_e_maxhps': <int>[-1, 20],
+            'api_ship_ke': <int>[-1, 501],
+            'api_hougeki1': <String, Object?>{
+              'api_at_eflag': <int>[1],
+              'api_at_list': <int>[0],
+              'api_df_list': <Object?>[
+                <int>[6],
+              ],
+              'api_damage': <Object?>[
+                <num>[17],
+              ],
+            },
+          }, sequence: 302),
+        );
+      await controller.idle;
+
+      expect(controller.current!.friendEscort, isEmpty);
+      expect(controller.current!.friendMain[6].currentHp, 16);
+      expect(controller.current!.friendMain[6].damageReceived, 17);
+    },
+  );
+
+  test(
     'enemy-only combined battle does not invent a friendly escort',
     () async {
       final reducer = GameStateReducer();
@@ -930,6 +1009,47 @@ BattlePredictionEngineFactory _fixedEngineFactory(BattleRank rank) =>
       enemyMain: enemyMain,
       enemyEscort: enemyEscort,
     );
+
+GameState _strikingForceStateWithCombinedFleet() {
+  final ships = <int, OwnedShip>{
+    101: const OwnedShip(
+      id: 101,
+      masterId: 101,
+      level: 1,
+      currentHp: 33,
+      maxHp: 33,
+    ),
+    201: const OwnedShip(
+      id: 201,
+      masterId: 201,
+      level: 1,
+      currentHp: 33,
+      maxHp: 33,
+    ),
+    for (var index = 0; index < 7; index++)
+      301 + index: OwnedShip(
+        id: 301 + index,
+        masterId: 301 + index,
+        level: 1,
+        currentHp: 33,
+        maxHp: 33,
+      ),
+  };
+  return GameState(
+    ships: ships,
+    fleets: <Fleet>[
+      const Fleet(id: 1, name: 'Fleet 1', shipIds: <int>[101]),
+      const Fleet(id: 2, name: 'Fleet 2', shipIds: <int>[201]),
+      Fleet(
+        id: 3,
+        name: 'Striking Force',
+        shipIds: <int>[for (var index = 0; index < 7; index++) 301 + index],
+        slotCount: 7,
+      ),
+    ],
+    combinedFleetType: CombinedFleetType.surfaceTaskForce,
+  );
+}
 
 final class _FixedRankEngine implements BattlePredictionEngine {
   const _FixedRankEngine({

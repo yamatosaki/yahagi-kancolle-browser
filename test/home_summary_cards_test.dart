@@ -314,6 +314,10 @@ void main() {
       findsOneWidget,
     );
     expect(tester.widget<OperationCountdownText>(countdown).maxLines, 1);
+    final dockStyle = tester.widget<OperationCountdownText>(countdown).style;
+    expect(dockStyle?.fontSize, 10);
+    expect(dockStyle?.fontWeight, FontWeight.w700);
+    expect(dockStyle?.fontFamily, isNot('monospace'));
     final renderedCountdown = tester.widgetList<Text>(
       find.descendant(of: countdown, matching: find.byType(Text)),
     );
@@ -367,6 +371,9 @@ void main() {
     expect(find.textContaining('正在修理'), findsNothing);
     final timeText = tester.widget<Text>(find.text('02:00:00'));
     expect(timeText.maxLines, 1);
+    expect(timeText.style?.fontSize, 10);
+    expect(timeText.style?.fontWeight, FontWeight.w700);
+    expect(timeText.style?.fontFamily, isNot('monospace'));
     expect(tester.takeException(), isNull);
   });
 

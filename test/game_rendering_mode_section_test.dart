@@ -43,6 +43,54 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const Key('rendering-mode-canvas')), findsOneWidget);
+
+    final compatibilityTop = tester
+        .getTopLeft(find.byKey(const Key('rendering-mode-compatibility')))
+        .dy;
+    final standardTop = tester
+        .getTopLeft(find.byKey(const Key('rendering-mode-standard')))
+        .dy;
+    final canvasTop = tester
+        .getTopLeft(find.byKey(const Key('rendering-mode-canvas')))
+        .dy;
+    expect(compatibilityTop, lessThan(standardTop));
+    expect(standardTop, lessThan(canvasTop));
+
+    for (final key in const <Key>[
+      Key('rendering-mode-compatibility'),
+      Key('rendering-mode-standard'),
+      Key('rendering-mode-canvas'),
+    ]) {
+      final tile = tester.widget<ListTile>(find.byKey(key));
+      expect(tile.contentPadding, const EdgeInsets.only(left: 4, right: 16));
+      expect(tile.minLeadingWidth, 0);
+      expect(tile.horizontalTitleGap, 0);
+    }
+
+    final titleLefts = <double>[
+      for (final key in const <Key>[
+        Key('rendering-mode-compatibility'),
+        Key('rendering-mode-standard'),
+        Key('rendering-mode-canvas'),
+      ])
+        tester
+            .getTopLeft(
+              find
+                  .descendant(of: find.byKey(key), matching: find.byType(Text))
+                  .first,
+            )
+            .dx,
+    ];
+    expect(titleLefts[1], titleLefts[0]);
+    expect(titleLefts[2], titleLefts[0]);
+
+    expect(find.text('标准模式（推荐）'), findsOneWidget);
+    expect(find.text('高性能模式'), findsOneWidget);
+    expect(find.text('兼容模式'), findsOneWidget);
+    expect(find.textContaining('性能损耗平均'), findsOneWidget);
+    expect(find.textContaining('性能损耗大，可能会卡顿'), findsOneWidget);
+    expect(find.textContaining('华为'), findsNothing);
+    expect(find.textContaining('荣耀'), findsNothing);
   });
 
   testWidgets('cancel keeps the current mode', (tester) async {
@@ -50,7 +98,7 @@ void main() {
     addTearDown(state.controller.dispose);
     await tester.pumpWidget(app(state.controller));
 
-    await tester.tap(find.byKey(const Key('rendering-mode-compatibility')));
+    await tester.tap(find.byKey(const Key('rendering-mode-standard')));
     await tester.pumpAndSettle();
     expect(
       find.byKey(const Key('rendering-mode-confirm-dialog')),
@@ -59,7 +107,7 @@ void main() {
     await tester.tap(find.byKey(const Key('rendering-mode-cancel')));
     await tester.pumpAndSettle();
 
-    expect(state.controller.mode, GameRenderingMode.standard);
+    expect(state.controller.mode, GameRenderingMode.compatibility);
     expect(state.port.modes, isEmpty);
   });
 
@@ -68,13 +116,13 @@ void main() {
     addTearDown(state.controller.dispose);
     await tester.pumpWidget(app(state.controller));
 
-    await tester.tap(find.byKey(const Key('rendering-mode-compatibility')));
+    await tester.tap(find.byKey(const Key('rendering-mode-standard')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('rendering-mode-confirm')));
     await tester.pumpAndSettle();
 
-    expect(state.controller.mode, GameRenderingMode.compatibility);
-    expect(state.port.modes, [GameRenderingMode.compatibility]);
+    expect(state.controller.mode, GameRenderingMode.standard);
+    expect(state.port.modes, [GameRenderingMode.standard]);
   });
 
   testWidgets('battle state adds a stronger warning', (tester) async {
@@ -97,7 +145,7 @@ void main() {
     state.port.blockNextRestart = true;
     await tester.pumpWidget(app(state.controller));
 
-    await tester.tap(find.byKey(const Key('rendering-mode-compatibility')));
+    await tester.tap(find.byKey(const Key('rendering-mode-standard')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('rendering-mode-confirm')));
     await tester.pump();

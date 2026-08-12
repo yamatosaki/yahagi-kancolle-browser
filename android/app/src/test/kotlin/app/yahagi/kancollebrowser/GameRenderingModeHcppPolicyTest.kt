@@ -6,15 +6,15 @@ import org.junit.Test
 
 class GameRenderingModeHcppPolicyTest {
     @Test
-    fun standardAndUnknownModesKeepHcppDisabled() {
+    fun onlyExplicitHighPerformanceModeKeepsHcppDisabled() {
         assertFalse(GameRenderingModeHcppPolicy.shouldEnable("standard"))
-        assertFalse(GameRenderingModeHcppPolicy.shouldEnable(null))
-        assertFalse(GameRenderingModeHcppPolicy.shouldEnable("future-mode"))
     }
 
     @Test
     fun compatibilityModesEnableHcppBeforeEngineStartup() {
         assertTrue(GameRenderingModeHcppPolicy.shouldEnable("compatibility"))
         assertTrue(GameRenderingModeHcppPolicy.shouldEnable("canvasCompatibility"))
+        assertTrue(GameRenderingModeHcppPolicy.shouldEnable(null))
+        assertTrue(GameRenderingModeHcppPolicy.shouldEnable("future-mode"))
     }
 }

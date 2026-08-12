@@ -16,6 +16,9 @@ final class QuestCatalogUpdateSection extends StatelessWidget {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) => ListTile(
+        contentPadding: const EdgeInsets.only(left: 4, right: 16),
+        minLeadingWidth: 0,
+        horizontalTitleGap: 0,
         title: Text(
           l10n.questCatalogDataTitle,
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
