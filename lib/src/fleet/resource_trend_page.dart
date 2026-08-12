@@ -7,6 +7,9 @@ import '../game_state/game_state.dart';
 import '../logbook/logbook_database.dart';
 import 'resource_trend_sampler.dart';
 
+typedef ResourceTrendLoader =
+    Future<List<Map<String, dynamic>>> Function(int selectedDays);
+
 class _SeriesSpec {
   const _SeriesSpec({
     required this.key,
@@ -62,7 +65,10 @@ String _seriesLabel(String key) {
 }
 
 class ResourceTrendPage extends StatefulWidget {
-  const ResourceTrendPage({super.key});
+  const ResourceTrendPage({super.key, this.database, this.loadLogs});
+
+  final LogbookDatabase? database;
+  final ResourceTrendLoader? loadLogs;
 
   @override
   State<ResourceTrendPage> createState() => _ResourceTrendPageState();
@@ -77,6 +83,7 @@ class _ResourceTrendPageState extends State<ResourceTrendPage> {
   bool _isLoading = true;
   List<Map<String, dynamic>> _data = const <Map<String, dynamic>>[];
   Map<String, List<FlSpot>> _spots = const <String, List<FlSpot>>{};
+  int _loadGeneration = 0;
   final Map<String, bool> _visibleSeries = <String, bool>{
     for (final spec in _allSeries) spec.key: true,
   };
@@ -88,21 +95,18 @@ class _ResourceTrendPageState extends State<ResourceTrendPage> {
   }
 
   Future<void> _loadData() async {
+    final generation = ++_loadGeneration;
     setState(() => _isLoading = true);
     try {
-      final now = DateTime.now();
-      final raw = _selectedDays == -1
-          ? await LogbookDatabase.instance.getAllResourceLogs()
-          : await LogbookDatabase.instance.getResourceLogsByTimeRange(
-              now.subtract(Duration(days: _selectedDays)),
-              now,
-            );
+      final raw =
+          await (widget.loadLogs?.call(_selectedDays) ??
+              _loadStoredLogs(_selectedDays));
       final data = downsampleResourceLogs(raw, maxPoints: _maxChartPoints);
       final spots = <String, List<FlSpot>>{};
       for (final spec in _allSeries) {
         spots[spec.key] = _buildSpots(data, spec.key);
       }
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _data = data;
         _spots = spots;
@@ -110,13 +114,33 @@ class _ResourceTrendPageState extends State<ResourceTrendPage> {
       });
     } catch (error) {
       debugPrint('资源趋势数据加载失败: $error');
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _data = const <Map<String, dynamic>>[];
         _spots = const <String, List<FlSpot>>{};
         _isLoading = false;
       });
     }
+  }
+
+  Future<List<Map<String, dynamic>>> _loadStoredLogs(int selectedDays) async {
+    final database = widget.database ?? LogbookDatabase.instance;
+    final end = DateTime.now();
+    final start = selectedDays < 0
+        ? null
+        : end.subtract(Duration(days: selectedDays));
+    final count = await database.countResourceLogs(start: start, end: end);
+    final sampler = ResourceTrendStreamSampler(
+      expectedRows: count,
+      maxPoints: _maxChartPoints,
+    );
+    await for (final row in database.streamResourceLogs(
+      start: start,
+      end: end,
+    )) {
+      sampler.add(row);
+    }
+    return sampler.finish();
   }
 
   List<FlSpot> _buildSpots(List<Map<String, dynamic>> data, String key) {

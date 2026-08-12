@@ -1,4 +1,5 @@
 import '../bridge/captured_api_event.dart';
+import '../capture/game_capture_path_catalog.dart';
 import '../game_state/game_api_decoder.dart';
 import '../game_state/game_state.dart';
 import 'expedition_log_catalog.dart';
@@ -11,15 +12,7 @@ final class LogbookEventRecorder {
   final LogbookDatabase _database;
   final Map<int, _PendingConstruction> _pendingConstructions = {};
 
-  static const supportedPaths = <String>{
-    '/kcsapi/api_req_mission/result',
-    '/kcsapi/api_req_kousyou/createitem',
-    '/kcsapi/api_req_kousyou/createship',
-    '/kcsapi/api_req_kousyou/getship',
-    '/kcsapi/api_get_member/kdock',
-    '/kcsapi/api_req_kousyou/destroyship',
-    '/kcsapi/api_req_kaisou/powerup',
-  };
+  static const supportedPaths = GameCapturePathCatalog.logbook;
 
   bool supports(String path) => supportedPaths.contains(path);
 
@@ -99,29 +92,36 @@ final class LogbookEventRecorder {
 
   List<_RewardItem> _rewardItems(Map<String, Object?> data) {
     final result = <_RewardItem>[];
+    final flags = _intList(data['api_useitem_flag']);
 
-    void collect(Object? value) {
+    void collect(Object? value, {int fallbackId = 0}) {
       if (value is List) {
-        for (final item in value) {
-          collect(item);
+        for (var index = 0; index < value.length; index++) {
+          collect(
+            value[index],
+            fallbackId: index < flags.length ? flags[index] : fallbackId,
+          );
         }
         return;
       }
-      final reward = _rewardItem(value);
+      final reward = _rewardItem(value, fallbackId: fallbackId);
       if (reward.id > 0 && reward.count > 0) result.add(reward);
     }
 
     final modern = data['api_get_items'];
-    if (modern is List) {
+    if (modern is List && modern.isNotEmpty) {
       collect(modern);
     } else {
       final numberedKeys =
           data.keys
-              .where((key) => key.startsWith('api_get_item'))
+              .where((key) => RegExp(r'^api_get_item\d+$').hasMatch(key))
               .toList(growable: false)
             ..sort();
-      for (final key in numberedKeys) {
-        collect(data[key]);
+      for (var index = 0; index < numberedKeys.length; index++) {
+        collect(
+          data[numberedKeys[index]],
+          fallbackId: index < flags.length ? flags[index] : 0,
+        );
       }
     }
     return result;
@@ -133,31 +133,27 @@ final class LogbookEventRecorder {
   ) async {
     final data = _data(event);
     final modernItems = data['api_get_items'];
-    if (modernItems is List) {
-      if (modernItems.isEmpty) {
-        await _insertDevelopmentResult(event, state, null);
-      } else {
-        for (final rawItem in modernItems) {
-          await _insertDevelopmentResult(event, state, _map(rawItem));
-        }
-      }
-      return;
-    }
-    await _insertDevelopmentResult(event, state, _map(data['api_slot_item']));
+    final rawItems = modernItems is List
+        ? (modernItems.isEmpty ? const <Object?>[null] : modernItems)
+        : <Object?>[data['api_slot_item']];
+    await _database.insertDevelopmentRecords(<DevelopmentLogEntry>[
+      for (final rawItem in rawItems)
+        _developmentResult(event, state, _map(rawItem)),
+    ]);
   }
 
-  Future<void> _insertDevelopmentResult(
+  DevelopmentLogEntry _developmentResult(
     CapturedApiEvent event,
     GameState state,
     Map<String, Object?>? slotItem,
-  ) async {
+  ) {
     final equipmentId = _int(slotItem?['api_slotitem_id']);
     final success = equipmentId > 0;
     final master = state.masterSlotItems[equipmentId];
     final iconId = master != null && master.type.length > 3
         ? master.type[3]
         : -1;
-    await _database.insertDevelopmentRecord(
+    return DevelopmentLogEntry(
       timestamp: event.capturedAt.millisecondsSinceEpoch,
       success: success,
       equipmentId: success && equipmentId > 0 ? equipmentId : null,
@@ -295,20 +291,24 @@ final class LogbookEventRecorder {
     final raw = type == '改修'
         ? event.requestParams['api_id_items']
         : event.requestParams['api_ship_id'];
+    final records = <RetirementLogEntry>[];
     for (final shipId in _ids(raw)) {
       final ship = state.ships[shipId];
       if (ship == null) continue;
       final master = state.masterShips[ship.masterId];
-      await _database.insertRetirementRecord(
-        timestamp: event.capturedAt.millisecondsSinceEpoch,
-        type: type,
-        shipType: master == null
-            ? '未知舰种'
-            : state.masterShipTypes[master.shipTypeId]?.name ?? '未知舰种',
-        shipName: master?.name ?? '舰娘 ID ${ship.masterId}',
-        level: ship.level,
+      records.add(
+        RetirementLogEntry(
+          timestamp: event.capturedAt.millisecondsSinceEpoch,
+          type: type,
+          shipType: master == null
+              ? '未知舰种'
+              : state.masterShipTypes[master.shipTypeId]?.name ?? '未知舰种',
+          shipName: master?.name ?? '舰娘 ID ${ship.masterId}',
+          level: ship.level,
+        ),
       );
     }
+    await _database.insertRetirementRecords(records);
   }
 
   String _secretaryName(GameState state) {
@@ -368,10 +368,11 @@ final class LogbookEventRecorder {
       .where((id) => id > 0)
       .toList(growable: false);
 
-  _RewardItem _rewardItem(Object? value) {
+  _RewardItem _rewardItem(Object? value, {int fallbackId = 0}) {
     final item = _map(value);
     if (item == null) return const _RewardItem();
-    final id = _int(item['api_useitem_id']);
+    final capturedId = _int(item['api_useitem_id']);
+    final id = capturedId > 0 ? capturedId : fallbackId;
     return _RewardItem(
       id: id,
       name: expeditionRewardName(id, item['api_useitem_name']?.toString()),

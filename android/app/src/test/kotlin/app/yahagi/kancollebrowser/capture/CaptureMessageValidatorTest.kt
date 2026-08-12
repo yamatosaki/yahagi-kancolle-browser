@@ -1,6 +1,7 @@
 ﻿package app.yahagi.kancollebrowser.capture
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -56,6 +57,93 @@ class CaptureMessageValidatorTest {
         val nested = params["nested"] as Map<*, *>
         assertFalse(nested.containsKey("api_starttime"))
         assertTrue(nested["safe"] as Boolean)
+    }
+
+    @Test
+    fun validatesBinaryEnvelopeWithoutConvertingTheResponseBodyToAString() {
+        val validator = CaptureMessageValidator(
+            clock = { "2026-07-30T10:00:00.000Z" },
+        )
+        val responseBody = "svdata={\"api_result\":1,\"api_data\":\"艦\"}"
+
+        val event = validator.validate(
+            validBinaryMessage(responseBody = responseBody),
+            "https://w01y.kancolle-server.com",
+        )
+
+        assertNotNull(event)
+        assertArrayEquals(
+            responseBody.toByteArray(Charsets.UTF_8),
+            event?.get("responseBodyBytes") as ByteArray,
+        )
+        assertFalse(event.containsKey("responseBody"))
+    }
+
+    @Test
+    fun rejectsBinaryEnvelopeWithAnInvalidMetadataLength() {
+        val validator = CaptureMessageValidator()
+        val invalid = byteArrayOf(0, 0, 1, 0, 1, 2, 3)
+
+        assertNull(
+            validator.validate(
+                invalid,
+                "https://w01y.kancolle-server.com",
+            ),
+        )
+        assertEquals(CaptureMessageFailure.INVALID_FORMAT, validator.lastFailure)
+    }
+
+    @Test
+    fun rejectsBinaryMessagesOverTheByteLimit() {
+        val validator = CaptureMessageValidator(maxMessageBytes = 16)
+
+        assertNull(
+            validator.validate(
+                validBinaryMessage(),
+                "https://w01y.kancolle-server.com",
+            ),
+        )
+        assertEquals(CaptureMessageFailure.TOO_LARGE, validator.lastFailure)
+    }
+
+    @Test
+    fun rejectsBinaryMetadataThatIsNotValidUtf8() {
+        val invalidMetadata = byteArrayOf(0xC3.toByte(), 0x28)
+        val payload = java.nio.ByteBuffer.allocate(6)
+            .putInt(invalidMetadata.size)
+            .put(invalidMetadata)
+            .array()
+        val validator = CaptureMessageValidator()
+
+        assertNull(
+            validator.validate(
+                payload,
+                "https://w01y.kancolle-server.com",
+            ),
+        )
+        assertEquals(CaptureMessageFailure.INVALID_FORMAT, validator.lastFailure)
+    }
+
+    @Test
+    fun removesSensitiveParametersFromBinaryMetadata() {
+        val validator = CaptureMessageValidator()
+        val event = validator.validate(
+            validBinaryMessage(
+                requestParams = """
+                    {
+                      "api_token": "secret",
+                      "nested": {"api_starttime": "secret", "safe": 1}
+                    }
+                """.trimIndent(),
+            ),
+            "https://w01y.kancolle-server.com",
+        )
+
+        val params = event?.get("requestParams") as Map<*, *>
+        assertFalse(params.containsKey("api_token"))
+        val nested = params["nested"] as Map<*, *>
+        assertFalse(nested.containsKey("api_starttime"))
+        assertEquals(1, nested["safe"])
     }
 
     @Test
@@ -144,6 +232,29 @@ class CaptureMessageValidatorTest {
               "transport": "$transport"
             }
         """.trimIndent()
+    }
+
+    private fun validBinaryMessage(
+        responseBody: String = "svdata={\"api_result\":1}",
+        requestParams: String = "{}",
+    ): ByteArray {
+        val metadata = """
+            {
+              "version": 1,
+              "kind": "kcsapi_response",
+              "method": "POST",
+              "path": "/kcsapi/api_port/port",
+              "requestParams": $requestParams,
+              "statusCode": 200,
+              "transport": "fetch"
+            }
+        """.trimIndent().toByteArray(Charsets.UTF_8)
+        val body = responseBody.toByteArray(Charsets.UTF_8)
+        return java.nio.ByteBuffer.allocate(4 + metadata.size + body.size)
+            .putInt(metadata.size)
+            .put(metadata)
+            .put(body)
+            .array()
     }
 
     private fun jsonString(value: String): String {

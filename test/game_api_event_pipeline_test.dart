@@ -20,13 +20,18 @@ void main() {
     expect(event.apiResult, 1);
   });
 
-  test('a small ordinary response is dispatched without predecoding', () async {
+  test('a small ordinary response is decoded once before dispatch', () async {
     final consumer = _RecordingConsumer();
-    var decodeCalls = 0;
+    var backgroundDecodeCalls = 0;
+    var synchronousDecodeCalls = 0;
     final pipeline = GameApiEventPipeline(
       consumers: <GameApiEventConsumer>[consumer],
       decodeEnvelope: (body) async {
-        decodeCalls += 1;
+        backgroundDecodeCalls += 1;
+        return GameApiDecoder.decodeEnvelope(body);
+      },
+      decodeSmallEnvelope: (body) {
+        synchronousDecodeCalls += 1;
         return GameApiDecoder.decodeEnvelope(body);
       },
       backgroundThresholdBytes: 64 * 1024,
@@ -35,8 +40,32 @@ void main() {
     pipeline.add(_event('/kcsapi/api_port/port', _body(1)));
     await pipeline.idle;
 
+    expect(backgroundDecodeCalls, 0);
+    expect(synchronousDecodeCalls, 1);
+    expect(consumer.events.single.hasDecodedEnvelope, isTrue);
+  });
+
+  test('an already prepared small response is not decoded again', () async {
+    final consumer = _RecordingConsumer();
+    var decodeCalls = 0;
+    final pipeline = GameApiEventPipeline(
+      consumers: <GameApiEventConsumer>[consumer],
+      decodeSmallEnvelope: (body) {
+        decodeCalls += 1;
+        return GameApiDecoder.decodeEnvelope(body);
+      },
+    );
+    final prepared = _event('/kcsapi/api_port/port', 'invalid-json')
+        .withDecodedEnvelope(<String, Object?>{
+          'api_result': 1,
+          'api_data': const <String, Object?>{},
+        });
+
+    pipeline.add(prepared);
+    await pipeline.idle;
+
     expect(decodeCalls, 0);
-    expect(consumer.events.single.hasDecodedEnvelope, isFalse);
+    expect(consumer.events.single, same(prepared));
   });
 
   test('start2 is predecoded regardless of response size', () async {

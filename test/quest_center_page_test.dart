@@ -273,14 +273,14 @@ void main() {
         }),
       );
       await controller.idle;
-      const catalog = QuestCatalog(<QuestCatalogEntry>[
-        QuestCatalogEntry(
+      final catalog = QuestCatalog(<QuestCatalogEntry>[
+        const QuestCatalogEntry(
           gameId: 101,
           code: 'A1',
           name: '前置任务',
           description: '前置说明',
         ),
-        QuestCatalogEntry(
+        const QuestCatalogEntry(
           gameId: 201,
           code: 'B1',
           name: '当前任务',
@@ -288,7 +288,7 @@ void main() {
           rewards: '奖励内容',
           prerequisites: <String>['A1'],
         ),
-        QuestCatalogEntry(
+        const QuestCatalogEntry(
           gameId: 202,
           code: 'Bd2',
           name: '后置任务',
@@ -496,6 +496,52 @@ void main() {
     gameController.dispose();
     catalogController.dispose();
   });
+
+  testWidgets('filter rebuilds reuse the catalog projection', (tester) async {
+    final gameController = GameStateController();
+    final filters = QuestFilterController();
+    final catalog = _CountingQuestCatalog(const <QuestCatalogEntry>[
+      QuestCatalogEntry(
+        gameId: 201,
+        code: 'B1',
+        name: 'quest',
+        description: 'description',
+      ),
+    ]);
+    addTearDown(gameController.dispose);
+    addTearDown(filters.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: QuestCenterPage(
+          controller: gameController,
+          catalog: catalog,
+          filterController: filters,
+          mode: QuestCenterMode.all,
+        ),
+      ),
+    );
+    expect(catalog.projectCalls, 1);
+
+    filters.setQuery('B1');
+    await tester.pump();
+    filters.setCategory(2);
+    await tester.pump();
+
+    expect(catalog.projectCalls, 1);
+  });
+}
+
+final class _CountingQuestCatalog extends QuestCatalog {
+  _CountingQuestCatalog(super.entries);
+
+  int projectCalls = 0;
+
+  @override
+  QuestCatalogProjection project(Map<int, GameQuest> liveQuests) {
+    projectCalls += 1;
+    return super.project(liveQuests);
+  }
 }
 
 final class _CatalogUpdater implements QuestCatalogUpdateClient {

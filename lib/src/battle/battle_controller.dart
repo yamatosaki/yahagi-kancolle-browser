@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../bridge/captured_api_event.dart';
+import '../capture/game_capture_path_catalog.dart';
 import '../game_state/combat_state.dart';
 import '../game_state/game_api_decoder.dart';
 import '../game_state/game_api_event_pipeline.dart';
@@ -45,39 +46,9 @@ final class BattleController extends ChangeNotifier
            predictionExecutor ?? const IsolateBattlePredictionExecutor(),
        assert(maxRecords > 0);
 
-  static const Set<String> _mapPaths = <String>{
-    '/kcsapi/api_req_map/start',
-    '/kcsapi/api_req_map/next',
-  };
-
-  static const Set<String> _battlePaths = <String>{
-    '/kcsapi/api_req_practice/battle',
-    '/kcsapi/api_req_practice/midnight_battle',
-    '/kcsapi/api_req_sortie/battle',
-    '/kcsapi/api_req_sortie/airbattle',
-    '/kcsapi/api_req_sortie/ld_airbattle',
-    '/kcsapi/api_req_sortie/ld_shooting',
-    '/kcsapi/api_req_combined_battle/battle',
-    '/kcsapi/api_req_combined_battle/battle_water',
-    '/kcsapi/api_req_combined_battle/airbattle',
-    '/kcsapi/api_req_combined_battle/ld_airbattle',
-    '/kcsapi/api_req_combined_battle/ld_shooting',
-    '/kcsapi/api_req_combined_battle/ec_battle',
-    '/kcsapi/api_req_combined_battle/each_battle',
-    '/kcsapi/api_req_combined_battle/each_battle_water',
-    '/kcsapi/api_req_battle_midnight/battle',
-    '/kcsapi/api_req_battle_midnight/sp_midnight',
-    '/kcsapi/api_req_combined_battle/midnight_battle',
-    '/kcsapi/api_req_combined_battle/sp_midnight',
-    '/kcsapi/api_req_combined_battle/ec_midnight_battle',
-    '/kcsapi/api_req_combined_battle/ec_night_to_day',
-  };
-
-  static const Set<String> _resultPaths = <String>{
-    '/kcsapi/api_req_sortie/battleresult',
-    '/kcsapi/api_req_combined_battle/battleresult',
-    '/kcsapi/api_req_practice/battle_result',
-  };
+  static const Set<String> _mapPaths = GameCapturePathCatalog.battleMap;
+  static const Set<String> _battlePaths = GameCapturePathCatalog.battlePhases;
+  static const Set<String> _resultPaths = GameCapturePathCatalog.battleResults;
 
   final GameState Function() gameState;
   void Function(Map<int, int> hpByShipId, DateTime capturedAt)?
@@ -173,11 +144,7 @@ final class BattleController extends ChangeNotifier
 
   @override
   bool supportsPath(String path) =>
-      _mapPaths.contains(path) ||
-      _battlePaths.contains(path) ||
-      _resultPaths.contains(path) ||
-      path == '/kcsapi/api_port/port' ||
-      path == '/kcsapi/api_start2/getData';
+      GameCapturePathCatalog.battle.contains(path);
 
   Future<void> _reduce(CapturedApiEvent event) async {
     if (event.path == '/kcsapi/api_port/port' ||

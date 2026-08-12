@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import '../game_state/fleet_metrics.dart';
 import '../game_state/game_state_controller.dart';
@@ -13,6 +11,7 @@ import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import 'fleet_ship_status_capsule.dart';
 import 'fleet_line_of_sight_details.dart';
+import '../performance/second_tick_scope.dart';
 
 class FleetSummaryCard extends StatefulWidget {
   const FleetSummaryCard({
@@ -37,89 +36,76 @@ class FleetSummaryCard extends StatefulWidget {
 }
 
 class _FleetSummaryCardState extends State<FleetSummaryCard> {
-  Timer? _clock;
   int _selectedFleetId = 1;
 
   @override
-  void initState() {
-    super.initState();
-    _clock = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) {
-        setState(() {});
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _clock?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: widget.controller,
-      builder: (context, _) {
-        final state = widget.controller.state;
-        final now = widget.clock?.call() ?? DateTime.now().toUtc();
-        final fleetIndex = state.fleets.indexWhere(
-          (fleet) => fleet.id == _selectedFleetId,
-        );
-        final selectedFleet = fleetIndex < 0 ? null : state.fleets[fleetIndex];
-        final ships = state.shipsForFleet(_selectedFleetId);
-        final metrics = selectedFleet == null
-            ? null
-            : FleetMetrics.fromState(state, selectedFleet);
-        final specialAttack = selectedFleet == null
-            ? null
-            : detectFleetSpecialAttack(state, selectedFleet);
-        return DashboardCard(
-          title: AppLocalizations.of(context)?.fleetBrief ?? '编队简报',
-          icon: const Icon(Icons.directions_boat_filled_outlined),
-          collapsed: widget.collapsed,
-          onToggleCollapse: widget.onToggleCollapse,
-          trailing: _FleetSegmentedSwitcher(
-            fleets: state.fleets,
-            selectedFleetId: _selectedFleetId,
-            onSelected: (id) => setState(() => _selectedFleetId = id),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _FleetSummaryMetrics(metrics: metrics),
-              const SizedBox(height: 6),
-              if (ships.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    '无数据',
-                    style: TextStyle(color: Color(0xff8197a5)),
-                  ),
-                )
-              else
-                for (final ship in ships) ...[
-                  FleetShipStatusCapsule(
-                    state: state,
-                    ship: ship,
-                    damagePulseMode: widget.damagePulseMode,
-                    repairStatus: shipRepairStatusFor(
-                      state: state,
-                      shipId: ship.id,
-                      anchorageRepairStartedAt:
-                          widget.controller.anchorageRepairStartedAt,
-                      now: now,
+    return SecondTickBuilder(
+      now: widget.clock,
+      builder: (context, now, _) => AnimatedBuilder(
+        animation: widget.controller,
+        builder: (context, _) {
+          final state = widget.controller.state;
+          final fleetIndex = state.fleets.indexWhere(
+            (fleet) => fleet.id == _selectedFleetId,
+          );
+          final selectedFleet = fleetIndex < 0
+              ? null
+              : state.fleets[fleetIndex];
+          final ships = state.shipsForFleet(_selectedFleetId);
+          final metrics = selectedFleet == null
+              ? null
+              : FleetMetrics.fromState(state, selectedFleet);
+          final specialAttack = selectedFleet == null
+              ? null
+              : detectFleetSpecialAttack(state, selectedFleet);
+          return DashboardCard(
+            title: AppLocalizations.of(context)?.fleetBrief ?? '编队简报',
+            icon: const Icon(Icons.directions_boat_filled_outlined),
+            collapsed: widget.collapsed,
+            onToggleCollapse: widget.onToggleCollapse,
+            trailing: _FleetSegmentedSwitcher(
+              fleets: state.fleets,
+              selectedFleetId: _selectedFleetId,
+              onSelected: (id) => setState(() => _selectedFleetId = id),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _FleetSummaryMetrics(metrics: metrics),
+                const SizedBox(height: 6),
+                if (ships.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      '无数据',
+                      style: TextStyle(color: Color(0xff8197a5)),
                     ),
-                    specialAttack: ship == ships.first ? specialAttack : null,
-                    onTap: () => widget.onOpenFleet(_selectedFleetId),
-                  ),
-                  if (ship != ships.last) const SizedBox(height: 3),
-                ],
-            ],
-          ),
-        );
-      },
+                  )
+                else
+                  for (final ship in ships) ...[
+                    FleetShipStatusCapsule(
+                      state: state,
+                      ship: ship,
+                      damagePulseMode: widget.damagePulseMode,
+                      repairStatus: shipRepairStatusFor(
+                        state: state,
+                        shipId: ship.id,
+                        anchorageRepairStartedAt:
+                            widget.controller.anchorageRepairStartedAt,
+                        now: now,
+                      ),
+                      specialAttack: ship == ships.first ? specialAttack : null,
+                      onTap: () => widget.onOpenFleet(_selectedFleetId),
+                    ),
+                    if (ship != ships.last) const SizedBox(height: 3),
+                  ],
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }

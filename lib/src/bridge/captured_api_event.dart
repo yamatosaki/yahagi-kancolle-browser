@@ -34,6 +34,7 @@ class CapturedApiEvent {
     this.sourceOrigin = '',
     required this.capturedAt,
     this.sequence = 0,
+    this.responseByteLength,
     this.decodedEnvelope,
   });
 
@@ -46,6 +47,7 @@ class CapturedApiEvent {
   final String sourceOrigin;
   final DateTime capturedAt;
   final int sequence;
+  final int? responseByteLength;
   final Map<String, Object?>? decodedEnvelope;
 
   bool get hasDecodedEnvelope => decodedEnvelope != null;
@@ -61,6 +63,7 @@ class CapturedApiEvent {
       sourceOrigin: sourceOrigin,
       capturedAt: capturedAt,
       sequence: sequence,
+      responseByteLength: responseByteLength,
       decodedEnvelope: envelope,
     );
   }

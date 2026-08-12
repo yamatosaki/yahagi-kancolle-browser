@@ -5,6 +5,8 @@ import 'game_api_decoder.dart';
 
 typedef GameApiEnvelopeDecoder =
     Future<Map<String, Object?>> Function(String responseBody);
+typedef GameApiSyncEnvelopeDecoder =
+    Map<String, Object?> Function(String responseBody);
 
 abstract interface class GameApiEventConsumer {
   bool supportsPath(String path);
@@ -18,13 +20,17 @@ final class GameApiEventPipeline {
   GameApiEventPipeline({
     required List<GameApiEventConsumer> consumers,
     GameApiEnvelopeDecoder? decodeEnvelope,
+    GameApiSyncEnvelopeDecoder? decodeSmallEnvelope,
     this.backgroundThresholdBytes = 64 * 1024,
   }) : assert(backgroundThresholdBytes > 0),
        _consumers = List<GameApiEventConsumer>.unmodifiable(consumers),
-       _decodeEnvelope = decodeEnvelope ?? _decodeInBackground;
+       _decodeEnvelope = decodeEnvelope ?? _decodeInBackground,
+       _decodeSmallEnvelope =
+           decodeSmallEnvelope ?? GameApiDecoder.decodeEnvelope;
 
   final List<GameApiEventConsumer> _consumers;
   final GameApiEnvelopeDecoder _decodeEnvelope;
+  final GameApiSyncEnvelopeDecoder _decodeSmallEnvelope;
   final int backgroundThresholdBytes;
   Future<void> _queue = Future<void>.value();
 
@@ -50,10 +56,12 @@ final class GameApiEventPipeline {
     if (consumers.isEmpty) return;
 
     var prepared = event;
-    if (_shouldDecode(event)) {
+    if (!event.hasDecodedEnvelope) {
       try {
         prepared = event.withDecodedEnvelope(
-          await _decodeEnvelope(event.responseBody),
+          _shouldDecodeInBackground(event)
+              ? await _decodeEnvelope(event.responseBody)
+              : _decodeSmallEnvelope(event.responseBody),
         );
       } catch (_) {
         // Preserve the established controller error path for invalid responses.
@@ -65,7 +73,7 @@ final class GameApiEventPipeline {
     }
   }
 
-  bool _shouldDecode(CapturedApiEvent event) {
+  bool _shouldDecodeInBackground(CapturedApiEvent event) {
     return event.path == '/kcsapi/api_start2/getData' ||
         event.responseBody.length >= backgroundThresholdBytes;
   }

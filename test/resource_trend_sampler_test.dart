@@ -87,4 +87,24 @@ void main() {
       expect(timestamps[i], greaterThan(timestamps[i - 1]));
     }
   });
+
+  test(
+    'streaming sampler stays bounded and preserves endpoints and spikes',
+    () {
+      final sampler = ResourceTrendStreamSampler(
+        expectedRows: 2000,
+        maxPoints: 100,
+      );
+      for (var index = 0; index < 2000; index++) {
+        sampler.add(_row(index, fuel: index == 505 ? 9000 : 100 + index % 20));
+      }
+
+      final result = sampler.finish();
+
+      expect(result.length, lessThanOrEqualTo(100));
+      expect(result.first['timestamp'], 1000);
+      expect(result.last['timestamp'], 2999);
+      expect(result.map((row) => row['fuel']), contains(9000));
+    },
+  );
 }

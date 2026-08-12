@@ -437,6 +437,9 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
   late int? _selectedQuestId = widget.initialQuestId;
   late QuestCenterMode _mode = widget.mode;
   QuestCatalog? _catalog;
+  QuestCatalog? _projectedCatalog;
+  Map<int, GameQuest>? _projectedLiveQuests;
+  QuestCatalogProjection? _cachedProjection;
   final QuestFilterController _localFilters = QuestFilterController();
 
   QuestFilterController get _filters =>
@@ -602,7 +605,7 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
             });
       return values;
     }
-    final projection = _catalog!.project(live);
+    final projection = _projectionFor(live);
     return projection.items
         .where((item) {
           final entry = item.entry;
@@ -625,6 +628,21 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
         })
         .map((item) => _QuestViewEntry.fromCatalog(item, _catalog!))
         .toList(growable: false);
+  }
+
+  QuestCatalogProjection _projectionFor(Map<int, GameQuest> live) {
+    final catalog = _catalog!;
+    final cached = _cachedProjection;
+    if (cached != null &&
+        identical(_projectedCatalog, catalog) &&
+        identical(_projectedLiveQuests, live)) {
+      return cached;
+    }
+    final projection = catalog.project(live);
+    _projectedCatalog = catalog;
+    _projectedLiveQuests = live;
+    _cachedProjection = projection;
+    return projection;
   }
 
   _QuestViewEntry? _selected(List<_QuestViewEntry> entries) {

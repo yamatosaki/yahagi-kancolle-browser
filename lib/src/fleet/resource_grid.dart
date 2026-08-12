@@ -1,10 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../game_state/game_state.dart';
 import '../settings/header_resource_settings.dart';
 import '../settings/layout_settings_controller.dart';
+import '../performance/second_tick_scope.dart';
 import 'header_resource_catalog.dart';
 
 class ResourceGrid extends StatelessWidget {
@@ -121,38 +120,23 @@ class CompactResourceBar extends StatefulWidget {
 
 class _CompactResourceBarState extends State<CompactResourceBar> {
   bool _editing = false;
-  late DateTime _now;
-  Timer? _ticker;
-
-  @override
-  void initState() {
-    super.initState();
-    _now = DateTime.now().toUtc();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() => _now = DateTime.now().toUtc());
-    });
-  }
-
-  @override
-  void didUpdateWidget(covariant CompactResourceBar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.anchorageRepairStartedAt != widget.anchorageRepairStartedAt) {
-      _now = DateTime.now().toUtc();
-    }
-  }
-
-  @override
-  void dispose() {
-    _ticker?.cancel();
-    super.dispose();
-  }
+  DateTime _now = DateTime.now().toUtc();
 
   String get _anchorageElapsed =>
       formatAnchorageRepairElapsed(widget.anchorageRepairStartedAt, _now);
 
   @override
   Widget build(BuildContext context) {
+    if (widget.anchorageRepairStartedAt == null) {
+      return _buildWithSettings(context, DateTime.now().toUtc());
+    }
+    return SecondTickBuilder(
+      builder: (context, now, _) => _buildWithSettings(context, now),
+    );
+  }
+
+  Widget _buildWithSettings(BuildContext context, DateTime now) {
+    _now = now;
     final controller = widget.settingsController;
     if (controller != null) {
       return AnimatedBuilder(

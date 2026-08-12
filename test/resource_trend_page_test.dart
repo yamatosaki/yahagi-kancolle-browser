@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -182,5 +184,36 @@ void main() {
     );
     expect(hourLabels, isNotEmpty);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('an older range query cannot overwrite the latest selection', (
+    tester,
+  ) async {
+    final first = Completer<List<Map<String, dynamic>>>();
+    final second = Completer<List<Map<String, dynamic>>>();
+    var calls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ResourceTrendPage(
+            loadLogs: (days) {
+              calls += 1;
+              return calls == 1 ? first.future : second.future;
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('7天'));
+    await tester.pump();
+    second.complete(<Map<String, dynamic>>[_row(DateTime.now(), fuel: 7000)]);
+    await tester.pumpAndSettle();
+    expect(find.text('7,000'), findsWidgets);
+
+    first.complete(<Map<String, dynamic>>[_row(DateTime.now(), fuel: 1000)]);
+    await tester.pumpAndSettle();
+    expect(find.text('7,000'), findsWidgets);
+    expect(find.text('1,000'), findsNothing);
   });
 }

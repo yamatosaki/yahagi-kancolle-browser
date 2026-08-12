@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
@@ -23,6 +21,7 @@ import 'status_density.dart';
 import '../expedition/expedition_check_page.dart';
 import '../improvement/improvement_planner_controller.dart';
 import '../improvement/improvement_planner_view.dart';
+import '../performance/second_tick_scope.dart';
 import 'expedition_summary_card.dart'
     show ExpeditionSummaryMode, ExpeditionModeSelector;
 
@@ -73,21 +72,6 @@ class FleetInformationCenter extends StatefulWidget {
 
 class _FleetInformationCenterState extends State<FleetInformationCenter> {
   late int _selectedFleetId = widget.initialFleetId ?? 1;
-  Timer? _clockTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _clockTimer?.cancel();
-    super.dispose();
-  }
 
   @override
   void didUpdateWidget(FleetInformationCenter oldWidget) {
@@ -100,71 +84,74 @@ class _FleetInformationCenterState extends State<FleetInformationCenter> {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: const Color(0xff081521),
-      child: AnimatedBuilder(
-        animation: widget.controller,
-        builder: (context, _) {
-          final state = widget.controller.state;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (widget.showContextHeader &&
-                  (widget.page != FleetInformationPage.fleet ||
-                      !state.hasPortData))
-                _PageHeader(
-                  page: widget.page,
-                  expeditionMode: widget.expeditionMode,
-                  onExpeditionModeChanged: widget.onExpeditionModeChanged,
-                ),
-              if (!state.hasPortData)
-                const Expanded(child: _WaitingState())
-              else
-                Expanded(
-                  child: switch (widget.page) {
-                    FleetInformationPage.fleet => _FleetView(
-                      state: state,
-                      anchorageRepairStartedAt:
-                          widget.controller.anchorageRepairStartedAt,
-                      now: widget.clock?.call() ?? DateTime.now().toUtc(),
-                      selectedFleetId: _selectedFleetId,
-                      damagePulseMode: widget.damagePulseMode,
-                      onFleetSelected: (id) {
-                        setState(() => _selectedFleetId = id);
-                      },
-                      showContextHeader: widget.showContextHeader,
-                    ),
-                    FleetInformationPage.expedition =>
-                      widget.expeditionMode == ExpeditionSummaryMode.check
-                          ? ExpeditionCheckPage(
-                              controller: widget.controller,
-                              showHeader: false,
-                              initialFleetId: _selectedFleetId,
-                              onBack: () {},
-                            )
-                          : ExpeditionStatusView(state: state),
-                    FleetInformationPage.repair => RepairCenterView(
-                      controller: widget.controller,
-                      initialFleetId: widget.initialFleetId,
-                      onFleetSelected: widget.onFleetSelected,
-                      mode: widget.repairMode,
-                      onModeChanged: widget.onRepairModeChanged,
-                      showModeTabs: widget.showRepairModeTabs,
-                    ),
-                    FleetInformationPage.construction =>
-                      widget.constructionMode ==
-                                  ConstructionCenterMode.improvement &&
-                              widget.improvementController != null
-                          ? ImprovementPlannerView(
-                              controller: widget.improvementController!,
-                              state: state,
-                            )
-                          : ConstructionDockStatusView(state: state),
-                  },
-                ),
-            ],
-          );
-        },
+    return SecondTickBuilder(
+      now: widget.clock,
+      builder: (context, now, _) => ColoredBox(
+        color: const Color(0xff081521),
+        child: AnimatedBuilder(
+          animation: widget.controller,
+          builder: (context, _) {
+            final state = widget.controller.state;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (widget.showContextHeader &&
+                    (widget.page != FleetInformationPage.fleet ||
+                        !state.hasPortData))
+                  _PageHeader(
+                    page: widget.page,
+                    expeditionMode: widget.expeditionMode,
+                    onExpeditionModeChanged: widget.onExpeditionModeChanged,
+                  ),
+                if (!state.hasPortData)
+                  const Expanded(child: _WaitingState())
+                else
+                  Expanded(
+                    child: switch (widget.page) {
+                      FleetInformationPage.fleet => _FleetView(
+                        state: state,
+                        anchorageRepairStartedAt:
+                            widget.controller.anchorageRepairStartedAt,
+                        now: now,
+                        selectedFleetId: _selectedFleetId,
+                        damagePulseMode: widget.damagePulseMode,
+                        onFleetSelected: (id) {
+                          setState(() => _selectedFleetId = id);
+                        },
+                        showContextHeader: widget.showContextHeader,
+                      ),
+                      FleetInformationPage.expedition =>
+                        widget.expeditionMode == ExpeditionSummaryMode.check
+                            ? ExpeditionCheckPage(
+                                controller: widget.controller,
+                                showHeader: false,
+                                initialFleetId: _selectedFleetId,
+                                onBack: () {},
+                              )
+                            : ExpeditionStatusView(state: state),
+                      FleetInformationPage.repair => RepairCenterView(
+                        controller: widget.controller,
+                        initialFleetId: widget.initialFleetId,
+                        onFleetSelected: widget.onFleetSelected,
+                        mode: widget.repairMode,
+                        onModeChanged: widget.onRepairModeChanged,
+                        showModeTabs: widget.showRepairModeTabs,
+                      ),
+                      FleetInformationPage.construction =>
+                        widget.constructionMode ==
+                                    ConstructionCenterMode.improvement &&
+                                widget.improvementController != null
+                            ? ImprovementPlannerView(
+                                controller: widget.improvementController!,
+                                state: state,
+                              )
+                            : ConstructionDockStatusView(state: state),
+                    },
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

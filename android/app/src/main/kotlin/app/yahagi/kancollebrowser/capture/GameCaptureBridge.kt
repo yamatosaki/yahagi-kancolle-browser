@@ -18,11 +18,18 @@ class GameCaptureBridge(
 ) {
     private companion object {
         const val MESSAGE_OBJECT_NAME = "YahagiNativeCapture"
+        const val BINARY_CAPTURE_MARKER =
+            "__YAHAGI_BINARY_CAPTURE_ENABLED__"
     }
 
     private var attachedWebView: WebView? = null
     private var scriptHandler: ScriptHandler? = null
     private var listenerInstalled = false
+    private val eventDispatcher = OrderedCaptureEventDispatcher(
+        validator = validator,
+        postToMain = activity::runOnUiThread,
+        deliver = { event -> channel.invokeMethod("onCaptureEvent", event) },
+    )
 
     fun isSupported(): Boolean {
         return WebViewFeature.isFeatureSupported(
@@ -85,6 +92,13 @@ class GameCaptureBridge(
 
         disable()
         try {
+            val binaryCaptureEnabled = WebViewFeature.isFeatureSupported(
+                WebViewFeature.WEB_MESSAGE_ARRAY_BUFFER,
+            )
+            val configuredScript = script.replace(
+                BINARY_CAPTURE_MARKER,
+                binaryCaptureEnabled.toString(),
+            )
             WebViewCompat.addWebMessageListener(
                 webView,
                 MESSAGE_OBJECT_NAME,
@@ -94,7 +108,7 @@ class GameCaptureBridge(
             listenerInstalled = true
             scriptHandler = WebViewCompat.addDocumentStartJavaScript(
                 webView,
-                script,
+                configuredScript,
                 originPolicy.allowedOriginRules,
             )
             attachedWebView = webView
@@ -111,6 +125,7 @@ class GameCaptureBridge(
 
     fun dispose() {
         disable()
+        eventDispatcher.close()
     }
 
     @Suppress("UNUSED_PARAMETER")
@@ -125,14 +140,28 @@ class GameCaptureBridge(
         if (!originPolicy.isAllowed(origin)) {
             return
         }
-        val messageData = message.data ?: return
-        val event = validator.validate(messageData, origin) ?: return
-        activity.runOnUiThread {
-            channel.invokeMethod("onCaptureEvent", event)
+        try {
+            when (message.type) {
+                WebMessageCompat.TYPE_ARRAY_BUFFER -> {
+                    if (WebViewFeature.isFeatureSupported(
+                            WebViewFeature.WEB_MESSAGE_ARRAY_BUFFER,
+                        )
+                    ) {
+                        eventDispatcher.submit(message.arrayBuffer, origin)
+                    }
+                }
+                WebMessageCompat.TYPE_STRING -> {
+                    message.data?.let { eventDispatcher.submit(it, origin) }
+                }
+                else -> Unit
+            }
+        } catch (_: RuntimeException) {
+            // Ignore malformed or unavailable WebMessage payloads.
         }
     }
 
     private fun disable() {
+        eventDispatcher.invalidatePending()
         val webView = attachedWebView
         scriptHandler?.remove()
         scriptHandler = null

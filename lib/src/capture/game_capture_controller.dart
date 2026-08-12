@@ -8,16 +8,13 @@ import 'game_capture_port.dart';
 
 final class GameCaptureController extends ChangeNotifier {
   GameCaptureController({
-    this.maxEvents = 32,
-    this.maxResponseBytes = 16 * 1024 * 1024,
+    this.maxResponseBytes = 8 * 1024 * 1024,
     this.onAcceptedEvent,
-  }) : assert(maxEvents > 0),
-       assert(maxResponseBytes > 0);
+  }) : assert(maxResponseBytes > 0);
 
-  final int maxEvents;
   final int maxResponseBytes;
   final ValueChanged<CapturedApiEvent>? onAcceptedEvent;
-  final List<CapturedApiEvent> _events = <CapturedApiEvent>[];
+  final ValueNotifier<int> _eventActivity = ValueNotifier<int>(0);
 
   GameCapturePort? _port;
   StreamSubscription<CapturedApiEvent>? _subscription;
@@ -26,11 +23,14 @@ final class GameCaptureController extends ChangeNotifier {
   bool? _configuredEnabled;
   String _script = '';
   int _responseBytes = 0;
+  int _capturedCount = 0;
+  CapturedApiEvent? _latestEvent;
   String? _errorMessage;
 
   GameCaptureState get state => _state;
-  List<CapturedApiEvent> get events => List.unmodifiable(_events);
-
+  CapturedApiEvent? get latestEvent => _latestEvent;
+  int get capturedCount => _capturedCount;
+  Listenable get eventActivity => _eventActivity;
   int get responseBytes => _responseBytes;
   String? get errorMessage => _errorMessage;
 
@@ -95,7 +95,7 @@ final class GameCaptureController extends ChangeNotifier {
       }
       await port.configure(enabled: true, script: _script);
       _configuredEnabled = true;
-      _state = _events.isEmpty
+      _state = _latestEvent == null
           ? GameCaptureState.ready
           : GameCaptureState.capturing;
     } catch (error) {
@@ -112,20 +112,21 @@ final class GameCaptureController extends ChangeNotifier {
       return;
     }
 
-    final eventBytes = utf8.encode(event.responseBody).length;
+    final eventBytes =
+        event.responseByteLength ?? utf8.encode(event.responseBody).length;
     if (eventBytes > maxResponseBytes) {
       return;
     }
-    _events.add(event);
-    _responseBytes += eventBytes;
-    while (_events.length > maxEvents || _responseBytes > maxResponseBytes) {
-      final removed = _events.removeAt(0);
-      _responseBytes -= utf8.encode(removed.responseBody).length;
-    }
+    final statusChanged =
+        _state != GameCaptureState.capturing || _errorMessage != null;
+    _latestEvent = event;
+    _responseBytes = eventBytes;
+    _capturedCount += 1;
     _state = GameCaptureState.capturing;
     _errorMessage = null;
     onAcceptedEvent?.call(event);
-    notifyListeners();
+    _eventActivity.value = _capturedCount;
+    if (statusChanged) notifyListeners();
   }
 
   String _safeError(Object error) {
@@ -136,6 +137,7 @@ final class GameCaptureController extends ChangeNotifier {
   @override
   void dispose() {
     unawaited(_subscription?.cancel());
+    _eventActivity.dispose();
     super.dispose();
   }
 }

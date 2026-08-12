@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/capture/game_capture_port.dart';
 import 'package:yahagi_kancolle_browser/src/bridge/captured_api_event.dart';
@@ -53,6 +56,33 @@ void main() {
               as CapturedApiEvent;
 
       expect(event.path, '/kcsapi/api_req_map/start');
+    });
+
+    test('decodes binary response bytes from the native channel', () {
+      final event =
+          AndroidCaptureEvent.decode(<String, Object?>{
+                'version': 1,
+                'kind': 'kcsapi_response',
+                'method': 'POST',
+                'path': '/kcsapi/api_port/port',
+                'requestParams': <String, Object?>{},
+                'responseBodyBytes': Uint8List.fromList(
+                  utf8.encode('svdata={"api_result":1,"api_data":"艦"}'),
+                ),
+                'statusCode': 200,
+                'transport': 'fetch',
+                'sourceOrigin': 'https://w01y.kancolle-server.com',
+                'capturedAt': '2026-07-30T10:00:00.000Z',
+                'sequence': 2,
+              })
+              as CapturedApiEvent;
+
+      expect(event.responseBody, '{"api_result":1,"api_data":"艦"}');
+      expect(
+        event.responseByteLength,
+        utf8.encode('svdata={"api_result":1,"api_data":"艦"}').length,
+      );
+      expect(event.sequence, 2);
     });
 
     test('rejects unknown versions and non-kcsapi paths', () {

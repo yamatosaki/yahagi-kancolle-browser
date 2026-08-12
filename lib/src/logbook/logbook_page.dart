@@ -244,42 +244,38 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
   @override
   void initState() {
     super.initState();
-    widget.database.addListener(_refreshLatest);
-    if (widget.category == _LogbookCategory.sortie) {
-      widget.battleController.addListener(_refreshAfterBattleChange);
-    }
+    _changeSignal(widget).addListener(_refreshLatest);
     _loadMore();
   }
 
   @override
   void didUpdateWidget(covariant _LogbookTablePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.database != widget.database) {
-      oldWidget.database.removeListener(_refreshLatest);
-      widget.database.addListener(_refreshLatest);
-    }
-    if (oldWidget.battleController != widget.battleController &&
-        widget.category == _LogbookCategory.sortie) {
-      oldWidget.battleController.removeListener(_refreshAfterBattleChange);
-      widget.battleController.addListener(_refreshAfterBattleChange);
+    if (oldWidget.database != widget.database ||
+        oldWidget.category != widget.category) {
+      _changeSignal(oldWidget).removeListener(_refreshLatest);
+      _changeSignal(widget).addListener(_refreshLatest);
     }
     _refreshLatest();
   }
 
   @override
   void dispose() {
-    widget.database.removeListener(_refreshLatest);
-    if (widget.category == _LogbookCategory.sortie) {
-      widget.battleController.removeListener(_refreshAfterBattleChange);
-    }
+    _changeSignal(widget).removeListener(_refreshLatest);
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
 
-  void _refreshAfterBattleChange() {
-    Future<void>.delayed(const Duration(milliseconds: 120), _refreshLatest);
-  }
+  Listenable _changeSignal(_LogbookTablePage page) =>
+      page.database.changesFor(switch (page.category) {
+        _LogbookCategory.sortie => LogbookChangeCategory.battle,
+        _LogbookCategory.expedition => LogbookChangeCategory.expedition,
+        _LogbookCategory.construction => LogbookChangeCategory.construction,
+        _LogbookCategory.development => LogbookChangeCategory.development,
+        _LogbookCategory.retirement => LogbookChangeCategory.retirement,
+        _LogbookCategory.resource => LogbookChangeCategory.resource,
+      });
 
   Future<void> _refreshLatest() async {
     if (!mounted) return;
@@ -1265,18 +1261,18 @@ class _RewardItemsCell extends StatelessWidget {
             ),
           ),
         );
+      } else {
+        items.add(TextSpan(text: '${reward.name} '));
       }
-      items
-        ..add(TextSpan(text: '${reward.name} '))
-        ..add(
-          TextSpan(
-            text: 'X${reward.count}',
-            style: const TextStyle(
-              color: Color(0xff67bce9),
-              fontWeight: FontWeight.w900,
-            ),
+      items.add(
+        TextSpan(
+          text: 'X${reward.count}',
+          style: const TextStyle(
+            color: Color(0xff67bce9),
+            fontWeight: FontWeight.w900,
           ),
-        );
+        ),
+      );
     }
 
     for (final reward in _expeditionRewards(row)) {

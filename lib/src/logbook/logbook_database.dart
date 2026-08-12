@@ -8,12 +8,101 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import '../battle/battle_models.dart';
 import '../game_state/game_state.dart';
 
+enum LogbookChangeCategory {
+  battle,
+  resource,
+  expedition,
+  construction,
+  development,
+  retirement,
+}
+
+final class DevelopmentLogEntry {
+  const DevelopmentLogEntry({
+    required this.timestamp,
+    required this.success,
+    required this.equipmentId,
+    required this.equipmentName,
+    required this.equipmentType,
+    required this.equipmentIconId,
+    required this.fuel,
+    required this.ammo,
+    required this.steel,
+    required this.bauxite,
+    required this.secretaryName,
+  });
+
+  final int timestamp;
+  final bool success;
+  final int? equipmentId;
+  final String equipmentName;
+  final String equipmentType;
+  final int equipmentIconId;
+  final int fuel;
+  final int ammo;
+  final int steel;
+  final int bauxite;
+  final String secretaryName;
+
+  Map<String, Object?> toRow() => <String, Object?>{
+    'timestamp': timestamp,
+    'success': success ? 1 : 0,
+    'equipment_id': equipmentId,
+    'equipment_name': equipmentName,
+    'equipment_type': equipmentType,
+    'equipment_icon_id': equipmentIconId,
+    'fuel': fuel,
+    'ammo': ammo,
+    'steel': steel,
+    'bauxite': bauxite,
+    'secretary_name': secretaryName,
+  };
+}
+
+final class RetirementLogEntry {
+  const RetirementLogEntry({
+    required this.timestamp,
+    required this.type,
+    required this.shipType,
+    required this.shipName,
+    required this.level,
+  });
+
+  final int timestamp;
+  final String type;
+  final String shipType;
+  final String shipName;
+  final int level;
+
+  Map<String, Object?> toRow() => <String, Object?>{
+    'timestamp': timestamp,
+    'type': type,
+    'ship_type': shipType,
+    'ship_name': shipName,
+    'level': level,
+  };
+}
+
 class LogbookDatabase extends ChangeNotifier {
   static final LogbookDatabase instance = LogbookDatabase._init();
 
+  final Future<Database> Function()? _databaseOpener;
   Database? _database;
+  Future<Database>? _openingDatabase;
+  Future<void>? _resourceWriteQueue;
+  _ResourceSnapshotValues? _lastResourceValues;
+  bool _resourceBaselineLoaded = false;
+  final Map<LogbookChangeCategory, ValueNotifier<int>> _changeSignals = {
+    for (final category in LogbookChangeCategory.values)
+      category: ValueNotifier<int>(0),
+  };
 
-  LogbookDatabase._init();
+  LogbookDatabase._init({this._databaseOpener});
+
+  @visibleForTesting
+  static LogbookDatabase lazyForTesting(
+    Future<Database> Function() databaseOpener,
+  ) => LogbookDatabase._init(databaseOpener: databaseOpener);
 
   static Future<LogbookDatabase> openForTesting() async {
     sqfliteFfiInit();
@@ -26,16 +115,64 @@ class LogbookDatabase extends ChangeNotifier {
   }
 
   Future<void> close() async {
-    final current = _database;
+    final pendingResourceWrite = _resourceWriteQueue;
+    try {
+      await pendingResourceWrite;
+    } catch (_) {
+      // A failed snapshot write must not prevent the database from closing.
+    }
+    var current = _database;
+    final opening = _openingDatabase;
+    if (current == null && opening != null) {
+      try {
+        current = await opening;
+      } catch (_) {
+        // A failed lazy open leaves nothing to close.
+      }
+    }
     _database = null;
+    _openingDatabase = null;
+    _resourceWriteQueue = null;
+    _lastResourceValues = null;
+    _resourceBaselineLoaded = false;
     await current?.close();
   }
 
-  Future<Database> get database async {
-    if (_database != null) return _database!;
+  Future<Database> get database {
+    final current = _database;
+    if (current != null) return Future<Database>.value(current);
+    final opening = _openingDatabase;
+    if (opening != null) return opening;
 
-    _database = await _initDB('logbook.db');
-    return _database!;
+    final operation = _openAndCacheDatabase();
+    _openingDatabase = operation;
+    return operation;
+  }
+
+  Future<Database> _openAndCacheDatabase() async {
+    try {
+      final opened = await (_databaseOpener?.call() ?? _initDB('logbook.db'));
+      _database = opened;
+      return opened;
+    } finally {
+      _openingDatabase = null;
+    }
+  }
+
+  ValueListenable<int> changesFor(LogbookChangeCategory category) =>
+      _changeSignals[category]!;
+
+  void _notifyChange(LogbookChangeCategory category) {
+    final signal = _changeSignals[category]!;
+    signal.value += 1;
+    notifyListeners();
+  }
+
+  void _notifyAllChanges() {
+    for (final signal in _changeSignals.values) {
+      signal.value += 1;
+    }
+    notifyListeners();
   }
 
   Future<Database> _initDB(String filePath) async {
@@ -321,7 +458,7 @@ class LogbookDatabase extends ChangeNotifier {
       'mvp_name': mainMvp,
       'escort_mvp_name': escortMvp,
     });
-    notifyListeners();
+    _notifyChange(LogbookChangeCategory.battle);
   }
 
   /// Get battle records with pagination
@@ -342,22 +479,40 @@ class LogbookDatabase extends ChangeNotifier {
   }
 
   /// Take a snapshot of resources
-  Future<void> insertResourceSnapshot(GameState state) async {
-    final db = await database;
-    // Don't record if we don't have basic resources loaded
-    if (state.resource(GameResourceType.fuel) == null) return;
+  Future<void> insertResourceSnapshot(GameState state) {
+    final values = _ResourceSnapshotValues.fromState(state);
+    if (values == null) return Future<void>.value();
 
-    await db.insert('resource_logs', {
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
-      'fuel': state.resource(GameResourceType.fuel) ?? 0,
-      'ammo': state.resource(GameResourceType.ammunition) ?? 0,
-      'steel': state.resource(GameResourceType.steel) ?? 0,
-      'bauxite': state.resource(GameResourceType.bauxite) ?? 0,
-      'bucket': state.resource(GameResourceType.instantRepair) ?? 0,
-      'blowtorch': state.resource(GameResourceType.instantBuild) ?? 0,
-      'devmat': state.resource(GameResourceType.developmentMaterial) ?? 0,
-      'screw': state.resource(GameResourceType.improvementMaterial) ?? 0,
-    });
+    final previous = _resourceWriteQueue;
+    final operation = previous == null
+        ? _insertResourceSnapshot(values)
+        : previous.then(
+            (_) => _insertResourceSnapshot(values),
+            onError: (_) => _insertResourceSnapshot(values),
+          );
+    _resourceWriteQueue = operation;
+    return operation;
+  }
+
+  Future<void> _insertResourceSnapshot(_ResourceSnapshotValues values) async {
+    final db = await database;
+    if (!_resourceBaselineLoaded) {
+      final latest = await db.query(
+        'resource_logs',
+        columns: _ResourceSnapshotValues.columns,
+        orderBy: 'id DESC',
+        limit: 1,
+      );
+      _lastResourceValues = latest.isEmpty
+          ? null
+          : _ResourceSnapshotValues.fromRow(latest.single);
+      _resourceBaselineLoaded = true;
+    }
+    if (values == _lastResourceValues) return;
+
+    await db.insert('resource_logs', values.toRow(DateTime.now()));
+    _lastResourceValues = values;
+    _notifyChange(LogbookChangeCategory.resource);
   }
 
   /// Insert expedition result
@@ -395,7 +550,7 @@ class LogbookDatabase extends ChangeNotifier {
       'item2_count': item2Count,
       'reward_items_json': jsonEncode(rewardItems),
     });
-    notifyListeners();
+    _notifyChange(LogbookChangeCategory.expedition);
   }
 
   Future<List<Map<String, dynamic>>> getExpeditionRecords({
@@ -433,7 +588,7 @@ class LogbookDatabase extends ChangeNotifier {
       'development_material': developmentMaterial,
       'secretary_name': secretaryName,
     });
-    notifyListeners();
+    _notifyChange(LogbookChangeCategory.construction);
     return id;
   }
 
@@ -451,7 +606,7 @@ class LogbookDatabase extends ChangeNotifier {
           'id = (SELECT id FROM construction_logs WHERE dock_id = ? ORDER BY id DESC LIMIT 1)',
       whereArgs: [dockId],
     );
-    if (changed > 0) notifyListeners();
+    if (changed > 0) _notifyChange(LogbookChangeCategory.construction);
     return changed > 0;
   }
 
@@ -476,22 +631,34 @@ class LogbookDatabase extends ChangeNotifier {
     required int steel,
     required int bauxite,
     required String secretaryName,
-  }) async {
+  }) => insertDevelopmentRecords(<DevelopmentLogEntry>[
+    DevelopmentLogEntry(
+      timestamp: timestamp,
+      success: success,
+      equipmentId: equipmentId,
+      equipmentName: equipmentName,
+      equipmentType: equipmentType,
+      equipmentIconId: equipmentIconId,
+      fuel: fuel,
+      ammo: ammo,
+      steel: steel,
+      bauxite: bauxite,
+      secretaryName: secretaryName,
+    ),
+  ]);
+
+  Future<void> insertDevelopmentRecords(
+    Iterable<DevelopmentLogEntry> records,
+  ) async {
+    final values = records.toList(growable: false);
+    if (values.isEmpty) return;
     final db = await database;
-    await db.insert('development_logs', {
-      'timestamp': timestamp,
-      'success': success ? 1 : 0,
-      'equipment_id': equipmentId,
-      'equipment_name': equipmentName,
-      'equipment_type': equipmentType,
-      'equipment_icon_id': equipmentIconId,
-      'fuel': fuel,
-      'ammo': ammo,
-      'steel': steel,
-      'bauxite': bauxite,
-      'secretary_name': secretaryName,
-    });
-    notifyListeners();
+    final batch = db.batch();
+    for (final record in values) {
+      batch.insert('development_logs', record.toRow());
+    }
+    await batch.commit(noResult: true);
+    _notifyChange(LogbookChangeCategory.development);
   }
 
   Future<List<Map<String, dynamic>>> getDevelopmentRecords({
@@ -509,16 +676,28 @@ class LogbookDatabase extends ChangeNotifier {
     required String shipType,
     required String shipName,
     required int level,
-  }) async {
+  }) => insertRetirementRecords(<RetirementLogEntry>[
+    RetirementLogEntry(
+      timestamp: timestamp,
+      type: type,
+      shipType: shipType,
+      shipName: shipName,
+      level: level,
+    ),
+  ]);
+
+  Future<void> insertRetirementRecords(
+    Iterable<RetirementLogEntry> records,
+  ) async {
+    final values = records.toList(growable: false);
+    if (values.isEmpty) return;
     final db = await database;
-    await db.insert('retirement_logs', {
-      'timestamp': timestamp,
-      'type': type,
-      'ship_type': shipType,
-      'ship_name': shipName,
-      'level': level,
-    });
-    notifyListeners();
+    final batch = db.batch();
+    for (final record in values) {
+      batch.insert('retirement_logs', record.toRow());
+    }
+    await batch.commit(noResult: true);
+    _notifyChange(LogbookChangeCategory.retirement);
   }
 
   Future<List<Map<String, dynamic>>> getRetirementRecords({
@@ -578,6 +757,74 @@ class LogbookDatabase extends ChangeNotifier {
     return results;
   }
 
+  Future<int> countResourceLogs({DateTime? start, DateTime? end}) async {
+    final db = await database;
+    final filter = _resourceRangeFilter(start: start, end: end);
+    final rows = await db.query(
+      'resource_logs',
+      columns: const <String>['COUNT(*) AS row_count'],
+      where: filter.where,
+      whereArgs: filter.arguments,
+    );
+    final value = rows.singleOrNull?['row_count'];
+    return value is num ? value.toInt() : 0;
+  }
+
+  Stream<Map<String, dynamic>> streamResourceLogs({
+    DateTime? start,
+    DateTime? end,
+    int pageSize = 1000,
+  }) async* {
+    assert(pageSize > 0);
+    final db = await database;
+    var lastId = 0;
+    while (true) {
+      final filter = _resourceRangeFilter(
+        start: start,
+        end: end,
+        afterId: lastId,
+      );
+      final rows = await db.query(
+        'resource_logs',
+        where: filter.where,
+        whereArgs: filter.arguments,
+        orderBy: 'id ASC',
+        limit: pageSize,
+      );
+      if (rows.isEmpty) return;
+      for (final row in rows) {
+        yield row;
+      }
+      lastId = (rows.last['id'] as num).toInt();
+      if (rows.length < pageSize) return;
+    }
+  }
+
+  ({String? where, List<Object?>? arguments}) _resourceRangeFilter({
+    DateTime? start,
+    DateTime? end,
+    int? afterId,
+  }) {
+    final clauses = <String>[];
+    final arguments = <Object?>[];
+    if (start != null) {
+      clauses.add('timestamp >= ?');
+      arguments.add(start.millisecondsSinceEpoch);
+    }
+    if (end != null) {
+      clauses.add('timestamp <= ?');
+      arguments.add(end.millisecondsSinceEpoch);
+    }
+    if (afterId != null) {
+      clauses.add('id > ?');
+      arguments.add(afterId);
+    }
+    return (
+      where: clauses.isEmpty ? null : clauses.join(' AND '),
+      arguments: arguments.isEmpty ? null : arguments,
+    );
+  }
+
   /// Get aggregated expedition yields per day
   Future<List<Map<String, dynamic>>> getDailyExpeditionYields({
     int limitDays = 7,
@@ -607,12 +854,110 @@ class LogbookDatabase extends ChangeNotifier {
   }
 
   Future<void> clearAll() async {
+    final pendingResourceWrite = _resourceWriteQueue;
+    if (pendingResourceWrite != null) await pendingResourceWrite;
     final db = await database;
-    await db.delete('battle_logs');
-    await db.delete('resource_logs');
-    await db.delete('expedition_logs');
-    await db.delete('construction_logs');
-    await db.delete('development_logs');
-    await db.delete('retirement_logs');
+    await db.transaction((transaction) async {
+      await transaction.delete('battle_logs');
+      await transaction.delete('resource_logs');
+      await transaction.delete('expedition_logs');
+      await transaction.delete('construction_logs');
+      await transaction.delete('development_logs');
+      await transaction.delete('retirement_logs');
+    });
+    _resourceWriteQueue = null;
+    _lastResourceValues = null;
+    _resourceBaselineLoaded = false;
+    _notifyAllChanges();
   }
+}
+
+final class _ResourceSnapshotValues {
+  const _ResourceSnapshotValues({
+    required this.fuel,
+    required this.ammo,
+    required this.steel,
+    required this.bauxite,
+    required this.bucket,
+    required this.blowtorch,
+    required this.devmat,
+    required this.screw,
+  });
+
+  static const List<String> columns = <String>[
+    'fuel',
+    'ammo',
+    'steel',
+    'bauxite',
+    'bucket',
+    'blowtorch',
+    'devmat',
+    'screw',
+  ];
+
+  final int fuel;
+  final int ammo;
+  final int steel;
+  final int bauxite;
+  final int bucket;
+  final int blowtorch;
+  final int devmat;
+  final int screw;
+
+  static _ResourceSnapshotValues? fromState(GameState state) {
+    final fuel = state.resource(GameResourceType.fuel);
+    if (fuel == null) return null;
+    return _ResourceSnapshotValues(
+      fuel: fuel,
+      ammo: state.resource(GameResourceType.ammunition) ?? 0,
+      steel: state.resource(GameResourceType.steel) ?? 0,
+      bauxite: state.resource(GameResourceType.bauxite) ?? 0,
+      bucket: state.resource(GameResourceType.instantRepair) ?? 0,
+      blowtorch: state.resource(GameResourceType.instantBuild) ?? 0,
+      devmat: state.resource(GameResourceType.developmentMaterial) ?? 0,
+      screw: state.resource(GameResourceType.improvementMaterial) ?? 0,
+    );
+  }
+
+  factory _ResourceSnapshotValues.fromRow(Map<String, Object?> row) =>
+      _ResourceSnapshotValues(
+        fuel: _int(row['fuel']),
+        ammo: _int(row['ammo']),
+        steel: _int(row['steel']),
+        bauxite: _int(row['bauxite']),
+        bucket: _int(row['bucket']),
+        blowtorch: _int(row['blowtorch']),
+        devmat: _int(row['devmat']),
+        screw: _int(row['screw']),
+      );
+
+  Map<String, Object?> toRow(DateTime timestamp) => <String, Object?>{
+    'timestamp': timestamp.millisecondsSinceEpoch,
+    'fuel': fuel,
+    'ammo': ammo,
+    'steel': steel,
+    'bauxite': bauxite,
+    'bucket': bucket,
+    'blowtorch': blowtorch,
+    'devmat': devmat,
+    'screw': screw,
+  };
+
+  static int _int(Object? value) => value is num ? value.toInt() : 0;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _ResourceSnapshotValues &&
+      fuel == other.fuel &&
+      ammo == other.ammo &&
+      steel == other.steel &&
+      bauxite == other.bauxite &&
+      bucket == other.bucket &&
+      blowtorch == other.blowtorch &&
+      devmat == other.devmat &&
+      screw == other.screw;
+
+  @override
+  int get hashCode =>
+      Object.hash(fuel, ammo, steel, bauxite, bucket, blowtorch, devmat, screw);
 }

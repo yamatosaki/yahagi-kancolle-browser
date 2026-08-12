@@ -1,6 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+
+import '../performance/second_tick_scope.dart';
 
 double operationProgress({
   required DateTime now,
@@ -32,7 +32,7 @@ String formatOperationDuration(Duration duration) {
 }
 
 /// 自驱动倒计时文本，每秒刷新一次，只重建自身。
-class OperationCountdownText extends StatefulWidget {
+class OperationCountdownText extends StatelessWidget {
   const OperationCountdownText({
     super.key,
     this.completionTime,
@@ -58,78 +58,36 @@ class OperationCountdownText extends StatefulWidget {
   final List<FontFeature>? fontFeatures;
 
   @override
-  State<OperationCountdownText> createState() => _OperationCountdownTextState();
-}
-
-class _OperationCountdownTextState extends State<OperationCountdownText> {
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.completionTime != null) {
-      _startTimer();
-    }
-  }
-
-  @override
-  void didUpdateWidget(OperationCountdownText oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.completionTime != widget.completionTime) {
-      _timer?.cancel();
-      _timer = null;
-      if (widget.completionTime != null) {
-        _startTimer();
-      }
-    }
-  }
-
-  void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) {
-        return;
-      }
-      final completed = operationIsCompleted(widget.completionTime);
-      if (completed) {
-        _timer?.cancel();
-        _timer = null;
-      }
-      setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final completionTime = widget.completionTime;
+    final completionTime = this.completionTime;
     if (completionTime == null) {
       return const SizedBox.shrink();
     }
-    final remaining = completionTime.difference(DateTime.now().toUtc());
-    final isCompleted = operationIsCompleted(completionTime);
+    return SecondTickBuilder(
+      enabled: !operationIsCompleted(completionTime),
+      stopAt: completionTime,
+      builder: (context, now, _) => _buildText(completionTime, now),
+    );
+  }
+
+  Widget _buildText(DateTime completionTime, DateTime now) {
+    final remaining = completionTime.difference(now);
+    final isCompleted = operationIsCompleted(completionTime, now: now);
     final baseStyle =
-        widget.style ??
+        style ??
         const TextStyle(
           color: Color(0xffffc940),
           fontSize: 13,
           fontWeight: FontWeight.w700,
         );
     final color = isCompleted
-        ? (widget.completedColor ?? const Color(0xff64c894))
-        : (widget.countingColor ?? baseStyle.color);
+        ? (completedColor ?? const Color(0xff64c894))
+        : (countingColor ?? baseStyle.color);
     return Text(
-      isCompleted ? widget.completedText : formatOperationDuration(remaining),
-      maxLines: widget.maxLines,
-      textAlign: widget.textAlign,
-      style: baseStyle.copyWith(
-        color: color,
-        fontFeatures: widget.fontFeatures,
-      ),
+      isCompleted ? completedText : formatOperationDuration(remaining),
+      maxLines: maxLines,
+      textAlign: textAlign,
+      style: baseStyle.copyWith(color: color, fontFeatures: fontFeatures),
     );
   }
 }

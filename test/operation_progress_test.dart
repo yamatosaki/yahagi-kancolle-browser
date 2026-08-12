@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/operation_progress.dart';
+import 'package:yahagi_kancolle_browser/src/performance/second_tick_scope.dart';
 
 void main() {
   test('clamps operation progress before start and after completion', () {
@@ -92,6 +93,10 @@ void main() {
       ),
     );
     expect(find.text('已归还'), findsOneWidget);
+    expect(
+      tester.widget<SecondTickBuilder>(find.byType(SecondTickBuilder)).enabled,
+      isFalse,
+    );
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpWidget(const SizedBox.shrink());
   });

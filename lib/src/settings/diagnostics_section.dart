@@ -34,6 +34,7 @@ class DiagnosticsSection extends StatelessWidget {
         browserController,
         captureModeController,
         gameCaptureController,
+        gameCaptureController.eventActivity,
         prototypeStatusController,
         ?gameRenderingModeController,
       ]),
@@ -41,12 +42,10 @@ class DiagnosticsSection extends StatelessWidget {
         final l10n =
             AppLocalizations.of(context) ??
             lookupAppLocalizations(const Locale('zh'));
-        final nativeEvent = gameCaptureController.events.isEmpty
-            ? null
-            : gameCaptureController.events.last;
+        final nativeEvent = gameCaptureController.latestEvent;
         final event = nativeEvent ?? prototypeStatusController.lastEvent;
         final capturedCount =
-            gameCaptureController.events.length +
+            gameCaptureController.capturedCount +
             prototypeStatusController.capturedEvents.length;
 
         return Column(

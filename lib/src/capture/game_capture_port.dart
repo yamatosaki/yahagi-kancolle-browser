@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import '../bridge/captured_api_event.dart';
 
 enum GameCaptureState {
@@ -36,7 +39,8 @@ abstract final class AndroidCaptureEvent {
 
     final method = map['method'];
     final path = map['path'];
-    final responseBody = map['responseBody'];
+    final responsePayload = _decodeResponseBody(map);
+    final responseBody = responsePayload.text;
     final statusCode = map['statusCode'];
     final transport = map['transport'];
     final sourceOrigin = map['sourceOrigin'];
@@ -50,8 +54,7 @@ abstract final class AndroidCaptureEvent {
     if (path is! String || !path.startsWith('/kcsapi/')) {
       throw const FormatException('Only /kcsapi/ responses are accepted');
     }
-    if (responseBody is! String ||
-        statusCode is! int ||
+    if (statusCode is! int ||
         sourceOrigin is! String ||
         sourceOrigin.isEmpty ||
         sequence is! int ||
@@ -84,7 +87,28 @@ abstract final class AndroidCaptureEvent {
       sourceOrigin: sourceOrigin,
       capturedAt: capturedAt,
       sequence: sequence,
+      responseByteLength: responsePayload.byteLength,
     );
+  }
+
+  static ({String text, int? byteLength}) _decodeResponseBody(
+    Map<Object?, Object?> map,
+  ) {
+    final stringBody = map['responseBody'];
+    if (stringBody is String) return (text: stringBody, byteLength: null);
+
+    final binaryBody = map['responseBodyBytes'];
+    if (binaryBody is Uint8List) {
+      try {
+        return (
+          text: utf8.decode(binaryBody, allowMalformed: false),
+          byteLength: binaryBody.length,
+        );
+      } on FormatException {
+        throw const FormatException('Native response body is not valid UTF-8');
+      }
+    }
+    throw const FormatException('Native capture event has no response body');
   }
 
   static Map<String, Object?> _sanitizeMap(Map<Object?, Object?> input) {

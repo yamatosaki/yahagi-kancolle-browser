@@ -8,21 +8,21 @@ import 'package:yahagi_kancolle_browser/src/quest/quest_catalog_merger.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const catalog = QuestCatalog(<QuestCatalogEntry>[
-    QuestCatalogEntry(
+  final catalog = QuestCatalog(<QuestCatalogEntry>[
+    const QuestCatalogEntry(
       gameId: 101,
       code: 'A1',
       name: 'はじめての「編成」！',
       description: '前置説明',
     ),
-    QuestCatalogEntry(
+    const QuestCatalogEntry(
       gameId: 201,
       code: 'B1',
       name: '敵艦隊を撃破せよ！',
       description: '当前说明',
       prerequisites: <String>['A1'],
     ),
-    QuestCatalogEntry(
+    const QuestCatalogEntry(
       gameId: 202,
       code: 'Bd2',
       name: '敵艦隊主力を撃滅せよ！',
@@ -58,6 +58,52 @@ void main() {
     expect(projection.byGameId(202).unlockState, QuestUnlockState.locked);
     expect(projection.byGameId(202).progressLabel, '＜50%');
   });
+
+  test(
+    'indexed relations preserve first-match behavior and tolerate cycles',
+    () {
+      final cyclic = QuestCatalog(const <QuestCatalogEntry>[
+        QuestCatalogEntry(
+          gameId: 1,
+          code: 'A1',
+          name: 'first',
+          description: '',
+          prerequisites: <String>['B1'],
+        ),
+        QuestCatalogEntry(
+          gameId: 2,
+          code: 'B1',
+          name: 'second',
+          description: '',
+          prerequisites: <String>['A1'],
+        ),
+        QuestCatalogEntry(
+          gameId: 3,
+          code: 'A1',
+          name: 'duplicate code',
+          description: '',
+        ),
+      ]);
+
+      expect(cyclic.byCode('A1')?.gameId, 1);
+      expect(cyclic.prerequisitesOf(1).map((entry) => entry.gameId), <int>[2]);
+      expect(cyclic.successorsOf(1).map((entry) => entry.gameId), <int>[2]);
+
+      final projection = cyclic.project(const <int, GameQuest>{
+        1: GameQuest(
+          id: 1,
+          title: 'live',
+          detail: '',
+          category: 1,
+          type: 1,
+          state: 2,
+          progressFlag: 0,
+        ),
+      });
+      expect(projection.byGameId(1).liveQuest, isNotNull);
+      expect(() => projection.byGameId(999), throwsStateError);
+    },
+  );
 
   test('loads the bundled Japanese quest catalog with relations', () async {
     final bundled = await QuestCatalog.loadAsset();

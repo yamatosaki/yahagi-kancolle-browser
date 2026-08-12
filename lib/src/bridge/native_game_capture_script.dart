@@ -1,4 +1,13 @@
-﻿const String nativeGameCaptureScript = r'''
+import 'dart:convert';
+
+import '../capture/game_capture_path_catalog.dart';
+
+final String nativeGameCaptureScript = _buildNativeGameCaptureScript();
+
+String _buildNativeGameCaptureScript() {
+  final paths = GameCapturePathCatalog.all.toList(growable: false)..sort();
+  final encodedPaths = jsonEncode(paths);
+  return '''
 (() => {
   'use strict';
 
@@ -6,11 +15,16 @@
   window.__yahagiMobileNativeCaptureInstalled = true;
 
   const targetPrefix = '/kcsapi/';
+  const targetPaths = new Set($encodedPaths);
   const sensitiveKeys = new Set(['api_token', 'api_starttime']);
   const questListPath = '/kcsapi/api_get_member/questlist';
   const questSnapshotCooldownMs = 15000;
   const xhrUrl = Symbol('yahagiCaptureUrl');
   const xhrMethod = Symbol('yahagiCaptureMethod');
+  const binaryCaptureEnabled = __YAHAGI_BINARY_CAPTURE_ENABLED__;
+  const utf8Encoder = binaryCaptureEnabled && typeof TextEncoder === 'function'
+    ? new TextEncoder()
+    : null;
   const nativeFetch = typeof window.fetch === 'function'
     ? window.fetch.bind(window)
     : null;
@@ -20,7 +34,9 @@
   const targetPath = (value) => {
     try {
       const path = new URL(String(value), window.location.href).pathname;
-      return path.startsWith(targetPrefix) ? path : null;
+      return path.startsWith(targetPrefix) && targetPaths.has(path)
+        ? path
+        : null;
     } catch (_) {
       return null;
     }
@@ -65,6 +81,10 @@
     return sanitizeValue(output);
   };
 
+  const publishStringFallback = (event) => {
+    YahagiNativeCapture.postMessage(JSON.stringify(event));
+  };
+
   const publish = ({
     method,
     url,
@@ -81,7 +101,7 @@
         typeof YahagiNativeCapture.postMessage !== 'function'
       ) return;
 
-      YahagiNativeCapture.postMessage(JSON.stringify({
+      const event = {
         version: 1,
         kind: 'kcsapi_response',
         method: String(method || 'GET').toUpperCase(),
@@ -90,7 +110,28 @@
         responseBody,
         statusCode: Number.isInteger(statusCode) ? statusCode : 0,
         transport,
-      }));
+      };
+
+      if (utf8Encoder !== null) {
+        try {
+          const { responseBody: body, ...metadata } = event;
+          const metadataBytes = utf8Encoder.encode(JSON.stringify(metadata));
+          const bodyBytes = utf8Encoder.encode(body);
+          const payload = new ArrayBuffer(
+            4 + metadataBytes.byteLength + bodyBytes.byteLength,
+          );
+          new DataView(payload).setUint32(0, metadataBytes.byteLength, false);
+          new Uint8Array(payload, 4, metadataBytes.byteLength)
+            .set(metadataBytes);
+          new Uint8Array(payload, 4 + metadataBytes.byteLength)
+            .set(bodyBytes);
+          YahagiNativeCapture.postMessage(payload);
+          return;
+        } catch (_) {
+          // Fall through to the string protocol for this individual event.
+        }
+      }
+      publishStringFallback(event);
     } catch (_) {}
   };
 
@@ -244,12 +285,15 @@
             ? input.method
             : 'GET';
       const requestBody = init ? init.body : null;
-      const requestBodyPromise = requestBody !== null && requestBody !== undefined
-        ? Promise.resolve(requestBody)
-        : typeof Request !== 'undefined' && input instanceof Request
-          ? input.clone().text().catch(() => null)
-          : Promise.resolve(null);
       const path = targetPath(url);
+      let requestBodyPromise = Promise.resolve(null);
+      if (path !== null) {
+        requestBodyPromise = requestBody !== null && requestBody !== undefined
+          ? Promise.resolve(requestBody)
+          : typeof Request !== 'undefined' && input instanceof Request
+            ? input.clone().text().catch(() => null)
+            : Promise.resolve(null);
+      }
 
       return originalFetch.apply(this, args).then((response) => {
         if (path !== null) {
@@ -313,3 +357,4 @@
   }
 })();
 ''';
+}

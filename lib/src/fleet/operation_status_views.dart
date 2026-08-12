@@ -1,9 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import '../game_state/game_state.dart';
+import '../performance/second_tick_scope.dart';
 import 'operation_progress.dart';
 import 'ship_portrait.dart';
 import 'ship_status_style.dart';
@@ -462,7 +461,7 @@ class _OperationIdentity extends StatelessWidget {
   }
 }
 
-class _TimedProgress extends StatefulWidget {
+class _TimedProgress extends StatelessWidget {
   const _TimedProgress({
     required this.progressKey,
     required this.label,
@@ -476,7 +475,51 @@ class _TimedProgress extends StatefulWidget {
   final DateTime end;
 
   @override
-  State<_TimedProgress> createState() => _TimedProgressState();
+  Widget build(BuildContext context) {
+    return SecondTickBuilder(
+      enabled: !operationIsCompleted(end),
+      stopAt: end,
+      builder: (context, now, _) {
+        final progress = operationProgress(now: now, start: start, end: end);
+        final percentage = (progress * 100).round();
+        return Column(
+          key: progressKey,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xffdce6eb),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '$percentage%',
+                  style: const TextStyle(
+                    color: Color(0xffa9c6d2),
+                    fontSize: 11,
+                    fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            LinearProgressIndicator(
+              value: progress,
+              minHeight: 6,
+              borderRadius: BorderRadius.circular(4),
+              color: _progressColor,
+              backgroundColor: const Color(0xff263f4d),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _UnavailableProgress extends StatelessWidget {
@@ -564,83 +607,6 @@ class _StaticProgress extends StatelessWidget {
         const SizedBox(height: 4),
         LinearProgressIndicator(
           value: value,
-          minHeight: 6,
-          borderRadius: BorderRadius.circular(4),
-          color: _progressColor,
-          backgroundColor: const Color(0xff263f4d),
-        ),
-      ],
-    );
-  }
-}
-
-class _TimedProgressState extends State<_TimedProgress> {
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) {
-        return;
-      }
-      final done =
-          operationProgress(
-            now: DateTime.now().toUtc(),
-            start: widget.start,
-            end: widget.end,
-          ) >=
-          1;
-      if (done) {
-        _timer?.cancel();
-        _timer = null;
-      }
-      setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = operationProgress(
-      now: DateTime.now().toUtc(),
-      start: widget.start,
-      end: widget.end,
-    );
-    final percentage = (progress * 100).round();
-    return Column(
-      key: widget.progressKey,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Text(
-              widget.label,
-              style: const TextStyle(
-                color: Color(0xffdce6eb),
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              '$percentage%',
-              style: const TextStyle(
-                color: Color(0xffa9c6d2),
-                fontSize: 11,
-                fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        LinearProgressIndicator(
-          value: progress,
           minHeight: 6,
           borderRadius: BorderRadius.circular(4),
           color: _progressColor,

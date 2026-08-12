@@ -65,9 +65,50 @@ class QuestCatalogEntry {
 }
 
 class QuestCatalog {
-  const QuestCatalog(this.entries);
+  QuestCatalog(List<QuestCatalogEntry> entries)
+    : entries = List<QuestCatalogEntry>.unmodifiable(entries) {
+    final byGameId = <int, QuestCatalogEntry>{};
+    final byCode = <String, QuestCatalogEntry>{};
+    for (final entry in this.entries) {
+      // Keep the original linear lookup behavior when malformed upstream data
+      // contains a duplicate id or code: the first entry wins.
+      byGameId.putIfAbsent(entry.gameId, () => entry);
+      byCode.putIfAbsent(entry.code, () => entry);
+    }
+
+    final prerequisitesByGameId = <int, List<QuestCatalogEntry>>{};
+    for (final entry in byGameId.values) {
+      prerequisitesByGameId[entry.gameId] =
+          List<QuestCatalogEntry>.unmodifiable(
+            entry.prerequisites
+                .map((code) => byCode[code])
+                .whereType<QuestCatalogEntry>(),
+          );
+    }
+
+    final successorsByCode = <String, List<QuestCatalogEntry>>{};
+    for (final entry in this.entries) {
+      for (final prerequisite in entry.prerequisites.toSet()) {
+        (successorsByCode[prerequisite] ??= <QuestCatalogEntry>[]).add(entry);
+      }
+    }
+
+    _byGameId = Map<int, QuestCatalogEntry>.unmodifiable(byGameId);
+    _byCode = Map<String, QuestCatalogEntry>.unmodifiable(byCode);
+    _prerequisitesByGameId = Map<int, List<QuestCatalogEntry>>.unmodifiable(
+      prerequisitesByGameId,
+    );
+    _successorsByCode = Map<String, List<QuestCatalogEntry>>.unmodifiable({
+      for (final relation in successorsByCode.entries)
+        relation.key: List<QuestCatalogEntry>.unmodifiable(relation.value),
+    });
+  }
 
   final List<QuestCatalogEntry> entries;
+  late final Map<int, QuestCatalogEntry> _byGameId;
+  late final Map<String, QuestCatalogEntry> _byCode;
+  late final Map<int, List<QuestCatalogEntry>> _prerequisitesByGameId;
+  late final Map<String, List<QuestCatalogEntry>> _successorsByCode;
 
   static Future<QuestCatalog> loadAsset({AssetBundle? bundle}) async {
     final source = await (bundle ?? rootBundle).loadString(
@@ -87,32 +128,18 @@ class QuestCatalog {
     return QuestCatalog(entries);
   }
 
-  QuestCatalogEntry? byGameId(int gameId) {
-    for (final entry in entries) {
-      if (entry.gameId == gameId) return entry;
-    }
-    return null;
-  }
+  QuestCatalogEntry? byGameId(int gameId) => _byGameId[gameId];
 
-  QuestCatalogEntry? byCode(String code) {
-    for (final entry in entries) {
-      if (entry.code == code) return entry;
-    }
-    return null;
-  }
+  QuestCatalogEntry? byCode(String code) => _byCode[code];
 
-  List<QuestCatalogEntry> prerequisitesOf(int gameId) {
-    final entry = byGameId(gameId);
-    if (entry == null) return const <QuestCatalogEntry>[];
-    return entry.prerequisites
-        .map(byCode)
-        .whereType<QuestCatalogEntry>()
-        .toList(growable: false);
-  }
+  List<QuestCatalogEntry> prerequisitesOf(int gameId) =>
+      _prerequisitesByGameId[gameId] ?? const <QuestCatalogEntry>[];
 
-  List<QuestCatalogEntry> successorsOf(int gameId) => entries
-      .where((entry) => entry.prerequisites.contains(byGameId(gameId)?.code))
-      .toList(growable: false);
+  List<QuestCatalogEntry> successorsOf(int gameId) {
+    final code = _byGameId[gameId]?.code;
+    if (code == null) return const <QuestCatalogEntry>[];
+    return _successorsByCode[code] ?? const <QuestCatalogEntry>[];
+  }
 
   QuestCatalogProjection project(Map<int, GameQuest> liveQuests) {
     final completed = <int>{};
@@ -170,10 +197,21 @@ class QuestCatalogItem {
 }
 
 class QuestCatalogProjection {
-  const QuestCatalogProjection(this.items);
+  QuestCatalogProjection(List<QuestCatalogItem> items)
+    : items = List<QuestCatalogItem>.unmodifiable(items) {
+    final byGameId = <int, QuestCatalogItem>{};
+    for (final item in this.items) {
+      byGameId.putIfAbsent(item.gameId, () => item);
+    }
+    _byGameId = Map<int, QuestCatalogItem>.unmodifiable(byGameId);
+  }
 
   final List<QuestCatalogItem> items;
+  late final Map<int, QuestCatalogItem> _byGameId;
 
-  QuestCatalogItem byGameId(int gameId) =>
-      items.firstWhere((item) => item.gameId == gameId);
+  QuestCatalogItem byGameId(int gameId) {
+    final item = _byGameId[gameId];
+    if (item == null) throw StateError('No element');
+    return item;
+  }
 }

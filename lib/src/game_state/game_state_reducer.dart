@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../bridge/captured_api_event.dart';
+import '../capture/game_capture_path_catalog.dart';
 import 'combat_state.dart';
 import 'game_api_decoder.dart';
 import 'game_state.dart';
@@ -8,49 +9,8 @@ import 'game_state.dart';
 export 'game_api_decoder.dart' show GameApiParseException;
 
 class GameStateReducer {
-  static const Set<String> _supportedPaths = <String>{
-    '/kcsapi/api_start2/getData',
-    '/kcsapi/api_port/port',
-    '/kcsapi/api_get_member/require_info',
-    '/kcsapi/api_get_member/useitem',
-    '/kcsapi/api_get_member/material',
-    '/kcsapi/api_get_member/deck',
-    '/kcsapi/api_get_member/ship2',
-    '/kcsapi/api_get_member/ship3',
-    '/kcsapi/api_get_member/ship_deck',
-    '/kcsapi/api_get_member/slot_item',
-    '/kcsapi/api_get_member/ndock',
-    '/kcsapi/api_get_member/kdock',
-    '/kcsapi/api_get_member/questlist',
-    '/kcsapi/api_get_member/mapinfo',
-    '/kcsapi/api_req_hokyu/charge',
-    '/kcsapi/api_req_kaisou/slotset',
-    '/kcsapi/api_req_kaisou/slotset_ex',
-    '/kcsapi/api_req_kaisou/unsetslot_all',
-    '/kcsapi/api_req_kaisou/slot_deprive',
-    '/kcsapi/api_req_kaisou/slot_exchange_index',
-    '/kcsapi/api_req_kousyou/createship',
-    '/kcsapi/api_req_kousyou/createitem',
-    '/kcsapi/api_req_kousyou/destroyitem2',
-    '/kcsapi/api_req_kousyou/createship_speedchange',
-    '/kcsapi/api_req_kousyou/getship',
-    '/kcsapi/api_req_hensei/change',
-    '/kcsapi/api_req_hensei/combined',
-    '/kcsapi/api_req_hensei/preset_select',
-    '/kcsapi/api_req_nyukyo/start',
-    '/kcsapi/api_req_nyukyo/speedchange',
-    '/kcsapi/api_req_quest/clearitemget',
-    '/kcsapi/api_req_quest/stop',
-    '/kcsapi/api_req_map/start',
-    '/kcsapi/api_req_map/next',
-    '/kcsapi/api_req_sortie/battle',
-    '/kcsapi/api_req_sortie/battleresult',
-    '/kcsapi/api_req_mission/result',
-    '/kcsapi/api_req_mission/start',
-    '/kcsapi/api_req_practice/battle_result',
-  };
-
-  bool supportsPath(String path) => _supportedPaths.contains(path);
+  bool supportsPath(String path) =>
+      GameCapturePathCatalog.gameState.contains(path);
 
   GameState reduce(GameState state, CapturedApiEvent event) {
     if (!supportsPath(event.path)) {
@@ -162,7 +122,9 @@ class GameStateReducer {
       ),
       '/kcsapi/api_req_kaisou/slot_exchange_index' => _mergeActionShips(
         state,
-        _optionalList(_requiredMap(data, 'slot exchange')['api_ship_data']),
+        _optionalListOrSingleMap(
+          _requiredMap(data, 'slot exchange')['api_ship_data'],
+        ),
         event,
         origin,
       ),
@@ -1612,6 +1574,16 @@ class GameStateReducer {
 
   static List<Object?> _optionalList(Object? value) {
     return value is List ? List<Object?>.from(value) : const <Object?>[];
+  }
+
+  static List<Object?> _optionalListOrSingleMap(Object? value) {
+    if (value is List) {
+      return List<Object?>.from(value);
+    }
+    if (value is Map) {
+      return <Object?>[value];
+    }
+    return const <Object?>[];
   }
 
   static int _asInt(Object? value, [int fallback = 0]) {

@@ -1,10 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
+import '../performance/second_tick_scope.dart';
 import 'anchorage_repair_calculator.dart';
 import 'anchorage_repair_view.dart';
 import 'dashboard_card.dart';
@@ -37,50 +36,20 @@ class RepairSummaryCard extends StatefulWidget {
 class _RepairSummaryCardState extends State<RepairSummaryCard> {
   RepairCenterMode _mode = RepairCenterMode.dock;
   int? _selectedFleetId;
-  Timer? _ticker;
   DateTime _now = DateTime.now().toUtc();
 
   @override
-  void initState() {
-    super.initState();
-    if (!widget.collapsed) {
-      _startTicker();
-    }
-  }
-
-  void _startTicker() {
-    _ticker?.cancel();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) {
-        setState(() => _now = DateTime.now().toUtc());
-      }
-    });
-  }
-
-  void _stopTicker() {
-    _ticker?.cancel();
-    _ticker = null;
-  }
-
-  @override
-  void didUpdateWidget(RepairSummaryCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.collapsed && !widget.collapsed) {
-      _now = DateTime.now().toUtc();
-      _startTicker();
-    } else if (!oldWidget.collapsed && widget.collapsed) {
-      _stopTicker();
-    }
-  }
-
-  @override
-  void dispose() {
-    _stopTicker();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    if (widget.collapsed) {
+      return _buildCard(context, DateTime.now().toUtc());
+    }
+    return SecondTickBuilder(
+      builder: (context, now, _) => _buildCard(context, now),
+    );
+  }
+
+  Widget _buildCard(BuildContext context, DateTime now) {
+    _now = now;
     return AnimatedBuilder(
       animation: widget.controller,
       builder: (context, _) {

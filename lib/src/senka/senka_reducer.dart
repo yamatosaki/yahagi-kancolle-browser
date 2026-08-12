@@ -1,4 +1,5 @@
 import '../bridge/captured_api_event.dart';
+import '../capture/game_capture_path_catalog.dart';
 import '../game_state/game_api_decoder.dart';
 import 'senka_catalog.dart';
 import 'senka_state.dart';
@@ -6,7 +7,7 @@ import 'senka_state.dart';
 class SenkaReducer {
   const SenkaReducer();
 
-  static const _rankingPath = '/kcsapi/api_req_ranking/mxltvkpyuklh';
+  static const _rankingPath = GameCapturePathCatalog.senkaRanking;
   static const _magicLeft = [36, 31, 33, 97, 64, 54, 52, 78, 40, 85];
   static const _magicRight = [
     8931,
@@ -23,15 +24,7 @@ class SenkaReducer {
     5669,
     6586,
   ];
-  static const _experiencePaths = {
-    '/kcsapi/api_get_member/basic',
-    '/kcsapi/api_get_member/record',
-    '/kcsapi/api_port/port',
-    '/kcsapi/api_req_mission/result',
-    '/kcsapi/api_req_practice/battle_result',
-    '/kcsapi/api_req_sortie/battleresult',
-    '/kcsapi/api_req_combined_battle/battleresult',
-  };
+  static const _experiencePaths = GameCapturePathCatalog.senkaExperience;
 
   SenkaState reduce(SenkaState state, CapturedApiEvent event) {
     final monthKey = currentSenkaMonthKey(event.capturedAt);
@@ -60,10 +53,7 @@ class SenkaReducer {
     return current.copyWith(updatedAt: event.capturedAt);
   }
 
-  bool supportsPath(String path) =>
-      _experiencePaths.contains(path) ||
-      path == '/kcsapi/api_get_member/mapinfo' ||
-      path == _rankingPath;
+  bool supportsPath(String path) => GameCapturePathCatalog.senka.contains(path);
 
   SenkaState _identity(
     SenkaState state,

@@ -2,7 +2,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
-import '../bridge/captured_api_event.dart';
 import '../battle/battle_controller.dart';
 import '../battle/battle_models.dart';
 import '../settings/safety_settings_controller.dart';
@@ -44,24 +43,27 @@ class BattleResultWarningOverlay extends StatefulWidget {
 
 class _BattleResultWarningOverlayState
     extends State<BattleResultWarningOverlay> {
-  CapturedApiEvent? _lastSeenEvent;
   OverlayEntry? _reminderOverlayEntry;
 
   @override
   void initState() {
     super.initState();
-    widget.gameCaptureController.addListener(_onGameCaptureUpdate);
+    widget.gameCaptureController.eventActivity.addListener(
+      _onGameCaptureUpdate,
+    );
     widget.battleController.addListener(_onBattleChanged);
-    final events = widget.gameCaptureController.events;
-    _lastSeenEvent = events.isNotEmpty ? events.last : null;
   }
 
   @override
   void didUpdateWidget(BattleResultWarningOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.gameCaptureController != widget.gameCaptureController) {
-      oldWidget.gameCaptureController.removeListener(_onGameCaptureUpdate);
-      widget.gameCaptureController.addListener(_onGameCaptureUpdate);
+      oldWidget.gameCaptureController.eventActivity.removeListener(
+        _onGameCaptureUpdate,
+      );
+      widget.gameCaptureController.eventActivity.addListener(
+        _onGameCaptureUpdate,
+      );
     }
     if (oldWidget.battleController != widget.battleController) {
       oldWidget.battleController.removeListener(_onBattleChanged);
@@ -73,7 +75,9 @@ class _BattleResultWarningOverlayState
   void dispose() {
     _clearReminderOverlay();
     widget.battleController.removeListener(_onBattleChanged);
-    widget.gameCaptureController.removeListener(_onGameCaptureUpdate);
+    widget.gameCaptureController.eventActivity.removeListener(
+      _onGameCaptureUpdate,
+    );
     super.dispose();
   }
 
@@ -94,23 +98,8 @@ class _BattleResultWarningOverlayState
   }
 
   void _onGameCaptureUpdate() {
-    final events = widget.gameCaptureController.events;
-    if (events.isEmpty) {
-      return;
-    }
-    bool hasBattleResult = false;
-    for (var i = events.length - 1; i >= 0; i--) {
-      final event = events[i];
-      if (identical(event, _lastSeenEvent)) {
-        break;
-      }
-      if (event.path.endsWith('/battleresult')) {
-        hasBattleResult = true;
-      }
-    }
-    _lastSeenEvent = events.last;
-
-    if (!hasBattleResult) return;
+    final event = widget.gameCaptureController.latestEvent;
+    if (event == null || !event.path.endsWith('/battleresult')) return;
 
     // Schedule checking on the next frame so that BattleController has processed the result
     WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -712,34 +712,46 @@ void main() {
       expect(state.constructionDocks.first.isBuilding, isFalse);
     });
 
-    test('slot exchange replaces the changed ship immediately', () {
+    test('slot exchange accepts single and list ship payloads', () {
       final reducer = GameStateReducer();
-      var state = reducer.reduce(GameState.empty, portEvent);
-      final original = state.ships[9001]!;
+      final initialState = reducer.reduce(GameState.empty, portEvent);
+      final original = initialState.ships[9001]!;
+      final changedShip = <String, Object?>{
+        'api_id': original.id,
+        'api_ship_id': original.masterId,
+        'api_lv': original.level,
+        'api_nowhp': original.currentHp,
+        'api_maxhp': original.maxHp,
+        'api_cond': original.condition,
+        'api_fuel': original.currentFuel,
+        'api_bull': original.currentAmmo,
+        'api_slot': <int>[7002, 7001, 7004],
+        'api_onslot': original.onSlot,
+      };
 
-      state = reducer.reduce(
-        state,
-        kcsapiEvent(
-          '/kcsapi/api_req_kaisou/slot_exchange_index',
-          <String, Object?>{
-            'api_ship_data': <String, Object?>{
-              'api_id': original.id,
-              'api_ship_id': original.masterId,
-              'api_lv': original.level,
-              'api_nowhp': original.currentHp,
-              'api_maxhp': original.maxHp,
-              'api_cond': original.condition,
-              'api_fuel': original.currentFuel,
-              'api_bull': original.currentAmmo,
-              'api_slot': <int>[7002, 7001, 7004],
-              'api_onslot': original.onSlot,
-            },
-          },
-        ),
-      );
+      for (final shipData in <Object?>[
+        changedShip,
+        <Object?>[changedShip],
+      ]) {
+        final state = reducer.reduce(
+          initialState,
+          kcsapiEvent(
+            '/kcsapi/api_req_kaisou/slot_exchange_index',
+            <String, Object?>{'api_ship_data': shipData},
+          ),
+        );
 
-      expect(state.ships[9001]?.slotIds, <int>[7002, 7001, 7004]);
-      expect(state.ships[9002]?.level, 44);
+        expect(
+          state.ships[9001]?.slotIds,
+          <int>[7002, 7001, 7004],
+          reason: 'api_ship_data shape: ${shipData.runtimeType}',
+        );
+        expect(
+          state.ships[9002]?.level,
+          44,
+          reason: 'api_ship_data shape: ${shipData.runtimeType}',
+        );
+      }
     });
 
     test(
