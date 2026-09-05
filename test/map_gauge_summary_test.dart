@@ -384,10 +384,10 @@ void main() {
       // In Maps mode (cleared maps are shown by default at bottom, normal maps excluded)
       expect(find.text('1-6 鎮守府近海航路'), findsOneWidget);
       expect(find.text('5 / 7'), findsOneWidget);
-      expect(find.text('Extra'), findsNWidgets(2));
+      expect(find.text('额外作战'), findsNWidgets(2));
       expect(find.text('62-1 九州沖/南西諸島沖 甲'), findsOneWidget);
       expect(find.text('200 / 300'), findsOneWidget);
-      expect(find.text('Event'), findsOneWidget);
+      expect(find.text('活动海域'), findsOneWidget);
       expect(find.text('2-5 沖ノ島沖'), findsOneWidget);
       expect(find.text('0 / 4'), findsOneWidget);
       // Normal single-kill maps are never shown

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'fleet_ui_strings.dart';
 
 import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
@@ -140,8 +141,8 @@ class _NosakiSummaryGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusValue = projection.isReady
-        ? '母港给粮就绪中'
-        : (projection.unreadyReason ?? '未就绪');
+        ? fleetText(context, '母港给粮就绪中')
+        : (projection.unreadyReason ?? fleetText(context, '未就绪'));
     final statusColor = projection.isReady ? _green : _yellow;
 
     final timerValue = !hasTimer || !projection.isReady
@@ -163,15 +164,15 @@ class _NosakiSummaryGrid extends StatelessWidget {
               key: const Key('nosaki-summary-status'),
               width: width,
               height: height,
-              label: '当前状态',
-              value: statusValue,
+              label: fleetText(context, '当前状态'),
+              value: fleetText(context, statusValue),
               valueColor: statusColor,
             ),
             _NosakiSummaryCard(
               key: const Key('nosaki-summary-elapsed'),
               width: width,
               height: height,
-              label: '刷闪计时',
+              label: fleetText(context, '刷闪计时'),
               value: timerValue,
               valueColor: hasTimer && projection.isReady
                   ? _sparkleGold
@@ -181,13 +182,16 @@ class _NosakiSummaryGrid extends StatelessWidget {
               key: const Key('nosaki-summary-capacity'),
               width: width,
               height: height,
-              label: '预估消耗',
+              label: fleetText(context, '预估消耗'),
               valueWidget: projection.isReady
                   ? Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '${projection.eligibleShipCount} 艘（${projection.fuelCostPerTick} ',
+                          fleetText(
+                            context,
+                            '${projection.eligibleShipCount} 艘（${projection.fuelCostPerTick} ',
+                          ),
                           style: const TextStyle(
                             color: Color(0xffedf2f4),
                             fontSize: 13,
@@ -201,8 +205,8 @@ class _NosakiSummaryGrid extends StatelessWidget {
                           height: 14,
                           filterQuality: FilterQuality.medium,
                         ),
-                        const Text(
-                          '/次）',
+                        Text(
+                          fleetText(context, '/次）'),
                           style: TextStyle(
                             color: Color(0xffedf2f4),
                             fontSize: 13,
@@ -211,8 +215,8 @@ class _NosakiSummaryGrid extends StatelessWidget {
                         ),
                       ],
                     )
-                  : const Text(
-                      '0 艘',
+                  : Text(
+                      fleetText(context, '0 艘'),
                       style: TextStyle(
                         color: Color(0xffedf2f4),
                         fontSize: 13,
@@ -312,15 +316,15 @@ class _NosakiSparkleTable extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          const _NosakiTableCells(
+          _NosakiTableCells(
             header: true,
             children: [
-              Text('舰娘'),
+              Text(fleetText(context, '舰娘')),
               _HpLabel(),
-              Text('当前疲劳'),
-              Text('状态'),
-              Text('预估满闪 (54)'),
-              Text('单次增量'),
+              Text(fleetText(context, '当前疲劳')),
+              Text(fleetText(context, '状态')),
+              Text(fleetText(context, '预估满闪 (54)')),
+              Text(fleetText(context, '单次增量')),
             ],
           ),
           for (final row in projection.rows)
@@ -413,10 +417,12 @@ class _NosakiShipIdentity extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = row.master?.name ?? '未知舰娘';
+    final name = row.master?.name ?? fleetText(context, '未知舰娘');
     final posLabel = row.position == 0
-        ? '旗舰'
-        : (row.position == 1 ? '2号舰' : '${row.position + 1}号位');
+        ? fleetText(context, '旗舰')
+        : (row.position == 1
+              ? fleetText(context, '2号舰')
+              : fleetText(context, '${row.position + 1}号位'));
 
     return Row(
       children: [
@@ -577,13 +583,16 @@ class _TimeToTarget extends StatelessWidget {
       return const Text('—');
     }
     if (row.status == NosakiSparkleShipStatus.completed) {
-      return const Text('已达成 54', style: TextStyle(color: _sparkleGold));
+      return Text(
+        fleetText(context, '已达成 54'),
+        style: TextStyle(color: _sparkleGold),
+      );
     }
     if (row.estimatedTimeTo54 == null) {
       return const Text('—');
     }
     final mins = row.estimatedTimeTo54!.inMinutes;
-    return Text('$mins 分 (${row.neededTicks}次)');
+    return Text(fleetText(context, '$mins 分 (${row.neededTicks}次)'));
   }
 }
 
@@ -596,12 +605,18 @@ class _NosakiStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
-      NosakiSparkleShipStatus.sparkling => ('刷闪中', _yellow),
-      NosakiSparkleShipStatus.completed => ('已刷闪', _green),
-      NosakiSparkleShipStatus.nosakiSelf => ('给粮舰', _green),
-      NosakiSparkleShipStatus.docked => ('入渠中', _blue),
-      NosakiSparkleShipStatus.unable => (reason ?? '条件不符', _red),
-      NosakiSparkleShipStatus.unready => (reason ?? '未就绪', _red),
+      NosakiSparkleShipStatus.sparkling => (fleetText(context, '刷闪中'), _yellow),
+      NosakiSparkleShipStatus.completed => (fleetText(context, '已刷闪'), _green),
+      NosakiSparkleShipStatus.nosakiSelf => (fleetText(context, '给粮舰'), _green),
+      NosakiSparkleShipStatus.docked => (fleetText(context, '入渠中'), _blue),
+      NosakiSparkleShipStatus.unable => (
+        reason ?? fleetText(context, '条件不符'),
+        _red,
+      ),
+      NosakiSparkleShipStatus.unready => (
+        reason ?? fleetText(context, '未就绪'),
+        _red,
+      ),
     };
 
     return Container(
@@ -612,7 +627,7 @@ class _NosakiStatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(5),
       ),
       child: Text(
-        label,
+        fleetText(context, label),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(

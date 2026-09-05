@@ -256,10 +256,7 @@ void main() {
         find.byKey(const Key('development-mode-calculator')),
         findsOneWidget,
       );
-      expect(
-        find.byKey(const Key('development-mode-formula')),
-        findsOneWidget,
-      );
+      expect(find.byKey(const Key('development-mode-formula')), findsOneWidget);
 
       // Ensure no icons are inside the development sub-tabs
       expect(
@@ -522,7 +519,9 @@ void main() {
 
     expect(find.byKey(const Key('workspace-title-tools')), findsOneWidget);
     expect(find.text('工具箱'), findsOneWidget);
-    expect(find.byKey(const Key('toolbox-mode-tabs')), findsNothing);
+    expect(find.byKey(const Key('toolbox-mode-tabs')), findsOneWidget);
+    expect(find.text('导出数据'), findsOneWidget);
+    expect(find.text('其他'), findsOneWidget);
     expect(find.text('装备开发'), findsNothing);
   });
 

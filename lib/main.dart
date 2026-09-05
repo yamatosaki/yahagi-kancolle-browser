@@ -113,6 +113,7 @@ import 'src/settings/release_check_service.dart';
 import 'src/settings/startup_update_notice.dart';
 import 'src/settings/screen_awake_controller.dart';
 import 'src/toolbox/toolbox_page.dart';
+import 'src/localization/runtime_message_text.dart';
 import 'src/settings/background_game_retention_controller.dart';
 import 'src/settings/battle_prediction_settings.dart';
 import 'src/settings/game_frame_rate_settings.dart';
@@ -498,6 +499,10 @@ Future<void> main() async {
   notificationCoordinator = GameNotificationCoordinator(
     gameStateController: gameStateController,
     settingsController: notificationSettingsController,
+    localeCodeProvider: () =>
+        layoutSettingsController.localeCode ??
+        _localeStorageCode(WidgetsBinding.instance.platformDispatcher.locale),
+    localeListenable: layoutSettingsController,
     notificationPort: const MethodChannelNotificationPort(),
     initialTimerAnchors: notificationTimerAnchors,
     timerAnchorStore: notificationTimerAnchorStore,
@@ -981,6 +986,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   DevelopmentWorkbenchMode _developmentWorkbenchMode =
       DevelopmentWorkbenchMode.calculator;
   SenkaCenterMode _senkaCenterMode = SenkaCenterMode.info;
+  ToolboxMode _toolboxMode = ToolboxMode.export;
   final DevelopmentRepository _developmentRepository = DevelopmentRepository();
   BackgroundGameRetentionCoordinator? _backgroundGameRetentionCoordinator;
 
@@ -1407,6 +1413,10 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                       );
                                     },
                                     senkaMode: _senkaCenterMode,
+                                    toolboxMode: _toolboxMode,
+                                    onToolboxModeChanged: (mode) {
+                                      setState(() => _toolboxMode = mode);
+                                    },
                                     onSenkaModeChanged: (mode) {
                                       setState(() => _senkaCenterMode = mode);
                                     },
@@ -1866,6 +1876,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                             animation: widget.gameStateController,
                             builder: (context, _) => ToolboxPage(
                               state: widget.gameStateController.state,
+                              mode: _toolboxMode,
                             ),
                           ),
                       ],
@@ -2350,12 +2361,14 @@ class _InformationPanelState extends State<_InformationPanel> {
                             title: AppLocalizations.of(
                               context,
                             )!.gameStatusError,
-                            subtitle:
-                                widget.gameCaptureController.errorMessage ??
-                                widget.browserController.errorMessage ??
-                                AppLocalizations.of(
-                                  context,
-                                )!.gameStatusErrorDesc,
+                            subtitle: runtimeMessageText(
+                              context,
+                              widget.gameCaptureController.errorMessage ??
+                                  widget.browserController.errorMessage ??
+                                  AppLocalizations.of(
+                                    context,
+                                  )!.gameStatusErrorDesc,
+                            ),
                             warning: true,
                           ),
                         ),

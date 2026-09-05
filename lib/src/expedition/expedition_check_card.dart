@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../localization/ui_text.dart';
+
 import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
 import 'expedition_evaluator.dart';
@@ -543,12 +545,12 @@ Widget _itemTile(ExpeditionRewardItem item) {
             filterQuality: FilterQuality.medium,
           )
         else
-          Text(
+          UiText(
             label ?? '道具',
             style: const TextStyle(color: Color(0xffa8bbc5), fontSize: 12),
           ),
         const SizedBox(width: 4),
-        Text(
+        UiText(
           kindText,
           style: const TextStyle(color: Color(0xff7792a3), fontSize: 11),
         ),

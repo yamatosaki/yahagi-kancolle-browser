@@ -455,7 +455,26 @@ void main() {
     await gameStateController.idle;
     await tester.pumpAndSettle();
     expect(find.textContaining('"hqlv":77'), findsOneWidget);
-    expect(find.byKey(const Key('toolbox-mode-tabs')), findsNothing);
+    expect(find.byKey(const Key('toolbox-mode-tabs')), findsOneWidget);
+    expect(find.text('导出数据'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('event-land-bases-only')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('toolbox-tab-other')));
+    await tester.pumpAndSettle();
+    expect(find.text('其他功能陆续开发中'), findsOneWidget);
+    expect(find.textContaining('"hqlv":77'), findsNothing);
+    await tester.tap(find.byKey(const Key('toolbox-tab-export')));
+    await tester.pumpAndSettle();
+    expect(find.text('其他功能陆续开发中'), findsNothing);
+    expect(find.textContaining('"hqlv":77'), findsOneWidget);
+    expect(
+      tester
+          .widget<CheckboxListTile>(
+            find.byKey(const Key('event-land-bases-only')),
+          )
+          .value,
+      isFalse,
+    );
     await tester.tap(find.byKey(const Key('workspace-nav-construction')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('construction-mode-development')));

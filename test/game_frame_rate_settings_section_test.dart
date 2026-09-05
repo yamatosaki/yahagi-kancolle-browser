@@ -100,7 +100,7 @@ void main() {
     ),
     (
       locale: const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
-      texts: <String>['遊戲幀率', '自動', '60 幀', '30 幀', '高刷'],
+      texts: <String>['遊戲幀率', '自動', '60 幀', '30 幀', '高更新率'],
     ),
     (
       locale: const Locale('ja'),

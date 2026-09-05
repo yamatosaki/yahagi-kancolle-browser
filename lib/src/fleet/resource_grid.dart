@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'fleet_ui_strings.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../game_state/game_state.dart';
@@ -7,7 +8,6 @@ import '../settings/layout_settings_controller.dart';
 import '../performance/second_tick_scope.dart';
 import 'anchorage_repair_calculator.dart';
 import 'header_resource_catalog.dart';
-import 'nosaki_sparkle_calculator.dart';
 
 class ResourceGrid extends StatelessWidget {
   const ResourceGrid({super.key, required this.state});
@@ -32,7 +32,7 @@ class ResourceGrid extends StatelessWidget {
               SizedBox(
                 width: itemWidth,
                 child: Tooltip(
-                  message: type.label,
+                  message: fleetText(context, type.label),
                   child: _ResourceItem(type: type, value: state.resource(type)),
                 ),
               ),
@@ -187,21 +187,21 @@ class _CompactResourceBarState extends State<CompactResourceBar> {
                 _EditButton(
                   key: const Key('header-resource-reset'),
                   icon: Icons.restart_alt_rounded,
-                  tooltip: '恢复默认',
+                  tooltip: fleetText(context, '恢复默认'),
                   onPressed: controller?.resetHeaderResources,
                 ),
                 const SizedBox(width: 4),
                 _EditButton(
                   key: const Key('header-resource-edit-done'),
                   icon: Icons.check_rounded,
-                  tooltip: '完成',
+                  tooltip: fleetText(context, '完成'),
                   onPressed: () => setState(() => _editing = false),
                 ),
                 const SizedBox(width: 4),
                 _EditButton(
                   key: const Key('header-resource-filter'),
                   icon: Icons.filter_alt_rounded,
-                  tooltip: '筛选显示项目',
+                  tooltip: fleetText(context, '筛选显示项目'),
                   onPressed: controller == null
                       ? null
                       : () => _showResourceFilter(controller),
@@ -264,12 +264,12 @@ class _CompactResourceBarState extends State<CompactResourceBar> {
                   onLongPress: () => setState(() => _editing = true),
                   child: Tooltip(
                     message: switch (id) {
-                      headerSenkaId => '战果',
-                      headerAnchorageTimerId => '泊地修理计时',
-                      headerNosakiTimerId => '野埼刷闪计时',
+                      headerSenkaId => fleetText(context, '战果'),
+                      headerAnchorageTimerId => fleetText(context, '泊地修理计时'),
+                      headerNosakiTimerId => fleetText(context, '野埼刷闪计时'),
                       headerShipCapacityId => l10n.shipGirl,
                       headerEquipmentCapacityId => l10n.equipment,
-                      _ => headerResourceById[id]!.label,
+                      _ => fleetText(context, headerResourceById[id]!.label),
                     },
                     triggerMode:
                         id == headerSenkaId ||
@@ -387,9 +387,9 @@ class _CompactResourceBarState extends State<CompactResourceBar> {
                 padding: const EdgeInsets.fromLTRB(16, 8, 6, 6),
                 child: Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        '选择顶部显示项目',
+                        fleetText(context, '选择顶部显示项目'),
                         style: TextStyle(
                           color: Color(0xffe0b25c),
                           fontSize: 15,
@@ -399,7 +399,7 @@ class _CompactResourceBarState extends State<CompactResourceBar> {
                     ),
                     IconButton(
                       key: const Key('header-resource-filter-done'),
-                      tooltip: '完成',
+                      tooltip: fleetText(context, '完成'),
                       onPressed: () => Navigator.of(dialogContext).pop(),
                       icon: const Icon(
                         Icons.check_rounded,
@@ -572,7 +572,7 @@ class _HeaderAnchorageTimerSummary extends StatelessWidget {
         fit: BoxFit.scaleDown,
         alignment: Alignment.centerLeft,
         child: Text(
-          '泊地：$elapsed',
+          fleetText(context, '泊地：$elapsed'),
           maxLines: 1,
           style: TextStyle(
             color: isActive ? const Color(0xffdce6eb) : const Color(0xff9fb3bf),
@@ -609,7 +609,7 @@ class _HeaderNosakiTimerSummary extends StatelessWidget {
         fit: BoxFit.scaleDown,
         alignment: Alignment.centerLeft,
         child: Text(
-          '野埼：$elapsed',
+          fleetText(context, '野埼：$elapsed'),
           maxLines: 1,
           style: TextStyle(
             color: isActive ? const Color(0xffdce6eb) : const Color(0xff9fb3bf),
@@ -645,7 +645,7 @@ class _HeaderSenkaSummary extends StatelessWidget {
       fit: BoxFit.scaleDown,
       alignment: Alignment.centerLeft,
       child: Text(
-        '战果：${_formatSenka(senka)}（#${rank ?? '--'}）',
+        fleetText(context, '战果：${_formatSenka(senka)}（#${rank ?? '--'}）'),
         maxLines: 1,
         style: const TextStyle(
           color: Color(0xffe0b25c),
@@ -904,9 +904,9 @@ class _HeaderSenkaFilterRow extends StatelessWidget {
               color: Color(0xffe0b25c),
             ),
             const SizedBox(width: 10),
-            const Expanded(
+            Expanded(
               child: Text(
-                '战果',
+                fleetText(context, '战果'),
                 style: TextStyle(
                   color: Color(0xffdce6eb),
                   fontSize: 13,
@@ -964,9 +964,9 @@ class _HeaderAnchorageTimerFilterRow extends StatelessWidget {
               color: Color(0xff9fb3bf),
             ),
             const SizedBox(width: 10),
-            const Expanded(
+            Expanded(
               child: Text(
-                '泊地计时',
+                fleetText(context, '泊地计时'),
                 style: TextStyle(
                   color: Color(0xffdce6eb),
                   fontSize: 13,
@@ -1024,9 +1024,9 @@ class _HeaderNosakiTimerFilterRow extends StatelessWidget {
               color: Color(0xff9fb3bf),
             ),
             const SizedBox(width: 10),
-            const Expanded(
+            Expanded(
               child: Text(
-                '野埼计时',
+                fleetText(context, '野埼计时'),
                 style: TextStyle(
                   color: Color(0xffdce6eb),
                   fontSize: 13,
@@ -1089,7 +1089,7 @@ class _HeaderResourceFilterRow extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                spec.label,
+                fleetText(context, spec.label),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(

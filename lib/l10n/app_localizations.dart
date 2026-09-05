@@ -1557,12 +1557,6 @@ abstract class AppLocalizations {
   /// **'出击后会自动记录，不需要额外操作'**
   String get autoRecordHint;
 
-  /// No description provided for @enemyFleet.
-  ///
-  /// In zh, this message translates to:
-  /// **'敌舰队'**
-  String get enemyFleet;
-
   /// No description provided for @thisSortie.
   ///
   /// In zh, this message translates to:
@@ -1832,12 +1826,6 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'进度未知'**
   String get unknownProgress;
-
-  /// No description provided for @waitingForPortData.
-  ///
-  /// In zh, this message translates to:
-  /// **'等待母港数据'**
-  String get waitingForPortData;
 
   /// No description provided for @waitingForPortDataDescription.
   ///
@@ -2191,6 +2179,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'敌方最终状态'**
   String get enemyFinalStatus;
+
+  /// No description provided for @enemyFleet.
+  ///
+  /// In zh, this message translates to:
+  /// **'敌舰队'**
+  String get enemyFleet;
 
   /// No description provided for @airStateLabel.
   ///
@@ -4915,7 +4909,7 @@ abstract class AppLocalizations {
   /// No description provided for @fleetExport.
   ///
   /// In zh, this message translates to:
-  /// **'舰队导出'**
+  /// **'导出数据'**
   String get fleetExport;
 
   /// No description provided for @otherTools.
@@ -4999,7 +4993,7 @@ abstract class AppLocalizations {
   /// No description provided for @otherToolsComingSoon.
   ///
   /// In zh, this message translates to:
-  /// **'其他功能正在开发'**
+  /// **'其他功能陆续开发中'**
   String get otherToolsComingSoon;
 
   /// No description provided for @otherToolsHint.
@@ -5007,6 +5001,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'后续辅助工具会集中放在这里。'**
   String get otherToolsHint;
+
+  /// No description provided for @waitingForPortData.
+  ///
+  /// In zh, this message translates to:
+  /// **'等待母港数据'**
+  String get waitingForPortData;
 
   /// No description provided for @externalFleetToolOpenFailed.
   ///

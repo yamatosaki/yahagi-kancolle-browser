@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../battle/battle_detail_models.dart';
+import '../battle/battle_detail_strings.dart';
 
 // Shared by the logbook and the isolated UI preview. No sample data is loaded here.
 // LogbookPage owns insets for both this view and the adjacent record list.
@@ -40,6 +41,8 @@ class BattleDetailPage extends StatefulWidget {
 }
 
 class _BattleDetailPageState extends State<BattleDetailPage> {
+  BattleDetailStrings get strings => BattleDetailStrings.of(context);
+
   int tab = 0;
   int filter = 0;
   final Set<String> closed = {};
@@ -96,7 +99,7 @@ class _BattleDetailPageState extends State<BattleDetailPage> {
               ),
               onPressed: () => setState(() => tab = i),
               child: label(
-                i == 0 ? '舰队' : '战斗过程',
+                i == 0 ? strings.fleet : strings.process,
                 size: 12,
                 color: tab == i ? gold : muted,
                 bold: true,
@@ -128,7 +131,7 @@ class _BattleDetailPageState extends State<BattleDetailPage> {
                   height: 28,
                   child: IconButton(
                     key: const Key('battle-detail-back'),
-                    tooltip: '返回出击记录',
+                    tooltip: strings.back,
                     padding: EdgeInsets.zero,
                     style: IconButton.styleFrom(
                       padding: EdgeInsets.zero,
@@ -150,7 +153,7 @@ class _BattleDetailPageState extends State<BattleDetailPage> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       label(
-                        '战斗详情 · ${detail.mapLabel} ${detail.nodeLabel}',
+                        '${strings.title} · ${strings.localize(detail.mapLabel)} ${strings.localize(detail.nodeLabel)}',
                         size: _headerFontSize,
                         bold: true,
                       ),
@@ -160,7 +163,7 @@ class _BattleDetailPageState extends State<BattleDetailPage> {
                           if (detail.enemyFleetName.isNotEmpty) ...[
                             Flexible(
                               child: Tag(
-                                detail.enemyFleetName,
+                                strings.localize(detail.enemyFleetName),
                                 color: enemy,
                                 pill: true,
                               ),
@@ -303,7 +306,11 @@ class _BattleDetailPageState extends State<BattleDetailPage> {
                           ),
                           onPressed: () => setState(() => filter = i),
                           child: label(
-                            ['全部', '我方攻击', '敌方攻击'][i],
+                            [
+                              strings.all,
+                              strings.sideAttack(BattleDetailSide.friend),
+                              strings.sideAttack(BattleDetailSide.enemy),
+                            ][i],
                             size: 12,
                             color: filter == i ? gold : muted,
                             bold: true,
@@ -313,13 +320,13 @@ class _BattleDetailPageState extends State<BattleDetailPage> {
                   ],
                 ),
               ),
-              label('按发生顺序', color: muted, size: 11),
+              label(strings.chronological, color: muted, size: 11),
             ],
           ),
         ),
         Expanded(
           child: entries.isEmpty
-              ? Center(child: label('没有符合条件的攻击记录', color: muted))
+              ? Center(child: label(strings.noAttacks, color: muted))
               : ListView.builder(
                   key: PageStorageKey('battle-detail-process-$filter'),
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
@@ -334,7 +341,7 @@ class _BattleDetailPageState extends State<BattleDetailPage> {
                     final beneficiary = npcStage
                         ? BattleDetailSide.npc
                         : BattleDetailSide.friend;
-                    final beneficiaryName = npcStage ? '友军' : '我方';
+
                     final dealt = stage.attacks
                         .where((a) => a.attackerSide != BattleDetailSide.enemy)
                         .fold(0, (sum, a) => sum + a.totalDamage);
@@ -383,12 +390,16 @@ class _BattleDetailPageState extends State<BattleDetailPage> {
                                           WrapCrossAlignment.center,
                                       children: [
                                         label(
-                                          stage.title,
+                                          strings.localize(stage.title),
                                           color: gold,
                                           bold: true,
                                         ),
                                         label(
-                                          '$beneficiaryName造成 $dealt · $beneficiaryName承受 $received',
+                                          strings.stageDamage(
+                                            beneficiary,
+                                            dealt,
+                                            received,
+                                          ),
                                           color: muted,
                                           size: 11,
                                         ),
@@ -397,7 +408,7 @@ class _BattleDetailPageState extends State<BattleDetailPage> {
                                   ),
                                   const SizedBox(width: 6),
                                   label(
-                                    '${entry.attacks.length} 条',
+                                    strings.attackCount(entry.attacks.length),
                                     color: muted,
                                     size: 11,
                                   ),
@@ -448,12 +459,6 @@ class Tag extends StatelessWidget {
   );
 }
 
-String sideName(BattleDetailSide side) => switch (side) {
-  BattleDetailSide.friend => '我方',
-  BattleDetailSide.enemy => '敌方',
-  BattleDetailSide.npc => '友军',
-};
-
 class _AttackReport extends StatelessWidget {
   const _AttackReport({
     super.key,
@@ -468,22 +473,23 @@ class _AttackReport extends StatelessWidget {
   String? get targetStatus {
     if (target?.hpUnknown == true || attack.defenderHpAfter < 0) return null;
     final hp = attack.defenderHpAfter;
-    final prefix = sideName(attack.defenderSide);
+
     if (hp == 0 &&
         attack.defenderHpBefore > 0 &&
         attack.damageControlName == null) {
-      return '$prefix击沉';
+      return 'sunk';
     }
     final maxHp = target?.maxHp ?? 0;
     if (hp <= 0 || maxHp <= 0) return null;
-    if (hp * 4 <= maxHp) return '$prefix大破';
-    if (hp * 2 <= maxHp) return '$prefix中破';
-    if (hp * 4 <= maxHp * 3) return '$prefix小破';
+    if (hp * 4 <= maxHp) return 'heavy';
+    if (hp * 2 <= maxHp) return 'moderate';
+    if (hp * 4 <= maxHp * 3) return 'minor';
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
+    final strings = BattleDetailStrings.of(context);
     final a = attack;
     final accent = a.attackerSide != BattleDetailSide.enemy ? friend : enemy;
     final missed =
@@ -491,14 +497,17 @@ class _AttackReport extends StatelessWidget {
         a.hits.every((h) => h.kind == BattleDetailHitKind.miss);
     final critical = a.hits.any((h) => h.kind == BattleDetailHitKind.critical);
     final status = targetStatus;
-    final statusColor = status?.endsWith('小破') == true
+    final statusColor = status == 'minor'
         ? gold
-        : status?.endsWith('中破') == true
+        : status == 'moderate'
         ? const Color(0xffffb45e)
         : enemy;
-    final hp = target?.hpUnknown == true
-        ? '目标HP 未知（-${a.totalDamage}）'
-        : '目标HP ${a.defenderHpBefore} → ${a.defenderHpAfter}（-${a.totalDamage}）';
+    final hp = strings.targetHp(
+      a.defenderHpBefore,
+      a.defenderHpAfter,
+      a.totalDamage,
+      unknown: target?.hpUnknown == true,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -523,7 +532,7 @@ class _AttackReport extends StatelessWidget {
                         color: muted,
                         size: 11,
                       ),
-                      Tag('${sideName(a.attackerSide)}攻击', color: accent),
+                      Tag(strings.sideAttack(a.attackerSide), color: accent),
                     ],
                   ),
                   const SizedBox(height: 9),
@@ -531,18 +540,18 @@ class _AttackReport extends StatelessWidget {
                     TextSpan(
                       children: [
                         TextSpan(
-                          text: a.attackerName,
+                          text: strings.localize(a.attackerName),
                           style: TextStyle(
                             color: accent,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        const TextSpan(
-                          text: '  攻击  ',
-                          style: TextStyle(color: muted),
+                        TextSpan(
+                          text: '  ${strings.attack}  ',
+                          style: const TextStyle(color: muted),
                         ),
                         TextSpan(
-                          text: a.defenderName,
+                          text: strings.localize(a.defenderName),
                           style: TextStyle(
                             color: a.defenderSide == BattleDetailSide.enemy
                                 ? enemy
@@ -565,16 +574,20 @@ class _AttackReport extends StatelessWidget {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Tag(
-                        missed ? '未命中' : '造成 ${a.totalDamage} 伤害',
+                        missed ? strings.miss : strings.damage(a.totalDamage),
                         color: missed ? muted : gold,
                         pill: true,
                       ),
                       if (critical && !missed)
-                        const Tag('暴击', color: enemy, pill: true),
+                        Tag(strings.critical, color: enemy, pill: true),
                       if (status != null)
-                        Tag(status, color: statusColor, pill: true),
+                        Tag(
+                          '${strings.sideName(a.defenderSide)}${strings.damageStatus(status)}',
+                          color: statusColor,
+                          pill: true,
+                        ),
                       if (a.damageControlName != null)
-                        const Tag('损管发动', color: healthy, pill: true),
+                        Tag(strings.damageControl, color: healthy, pill: true),
                     ],
                   ),
                   const SizedBox(height: 7),
@@ -615,11 +628,9 @@ class _FleetCard extends StatelessWidget {
   final BattleDetailFleet fleet;
   @override
   Widget build(BuildContext context) {
+    final strings = BattleDetailStrings.of(context);
     final own = fleet.side != BattleDetailSide.enemy;
-    final escort = fleet.role == BattleDetailFleetRole.escort;
-    final title = own
-        ? (escort ? '第二舰队 · 随伴' : '第一舰队 · 主力')
-        : (escort ? '敌方随伴' : '敌方主力');
+    final title = strings.fleetTitle(fleet.side, fleet.role);
     final accent = own ? friend : enemy;
     return Container(
       clipBehavior: Clip.antiAlias,
@@ -640,7 +651,11 @@ class _FleetCard extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(child: label(title, color: accent, bold: true)),
-                label('${fleet.ships.length} 艘', color: muted, size: 11),
+                label(
+                  strings.shipCount(fleet.ships.length),
+                  color: muted,
+                  size: 11,
+                ),
               ],
             ),
           ),
@@ -658,20 +673,21 @@ class _ShipCard extends StatelessWidget {
   String? get damageStatus {
     if (ship.hpUnknown || ship.maxHp <= 0 || ship.finalHp < 0) return null;
     final hp = ship.finalHp;
-    if (hp == 0) return '击沉';
-    if (hp * 4 <= ship.maxHp) return '大破';
-    if (hp * 2 <= ship.maxHp) return '中破';
-    if (hp * 4 <= ship.maxHp * 3) return '小破';
+    if (hp == 0) return 'sunk';
+    if (hp * 4 <= ship.maxHp) return 'heavy';
+    if (hp * 2 <= ship.maxHp) return 'moderate';
+    if (hp * 4 <= ship.maxHp * 3) return 'minor';
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
+    final strings = BattleDetailStrings.of(context);
     final s = ship;
     final status = damageStatus;
-    final statusColor = status == '小破'
+    final statusColor = status == 'minor'
         ? gold
-        : status == '中破'
+        : status == 'moderate'
         ? const Color(0xffffb45e)
         : enemy;
     final ratio = s.maxHp <= 0 ? 0.0 : (s.finalHp / s.maxHp).clamp(0.0, 1.0);
@@ -701,19 +717,24 @@ class _ShipCard extends StatelessWidget {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     label(
-                      s.name + (s.level == null ? '' : '  Lv.${s.level}'),
+                      strings.localize(s.name) +
+                          (s.level == null ? '' : '  Lv.${s.level}'),
                       size: 13,
                       bold: true,
                     ),
                     if (status != null)
-                      Tag(status, color: statusColor, pill: true),
+                      Tag(
+                        strings.damageStatus(status),
+                        color: statusColor,
+                        pill: true,
+                      ),
                   ],
                 ),
               ),
               const SizedBox(width: 6),
               label(
                 s.hpUnknown
-                    ? '耐久未知（-${s.damageReceived}）'
+                    ? '${strings.hpUnknown}（-${s.damageReceived}）'
                     : '${s.finalHp} / ${s.maxHp}（-${s.damageReceived}）',
                 color: hpColor,
                 size: 12,
@@ -737,13 +758,15 @@ class _ShipCard extends StatelessWidget {
             runSpacing: 4,
             children: [
               label(
-                s.hpUnknown ? '耐久未知' : '耐久 ${s.initialHp} → ${s.finalHp}',
+                s.hpUnknown
+                    ? strings.hpUnknown
+                    : strings.hpChange(s.initialHp, s.finalHp),
                 color: muted,
                 size: 11,
               ),
-              label('造成 ${s.damageDealt}', color: muted, size: 11),
-              label('承受 ${s.damageReceived}', color: muted, size: 11),
-              if (s.escaped) const Tag('退避'),
+              label(strings.dealt(s.damageDealt), color: muted, size: 11),
+              label(strings.received(s.damageReceived), color: muted, size: 11),
+              if (s.escaped) Tag(strings.escaped),
             ],
           ),
         ],

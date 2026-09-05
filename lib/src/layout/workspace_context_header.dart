@@ -19,6 +19,7 @@ import '../quest/quest_center_page.dart';
 import '../settings/layout_settings_controller.dart';
 import '../senka/senka_page.dart' show SenkaCenterMode, senkaCenterModeLabel;
 import '../senka/senka_state.dart';
+import '../toolbox/toolbox_page.dart';
 
 class WorkspaceContextHeader extends StatelessWidget {
   const WorkspaceContextHeader({
@@ -56,6 +57,8 @@ class WorkspaceContextHeader extends StatelessWidget {
     this.onDevelopmentModeChanged,
     this.senkaMode = SenkaCenterMode.info,
     this.onSenkaModeChanged,
+    this.toolboxMode = ToolboxMode.export,
+    this.onToolboxModeChanged,
     this.layoutSettingsController,
   });
 
@@ -92,6 +95,8 @@ class WorkspaceContextHeader extends StatelessWidget {
   final ValueChanged<DevelopmentWorkbenchMode>? onDevelopmentModeChanged;
   final SenkaCenterMode senkaMode;
   final ValueChanged<SenkaCenterMode>? onSenkaModeChanged;
+  final ToolboxMode toolboxMode;
+  final ValueChanged<ToolboxMode>? onToolboxModeChanged;
   final LayoutSettingsController? layoutSettingsController;
 
   @override
@@ -353,14 +358,31 @@ class WorkspaceContextHeader extends StatelessWidget {
       );
     }
     if (workspaceIndex == 10) {
-      return Text(
-        l10n.toolbox,
-        key: const Key('workspace-title-tools'),
-        style: const TextStyle(
-          color: Color(0xffe0b25c),
-          fontSize: 17,
-          fontWeight: FontWeight.w800,
-        ),
+      return Row(
+        children: [
+          Text(
+            l10n.toolbox,
+            key: const Key('workspace-title-tools'),
+            style: const TextStyle(
+              color: Color(0xffe0b25c),
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: ToolboxModeTabs(
+                  mode: toolboxMode,
+                  onChanged: onToolboxModeChanged ?? (_) {},
+                ),
+              ),
+            ),
+          ),
+        ],
       );
     }
 
@@ -439,14 +461,12 @@ class DevelopmentWorkbenchModeTabs extends StatelessWidget {
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
                 child: InkWell(
-                  key: Key(
-                    switch (value) {
-                      DevelopmentWorkbenchMode.calculator =>
-                        'development-mode-calculator',
-                      DevelopmentWorkbenchMode.formula =>
-                        'development-mode-formula',
-                    },
-                  ),
+                  key: Key(switch (value) {
+                    DevelopmentWorkbenchMode.calculator =>
+                      'development-mode-calculator',
+                    DevelopmentWorkbenchMode.formula =>
+                      'development-mode-formula',
+                  }),
                   borderRadius: BorderRadius.circular(16),
                   onTap: () => onChanged(value),
                   child: Center(
@@ -576,6 +596,75 @@ class SenkaModeTabs extends StatelessWidget {
                     child: Center(
                       child: Text(
                         senkaCenterModeLabel(l10n, value),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: mode == value
+                              ? const Color(0xffffdc88)
+                              : const Color(0xff9fb3bf),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class ToolboxModeTabs extends StatelessWidget {
+  const ToolboxModeTabs({
+    super.key,
+    required this.mode,
+    required this.onChanged,
+  });
+
+  final ToolboxMode mode;
+  final ValueChanged<ToolboxMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      key: const Key('toolbox-mode-tabs'),
+      width: 190,
+      height: 38,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xff0b202d),
+        border: Border.all(color: const Color(0xff315064)),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          for (final value in ToolboxMode.values)
+            Expanded(
+              child: Semantics(
+                button: true,
+                selected: mode == value,
+                label: (value == ToolboxMode.export
+                    ? l10n.fleetExport
+                    : l10n.otherTools),
+                excludeSemantics: true,
+                child: Material(
+                  key: Key('toolbox-tab-${value.name}'),
+                  color: mode == value
+                      ? const Color(0xff8a6628)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(16),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => onChanged(value),
+                    child: Center(
+                      child: Text(
+                        (value == ToolboxMode.export
+                            ? l10n.fleetExport
+                            : l10n.otherTools),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

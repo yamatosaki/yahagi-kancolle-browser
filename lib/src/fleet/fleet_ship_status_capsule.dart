@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'fleet_ui_strings.dart';
 
 import '../game_state/game_state.dart';
 import '../settings/battle_status_effect_settings.dart';
@@ -152,22 +153,30 @@ class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
                                     ),
                                     const SizedBox(width: 4),
                                     MiniBadge(
-                                      text: type?.name ?? '未知舰种',
+                                      text:
+                                          type?.name ??
+                                          fleetText(context, '未知舰种'),
                                       color: const Color(0xffa9bac4),
                                     ),
                                     const SizedBox(width: 4),
                                     MiniBadge(
                                       key: Key('fleet-focus-speed-${ship.id}'),
-                                      text: ShipSpeedVisual.fromSpeed(
-                                        ship.effectiveSpeed(master),
-                                      ).label,
+                                      text: fleetText(
+                                        context,
+                                        ShipSpeedVisual.fromSpeed(
+                                          ship.effectiveSpeed(master),
+                                        ).label,
+                                      ),
                                       color: ShipSpeedVisual.fromSpeed(
                                         ship.effectiveSpeed(master),
                                       ).foreground,
                                     ),
                                     const SizedBox(width: 4),
                                     MiniBadge(
-                                      text: '疲劳 ${ship.condition}',
+                                      text: fleetText(
+                                        context,
+                                        '疲劳 ${ship.condition}',
+                                      ),
                                       color: shipFatigueColor(ship.condition),
                                     ),
                                     for (
@@ -321,7 +330,8 @@ class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
                                     children: [
                                       Expanded(
                                         child: Text(
-                                          master?.name ?? '未知舰娘',
+                                          master?.name ??
+                                              fleetText(context, '未知舰娘'),
                                           maxLines: 1,
                                           softWrap: false,
                                           style: TextStyle(

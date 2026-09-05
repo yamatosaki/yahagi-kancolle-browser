@@ -1,3 +1,4 @@
+import '../localization/runtime_message_text.dart';
 import 'package:flutter/material.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
@@ -62,9 +63,11 @@ class DiagnosticsSection extends StatelessWidget {
             const SizedBox(height: 12),
             _DiagnosticCard(
               title: _browserStateLabel(l10n, browserController.loadState),
-              subtitle:
-                  browserController.errorMessage ??
-                  browserController.displayAddress,
+              subtitle: runtimeMessageText(
+                context,
+                browserController.errorMessage ??
+                    browserController.displayAddress,
+              ),
               warning: browserController.loadState == GamePageLoadState.failed,
             ),
             if (gameRenderingModeController case final rendering?) ...[
@@ -83,7 +86,10 @@ class DiagnosticsSection extends StatelessWidget {
                   : _captureStateTitle(l10n, gameCaptureController.state),
               subtitle: captureModeController.mode == CaptureMode.browserOnly
                   ? l10n.browserOnlyCaptureOffDesc
-                  : _captureStateSubtitle(l10n, gameCaptureController, event),
+                  : runtimeMessageText(
+                      context,
+                      _captureStateSubtitle(l10n, gameCaptureController, event),
+                    ),
               warning:
                   gameCaptureController.state == GameCaptureState.error ||
                   gameCaptureController.state == GameCaptureState.unsupported,
@@ -93,7 +99,7 @@ class DiagnosticsSection extends StatelessWidget {
               title: l10n.capturedCount(capturedCount),
               subtitle: event == null
                   ? l10n.waitingKcsapi
-                  : '${event.source.label} · ${event.capturedAt.toLocal()}',
+                  : '${runtimeMessageText(context, event.source.label)} · ${event.capturedAt.toLocal()}',
             ),
             if (prototypeStatusController.lastBridgeError
                 case final error?) ...[

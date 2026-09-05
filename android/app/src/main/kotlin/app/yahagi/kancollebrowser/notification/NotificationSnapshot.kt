@@ -47,6 +47,7 @@ data class NotificationPresentation(
     val showPercent: Boolean,
     val showCountdown: Boolean,
     val ongoingLive: Boolean,
+    val localeCode: String = "zh",
 )
 
 data class NativeNotificationSnapshot(
@@ -320,6 +321,7 @@ object NotificationSnapshotCodec {
                 showPercent = presentation.boolean("showPercent"),
                 showCountdown = presentation.boolean("showCountdown"),
                 ongoingLive = presentation.boolean("ongoingLive"),
+                localeCode = presentation["localeCode"] as? String ?: "zh",
             ),
         )
     }
@@ -380,6 +382,7 @@ object NotificationSnapshotCodec {
             put("showPercent", snapshot.presentation.showPercent)
             put("showCountdown", snapshot.presentation.showCountdown)
             put("ongoingLive", snapshot.presentation.ongoingLive)
+            put("localeCode", snapshot.presentation.localeCode)
         })
     }.toString()
 

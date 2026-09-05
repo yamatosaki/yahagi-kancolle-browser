@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'fleet_ui_strings.dart';
 
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
@@ -252,8 +253,8 @@ class _PageHeader extends StatelessWidget {
               onExpeditionModeChanged != null)
             ExpeditionModeSelector(
               mode: expeditionMode!,
-              summaryLabel: '简报',
-              checkLabel: '检查',
+              summaryLabel: fleetText(context, '简报'),
+              checkLabel: fleetText(context, '检查'),
               onChanged: onExpeditionModeChanged!,
             ),
         ],
@@ -280,7 +281,7 @@ class _WaitingState extends StatelessWidget {
           const SizedBox(height: 7),
           Text(
             AppLocalizations.of(context)?.waitingForPortDataDescription ??
-                '进入游戏母港或刷新游戏页面后，这里会自动更新',
+                fleetText(context, '进入游戏母港或刷新游戏页面后，这里会自动更新'),
             style: const TextStyle(color: Color(0xff8197a5)),
           ),
         ],
@@ -899,7 +900,8 @@ class _FleetFocusPanel extends StatelessWidget {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                master?.name ?? '未知舰娘',
+                                                master?.name ??
+                                                    fleetText(context, '未知舰娘'),
                                                 maxLines: 1,
                                                 softWrap: false,
                                                 style: TextStyle(
@@ -992,7 +994,8 @@ class _FleetFocusPanel extends StatelessWidget {
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
-                                          type?.name ?? '未知舰种',
+                                          type?.name ??
+                                              fleetText(context, '未知舰种'),
                                           maxLines: 1,
                                           style: const TextStyle(
                                             color: Color(0xffa9bac4),
@@ -1005,9 +1008,12 @@ class _FleetFocusPanel extends StatelessWidget {
                                           key: Key(
                                             'fleet-focus-speed-${ship.id}',
                                           ),
-                                          text: ShipSpeedVisual.fromSpeed(
-                                            ship.effectiveSpeed(master),
-                                          ).label,
+                                          text: fleetText(
+                                            context,
+                                            ShipSpeedVisual.fromSpeed(
+                                              ship.effectiveSpeed(master),
+                                            ).label,
+                                          ),
                                           color: ShipSpeedVisual.fromSpeed(
                                             ship.effectiveSpeed(master),
                                           ).foreground,
@@ -1039,7 +1045,10 @@ class _FleetFocusPanel extends StatelessWidget {
                                         ],
                                         const SizedBox(width: 4),
                                         _MiniBadge(
-                                          text: '疲劳 ${ship.condition}',
+                                          text: fleetText(
+                                            context,
+                                            '疲劳 ${ship.condition}',
+                                          ),
                                           color: shipFatigueColor(
                                             ship.condition,
                                           ),
@@ -1277,7 +1286,7 @@ class _CompactEquipmentRow extends StatelessWidget {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
-                      master?.name ?? '未知装备',
+                      master?.name ?? fleetText(context, '未知装备'),
                       key: Key('fleet-equipment-name-${ship.id}-$index'),
                       style: const TextStyle(
                         color: Color(0xffe1e9ed),
@@ -1367,16 +1376,16 @@ class _ShipParameterDetails extends StatelessWidget {
     final master = state.masterForShip(ship);
     final stats = <(String, String)>[
       ('耐久', '${ship.maxHp}'),
-      ('火力', '${ship.firepower}'),
-      ('装甲', '${ship.armor}'),
-      ('雷装', '${ship.torpedo}'),
-      ('回避', '${ship.evasion}'),
-      ('对空', '${ship.antiAir}'),
+      (fleetText(context, '火力'), '${ship.firepower}'),
+      (fleetText(context, '装甲'), '${ship.armor}'),
+      (fleetText(context, '雷装'), '${ship.torpedo}'),
+      (fleetText(context, '回避'), '${ship.evasion}'),
+      (fleetText(context, '对空'), '${ship.antiAir}'),
       ('搭载', '${ship.onSlot.fold<int>(0, (sum, value) => sum + value)}'),
-      ('对潜', '${ship.antiSub}'),
+      (fleetText(context, '对潜'), '${ship.antiSub}'),
       ('速力', ShipSpeedVisual.fromSpeed(ship.effectiveSpeed(master)).label),
-      ('索敌', '${ship.lineOfSight}'),
-      ('射程', _rangeText(ship.effectiveRange(master))),
+      (fleetText(context, '索敌'), '${ship.lineOfSight}'),
+      ('射程', _rangeText(context, ship.effectiveRange(master))),
       ('运', '${ship.luck}'),
     ];
     final shipMechanisms = detectShipCombatMechanisms(state, ship);
@@ -1417,7 +1426,7 @@ class _ShipParameterDetails extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          stats[index].$1,
+                          fleetText(context, stats[index].$1),
                           style: const TextStyle(
                             color: Color(0xff8197a5),
                             fontSize: 11,
@@ -1425,7 +1434,7 @@ class _ShipParameterDetails extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        stats[index].$2,
+                        fleetText(context, stats[index].$2),
                         style: const TextStyle(
                           color: Color(0xffe1e9ed),
                           fontSize: 15,
@@ -1441,7 +1450,7 @@ class _ShipParameterDetails extends StatelessWidget {
               final mech = allMechanisms[index - stats.length];
               final valueText = mech.rate != null
                   ? '${(mech.rate! * 100).round()}%'
-                  : '有效';
+                  : fleetText(context, '有效');
               final labelColor = switch (mech.tone) {
                 MechanismTone.antiAir => const Color(0xffffc861),
                 MechanismTone.specialAttack => const Color(0xffff8b88),
@@ -1462,7 +1471,7 @@ class _ShipParameterDetails extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            mech.shortLabel ?? mech.label,
+                            fleetText(context, mech.shortLabel ?? mech.label),
                             style: TextStyle(
                               color: labelColor,
                               fontSize: 11,
@@ -1508,17 +1517,17 @@ class _ShipParameterDetails extends StatelessWidget {
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xff142735),
         title: Text(
-          mechanism.label,
+          fleetText(context, mechanism.label),
           style: TextStyle(color: foregroundColor, fontWeight: FontWeight.bold),
         ),
         content: Text(
-          mechanism.description,
+          fleetMechanismDescription(context, mechanism.description),
           style: const TextStyle(color: Color(0xffe1e9ed), height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('确定'),
+            child: Text(fleetText(context, '确定')),
           ),
         ],
       ),
@@ -1543,11 +1552,11 @@ class _ShipParameterDetails extends StatelessWidget {
     };
   }
 
-  static String _rangeText(int range) => switch (range) {
+  static String _rangeText(BuildContext context, int range) => switch (range) {
     1 => '短',
     2 => '中',
-    3 => '长',
-    4 => '超长',
+    3 => fleetText(context, '长'),
+    4 => fleetText(context, '超长'),
     _ => '—',
   };
 }
@@ -1604,7 +1613,7 @@ class _SelectedEquipmentDetails extends StatelessWidget {
                   runSpacing: 3,
                   children: [
                     Text(
-                      master?.name ?? '未知装备',
+                      master?.name ?? fleetText(context, '未知装备'),
                       key: Key('fleet-detail-equipment-name-${ship.id}-$index'),
                       style: const TextStyle(
                         fontSize: 15,
@@ -1657,7 +1666,7 @@ class _SelectedEquipmentDetails extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      stats[index].label,
+                      fleetText(context, stats[index].label),
                       style: const TextStyle(
                         color: Color(0xff8197a5),
                         fontSize: 11,
@@ -1666,7 +1675,7 @@ class _SelectedEquipmentDetails extends StatelessWidget {
                   ),
                   if (stats[index].value.isNotEmpty)
                     Text(
-                      stats[index].value,
+                      fleetText(context, stats[index].value),
                       style: const TextStyle(
                         color: Color(0xffe1e9ed),
                         fontSize: 14,
@@ -1738,7 +1747,10 @@ class _MetricsBar extends StatelessWidget {
           )
         : '${metrics.minimumCondition}';
     final values = <(String, String)>[
-      (AppLocalizations.of(context)?.speed ?? '速度', metrics.speedLabel),
+      (
+        AppLocalizations.of(context)?.speed ?? '速度',
+        fleetText(context, metrics.speedLabel),
+      ),
       (
         AppLocalizations.of(context)?.totalLevel ?? '总等级',
         '${metrics.totalLevel}',
@@ -1835,7 +1847,7 @@ class _MetricsBar extends StatelessWidget {
                 FittedBox(
                   fit: BoxFit.scaleDown,
                   child: Text(
-                    label,
+                    fleetText(context, label),
                     maxLines: 1,
                     style: TextStyle(
                       color: const Color(0xff8197a5),
@@ -1988,7 +2000,7 @@ class _ShipRow extends StatelessWidget {
                             child: Text(
                               master?.name ??
                                   (AppLocalizations.of(context)?.unknownShip ??
-                                      '未知舰娘'),
+                                      fleetText(context, '未知舰娘')),
                               key: Key('ship-identity-name-${ship.id}'),
                               maxLines: 1,
                               softWrap: false,
@@ -2060,7 +2072,10 @@ class _ShipRow extends StatelessWidget {
                                             ),
                                           ),
                                           child: Text(
-                                            speedVisual.label,
+                                            fleetText(
+                                              context,
+                                              speedVisual.label,
+                                            ),
                                             maxLines: 1,
                                             softWrap: false,
                                             style: TextStyle(
@@ -2240,7 +2255,7 @@ class _ShipRow extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     AppLocalizations.of(context)?.equipmentDataWaiting ??
-                        '装备数据等待更新',
+                        fleetText(context, '装备数据等待更新'),
                     style: const TextStyle(color: Color(0xff8197a5)),
                   ),
                 )
@@ -2295,7 +2310,7 @@ class _ShipRow extends StatelessWidget {
                             Text(
                               master?.name ??
                                   AppLocalizations.of(context)?.unknownShip ??
-                                  '未知舰娘',
+                                  fleetText(context, '未知舰娘'),
                               key: Key('ship-identity-name-${ship.id}'),
                               maxLines: 1,
                               softWrap: false,
@@ -2370,7 +2385,7 @@ class _ShipRow extends StatelessWidget {
                                                   AppLocalizations.of(
                                                     context,
                                                   )?.unknownShipType ??
-                                                  '未知舰种',
+                                                  fleetText(context, '未知舰种'),
                                               maxLines: 1,
                                               softWrap: false,
                                               overflow: TextOverflow.ellipsis,
@@ -2412,7 +2427,7 @@ class _ShipRow extends StatelessWidget {
                                         AppLocalizations.of(
                                           context,
                                         )?.needsSupply ??
-                                        '需要补给',
+                                        fleetText(context, '需要补给'),
                                     child: Icon(
                                       Icons.storage_rounded,
                                       key: Key(
@@ -2435,7 +2450,7 @@ class _ShipRow extends StatelessWidget {
                                     key: Key('ship-status-fuel-${ship.id}'),
                                     semanticLabel:
                                         AppLocalizations.of(context)?.fuel ??
-                                        '燃料',
+                                        fleetText(context, '燃料'),
                                     icon: Image.asset(
                                       'assets/images/material/01.png',
                                       key: Key(
@@ -2471,7 +2486,7 @@ class _ShipRow extends StatelessWidget {
                                     key: Key('ship-status-hp-${ship.id}'),
                                     semanticLabel:
                                         AppLocalizations.of(context)?.hp ??
-                                        '血量',
+                                        fleetText(context, '血量'),
                                     icon: Icon(
                                       key: Key(
                                         'ship-status-hp-icon-${ship.id}',
@@ -2503,7 +2518,7 @@ class _ShipRow extends StatelessWidget {
                                     key: Key('ship-status-ammo-${ship.id}'),
                                     semanticLabel:
                                         AppLocalizations.of(context)?.ammo ??
-                                        '弹药',
+                                        fleetText(context, '弹药'),
                                     icon: Image.asset(
                                       'assets/images/material/02.png',
                                       key: Key(
@@ -2541,7 +2556,7 @@ class _ShipRow extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 AppLocalizations.of(context)?.equipmentDataWaiting ??
-                    '装备数据等待更新',
+                    fleetText(context, '装备数据等待更新'),
                 style: const TextStyle(color: Color(0xff8197a5)),
               ),
             )
@@ -2679,7 +2694,7 @@ class _SpeedBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
-        visual.label,
+        fleetText(context, visual.label),
         maxLines: 1,
         softWrap: false,
         style: TextStyle(
@@ -2777,7 +2792,7 @@ class _MechanismChip extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
           child: Text(
-            label,
+            fleetText(context, label),
             style: TextStyle(
               color: isSpecialAttack
                   ? const Color(0xffff8b88)
@@ -2797,7 +2812,7 @@ class _MechanismChip extends StatelessWidget {
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xff142735),
         title: Text(
-          mechanism.label,
+          fleetText(context, mechanism.label),
           style: TextStyle(
             color: isSpecialAttack
                 ? const Color(0xffff8b88)
@@ -2812,7 +2827,7 @@ class _MechanismChip extends StatelessWidget {
           ),
         ),
         content: Text(
-          mechanism.description,
+          fleetMechanismDescription(context, mechanism.description),
           style: const TextStyle(color: Color(0xffc2d0d7), height: 1.5),
         ),
         actions: [
@@ -2874,7 +2889,7 @@ class _EquipmentCard extends StatelessWidget {
                 child: Text(
                   master?.name ??
                       AppLocalizations.of(context)?.unknownEquipment ??
-                      '未知装备',
+                      fleetText(context, '未知装备'),
                   maxLines: 1,
                   softWrap: false,
                   overflow: TextOverflow.ellipsis,
@@ -2939,7 +2954,7 @@ class _EquipmentCard extends StatelessWidget {
               children: [
                 for (final stat in stats)
                   Text(
-                    '${stat.label} ${stat.value}',
+                    '${fleetText(context, stat.label)} ${fleetText(context, stat.value)}',
                     style: const TextStyle(
                       color: Color(0xff9fb2bd),
                       fontSize: 13,

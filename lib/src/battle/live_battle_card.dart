@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'battle_ui_text.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import 'battle_controller.dart';
@@ -186,7 +188,7 @@ class _ModeButton extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-          child: Text(
+          child: BattleUiText(
             label,
             style: TextStyle(
               color: selected
@@ -235,7 +237,7 @@ class _CompactBattlePanel extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
+              child: BattleUiText(
                 battle.context.forecastNodeLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -549,7 +551,7 @@ class _CompactFleetSideTitle extends StatelessWidget {
       height: 14,
       child: FittedBox(
         fit: BoxFit.scaleDown,
-        child: Text(
+        child: BattleUiText(
           title,
           maxLines: 1,
           softWrap: false,
@@ -636,7 +638,7 @@ class _CompactBarRow extends StatelessWidget {
       if (isEscaped) {
         return const Align(
           alignment: Alignment.centerLeft,
-          child: Text(
+          child: BattleUiText(
             '退避',
             style: TextStyle(
               color: Color(0xff8197a5),
@@ -827,7 +829,7 @@ class _StatusBadge extends StatelessWidget {
         color: background,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(
+      child: BattleUiText(
         label,
         style: TextStyle(
           color: foreground,

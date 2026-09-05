@@ -1,3 +1,4 @@
+import 'localization/runtime_message_text.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -1483,7 +1484,7 @@ final class _NativeActivityGameSurfaceState
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Text(
-              _startupErrorMessage,
+              runtimeMessageText(context, _startupErrorMessage),
               key: const Key('native-game-surface-error'),
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.redAccent),

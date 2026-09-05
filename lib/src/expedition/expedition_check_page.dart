@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../localization/ui_text.dart';
+
 import '../fleet/fleet_switcher_bar.dart';
 import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
@@ -498,7 +500,7 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
                   height: 17,
                   filterQuality: FilterQuality.medium,
                 )
-              : Text(
+              : UiText(
                   label ?? '道具',
                   style: const TextStyle(
                     color: Color(0xffa8bbc5),
@@ -515,7 +517,7 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
               children: [
                 iconOrText,
                 const SizedBox(width: 4),
-                Text(
+                UiText(
                   kindText,
                   style: const TextStyle(
                     color: Color(0xff7792a3),

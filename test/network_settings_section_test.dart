@@ -17,9 +17,13 @@ void main() {
 
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));
 
-  Widget app(NetworkSettingsController controller, {VoidCallback? onSuccess}) {
+  Widget app(
+    NetworkSettingsController controller, {
+    VoidCallback? onSuccess,
+    Locale locale = const Locale('zh'),
+  }) {
     return MaterialApp(
-      locale: const Locale('zh'),
+      locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: TopNoticeHost(
@@ -52,6 +56,42 @@ void main() {
 
   Finder noticeMatching(Finder matching) =>
       find.descendant(of: find.byKey(topNoticeKey), matching: matching);
+
+  testWidgets('diagnostic result follows app locale and keeps raw errors', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var message = '网络畅通，可正常访问游戏服务。';
+    final controller = await createController(
+      handler: (_) async => {
+        'success': true,
+        'code': 'ok',
+        'message': message,
+        'elapsedMs': 10,
+      },
+    );
+    await controller.testConnection(NetworkMode.system, '', 8080);
+    await tester.pumpWidget(app(controller, locale: const Locale('ja')));
+    await tester.pumpAndSettle();
+    expect(find.text('ネットワークは正常で、ゲームサービスに接続できます。'), findsOneWidget);
+    expect(find.text(message), findsNothing);
+    await tester.pumpWidget(
+      app(
+        controller,
+        locale: const Locale.fromSubtags(
+          languageCode: 'zh',
+          scriptCode: 'Hant',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('網路暢通，可正常存取遊戲服務。'), findsOneWidget);
+    message = 'SocketException: 系统原始错误 127.0.0.1:8080';
+    await controller.testConnection(NetworkMode.system, '', 8080);
+    await tester.pumpAndSettle();
+    expect(find.text(message), findsOneWidget);
+  });
 
   testWidgets('network settings omit VPN status row', (tester) async {
     final controller = await createController();

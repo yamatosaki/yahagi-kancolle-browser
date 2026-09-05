@@ -4,6 +4,7 @@ import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
 import 'dashboard_card.dart';
+import 'fleet_ui_strings.dart';
 import 'ship_status_style.dart';
 
 enum SortieCheckMode { ships, maps }
@@ -536,7 +537,7 @@ class _MapGaugeRow extends StatelessWidget {
                     borderRadius: BorderRadius.circular(3),
                   ),
                   child: Text(
-                    gauge.categoryTag,
+                    fleetText(context, gauge.categoryTag),
                     style: const TextStyle(
                       fontSize: 9.5,
                       fontWeight: FontWeight.bold,

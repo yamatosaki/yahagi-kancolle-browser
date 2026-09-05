@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'battle_ui_text.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import '../fleet/ship_status_style.dart';
@@ -178,7 +180,7 @@ class _NavigationOverview extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                BattleUiText(
                   battle.context.forecastNodeLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -426,7 +428,7 @@ class _FleetGroup extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(9, 7, 9, 5),
-            child: Text(
+            child: BattleUiText(
               title,
               style: TextStyle(
                 color: title.startsWith('敌')
@@ -489,7 +491,7 @@ class _BattleShipRow extends StatelessWidget {
       if (isEscaped) {
         return const Align(
           alignment: Alignment.centerLeft,
-          child: Text(
+          child: BattleUiText(
             '退避',
             style: TextStyle(
               color: Color(0xff8197a5),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'fleet_ui_strings.dart';
 
 class DashboardCard extends StatelessWidget {
   const DashboardCard({
@@ -82,7 +83,9 @@ class DashboardCard extends StatelessWidget {
                 ],
                 IconButton(
                   key: collapseButtonKey,
-                  tooltip: collapsed ? '展开$title' : '折叠$title',
+                  tooltip: collapsed
+                      ? fleetText(context, '展开$title')
+                      : fleetText(context, '折叠$title'),
                   visualDensity: VisualDensity.compact,
                   constraints: const BoxConstraints(
                     minWidth: 32,

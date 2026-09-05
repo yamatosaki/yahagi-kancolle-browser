@@ -1,3 +1,4 @@
+import 'localization/runtime_message_text.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -1287,7 +1288,7 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Text(
-              _startupErrorMessage,
+              runtimeMessageText(context, _startupErrorMessage),
               style: const TextStyle(color: Colors.redAccent, fontSize: 14),
               textAlign: TextAlign.center,
             ),
@@ -1318,7 +1319,7 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
         const CircularProgressIndicator(color: Color(0xffd4a85f)),
         const SizedBox(height: 24),
         Text(
-          _getStartupStatusText(),
+          runtimeMessageText(context, _getStartupStatusText()),
           style: const TextStyle(color: Color(0xff8197a5), fontSize: 14),
         ),
       ],

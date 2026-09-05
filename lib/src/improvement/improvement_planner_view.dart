@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+
+import '../localization/ui_text.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import '../fleet/equipment_type_icon.dart';
@@ -125,7 +127,7 @@ class _WeekdayFilter extends StatelessWidget {
             key: const Key('improvement-search-button'),
             icon: Icons.search,
             active: controller.hasSearch,
-            tooltip: '搜索装备',
+            tooltip: uiText(context, '搜索装备'),
             onPressed: () => _showImprovementSearch(context, controller),
           ),
           const SizedBox(width: 4),
@@ -133,7 +135,7 @@ class _WeekdayFilter extends StatelessWidget {
             key: const Key('improvement-filter-button'),
             icon: Icons.filter_alt_outlined,
             active: controller.hasFilters,
-            tooltip: '筛选装备',
+            tooltip: uiText(context, '筛选装备'),
             onPressed: () => _showImprovementFilters(context, controller),
           ),
         ],
@@ -177,14 +179,14 @@ class _ImprovementSearchDialogState extends State<_ImprovementSearchDialog> {
 
   @override
   Widget build(BuildContext context) => AdaptiveInputDialog(
-    title: const Text('搜索装备'),
+    title: const UiText('搜索装备'),
     content: TextField(
       key: const Key('improvement-search-field'),
       controller: _textController,
       autofocus: true,
       onChanged: widget.controller.setQuery,
-      decoration: const InputDecoration(
-        hintText: '搜索装备名称',
+      decoration: InputDecoration(
+        hintText: uiText(context, '搜索装备名称'),
         prefixIcon: Icon(Icons.search),
       ),
     ),
@@ -195,12 +197,12 @@ class _ImprovementSearchDialogState extends State<_ImprovementSearchDialog> {
           _textController.clear();
           widget.controller.setQuery('');
         },
-        child: const Text('清除'),
+        child: const UiText('清除'),
       ),
       FilledButton(
         key: const Key('improvement-search-close'),
         onPressed: () => Navigator.pop(context),
-        child: const Text('完成'),
+        child: const UiText('完成'),
       ),
     ],
   );
@@ -246,7 +248,7 @@ class _ImprovementFilterSheet extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Text(
+                const UiText(
                   '筛选装备',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
@@ -254,7 +256,7 @@ class _ImprovementFilterSheet extends StatelessWidget {
                 TextButton(
                   key: const Key('improvement-filter-clear'),
                   onPressed: controller.clearFilters,
-                  child: const Text('全部清除'),
+                  child: const UiText('全部清除'),
                 ),
                 IconButton(
                   key: const Key('improvement-filter-close'),
@@ -264,7 +266,7 @@ class _ImprovementFilterSheet extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            const Text('装备分类'),
+            const UiText('装备分类'),
             const SizedBox(height: 5),
             Wrap(
               runSpacing: 5,
@@ -279,7 +281,7 @@ class _ImprovementFilterSheet extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            const Text('进化状态'),
+            const UiText('进化状态'),
             const SizedBox(height: 5),
             Wrap(
               runSpacing: 5,
@@ -292,7 +294,7 @@ class _ImprovementFilterSheet extends StatelessWidget {
                     ])
                   CompactFilterChip(
                     key: Key('improvement-filter-evolution-${option.$1.name}'),
-                    label: option.$2,
+                    label: uiText(context, option.$2),
                     selected: controller.evolutionFilter == option.$1,
                     onTap: () => controller.selectEvolutionFilter(option.$1),
                   ),
@@ -396,7 +398,7 @@ class _SlidingSegment<T> extends StatelessWidget {
                         onTap: () => onChanged(option.value),
                         child: Center(
                           child: Text(
-                            option.label,
+                            uiText(context, option.label),
                             style: TextStyle(
                               color: option.value == selected
                                   ? const Color(0xffffdc88)
@@ -665,7 +667,7 @@ class _ImprovementTableState extends State<_ImprovementTable> {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text(evolvableToday ? '可进化' : '—', style: _cellStyle),
+              child: UiText(evolvableToday ? '可进化' : '—', style: _cellStyle),
             ),
           ),
           hasMultipleRoutes
@@ -765,7 +767,7 @@ class _Header extends StatelessWidget {
       key: alignmentKey,
       alignment: Alignment.centerLeft,
       child: Text(
-        label,
+        uiText(context, label),
         style: const TextStyle(
           color: Color(0xffb8c9d2),
           fontSize: 11,
@@ -939,7 +941,7 @@ class _ConsumeBadge extends StatelessWidget {
       borderRadius: BorderRadius.circular(4),
     ),
     child: Text(
-      label,
+      uiText(context, label),
       maxLines: 1,
       style: const TextStyle(
         color: Color(0xffffd56a),
@@ -1084,7 +1086,7 @@ class _RouteLane extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 5),
-                        Text(
+                        UiText(
                           '路线 $_label',
                           style: TextStyle(
                             color: _color,
@@ -1340,7 +1342,7 @@ class _EmptyState extends StatelessWidget {
   const _EmptyState();
   @override
   Widget build(BuildContext context) => const Center(
-    child: Text(
+    child: UiText(
       '当天没有符合条件的改修装备',
       style: TextStyle(color: Color(0xff8da5b2), fontSize: 13),
     ),

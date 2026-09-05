@@ -1,3 +1,4 @@
+import '../localization/runtime_message_text.dart';
 import 'package:flutter/material.dart';
 
 import '../widgets/top_notice.dart';
@@ -25,7 +26,10 @@ class CaptureModeSelector extends StatelessWidget {
                   .map(
                     (value) => ButtonSegment<CaptureMode>(
                       value: value,
-                      label: Text(value.title, textAlign: TextAlign.center),
+                      label: Text(
+                        runtimeMessageText(context, value.title),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   )
                   .toList(growable: false),
@@ -40,12 +44,15 @@ class CaptureModeSelector extends StatelessWidget {
                   CaptureMode.game => '游戏模式将在重新载入页面后启用只读捕获。',
                   CaptureMode.browserOnly => '纯浏览模式将在重新载入页面后停止数据捕获。',
                 };
-                TopNotice.show(context, message: message);
+                TopNotice.show(
+                  context,
+                  message: runtimeMessageText(context, message),
+                );
               },
             ),
             const SizedBox(height: 8),
             Text(
-              mode.description,
+              runtimeMessageText(context, mode.description),
               style: const TextStyle(
                 color: Color(0xff8197a5),
                 fontSize: 12,
@@ -55,7 +62,7 @@ class CaptureModeSelector extends StatelessWidget {
             if (controller.errorMessage case final error?) ...[
               const SizedBox(height: 6),
               Text(
-                error,
+                runtimeMessageText(context, error),
                 style: const TextStyle(color: Color(0xffffaaa4), fontSize: 12),
               ),
             ],

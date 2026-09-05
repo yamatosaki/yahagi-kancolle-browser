@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'fleet_ui_strings.dart';
 
 import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
@@ -129,7 +130,7 @@ class RepairModeTabs extends StatelessWidget {
               Expanded(
                 child: _RepairModeTab(
                   key: const Key('repair-mode-dock'),
-                  label: '入渠修理',
+                  label: fleetText(context, '入渠修理'),
                   selected: mode == RepairCenterMode.dock,
                   onTap: () => onChanged(RepairCenterMode.dock),
                 ),
@@ -145,7 +146,7 @@ class RepairModeTabs extends StatelessWidget {
               Expanded(
                 child: _RepairModeTab(
                   key: const Key('repair-mode-nosaki'),
-                  label: '野埼刷闪',
+                  label: fleetText(context, '野埼刷闪'),
                   selected: mode == RepairCenterMode.nosaki,
                   onTap: () => onChanged(RepairCenterMode.nosaki),
                 ),
@@ -327,24 +328,28 @@ class _SummaryGrid extends StatelessWidget {
               key: const Key('anchorage-summary-status'),
               width: width,
               height: height,
-              label: '当前状态',
-              value: projection.isReady ? 'HP 修理准备就绪' : 'HP 修理未就绪',
+              label: fleetText(context, '当前状态'),
+              value: projection.isReady
+                  ? fleetText(context, 'HP 修理准备就绪')
+                  : fleetText(context, 'HP 修理未就绪'),
               valueColor: projection.isReady ? _green : _yellow,
             ),
             _SummaryCard(
               key: const Key('anchorage-summary-elapsed'),
               width: width,
               height: height,
-              label: '泊地修理已计时',
+              label: fleetText(context, '泊地修理已计时'),
               value: elapsedLabel,
             ),
             _SummaryCard(
               key: const Key('anchorage-summary-capacity'),
               width: width,
               height: height,
-              label: '可修理数量',
-              value:
-                  '${projection.repairableCount} 艘（修理设施 X ${projection.facilityCount}）',
+              label: fleetText(context, '可修理数量'),
+              value: fleetText(
+                context,
+                '${projection.repairableCount} 艘（修理设施 X ${projection.facilityCount}）',
+              ),
             ),
           ],
         );
@@ -432,15 +437,15 @@ class _AnchorageRepairTable extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          const _TableCells(
+          _TableCells(
             header: true,
             children: [
-              Text('舰娘'),
+              Text(fleetText(context, '舰娘')),
               _HpLabel(),
-              Text('泊地修理状态'),
-              Text('修理时间'),
-              Text('单位修理时间'),
-              Text('预计已回复'),
+              Text(fleetText(context, '泊地修理状态')),
+              Text(fleetText(context, '修理时间')),
+              Text(fleetText(context, '单位修理时间')),
+              Text(fleetText(context, '预计已回复')),
             ],
           ),
           for (final row in projection.rows)
@@ -527,7 +532,7 @@ class _ShipIdentity extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = row.master?.name ?? '未知舰娘';
+    final name = row.master?.name ?? fleetText(context, '未知舰娘');
     return Row(
       children: [
         ShipPortrait(
@@ -625,10 +630,19 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
-      AnchorageRepairShipStatus.completed => ('修理已完成', _green),
-      AnchorageRepairShipStatus.repairing => ('正在修理中', _yellow),
-      AnchorageRepairShipStatus.outOfRange => ('超出修理范围', _red),
-      AnchorageRepairShipStatus.unable => ('无法修理', _red),
+      AnchorageRepairShipStatus.completed => (
+        fleetText(context, '修理已完成'),
+        _green,
+      ),
+      AnchorageRepairShipStatus.repairing => (
+        fleetText(context, '正在修理中'),
+        _yellow,
+      ),
+      AnchorageRepairShipStatus.outOfRange => (
+        fleetText(context, '超出修理范围'),
+        _red,
+      ),
+      AnchorageRepairShipStatus.unable => (fleetText(context, '无法修理'), _red),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

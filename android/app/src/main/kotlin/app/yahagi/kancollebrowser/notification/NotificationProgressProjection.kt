@@ -83,6 +83,7 @@ object NotificationProgressProjection {
 
     fun displayItems(
         items: List<OngoingNotificationItem>,
+        localeCode: String = "zh",
     ): List<OngoingNotificationItem> {
         val sorted = items.sortedWith(
             compareBy<OngoingNotificationItem>(
@@ -104,7 +105,7 @@ object NotificationProgressProjection {
         val summary = OngoingNotificationItem(
             id = "overflow:${hidden.size}",
             type = "overflow",
-            title = "另有 ${hidden.size} 项进行中或已完成任务",
+            title = NotificationStrings(localeCode).overflow(hidden.size),
             state = nearest.state,
             clockMode = "countdown",
             anchorEpochMs = null,

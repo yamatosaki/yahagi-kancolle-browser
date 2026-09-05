@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'battle_ui_text.dart';
+
 import '../fleet/ship_status_style.dart';
 import 'battle_models.dart';
 import 'battle_pills.dart';
@@ -35,7 +37,7 @@ class LandBaseRaidPanel extends StatelessWidget {
                 color: Color(0xffff8c78),
               ),
               const SizedBox(width: 6),
-              const Text(
+              const BattleUiText(
                 '基地空袭',
                 style: TextStyle(
                   color: Color(0xffffa092),

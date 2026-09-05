@@ -17,7 +17,7 @@ class NotificationAlarmReceiver : BroadcastReceiver() {
         val stage = NotificationDelivery.stageFor(key, intent.getStringExtra("stage"))
         val triggerTimeEpochMs = intent.getLongExtra("triggerTimeEpochMs", 0L)
         val channelId = intent.getStringExtra("channelId") ?: "channel_expedition"
-        val title = intent.getStringExtra("title") ?: "矢矧通知"
+        val title = intent.getStringExtra("title") ?: NotificationStrings(AppNotificationManager.loadSnapshot(context).presentation.localeCode).fallbackTitle
         val body = intent.getStringExtra("body") ?: ""
         val sound = intent.getBooleanExtra("sound", true)
         val vibration = intent.getBooleanExtra("vibration", true)

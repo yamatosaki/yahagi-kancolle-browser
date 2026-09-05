@@ -762,9 +762,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get autoRecordHint => '出击后会自动记录，不需要额外操作';
 
   @override
-  String get enemyFleet => '敌舰队';
-
-  @override
   String get thisSortie => '本次出击';
 
   @override
@@ -899,9 +896,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get unknownProgress => '进度未知';
-
-  @override
-  String get waitingForPortData => '等待母港数据';
 
   @override
   String get waitingForPortDataDescription => '进入游戏母港或刷新游戏页面后，这里会自动更新';
@@ -1086,6 +1080,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get enemyFinalStatus => '敌方最终状态';
+
+  @override
+  String get enemyFleet => '敌舰队';
 
   @override
   String airStateLabel(String label) {
@@ -2591,7 +2588,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get toolbox => '工具箱';
 
   @override
-  String get fleetExport => '舰队导出';
+  String get fleetExport => '导出数据';
 
   @override
   String get otherTools => '其他';
@@ -2634,10 +2631,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get openInSystemBrowser => '使用系统默认浏览器打开';
 
   @override
-  String get otherToolsComingSoon => '其他功能正在开发';
+  String get otherToolsComingSoon => '其他功能陆续开发中';
 
   @override
   String get otherToolsHint => '后续辅助工具会集中放在这里。';
+
+  @override
+  String get waitingForPortData => '等待母港数据';
 
   @override
   String get externalFleetToolOpenFailed => '无法打开外部舰队工具，请检查是否已安装浏览器。';
@@ -3109,13 +3109,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settingsTitle => '設定';
 
   @override
-  String get layoutSettings => '介面與佈局';
+  String get layoutSettings => '介面與配置';
 
   @override
   String get gameAreaRatio => '遊戲區域佔比';
 
   @override
-  String get infoPanelWidth => '資訊面板寬度（直屏模式無效）';
+  String get infoPanelWidth => '資訊面板寬度（直向模式無效）';
 
   @override
   String get autoZoom => '套用建議顯示比例（遊戲與選單比例 65:35）';
@@ -3149,7 +3149,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get proxyNotSupported =>
-      '當前設備的 Android System WebView 不支援應用程式內代理設定。\n您只能使用系統網路或全局 VPN。';
+      '目前裝置的 Android System WebView 不支援應用程式內代理設定。\n您只能使用系統網路或全域 VPN。';
 
   @override
   String get systemNetwork => '系統網路 / VPN';
@@ -3170,7 +3170,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get socks5ProxyDesc => '連接自訂 SOCKS5 代理伺服器。';
 
   @override
-  String get hostAddress => '主機地址 (IP 或網域)';
+  String get hostAddress => '主機位址 (IP 或網域)';
 
   @override
   String get hostHint => '如 192.168.1.10';
@@ -3179,16 +3179,16 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get port => '通訊埠';
 
   @override
-  String get currentSavedMode => '當前已儲存模式';
+  String get currentSavedMode => '目前已儲存模式';
 
   @override
   String get vpnStatus => 'VPN 狀態';
 
   @override
-  String get vpnActive => '已檢測到活動 VPN';
+  String get vpnActive => '已偵測到啟用中的 VPN';
 
   @override
-  String get vpnInactive => '未檢測到活動 VPN';
+  String get vpnInactive => '未偵測到啟用中的 VPN';
 
   @override
   String get testConnection => '網路連線測試';
@@ -3222,7 +3222,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get clearQuestCache => '清理任務資料快取';
 
   @override
-  String get clearQuestCacheDesc => '清除本機快取的脫敏任務資料，重啟應用程式後需進入遊戲內任務面板重新獲取';
+  String get clearQuestCacheDesc => '清除本機快取中已去識別化的任務資料，重新啟動應用程式後需進入遊戲內任務面板重新取得';
 
   @override
   String get clearWebCache => '清理瀏覽器網頁快取';
@@ -3323,10 +3323,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get mapHpGauges => '海域血量';
 
   @override
-  String get noMapGaugeData => '暫無海域血量數據';
+  String get noMapGaugeData => '暫無海域血量資料';
 
   @override
-  String get noMapGaugeDataHint => '請在遊戲中進入出擊海域以同步數據';
+  String get noMapGaugeDataHint => '請在遊戲中進入出擊海域以同步資料';
 
   @override
   String get showClearedMaps => '顯示已攻略';
@@ -3338,7 +3338,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get forecast => '未卜先知';
 
   @override
-  String get waitingForSortieData => '等待出擊數據';
+  String get waitingForSortieData => '等待出擊資料';
 
   @override
   String get standby => '待機';
@@ -3422,7 +3422,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get disclaimerP2 =>
-      '本軟體不參與、不阻斷、不重放且不竄改遊戲伺服器的通訊數據，也不會代替玩家執行遊戲操作。原作者不對軟體的品質做任何明示或暗示的保證（包括但不限於對軟體完全無 Bug、適用性或系統穩定性的保證）。';
+      '本軟體不參與、不阻斷、不重放且不竄改遊戲伺服器的通訊資料，也不會代替玩家執行遊戲操作。原作者不對軟體的品質做任何明示或暗示的保證（包括但不限於對軟體完全無 Bug、適用性或系統穩定性的保證）。';
 
   @override
   String get disclaimerP3 =>
@@ -3435,7 +3435,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get checkForUpdates => '檢查更新';
 
   @override
-  String get openSourceLicense => '開源協議: MIT License';
+  String get openSourceLicense => '開源授權條款：MIT License';
 
   @override
   String get newVersionFound => '🚀 發現新版本！';
@@ -3465,7 +3465,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get noRelease => '暫無發佈版本';
 
   @override
-  String get noReleaseDesc => 'GitHub 倉庫尚未發佈任何 Release。';
+  String get noReleaseDesc => 'GitHub 儲存庫尚未發佈任何 Release。';
 
   @override
   String get checkFailed => '檢查失敗';
@@ -3486,7 +3486,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get battleWarningOff => '關閉';
 
   @override
-  String get battleWarningConfirm => '彈框確認';
+  String get battleWarningConfirm => '對話框確認';
 
   @override
   String get logoutSnackbar => '已登出並清除帳號資訊。';
@@ -3496,7 +3496,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get logoutConfirmDesc =>
-      '將清除應用程式內遊戲頁面的 Cookie、本機儲存空間與快取，然後返回登入頁面。確定繼續嗎？';
+      '將清除應用程式內遊戲頁面的 Cookie、本機儲存資料與快取，然後返回登入頁面。確定繼續嗎？';
 
   @override
   String get logoutSucceeded => '已登出，請重新登入。';
@@ -3530,7 +3530,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get antiCatbomb => '斷網防貓';
 
   @override
-  String get antiCatbombDesc => '開啟後，若遊戲請求因網路斷開等原因失敗，App 將掛起遊戲並不斷重試，避免出現「貓」報錯。';
+  String get antiCatbombDesc => '開啟後，若遊戲請求因網路中斷等原因失敗，App 將暫停遊戲並持續重試，避免出現「貓」錯誤。';
 
   @override
   String get close => '關閉';
@@ -3542,10 +3542,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get confirm => '確定';
 
   @override
-  String get waitingForData => '等待數據';
+  String get waitingForData => '等待資料';
 
   @override
-  String get fleetNoShips => '當前艦隊沒有艦娘';
+  String get fleetNoShips => '目前艦隊沒有艦娘';
 
   @override
   String get unorganized => '未編成';
@@ -3605,7 +3605,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get hp => '血量';
 
   @override
-  String get waitingForEquip => '裝備數據等待更新';
+  String get waitingForEquip => '裝備資料等待更新';
 
   @override
   String get fastSpeed => '高速';
@@ -3674,9 +3674,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get autoRecordHint => '出擊後會自動記錄，不需要額外操作';
 
   @override
-  String get enemyFleet => '敵艦隊';
-
-  @override
   String get thisSortie => '本次出擊';
 
   @override
@@ -3719,11 +3716,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get resourceTrendAuxGroup => '輔助資源';
 
   @override
-  String get gadgetBypass => '遊戲客戶端資源繞行（實驗性）';
+  String get gadgetBypass => '遊戲用戶端資源繞行（實驗性）';
 
   @override
   String get gadgetBypassDesc =>
-      '僅在客戶端靜態資源伺服器受限時改用鏡像；不修改 DMM 登入、Cookie 或遊戲資料介面。關閉時完全旁路。';
+      '僅在用戶端靜態資源伺服器受限時改用鏡像；不修改 DMM 登入、Cookie 或遊戲資料介面。關閉時完全略過此功能。';
 
   @override
   String get gadgetBypassEnable => '開啟繞行';
@@ -3813,10 +3810,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get unknownProgress => '進度未知';
 
   @override
-  String get waitingForPortData => '等待母港資料';
-
-  @override
-  String get waitingForPortDataDescription => '進入遊戲母港或刷新遊戲頁面後，這裡會自動更新';
+  String get waitingForPortDataDescription => '進入遊戲母港或重新整理遊戲頁面後，這裡會自動更新';
 
   @override
   String get fleetNotFormed => '未編成';
@@ -3837,13 +3831,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get averageCondition => '最低疲勞';
 
   @override
-  String get moraleRecoveryCountdown => '恢復倒計時';
+  String get moraleRecoveryCountdown => '恢復倒數';
 
   @override
   String get moraleRecovered => '已恢復';
 
   @override
-  String get toggleMoraleMetric => '點擊切換最低疲勞與恢復倒計時';
+  String get toggleMoraleMetric => '點擊切換最低疲勞與恢復倒數';
 
   @override
   String get losDetails => '索敵詳情';
@@ -3870,7 +3864,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get needsSupply => '需要補給';
 
   @override
-  String get equipmentDataWaiting => '裝備數據等待更新';
+  String get equipmentDataWaiting => '裝備資料等待更新';
 
   @override
   String get highSpeed => '高速';
@@ -3943,7 +3937,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get disableGameAudio => '關閉遊戲聲音';
 
   @override
-  String get takeScreenshot => '遊戲截圖';
+  String get takeScreenshot => '一鍵截圖';
 
   @override
   String get screenshotSaving => '正在儲存遊戲截圖…';
@@ -4000,12 +3994,15 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get enemyFinalStatus => '敵方最終狀態';
 
   @override
+  String get enemyFleet => '敵艦隊';
+
+  @override
   String airStateLabel(String label) {
     return '制空：$label';
   }
 
   @override
-  String get postBattleWarningTitle => '戰後安全警告';
+  String get postBattleWarningTitle => '大破安全警告';
 
   @override
   String get postBattleWarningHeadline => '出擊艦隊中有大破艦娘！';
@@ -4014,7 +4011,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get postBattleWarningBody => '已在大破狀態下選擇進擊！請立即停止後續操作，避免進入下一場戰鬥。';
 
   @override
-  String get acknowledgeAndRetreat => '確認並撤退';
+  String get acknowledgeAndRetreat => '確認了解';
 
   @override
   String get postBattleWarningBanner => '戰後安全警告：出擊艦隊中有大破艦娘！請注意撤退！';
@@ -4105,7 +4102,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get browserOnlyCaptureOff => '純瀏覽模式 · 資料擷取已關閉';
 
   @override
-  String get browserOnlyCaptureOffDesc => '遊戲網頁繼續運行，艦隊、任務和戰鬥資訊暫停更新。';
+  String get browserOnlyCaptureOffDesc => '遊戲網頁繼續執行，艦隊、任務和戰鬥資訊暫停更新。';
 
   @override
   String capturedCount(int count) {
@@ -4175,10 +4172,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get captureUnsupportedDesc => '遊戲仍可運行；目前裝置只提供網頁瀏覽。';
+  String get captureUnsupportedDesc => '遊戲仍可執行；目前裝置只提供網頁瀏覽。';
 
   @override
-  String get captureFailedDesc => '遊戲仍可運行，可重新整理頁面後重試。';
+  String get captureFailedDesc => '遊戲仍可執行，可重新整理頁面後重試。';
 
   @override
   String networkApplyFailed(String code, String message) {
@@ -4312,27 +4309,27 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get gameFrameRateStable60 => '60 幀';
 
   @override
-  String get gameFrameRateStable60Desc => '始終以 60 FPS 運行，不自動降檔。';
+  String get gameFrameRateStable60Desc => '始終以 60 FPS 執行，不自動降檔。';
 
   @override
   String get gameFrameRateStable30 => '30 幀';
 
   @override
-  String get gameFrameRateStable30Desc => '始終以 30 FPS 運行，降低耗電和發熱。';
+  String get gameFrameRateStable30Desc => '始終以 30 FPS 執行，降低耗電和發熱。';
 
   @override
-  String get gameFrameRateHighRefresh => '高刷';
+  String get gameFrameRateHighRefresh => '高更新率';
 
   @override
   String get gameFrameRateHighRefreshDesc =>
-      '解除 60 FPS 限制，跟隨螢幕更新率運行，耗電和發熱可能增加。';
+      '解除 60 FPS 限制，跟隨螢幕更新率執行，耗電和發熱可能增加。';
 
   @override
-  String get gameFrameRateHighRefreshDialogTitle => '開啟高刷模式？';
+  String get gameFrameRateHighRefreshDialogTitle => '開啟高更新率模式？';
 
   @override
   String get gameFrameRateHighRefreshDialogBody =>
-      '高刷會修改遊戲運行幀率，可能增加耗電、發熱或引發動畫異常，並存在未知的帳號風險。請自行承擔後果。';
+      '高更新率會修改遊戲執行幀率，可能增加耗電、發熱或引發動畫異常，並存在未知的帳號風險。請自行承擔後果。';
 
   @override
   String get gameFrameRateHighRefreshDialogConfirm => '了解風險並開啟';
@@ -4398,7 +4395,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get nativeGameSurfaceSwitchRenderingModeHint =>
-      '目前裝置暫不相容此模式，請前往【設定 - 畫面與聲音】切換渲染模式';
+      '目前裝置暫不相容此模式。請捲動左側選單，前往【設定 - 畫面與聲音】切換渲染模式。';
 
   @override
   String nativeGameSurfacePageInitializationFailed(
@@ -4481,7 +4478,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get notificationSectionSystemDesc =>
-      '授權通知與精確提醒權限，可確保在鎖屏或後台時遠征、入渠等提醒準時彈出，避免被系統省電策略延遲。點擊對應項可直接前往系統設定開啟。';
+      '授權通知與精確提醒權限，可確保在鎖定螢幕或背景執行時，遠征、入渠等提醒準時跳出，避免被系統省電策略延遲。點擊對應項目可直接前往系統設定開啟。';
 
   @override
   String get notificationPermissionGranted => '通知權限已授予';
@@ -4514,7 +4511,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get notificationVibration => '震動提醒';
 
   @override
-  String get notificationSectionOngoing => '後台常駐進行中進度';
+  String get notificationSectionOngoing => '背景常駐進行中進度';
 
   @override
   String get notificationOngoingLive => '常駐即時進度條卡片';
@@ -4728,22 +4725,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get networkValidationIpv6 => 'IPv6 位址格式不正確（含有非法字元）';
 
   @override
-  String get networkValidationPortEmpty => '連接埠不能為空';
+  String get networkValidationPortEmpty => '通訊埠不能為空';
 
   @override
-  String get networkValidationPortDecimal => '連接埠不能使用小數';
+  String get networkValidationPortDecimal => '通訊埠不能使用小數';
 
   @override
-  String get networkValidationPortNegative => '連接埠不能使用負數';
+  String get networkValidationPortNegative => '通訊埠不能使用負數';
 
   @override
-  String get networkValidationPortZero => '連接埠不能為 0';
+  String get networkValidationPortZero => '通訊埠不能為 0';
 
   @override
-  String get networkValidationPortInteger => '連接埠必須為整數';
+  String get networkValidationPortInteger => '通訊埠必須為整數';
 
   @override
-  String get networkValidationPortRange => '連接埠範圍為 1 至 65535';
+  String get networkValidationPortRange => '通訊埠範圍為 1 至 65535';
 
   @override
   String get gadgetBypassRestricted => '受限';
@@ -5063,7 +5060,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get gameResourceCacheMobileConfirmDesc =>
-      '目前正在使用行動網路。繼續將消耗行動數據，是否允許本次下載？';
+      '目前正在使用行動網路。繼續將消耗行動資料，是否允許本次下載？';
 
   @override
   String get gameResourceCacheWaitingForWifi => '正在等待 Wi-Fi，連線後會自動繼續下載。';
@@ -5111,7 +5108,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get logbookResourceDrop => '資源掉落';
 
   @override
-  String get logbookItemDrop => '道具掉落項';
+  String get logbookItemDrop => '道具掉落';
 
   @override
   String get logbookResourceNode => '資源節點';
@@ -5503,7 +5500,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get toolbox => '工具箱';
 
   @override
-  String get fleetExport => '艦隊匯出';
+  String get fleetExport => '匯出資料';
 
   @override
   String get otherTools => '其他';
@@ -5546,10 +5543,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get openInSystemBrowser => '使用系統預設瀏覽器開啟';
 
   @override
-  String get otherToolsComingSoon => '其他功能正在開發';
+  String get otherToolsComingSoon => '其他功能陸續開發中';
 
   @override
   String get otherToolsHint => '後續輔助工具會集中放在這裡。';
+
+  @override
+  String get waitingForPortData => '等待母港資料';
 
   @override
   String get externalFleetToolOpenFailed => '無法開啟外部艦隊工具，請確認是否已安裝瀏覽器。';
@@ -5562,7 +5562,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String equipmentCompatibilitySummary(int owned, int all) {
-    return '可裝備：持有 $owned／全體 $all';
+    return '可裝備：持有 $owned／全部 $all';
   }
 
   @override
@@ -5572,7 +5572,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String equipmentCompatibilityAllTab(int count) {
-    return '全體艦娘 $count';
+    return '全部艦娘 $count';
   }
 
   @override
@@ -5642,7 +5642,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get equipmentCompatibilitySource => '規則來源：遊戲官方主要資料';
+  String get equipmentCompatibilitySource => '規則來源：遊戲官方主資料';
 
   @override
   String get equipmentCompatibilityRulesWaiting => '正在等待裝備規則資料更新';
@@ -5741,19 +5741,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get developmentEquipment => '裝備';
 
   @override
-  String get developmentCurrentFlagship => '當前旗艦';
+  String get developmentCurrentFlagship => '目前旗艦';
 
   @override
-  String get developmentUseFlagship => '使用當前旗艦';
+  String get developmentUseFlagship => '使用目前旗艦';
 
   @override
-  String get developmentFlagshipUnsupported => '當前旗艦沒有可用的開發池，已保留原選擇';
+  String get developmentFlagshipUnsupported => '目前旗艦沒有可用的開發池，已保留原選擇';
 
   @override
   String get developmentSelectPool => '秘書艦類型';
 
   @override
-  String get developmentCurrentRecipe => '當前配方';
+  String get developmentCurrentRecipe => '目前配方';
 
   @override
   String get developmentTargetEquipment => '目標裝備';

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../localization/ui_text.dart';
+
 class LogbookFilterField {
   const LogbookFilterField({
     required this.keyName,
@@ -23,7 +25,7 @@ Future<Map<String, String>?> showLogbookFilterPanel({
   return showGeneralDialog<Map<String, String>>(
     context: context,
     barrierDismissible: true,
-    barrierLabel: '关闭筛选',
+    barrierLabel: uiText(context, '关闭筛选'),
     barrierColor: Colors.transparent,
     transitionDuration: const Duration(milliseconds: 120),
     pageBuilder: (context, animation, secondaryAnimation) => _FilterPanelRoute(
@@ -113,7 +115,7 @@ class _FilterPanelRouteState extends State<_FilterPanelRoute> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          widget.title,
+          uiText(context, widget.title),
           style: const TextStyle(
             color: Color(0xffffc84d),
             fontSize: 15,
@@ -140,7 +142,7 @@ class _FilterPanelRouteState extends State<_FilterPanelRoute> {
           children: [
             _FilterActionButton(
               key: const Key('logbook-filter-reset'),
-              label: '重置',
+              label: uiText(context, '重置'),
               onTap: () => setState(
                 () => _draft = Map<String, String>.from(widget.defaults),
               ),
@@ -148,7 +150,7 @@ class _FilterPanelRouteState extends State<_FilterPanelRoute> {
             const SizedBox(width: 8),
             _FilterActionButton(
               key: const Key('logbook-filter-apply'),
-              label: '应用',
+              label: uiText(context, '应用'),
               emphasized: true,
               onTap: () => Navigator.of(context).pop(_draft),
             ),
@@ -168,7 +170,7 @@ class _FilterPanelRouteState extends State<_FilterPanelRoute> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          field.label,
+          uiText(context, field.label),
           style: const TextStyle(color: Color(0xff8fa5b2), fontSize: 11),
         ),
         const SizedBox(height: 4),
@@ -201,7 +203,7 @@ class _FilterPanelRouteState extends State<_FilterPanelRoute> {
                   DropdownMenuItem<String>(
                     value: option,
                     child: Text(
-                      option,
+                      uiText(context, option),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

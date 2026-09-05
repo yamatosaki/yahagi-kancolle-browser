@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import 'senka_calculation.dart';
 import 'senka_catalog.dart';
+import 'senka_catalog_localization.dart';
 import 'senka_controller.dart';
 import 'senka_state.dart';
 import 'senka_ui.dart';
@@ -633,6 +634,8 @@ class _SenkaCalculatorViewState extends State<SenkaCalculatorView> {
   );
 
   Widget _reward(SenkaCatalogItem item, bool quest) {
+    final locale = Localizations.localeOf(context);
+    final itemLabel = senkaCatalogLabel(item, locale);
     final l10n = AppLocalizations.of(context)!;
     final status =
         (quest
@@ -681,7 +684,7 @@ class _SenkaCalculatorViewState extends State<SenkaCalculatorView> {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          item.matrixLabel,
+                          senkaCatalogMatrixLabel(item, locale),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.left,
@@ -777,13 +780,13 @@ class _SenkaCalculatorViewState extends State<SenkaCalculatorView> {
     );
     return Semantics(
       label:
-          '${item.label}，$statusLabel，${senkaNumber(item.senka)} ${l10n.senkaUnit}',
+          '$itemLabel，$statusLabel，${senkaNumber(item.senka)} ${l10n.senkaUnit}',
       button: true,
       selected: status == SenkaRewardStatus.planned,
       toggled: status == SenkaRewardStatus.planned,
       excludeSemantics: true,
       child: Tooltip(
-        message: '${item.label} · $statusLabel · +${senkaNumber(item.senka)}',
+        message: '$itemLabel · $statusLabel · +${senkaNumber(item.senka)}',
         child: Material(
           key: Key('senka-toggle-$keyPrefix-${item.id}'),
           color: Colors.transparent,

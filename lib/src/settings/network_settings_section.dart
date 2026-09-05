@@ -1,3 +1,4 @@
+import '../localization/runtime_message_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'network_settings_controller.dart';
@@ -148,7 +149,9 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
     if (result.success) {
       TopNotice.show(
         context,
-        message: l10n.networkSettingsApplied(result.message),
+        message: l10n.networkSettingsApplied(
+          _localizedProxyResultMessage(l10n, result),
+        ),
         tone: TopNoticeTone.success,
       );
       widget.onApplySuccess();
@@ -194,7 +197,12 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
       );
       widget.onApplySuccess();
     } else {
-      _showErrorNotice(l10n.networkRestoreFailed(result.code, result.message));
+      _showErrorNotice(
+        l10n.networkRestoreFailed(
+          result.code,
+          _localizedProxyResultMessage(l10n, result),
+        ),
+      );
     }
   }
 
@@ -230,7 +238,7 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
   ) => switch (result.code) {
     'proxy_operation_busy' => l10n.networkProxyOperationBusy,
     'unknown_mode' => l10n.networkUnknownProxyMode,
-    _ => result.message,
+    _ => runtimeMessageText(context, result.message),
   };
 
   Widget _buildDiagnosticCard(AppLocalizations l10n, ProxyResult? result) {
@@ -263,7 +271,7 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  result.message,
+                  _localizedProxyResultMessage(l10n, result),
                   style: TextStyle(
                     color: headerColor,
                     fontSize: 14,

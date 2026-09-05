@@ -27,6 +27,40 @@ void main() {
     'ja': _readArb('app_ja.arb'),
   };
 
+  test('ARB resources have no duplicate top-level keys or empty messages', () {
+    for (final locale in resources.keys) {
+      final source = File('lib/l10n/app_$locale.arb').readAsStringSync();
+      final keys = RegExp(
+        r'^  "([^"]+)"\s*:',
+        multiLine: true,
+      ).allMatches(source).map((match) => match[1]!).toList();
+      expect(keys.length, keys.toSet().length, reason: locale);
+      for (final key in _messageKeys(resources[locale]!)) {
+        expect(
+          (resources[locale]![key] as String).trim(),
+          isNotEmpty,
+          reason: '$locale: $key',
+        );
+      }
+    }
+  });
+
+  test('translated message bodies preserve actual placeholders', () {
+    final placeholder = RegExp(r'\{([a-zA-Z][a-zA-Z0-9_]*)[},]');
+    Set<String> names(String value) =>
+        placeholder.allMatches(value).map((match) => match[1]!).toSet();
+    for (final key in _messageKeys(resources['zh']!)) {
+      final expected = names(resources['zh']![key] as String);
+      for (final locale in resources.keys) {
+        expect(
+          names(resources[locale]![key] as String),
+          expected,
+          reason: '$locale: $key',
+        );
+      }
+    }
+  });
+
   test(
     'all locales have identical message, metadata and placeholder schemas',
     () {
@@ -173,8 +207,9 @@ void main() {
       'shipEquipmentCompatibilityOwnedCount',
       // HTTP and its numeric status placeholder are protocol terminology.
       'kcwikiReportFailureHttp',
-      // “高刷”是简中和繁中统一采用的帧率档位产品名称。
-      'gameFrameRateHighRefresh',
+      // These labels use the same characters in both Chinese scripts.
+      'postBattleWarningTitle',
+      'logbookItemDrop',
       // “升序/降序” are standard sorting terms in both Chinese scripts.
       'sortAscending',
       'sortDescending',
@@ -241,6 +276,8 @@ void main() {
       'developmentFuelShort',
     };
     const reviewedJa = <String>{
+      // The warning title uses shared game terminology.
+      'postBattleWarningTitle',
       // The in-game instant construction material has the same Chinese spelling.
       'resourceTrendBuildMaterial',
       'appTitle',

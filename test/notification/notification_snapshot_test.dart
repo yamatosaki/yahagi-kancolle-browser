@@ -95,6 +95,7 @@ void main() {
         },
       ],
       'presentation': {
+        'localeCode': 'zh',
         'enabled': true,
         'sound': false,
         'vibration': true,

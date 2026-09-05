@@ -411,6 +411,9 @@ class _LayoutSettingsControllerStub extends ChangeNotifier
   bool get workspaceMenuOnRight => false;
 
   @override
+  bool get informationPanelOnLeft => false;
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => _unexpected(invocation);
 }
 

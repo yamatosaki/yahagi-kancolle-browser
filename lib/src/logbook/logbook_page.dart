@@ -2,6 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
+import '../localization/ui_text.dart';
+import '../battle/battle_detail_strings.dart';
+
 import '../../l10n/app_localizations.dart';
 import '../battle/battle_controller.dart';
 import '../battle/battle_detail_models.dart';
@@ -755,7 +758,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
+                  child: UiText(
                     '共 ${rows.length} 条',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -774,7 +777,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
                     active: _filters.entries.any(
                       (entry) => _filterDefaults[entry.key] != entry.value,
                     ),
-                    tooltip: '筛选${widget.category.label}记录',
+                    tooltip: uiText(context, '筛选${widget.category.label}记录'),
                     onPressed: _showFilter,
                   ),
                 ),
@@ -790,7 +793,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
                   const Positioned.fill(
                     child: IgnorePointer(
                       child: Center(
-                        child: Text(
+                        child: UiText(
                           '暂无记录',
                           style: TextStyle(
                             color: Color(0xff8197a5),
@@ -1277,7 +1280,7 @@ class _HeaderCell extends StatelessWidget {
     child: Align(
       alignment: Alignment.centerLeft,
       child: Text(
-        label,
+        uiText(context, label),
         maxLines: 1,
         style: const TextStyle(
           color: Color(0xff9fb3bf),
@@ -1309,7 +1312,7 @@ class _ResourceHeader extends StatelessWidget {
           const SizedBox(width: 4),
           Flexible(
             child: Text(
-              type.label,
+              uiText(context, type.label),
               maxLines: 1,
               style: const TextStyle(
                 color: Color(0xff9fb3bf),
@@ -1340,7 +1343,7 @@ class _TextCell extends StatelessWidget {
     child: Align(
       alignment: Alignment.centerLeft,
       child: Text(
-        value,
+        BattleDetailStrings.of(context).localize(uiText(context, value)),
         maxLines: 1,
         overflow: TextOverflow.clip,
         style: TextStyle(
@@ -1369,7 +1372,9 @@ class _FormationCell extends StatelessWidget {
             ? 'logbook-friend-formation-pill'
             : 'logbook-enemy-formation-pill',
       ),
-      label: formationLabel(formation),
+      label: BattleDetailStrings.of(
+        context,
+      ).localize(formationLabel(formation)),
       background: friendly ? const Color(0xff183e38) : const Color(0xff46211e),
       foreground: friendly ? const Color(0xff83d5c8) : const Color(0xffff8c78),
       border: friendly ? const Color(0xff2f7469) : const Color(0xffa0453a),
@@ -1454,7 +1459,7 @@ class _SortieSummaryPill extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Center(
               child: Text(
-                label,
+                BattleDetailStrings.of(context).localize(label),
                 maxLines: 1,
                 style: TextStyle(
                   color: foreground,

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../l10n/app_localizations.dart';
 import '../logbook/logbook_database.dart';
 import '../widgets/filter_controls.dart';
+import '../widgets/top_notice.dart';
 import 'resource_trend_chart.dart';
 import 'resource_trend_data.dart';
 
@@ -278,9 +279,11 @@ class _ResourceTrendPageState extends State<ResourceTrendPage>
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        TopNotice.show(
           context,
-        ).showSnackBar(SnackBar(content: Text(_l.resourceTrendSaveError)));
+          message: _l.resourceTrendSaveError,
+          tone: TopNoticeTone.error,
+        );
       }
     }
   }

@@ -90,7 +90,16 @@ class PinnedQuestsSummary extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                q.categoryLabel,
+                                switch (q.category) {
+                                  1 => l10n.questFormation,
+                                  2 || 8 || 9 || 10 => l10n.questSortie,
+                                  3 => l10n.questExercise,
+                                  4 => l10n.expedition,
+                                  5 => l10n.questSupplyRepair,
+                                  6 || 11 => l10n.questFactory,
+                                  7 => l10n.questRemodeling,
+                                  _ => l10n.questOther,
+                                },
                                 style: TextStyle(
                                   color: q.categoryColor,
                                   fontSize: 10,

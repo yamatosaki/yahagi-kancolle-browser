@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'fleet_ui_strings.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../game_state/game_state.dart';
@@ -142,7 +143,7 @@ class _FleetButton extends StatelessWidget {
                           ),
                           SizedBox(width: phone ? 4 : 6),
                           Text(
-                            status.label,
+                            fleetText(context, status.label),
                             maxLines: 1,
                             softWrap: false,
                             style: TextStyle(

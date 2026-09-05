@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
 import 'dashboard_card.dart';
+import 'fleet_ui_strings.dart';
 import 'operation_progress.dart';
 
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
@@ -54,8 +55,8 @@ class _ExpeditionSummaryCardState extends State<ExpeditionSummaryCard> {
           trailing: ExpeditionModeSelector(
             mode: _mode,
             compact: true,
-            summaryLabel: '简报',
-            checkLabel: '检查',
+            summaryLabel: strings.briefing,
+            checkLabel: strings.check,
             onChanged: (mode) => setState(() => _mode = mode),
           ),
           child: _mode == ExpeditionSummaryMode.summary
@@ -83,17 +84,14 @@ class _ExpeditionSummaryCardState extends State<ExpeditionSummaryCard> {
             child: Center(
               child: Text(
                 strings.noActiveExpedition,
-                style: const TextStyle(
-                  color: Color(0xff8197a5),
-                  fontSize: 13,
-                ),
+                style: const TextStyle(color: Color(0xff8197a5), fontSize: 13),
               ),
             ),
           )
         else
           ...activeFleets.map((fleet) {
             final mission = state.masterMissions[fleet.mission.missionId];
-            final missionName = mission?.name ?? '未知远征';
+            final missionName = mission?.name ?? fleetText(context, '未知远征');
             return Padding(
               padding: const EdgeInsets.only(bottom: 6.0),
               child: _buildExpeditionItem(
@@ -101,7 +99,7 @@ class _ExpeditionSummaryCardState extends State<ExpeditionSummaryCard> {
                 missionName,
                 OperationCountdownText(
                   completionTime: fleet.mission.completionTime,
-                  completedText: '已返母港',
+                  completedText: fleetText(context, '已返母港'),
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,

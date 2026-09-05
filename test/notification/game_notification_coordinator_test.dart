@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
@@ -129,6 +130,159 @@ void main() {
       testNow = DateTime(2026, 8, 22, 12, 0, 0);
       testState = GameState.empty;
     });
+
+    test(
+      'locale changes update alarms without changing identity or names',
+      () async {
+        final locale = ValueNotifier('zh');
+        testState = testState.copyWith(
+          masterMissions: const {
+            37: MasterMission(
+              id: 37,
+              name: '东京急行',
+              duration: Duration(minutes: 30),
+            ),
+          },
+          fleets: [
+            Fleet(
+              id: 2,
+              name: '我的舰队',
+              shipIds: const [2],
+              mission: FleetMission(
+                state: 1,
+                missionId: 37,
+                completionTime: testNow.add(const Duration(minutes: 30)),
+              ),
+            ),
+            Fleet(
+              id: 3,
+              name: '',
+              shipIds: const [3],
+              mission: FleetMission(
+                state: 1,
+                missionId: 99,
+                completionTime: testNow.add(const Duration(minutes: 30)),
+              ),
+            ),
+          ],
+        );
+        final coordinator = GameNotificationCoordinator(
+          gameStateController: gameStateController,
+          settingsController: settingsController,
+          notificationPort: fakePort,
+          gameStateProvider: () => testState,
+          nowProvider: () => testNow,
+          localeCodeProvider: () => locale.value,
+          localeListenable: locale,
+        );
+        coordinator.start();
+        await Future<void>.delayed(Duration.zero);
+        final original = Map.of(fakePort.scheduledAlarms);
+        for (final code in ['zh_Hant', 'ja', 'zh']) {
+          locale.value = code;
+          await Future<void>.delayed(Duration.zero);
+          expect(
+            fakePort.latestSnapshot!.presentation.toMap()['localeCode'],
+            code,
+          );
+          expect(fakePort.scheduledAlarms.keys, original.keys);
+          for (final entry in original.entries) {
+            final updated = fakePort.scheduledAlarms[entry.key]!;
+            expect(updated.taskId, entry.value.taskId);
+            expect(updated.triggerTime, entry.value.triggerTime);
+          }
+          final alarm = fakePort.scheduledAlarms['expedition_2_complete']!;
+          expect(alarm.title, contains('我的舰队'));
+          expect(alarm.body, contains('东京急行'));
+          if (code == 'ja') {
+            expect(alarm.title, '遠征完了 · 我的舰队');
+            expect(
+              fakePort.scheduledAlarms['expedition_3_complete']!.title,
+              '遠征完了 · 第3艦隊',
+            );
+            expect(
+              fakePort.scheduledAlarms['expedition_3_complete']!.body,
+              '遠征 99 が無事に母港へ帰投しました！',
+            );
+          }
+          if (code == 'zh_Hant') expect(alarm.title, '遠征完成 · 我的舰队');
+        }
+        expect(fakePort.deliveredImmediateAlerts, isEmpty);
+        final applyCount = fakePort.applyCount;
+        coordinator.dispose();
+        locale.value = 'ja';
+        await Future<void>.delayed(Duration.zero);
+        expect(fakePort.applyCount, applyCount);
+        locale.dispose();
+      },
+    );
+
+    test(
+      'missing master fallback follows locale for manual completion and tombstones',
+      () async {
+        final locale = ValueNotifier('zh');
+        final deadline = testNow.add(const Duration(hours: 1));
+        testState = testState.copyWith(
+          constructionDocks: [
+            ConstructionDock(
+              id: 1,
+              state: 2,
+              createdShipMasterId: 9999,
+              completionTime: deadline,
+            ),
+          ],
+          repairDocks: [
+            RepairDock(id: 1, state: 1, shipId: 9999, completionTime: deadline),
+          ],
+        );
+        final coordinator = GameNotificationCoordinator(
+          gameStateController: gameStateController,
+          settingsController: settingsController,
+          notificationPort: fakePort,
+          gameStateProvider: () => testState,
+          nowProvider: () => testNow,
+          localeCodeProvider: () => locale.value,
+          localeListenable: locale,
+        );
+        coordinator.start();
+        await Future<void>.delayed(Duration.zero);
+        locale.value = 'ja';
+        await Future<void>.delayed(Duration.zero);
+        testState = testState.copyWith(
+          constructionDocks: [
+            ConstructionDock(
+              id: 1,
+              state: 3,
+              createdShipMasterId: 9999,
+              completionTime: deadline,
+            ),
+          ],
+          repairDocks: const [RepairDock(id: 1)],
+        );
+        gameStateController.notifyListeners();
+        await Future<void>.delayed(Duration.zero);
+        expect(fakePort.deliveredImmediateAlerts, hasLength(2));
+        expect(
+          fakePort.deliveredImmediateAlerts.every(
+            (alert) => alert.body.startsWith('艦娘 '),
+          ),
+          isTrue,
+        );
+        final repair = fakePort.latestSnapshot!.ongoingItems.firstWhere(
+          (item) => item.id == 'repair:1',
+        );
+        expect(repair.title, contains('艦娘 修理完了'));
+        locale.value = 'zh_Hant';
+        await Future<void>.delayed(Duration.zero);
+        final translatedRepair = fakePort.latestSnapshot!.ongoingItems
+            .firstWhere((item) => item.id == 'repair:1');
+        expect(translatedRepair.title, contains('艦船 修復完成'));
+        expect(translatedRepair.targetEpochMs, repair.targetEpochMs);
+        expect(fakePort.deliveredImmediateAlerts, hasLength(2));
+        coordinator.dispose();
+        locale.dispose();
+      },
+    );
 
     test(
       'delivers a new-ship immediate alert with vibration settings',

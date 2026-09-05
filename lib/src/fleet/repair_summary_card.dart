@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
+import 'fleet_ui_strings.dart';
 
 import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
@@ -134,7 +135,7 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
     GameState state,
     AppLocalizations strings,
   ) {
-    var name = '未知';
+    var name = fleetText(context, '未知');
     var active = false;
     var disabled = true;
     MasterShip? master;
@@ -148,7 +149,7 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
       } else {
         final ship = state.ships[dock.shipId];
         master = ship == null ? null : state.masterShips[ship.masterId];
-        name = master?.name ?? '未知';
+        name = master?.name ?? fleetText(context, '未知');
         disabled = false;
         active = true;
       }
@@ -182,7 +183,7 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
               ),
             )
           : Text(
-              disabled ? '锁' : strings.inactive,
+              disabled ? fleetText(context, '锁') : strings.inactive,
               style: TextStyle(
                 fontSize: 11,
                 color: disabled
@@ -275,7 +276,7 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
       contentKey: const Key('repair-summary-anchorage-slot'),
       state: state,
       master: row.master,
-      name: row.master?.name ?? '未知',
+      name: row.master?.name ?? fleetText(context, '未知'),
       disabled: false,
       fitFullName: true,
       dotColor: visual.color,
@@ -373,7 +374,7 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
       contentKey: const Key('repair-summary-nosaki-slot'),
       state: state,
       master: row.master,
-      name: row.master?.name ?? '未知',
+      name: row.master?.name ?? fleetText(context, '未知'),
       disabled: false,
       fitFullName: true,
       dotColor: visual.color,
@@ -397,27 +398,27 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
     int condition,
   ) => switch (status) {
     NosakiSparkleShipStatus.sparkling => (
-      label: '刷闪中 (★$condition)',
+      label: fleetText(context, '刷闪中 (★$condition)'),
       color: const Color(0xffefbd58),
     ),
     NosakiSparkleShipStatus.completed => (
-      label: '已刷闪 (★$condition)',
+      label: fleetText(context, '已刷闪 (★$condition)'),
       color: const Color(0xff65d493),
     ),
     NosakiSparkleShipStatus.nosakiSelf => (
-      label: '给粮舰 (★$condition)',
+      label: fleetText(context, '给粮舰 (★$condition)'),
       color: const Color(0xff65d493),
     ),
     NosakiSparkleShipStatus.docked => (
-      label: '入渠中',
+      label: fleetText(context, '入渠中'),
       color: const Color(0xff65b3e6),
     ),
     NosakiSparkleShipStatus.unable => (
-      label: '需Cond≥49',
+      label: fleetText(context, '需Cond≥49'),
       color: const Color(0xffef6f6c),
     ),
     NosakiSparkleShipStatus.unready => (
-      label: '未就绪',
+      label: fleetText(context, '未就绪'),
       color: const Color(0xffef6f6c),
     ),
   };

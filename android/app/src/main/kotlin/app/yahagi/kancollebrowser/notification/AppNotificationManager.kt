@@ -25,17 +25,13 @@ object AppNotificationManager {
     private const val PREFERENCES_NAME = "yahagi_native_notification_snapshot"
     private const val SNAPSHOT_KEY = "snapshot_json"
     private const val ONGOING_CHANNEL_ID = "channel_ongoing"
-    private const val ONGOING_CHANNEL_NAME = "母港实时进行中概览"
-    private val channelNames = mapOf(
-        "expedition" to "远征通知",
-        "repair" to "入渠修复",
-        "anchorage" to "泊地修理",
-        "construction" to "工厂建造",
-        "morale" to "士气与刷闪",
-        "newShip" to "新舰提醒",
-    )
+    private val channelTypes = setOf("expedition", "repair", "anchorage", "construction", "morale", "newShip")
 
-    fun initChannels(context: Context) {
+    fun initChannels(
+        context: Context,
+        localeCode: String = loadSnapshot(context).presentation.localeCode,
+    ) {
+        val strings = NotificationStrings(localeCode)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
@@ -44,13 +40,13 @@ object AppNotificationManager {
             .setUsage(AudioAttributes.USAGE_NOTIFICATION)
             .build()
 
-        channelNames.forEach { (type, name) ->
+        strings.channelNames.forEach { (type, name) ->
             listOf(false, true).forEach { sound ->
                 listOf(false, true).forEach { vibration ->
                     manager.createNotificationChannel(
                         NotificationChannel(
                             channelId(type, sound, vibration),
-                            "$name · ${if (sound) "有声" else "静音"} · ${if (vibration) "振动" else "无振动"}",
+                            strings.channelVariant(name, sound, vibration),
                             NotificationManager.IMPORTANCE_HIGH,
                         ).apply {
                             enableVibration(vibration)
@@ -66,7 +62,7 @@ object AppNotificationManager {
         manager.createNotificationChannel(
             NotificationChannel(
                 ONGOING_CHANNEL_ID,
-                ONGOING_CHANNEL_NAME,
+                strings.ongoingChannelName,
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
                 enableVibration(false)
@@ -79,8 +75,8 @@ object AppNotificationManager {
 
     @Synchronized
     fun applySnapshot(context: Context, raw: Map<*, *>): Map<String, Any> {
-        initChannels(context)
         val desired = NotificationSnapshotCodec.fromMap(raw)
+        initChannels(context, desired.presentation.localeCode)
         require(desired.schemaVersion == 1) { "Unsupported notification snapshot schema" }
         val previous = loadSnapshot(context)
         val next = NotificationSnapshotReconciliation.beforeApply(
@@ -199,9 +195,9 @@ object AppNotificationManager {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return false
         val snapshot = loadSnapshot(context)
         val activeTypes = (snapshot.alarms.map { it.type } + snapshot.ongoingItems.map { it.type })
-            .filter { it in channelNames }
+            .filter { it in channelTypes }
             .toSet()
-            .ifEmpty { channelNames.keys }
+            .ifEmpty { channelTypes }
         val alertChannelsEnabled = activeTypes.all { type ->
             manager.getNotificationChannel(
                 channelId(type, snapshot.presentation.sound, snapshot.presentation.vibration),
@@ -323,7 +319,7 @@ object AppNotificationManager {
     ): Notification {
         val projected = NotificationProgressProjection.project(snapshot, System.currentTimeMillis())
         val totalItemCount = projected.ongoingItems.size
-        val items = NotificationProgressProjection.displayItems(projected.ongoingItems)
+        val items = NotificationProgressProjection.displayItems(projected.ongoingItems, projected.presentation.localeCode)
         val presentation = projected.presentation
         val launchIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -361,7 +357,7 @@ object AppNotificationManager {
             .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setCustomContentView(collapsed)
             .setCustomBigContentView(expanded)
-            .setContentTitle("矢矧 · 母港实时进行中 ($totalItemCount 项)")
+            .setContentTitle(NotificationStrings(presentation.localeCode).ongoingTitle(totalItemCount))
             .setContentText(items.first().title)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
@@ -385,8 +381,8 @@ object AppNotificationManager {
         )
         return NotificationCompat.Builder(context, ONGOING_CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(context.getString(R.string.background_game_retention_notification_title))
-            .setContentText(context.getString(R.string.background_game_retention_notification_body))
+            .setContentTitle(NotificationStrings(loadSnapshot(context).presentation.localeCode).retentionTitle)
+            .setContentText(NotificationStrings(loadSnapshot(context).presentation.localeCode).retentionBody)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
             .setAutoCancel(false)
@@ -411,7 +407,7 @@ object AppNotificationManager {
             views.setViewVisibility(progressId, View.GONE)
             if (item.state == "completed") {
                 views.setViewVisibility(statsId, View.VISIBLE)
-                views.setChronometer(statsId, SystemClock.elapsedRealtime(), "已完成", false)
+                views.setChronometer(statsId, SystemClock.elapsedRealtime(), NotificationStrings(presentation.localeCode).completed, false)
             } else if (presentation.showCountdown && item.targetEpochMs != null) {
                 val base = SystemClock.elapsedRealtime() +
                     (item.targetEpochMs - System.currentTimeMillis()).coerceAtLeast(0L)
@@ -451,7 +447,7 @@ object AppNotificationManager {
             }
         } else if (item.state == "completed") {
             views.setViewVisibility(statsId, View.VISIBLE)
-            views.setChronometer(statsId, SystemClock.elapsedRealtime(), "已完成", false)
+            views.setChronometer(statsId, SystemClock.elapsedRealtime(), NotificationStrings(presentation.localeCode).completed, false)
         } else if (presentation.showCountdown && item.targetEpochMs != null) {
             val base = SystemClock.elapsedRealtime() + (item.targetEpochMs - System.currentTimeMillis())
             views.setViewVisibility(statsId, View.VISIBLE)

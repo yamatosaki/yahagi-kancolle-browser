@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import 'expedition_models.dart';
+import '../localization/ui_text.dart';
 
 class ExpeditionStrings {
   const ExpeditionStrings._(this.languageCode, this.traditional);
@@ -22,8 +23,8 @@ class ExpeditionStrings {
       : traditional
       ? '遠征檢查'
       : '远征检查';
-  String get compact => _ja ? '簡潔' : '简洁';
-  String get detailed => _ja ? '詳細' : '详细';
+  String get compact => _ja || traditional ? '簡潔' : '简洁';
+  String get detailed => _ja || traditional ? '詳細' : '详细';
   String get success => _ja ? '成功' : '成功';
   String get greatSuccess => _ja ? '大成功' : '大成功';
   String get detailsPage => _ja
@@ -47,7 +48,7 @@ class ExpeditionStrings {
       ? '遠征'
       : '远征';
   String expeditionAreaName(int areaId) => switch (areaId) {
-    1 => _ja ? '鎮守府海域' : '镇守府海域',
+    1 => _ja || traditional ? '鎮守府海域' : '镇守府海域',
     2 =>
       _ja
           ? '南西諸島海域'
@@ -293,11 +294,22 @@ class ExpeditionStrings {
   }
 
   String conditionActual(ExpeditionConditionResult value) {
-    if (value.actual == '已满足' ||
-        value.actual == '未满足' ||
-        value.actual == '已补满') {
+    if (value.actual == '已补满') {
+      return _ja
+          ? '補給済み'
+          : traditional
+          ? '已補滿'
+          : value.actual;
+    }
+    if (value.actual == '已满足' || value.actual == '未满足') {
       return value.passed ? satisfied : notSatisfied;
     }
-    return value.actual;
+    return uiTextForLocale(
+      Locale.fromSubtags(
+        languageCode: languageCode,
+        scriptCode: traditional ? 'Hant' : null,
+      ),
+      value.actual,
+    );
   }
 }

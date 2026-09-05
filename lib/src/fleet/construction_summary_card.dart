@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../game_state/game_state_controller.dart';
 import '../game_state/game_state.dart';
 import 'dashboard_card.dart';
+import 'fleet_ui_strings.dart';
 import 'operation_progress.dart';
 import 'ship_portrait.dart';
 
@@ -157,7 +158,9 @@ class ConstructionSummaryCard extends StatelessWidget {
                             children: [
                               Expanded(
                                 child: Text(
-                                  name,
+                                  master == null
+                                      ? fleetText(context, name)
+                                      : name,
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
@@ -187,7 +190,7 @@ class ConstructionSummaryCard extends StatelessWidget {
                               alignment: Alignment.centerLeft,
                               child: OperationCountdownText(
                                 completionTime: dock.completionTime,
-                                completedText: '已完成',
+                                completedText: fleetText(context, '已完成'),
                                 completedColor: const Color(0xff4caf50),
                                 countingColor: const Color(0xffd4a85f),
                                 style: const TextStyle(fontSize: 11),
@@ -196,7 +199,7 @@ class ConstructionSummaryCard extends StatelessWidget {
                           else ...[
                             const SizedBox(height: 2),
                             Text(
-                              disabled ? '锁' : '闲置',
+                              fleetText(context, disabled ? '锁' : '闲置'),
                               style: TextStyle(
                                 fontSize: 11,
                                 color: disabled

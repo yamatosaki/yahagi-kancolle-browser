@@ -119,6 +119,7 @@ class OngoingTaskItem {
 
 class NotificationPresentation {
   const NotificationPresentation({
+    this.localeCode = 'zh',
     required this.enabled,
     required this.sound,
     required this.vibration,
@@ -128,6 +129,7 @@ class NotificationPresentation {
     required this.ongoingLive,
   });
 
+  final String localeCode;
   final bool enabled;
   final bool sound;
   final bool vibration;
@@ -137,6 +139,7 @@ class NotificationPresentation {
   final bool ongoingLive;
 
   Map<String, Object?> toMap() => {
+    'localeCode': localeCode,
     'enabled': enabled,
     'sound': sound,
     'vibration': vibration,

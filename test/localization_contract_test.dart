@@ -79,6 +79,17 @@ String _normalizeNewlines(String value) =>
 
 void main() {
   test('UI source has no unreviewed hardcoded Han string literals', () {
+    // Like ARB resources, these reviewed catalogs intentionally contain all
+    // three languages. Call sites remain scanned; locale behavior is covered
+    // by the matching *_localization_test.dart suites.
+    const translationCatalogs = <String>{
+      'lib/src/battle/battle_detail_strings.dart',
+      'lib/src/expedition/expedition_strings.dart',
+      'lib/src/fleet/fleet_ui_strings.dart',
+      'lib/src/localization/runtime_message_text.dart',
+      'lib/src/localization/ui_text.dart',
+      'lib/src/senka/senka_catalog_localization.dart',
+    };
     final files = <File>[
       File('lib/main.dart'),
       ...Directory('lib/src')
@@ -96,6 +107,7 @@ void main() {
 
     for (final file in files) {
       final path = file.path.replaceAll('\\', '/');
+      if (translationCatalogs.contains(path)) continue;
       for (final literal in _dartStringLiterals(file.readAsStringSync())) {
         final normalized = _normalizeNewlines(literal.value);
         if (!_hanCharacter.hasMatch(normalized)) continue;

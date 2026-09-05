@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'battle_ui_text.dart';
+import 'battle_detail_strings.dart';
+
 import '../../l10n/app_localizations.dart';
 import 'battle_models.dart';
 
@@ -33,9 +36,9 @@ class AdaptiveBattleHeader extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
-        Text(nodeLabel, style: nodeStyle),
+        BattleUiText(nodeLabel, style: nodeStyle),
         const SizedBox(width: 6),
-        Expanded(child: Text(enemyName, style: enemyStyle)),
+        Expanded(child: BattleUiText(enemyName, style: enemyStyle)),
       ],
     );
   }
@@ -252,7 +255,7 @@ class AirSuperiorityPill extends StatelessWidget {
         child: Text(
           (AppLocalizations.of(context) ??
                   lookupAppLocalizations(const Locale('zh')))
-              .airStateLabel(label),
+              .airStateLabel(BattleDetailStrings.of(context).localize(label)),
           style: _battlePillTextStyle.copyWith(color: colors.foreground),
         ),
       ),
@@ -279,7 +282,7 @@ class NodeTypePill extends StatelessWidget {
       ),
       child: Align(
         widthFactor: 1,
-        child: Text(
+        child: BattleUiText(
           label,
           style: _battlePillTextStyle.copyWith(color: colors.foreground),
         ),
@@ -432,7 +435,7 @@ class MetaChip extends StatelessWidget {
       ),
       child: Align(
         widthFactor: 1,
-        child: Text(
+        child: BattleUiText(
           label,
           style: _battlePillTextStyle.copyWith(color: colors.foreground),
         ),
@@ -453,7 +456,9 @@ class LastFormationPill extends StatelessWidget {
         lookupAppLocalizations(const Locale('zh'));
     return MetaChip(
       key: const Key('battle-last-formation-pill'),
-      label: l10n.battleLastFormation(formationLabel(formation)),
+      label: l10n.battleLastFormation(
+        BattleDetailStrings.of(context).localize(formationLabel(formation)),
+      ),
       color: const Color(0xffffc95c),
     );
   }

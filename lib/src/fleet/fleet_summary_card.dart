@@ -5,6 +5,7 @@ import '../game_state/game_state.dart';
 import 'dashboard_card.dart';
 import 'combat_mechanism.dart';
 import 'ship_repair_status.dart';
+import 'fleet_ui_strings.dart';
 
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
@@ -103,8 +104,8 @@ class _FleetSummaryCardState extends State<FleetSummaryCard> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     alignment: Alignment.center,
-                    child: const Text(
-                      '无数据',
+                    child: Text(
+                      fleetText(context, '无数据'),
                       style: TextStyle(color: Color(0xff8197a5)),
                     ),
                   )
@@ -245,7 +246,11 @@ class _FleetSummaryMetrics extends StatelessWidget {
           )
         : (current == null ? noValue : '${current.minimumCondition}');
     final values = <(String, String, String)>[
-      ('speed', l10n?.speed ?? '速度', current?.speedLabel ?? noValue),
+      (
+        'speed',
+        l10n?.speed ?? '速度',
+        fleetText(context, current?.speedLabel ?? noValue),
+      ),
       (
         'total-level',
         l10n?.totalLevel ?? '总等级',

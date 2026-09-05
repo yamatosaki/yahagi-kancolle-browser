@@ -1,3 +1,4 @@
+import '../localization/runtime_message_text.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
@@ -136,7 +137,7 @@ class GameBrowserToolbar extends StatelessWidget {
                     const SizedBox(width: 4),
                     Flexible(
                       child: Text(
-                        displayAddress,
+                        runtimeMessageText(context, displayAddress),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(

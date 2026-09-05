@@ -70,6 +70,9 @@ class NotificationSnapshotTest {
         assertEquals("elapsed", snapshot.ongoingItems.single().clockMode)
         assertEquals(1_700_000_000_000L, snapshot.ongoingItems.single().anchorEpochMs)
         assertEquals(false, snapshot.presentation.sound)
+        assertEquals("zh", snapshot.presentation.localeCode)
+        val japanese = snapshot.copy(presentation = snapshot.presentation.copy(localeCode = "ja"))
+        assertEquals("ja", NotificationSnapshotCodec.fromJson(NotificationSnapshotCodec.toJson(japanese)).presentation.localeCode)
     }
 
     @Test

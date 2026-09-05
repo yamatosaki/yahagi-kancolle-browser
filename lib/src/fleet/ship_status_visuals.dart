@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'fleet_ui_strings.dart';
 
 import '../settings/battle_status_effect_settings.dart';
 import 'ship_damage_level.dart';
@@ -410,7 +411,7 @@ class ShipMoraleMark extends StatelessWidget {
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      repairLabel!,
+                      fleetText(context, repairLabel!),
                       maxLines: 1,
                       style: TextStyle(
                         color: repairLabel == '退避'
@@ -450,7 +451,7 @@ class ShipMoraleMark extends StatelessWidget {
                       TextSpan(
                         children: [
                           TextSpan(
-                            text: '疲劳 ',
+                            text: fleetText(context, '疲劳 '),
                             style: TextStyle(
                               color: shipFatigueColor(value),
                               fontSize: badgeFont,
