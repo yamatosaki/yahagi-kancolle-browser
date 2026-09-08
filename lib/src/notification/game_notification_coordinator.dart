@@ -783,6 +783,7 @@ class GameNotificationCoordinator {
           }
         } else {
           // Natural morale recovery mode: Target 49
+          if (fleet.mission.isActive) continue;
           int minCond = 100;
           for (final shipId in fleet.shipIds) {
             final ship = state.ships[shipId];
@@ -1109,6 +1110,7 @@ class GameNotificationCoordinator {
             );
           }
         } else {
+          if (fleet.mission.isActive) continue;
           int minCond = 100;
           for (final shipId in fleet.shipIds) {
             final ship = state.ships[shipId];

@@ -1382,8 +1382,8 @@ void main() {
     });
 
     test(
-      'uses user-defined custom fleet names in ongoing and alarm notifications',
-      () {
+      'starting an expedition removes morale notifications but keeps its anchor',
+      () async {
         final returnTime = testNow.add(const Duration(minutes: 30));
         testState = testState.copyWith(
           masterMissions: const {
@@ -1408,6 +1408,25 @@ void main() {
             ),
           },
           fleets: [
+            const Fleet(id: 2, name: '北方遠征隊', shipIds: [1]),
+          ],
+        );
+        final coordinator = GameNotificationCoordinator(
+          gameStateController: gameStateController,
+          settingsController: settingsController,
+          notificationPort: fakePort,
+          gameStateProvider: () => testState,
+          nowProvider: () => testNow,
+        );
+        coordinator.start();
+
+        final moraleTarget = coordinator.moraleRecoveryTimerController
+            .targetForFleet(2);
+        expect(moraleTarget, isNotNull);
+        expect(fakePort.scheduledAlarms, contains('morale_2_normal'));
+
+        testState = testState.copyWith(
+          fleets: [
             Fleet(
               id: 2,
               name: '北方遠征隊',
@@ -1420,14 +1439,9 @@ void main() {
             ),
           ],
         );
-        final coordinator = GameNotificationCoordinator(
-          gameStateController: gameStateController,
-          settingsController: settingsController,
-          notificationPort: fakePort,
-          gameStateProvider: () => testState,
-          nowProvider: () => testNow,
-        );
-        coordinator.start();
+        gameStateController.notifyListeners();
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
 
         expect(
           fakePort.latestSnapshot!.ongoingItems
@@ -1437,10 +1451,20 @@ void main() {
         );
 
         expect(
-          fakePort.latestSnapshot!.ongoingItems
-              .firstWhere((i) => i.id == 'morale:2')
-              .title,
-          '✨ 疲劳 北方遠征隊 (Cond 40/49)',
+          fakePort.latestSnapshot!.ongoingItems.where(
+            (item) => item.id == 'morale:2',
+          ),
+          isEmpty,
+        );
+        expect(
+          coordinator.moraleRecoveryTimerController.targetForFleet(2),
+          moraleTarget,
+        );
+        expect(
+          fakePort.latestSnapshot!.alarms.where(
+            (alarm) => alarm.taskId == 'morale:2',
+          ),
+          isEmpty,
         );
 
         final preemptAlarm = fakePort.scheduledAlarms['expedition_2_preempt']!;
