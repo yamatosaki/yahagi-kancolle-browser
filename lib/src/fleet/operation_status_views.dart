@@ -155,14 +155,19 @@ class _RepairDockCard extends StatelessWidget {
         children: [
           SizedBox(
             key: Key('repair-hp-${dock.id}'),
-            width: 92,
-            child: Text(
-              'HP ${ship.currentHp}/${ship.maxHp}',
-              maxLines: 1,
-              style: TextStyle(
-                color: hpColor,
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
+            width: 102,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'HP ${ship.currentHp}/${ship.maxHp}',
+                maxLines: 1,
+                softWrap: false,
+                style: TextStyle(
+                  color: hpColor,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ),
