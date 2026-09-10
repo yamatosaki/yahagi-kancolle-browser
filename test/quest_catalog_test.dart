@@ -52,11 +52,14 @@ void main() {
 
     final projection = catalog.project(live);
 
-    expect(projection.byGameId(101).unlockState, QuestUnlockState.unlocked);
+    expect(
+      projection.byGameId(101).unlockState,
+      isNot(QuestUnlockState.unlocked),
+    );
     expect(projection.byGameId(101).progressLabel, '100%');
     expect(projection.byGameId(201).progressLabel, '50%+');
     expect(projection.byGameId(202).unlockState, QuestUnlockState.locked);
-    expect(projection.byGameId(202).progressLabel, '＜50%');
+    expect(projection.byGameId(202).progressLabel, '—');
   });
 
   test(
@@ -102,6 +105,102 @@ void main() {
       });
       expect(projection.byGameId(1).liveQuest, isNotNull);
       expect(() => projection.byGameId(999), throwsStateError);
+    },
+  );
+
+  test(
+    'matches Poi completion inference for a finished sibling quest chain',
+    () {
+      final branching = QuestCatalog(const [
+        QuestCatalogEntry(gameId: 1, code: 'A1', name: '', description: ''),
+        QuestCatalogEntry(
+          gameId: 2,
+          code: 'A2',
+          name: '',
+          description: '',
+          prerequisites: ['A1'],
+        ),
+        QuestCatalogEntry(
+          gameId: 3,
+          code: 'A3',
+          name: '',
+          description: '',
+          prerequisites: ['A1'],
+        ),
+        QuestCatalogEntry(
+          gameId: 4,
+          code: 'A4',
+          name: '',
+          description: '',
+          prerequisites: ['A3'],
+        ),
+        QuestCatalogEntry(gameId: 5, code: 'A5', name: '', description: ''),
+        QuestCatalogEntry(
+          gameId: 6,
+          code: 'A6',
+          name: '',
+          description: '',
+          prerequisites: ['A2'],
+        ),
+      ]);
+      const live = GameQuest(
+        id: 2,
+        title: '',
+        detail: '',
+        category: 1,
+        type: 4,
+        state: 1,
+        progressFlag: 0,
+      );
+      final partial = branching.project({2: live}, isComplete: false);
+      expect(partial.byGameId(3).unlockState, QuestUnlockState.unknown);
+      expect(partial.byGameId(4).unlockState, QuestUnlockState.unknown);
+      expect(partial.byGameId(1).unlockState, QuestUnlockState.completed);
+      final projection = branching.project({2: live});
+      expect(projection.byGameId(1).unlockState, QuestUnlockState.completed);
+      expect(projection.byGameId(2).unlockState, QuestUnlockState.unlocked);
+      expect(projection.byGameId(3).unlockState, QuestUnlockState.completed);
+      expect(projection.byGameId(4).unlockState, QuestUnlockState.completed);
+      expect(projection.byGameId(5).unlockState, QuestUnlockState.unknown);
+      expect(projection.byGameId(6).unlockState, QuestUnlockState.locked);
+    },
+  );
+
+  test(
+    'Poi completed filter requires server completion for a visible task',
+    () {
+      for (final state in [1, 2, 3]) {
+        final projection = catalog.project({
+          201: GameQuest(
+            id: 201,
+            title: '',
+            detail: '',
+            category: 2,
+            type: 4,
+            state: state,
+            progressFlag: 2,
+            progressCurrent: 1,
+            progressRequired: 1,
+          ),
+        });
+        final current = projection.byGameId(201);
+        expect(current.liveQuest!.isLocallyCompleted, isTrue);
+        expect(
+          current.matchesUnlockFilter(QuestUnlockState.completed),
+          state == 3,
+        );
+        expect(current.matchesUnlockFilter(QuestUnlockState.unlocked), isTrue);
+        expect(
+          projection
+              .byGameId(101)
+              .matchesUnlockFilter(QuestUnlockState.completed),
+          isTrue,
+        );
+        expect(
+          projection.byGameId(202).matchesUnlockFilter(QuestUnlockState.locked),
+          isTrue,
+        );
+      }
     },
   );
 

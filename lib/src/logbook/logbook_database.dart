@@ -70,6 +70,10 @@ final class MapResourceLogEntry {
     this.ammoDelta = 0,
     this.steelDelta = 0,
     this.bauxiteDelta = 0,
+    this.instantBuildDelta = 0,
+    this.instantRepairDelta = 0,
+    this.developmentMaterialDelta = 0,
+    this.improvementMaterialDelta = 0,
     this.rewardItems = const <BattleRewardItem>[],
     this.radarReduced = false,
   });
@@ -86,6 +90,10 @@ final class MapResourceLogEntry {
   final int ammoDelta;
   final int steelDelta;
   final int bauxiteDelta;
+  final int instantBuildDelta;
+  final int instantRepairDelta;
+  final int developmentMaterialDelta;
+  final int improvementMaterialDelta;
   final List<BattleRewardItem> rewardItems;
   final bool radarReduced;
 }
@@ -157,7 +165,7 @@ final class RetirementLogEntry {
 }
 
 class LogbookDatabase extends ChangeNotifier {
-  static const int schemaVersion = 11;
+  static const int schemaVersion = 12;
   static final LogbookDatabase instance = LogbookDatabase._init();
 
   final Future<Database> Function()? _databaseOpener;
@@ -446,6 +454,10 @@ class LogbookDatabase extends ChangeNotifier {
         ammo_delta INTEGER NOT NULL DEFAULT 0,
         steel_delta INTEGER NOT NULL DEFAULT 0,
         bauxite_delta INTEGER NOT NULL DEFAULT 0,
+        instant_build_delta INTEGER NOT NULL DEFAULT 0,
+        instant_repair_delta INTEGER NOT NULL DEFAULT 0,
+        development_material_delta INTEGER NOT NULL DEFAULT 0,
+        improvement_material_delta INTEGER NOT NULL DEFAULT 0,
         reward_items_json TEXT NOT NULL DEFAULT '[]',
         radar_reduced INTEGER NOT NULL DEFAULT 0
       )
@@ -563,6 +575,25 @@ class LogbookDatabase extends ChangeNotifier {
     }
     if (oldVersion < 11) {
       await db.execute('ALTER TABLE battle_logs ADD COLUMN detail_json TEXT');
+    }
+    if (oldVersion < 12) {
+      // Older upgrades can already create this table with the latest columns.
+      await _createMapResourceTable(db);
+      final columns = (await db.rawQuery(
+        'PRAGMA table_info(map_resource_logs)',
+      )).map((column) => column['name']).toSet();
+      for (final column in <String>[
+        'instant_build_delta',
+        'instant_repair_delta',
+        'development_material_delta',
+        'improvement_material_delta',
+      ]) {
+        if (!columns.contains(column)) {
+          await db.execute(
+            'ALTER TABLE map_resource_logs ADD COLUMN $column INTEGER NOT NULL DEFAULT 0',
+          );
+        }
+      }
     }
   }
 
@@ -693,6 +724,10 @@ class LogbookDatabase extends ChangeNotifier {
       'ammo_delta': entry.ammoDelta,
       'steel_delta': entry.steelDelta,
       'bauxite_delta': entry.bauxiteDelta,
+      'instant_build_delta': entry.instantBuildDelta,
+      'instant_repair_delta': entry.instantRepairDelta,
+      'development_material_delta': entry.developmentMaterialDelta,
+      'improvement_material_delta': entry.improvementMaterialDelta,
       'reward_items_json': jsonEncode(_rewardItemRows(entry.rewardItems)),
       'radar_reduced': entry.radarReduced ? 1 : 0,
     }, conflictAlgorithm: ConflictAlgorithm.ignore);
@@ -763,7 +798,10 @@ class LogbookDatabase extends ChangeNotifier {
           CASE WHEN detail_json IS NOT NULL AND TRIM(detail_json) <> ''
             THEN 1 ELSE 0 END AS has_detail,
           0 AS fuel_delta, 0 AS ammo_delta, 0 AS steel_delta,
-          0 AS bauxite_delta, 0 AS radar_reduced
+          0 AS bauxite_delta,
+          0 AS instant_build_delta, 0 AS instant_repair_delta,
+          0 AS development_material_delta, 0 AS improvement_material_delta,
+          0 AS radar_reduced
         FROM battle_logs
         UNION ALL
         SELECT
@@ -779,7 +817,9 @@ class LogbookDatabase extends ChangeNotifier {
           '[]' AS heavy_damage_ship_names_json, '-' AS flagship_name,
           '-' AS escort_flagship_name, '-' AS mvp_name,
           '-' AS escort_mvp_name, reward_items_json, 0 AS has_detail,
-          fuel_delta, ammo_delta, steel_delta, bauxite_delta, radar_reduced
+          fuel_delta, ammo_delta, steel_delta, bauxite_delta,
+          instant_build_delta, instant_repair_delta,
+          development_material_delta, improvement_material_delta, radar_reduced
         FROM map_resource_logs
       )
       $whereClause

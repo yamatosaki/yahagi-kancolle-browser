@@ -54,7 +54,7 @@ final class GameStateController extends ChangeNotifier
   void _startExpirationTimer() {
     if (disableTimerForTest) return;
     _expirationTimer = Timer.periodic(const Duration(minutes: 1), (_) {
-      if (_state.quests.isEmpty) return;
+      if (_state.quests.isEmpty && _state.availableQuests.isEmpty) return;
 
       final now = DateTime.now().toUtc();
       bool hasExpired = false;
@@ -67,9 +67,18 @@ final class GameStateController extends ChangeNotifier
           validQuests[entry.key] = entry.value;
         }
       }
+      final availableQuests = <int, GameQuest>{
+        for (final entry in _state.availableQuests.entries)
+          if (!entry.value.isExpired(now)) entry.key: entry.value,
+      };
+      hasExpired |= availableQuests.length != _state.availableQuests.length;
 
       if (hasExpired) {
-        _state = _state.copyWith(quests: validQuests);
+        _state = _state.copyWith(
+          quests: validQuests,
+          availableQuests: availableQuests,
+          hasCompleteQuestData: false,
+        );
         notifyListeners();
         if (questStore != null) {
           questStore!.saveQuests(validQuests);
@@ -124,7 +133,9 @@ final class GameStateController extends ChangeNotifier
     }
     _state = _state.copyWith(
       quests: const {},
+      availableQuests: const {},
       hasQuestData: false,
+      hasCompleteQuestData: false,
       activeQuestCount: 0,
     );
     notifyListeners();
@@ -195,7 +206,8 @@ final class GameStateController extends ChangeNotifier
 
           if ((event.path.contains('/api_get_member/questlist') ||
                   event.path.contains('/api_req_quest/clearitemget') ||
-                  event.path.contains('/api_req_quest/stop')) &&
+                  event.path.contains('/api_req_quest/stop') ||
+                  event.path.contains('/api_req_quest/start')) &&
               questStore != null) {
             await questStore!.saveQuests(next.quests);
           }

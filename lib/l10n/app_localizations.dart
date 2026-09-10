@@ -3824,8 +3824,62 @@ abstract class AppLocalizations {
   /// No description provided for @searchQuestHint.
   ///
   /// In zh, this message translates to:
-  /// **'搜索编号、任务名或说明'**
+  /// **'搜索编号、任务名、说明或奖励；空格分隔任一关键词'**
   String get searchQuestHint;
+
+  /// No description provided for @questAvailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'未接取'**
+  String get questAvailable;
+
+  /// No description provided for @questAcceptedOnly.
+  ///
+  /// In zh, this message translates to:
+  /// **'仅已接取（含待领取）'**
+  String get questAcceptedOnly;
+
+  /// No description provided for @questClaimable.
+  ///
+  /// In zh, this message translates to:
+  /// **'待领取'**
+  String get questClaimable;
+
+  /// No description provided for @questInferredCompleted.
+  ///
+  /// In zh, this message translates to:
+  /// **'推算完成'**
+  String get questInferredCompleted;
+
+  /// No description provided for @questStateUnknown.
+  ///
+  /// In zh, this message translates to:
+  /// **'状态未知'**
+  String get questStateUnknown;
+
+  /// No description provided for @questFilterHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'已解锁包含未接取、进行中和待领取；未解锁包含状态未知；已完成包含待领取和推算完成。'**
+  String get questFilterHelp;
+
+  /// No description provided for @questNoResults.
+  ///
+  /// In zh, this message translates to:
+  /// **'没有符合条件的任务'**
+  String get questNoResults;
+
+  /// No description provided for @questNoResultsHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'试试调整搜索内容或清除筛选条件。'**
+  String get questNoResultsHint;
+
+  /// No description provided for @questResultsCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'共 {count} 个任务'**
+  String questResultsCount(int count);
 
   /// No description provided for @clear.
   ///

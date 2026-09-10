@@ -1986,7 +1986,36 @@ class AppLocalizationsZh extends AppLocalizations {
   String get filterQuest => '筛选任务';
 
   @override
-  String get searchQuestHint => '搜索编号、任务名或说明';
+  String get searchQuestHint => '搜索编号、任务名、说明或奖励；空格分隔任一关键词';
+
+  @override
+  String get questAvailable => '未接取';
+
+  @override
+  String get questAcceptedOnly => '仅已接取（含待领取）';
+
+  @override
+  String get questClaimable => '待领取';
+
+  @override
+  String get questInferredCompleted => '推算完成';
+
+  @override
+  String get questStateUnknown => '状态未知';
+
+  @override
+  String get questFilterHelp => '已解锁包含未接取、进行中和待领取；未解锁包含状态未知；已完成包含待领取和推算完成。';
+
+  @override
+  String get questNoResults => '没有符合条件的任务';
+
+  @override
+  String get questNoResultsHint => '试试调整搜索内容或清除筛选条件。';
+
+  @override
+  String questResultsCount(int count) {
+    return '共 $count 个任务';
+  }
 
   @override
   String get clear => '清除';
@@ -4898,7 +4927,36 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get filterQuest => '篩選任務';
 
   @override
-  String get searchQuestHint => '搜尋編號、任務名稱或說明';
+  String get searchQuestHint => '搜尋編號、任務名稱、說明或獎勵；以空格分隔任一關鍵字';
+
+  @override
+  String get questAvailable => '未接取';
+
+  @override
+  String get questAcceptedOnly => '僅已接取（含待領取）';
+
+  @override
+  String get questClaimable => '待領取';
+
+  @override
+  String get questInferredCompleted => '推算完成';
+
+  @override
+  String get questStateUnknown => '狀態未知';
+
+  @override
+  String get questFilterHelp => '已解鎖包含未接取、進行中和待領取；未解鎖包含狀態未知；已完成包含待領取和推算完成。';
+
+  @override
+  String get questNoResults => '沒有符合條件的任務';
+
+  @override
+  String get questNoResultsHint => '試試調整搜尋內容或清除篩選條件。';
+
+  @override
+  String questResultsCount(int count) {
+    return '共 $count 個任務';
+  }
 
   @override
   String get clear => '清除';

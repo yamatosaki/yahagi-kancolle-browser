@@ -123,6 +123,88 @@ void main() {
       expect(nativeGameCaptureScript, contains('yahagi_full_quest_snapshot'));
     });
 
+    test(
+      'full snapshots retain unaccepted tasks across pages and reject incomplete lists',
+      () {
+        const harness = r'''
+const messages = [];
+global.window = global;
+window.location = { href: 'https://example.test/kcs2/' };
+global.YahagiNativeCapture = { postMessage: (message) => messages.push(JSON.parse(message)) };
+const scenario = process.argv[2];
+let requests = 0;
+const response = (data) => ({
+  ok: true, status: 200,
+  text: async () => JSON.stringify({ api_result: 1, api_data: data }),
+  clone() { return response(data); },
+});
+window.fetch = async (url, init) => {
+  requests++;
+  const page = new URLSearchParams(init.body).get('api_page_no');
+  if (requests > 1 && new URLSearchParams(init.body).get('api_tab_id') !== '0') throw new Error('not all tasks');
+  if (scenario === 'modern') return response({
+    api_count: 12, api_exec_count: 1,
+    api_list: Array.from({length: 12}, (_, i) => ({api_no: 101 + i, api_state: i === 0 ? 2 : 1})),
+  });
+  if (scenario === 'failure' && page === '2') throw new Error('page failed');
+  return response({
+    api_count: 3, api_page_count: 2, api_exec_count: 2,
+    api_list: page === '2'
+      ? (scenario === 'incomplete' ? [] : [{ api_no: 103, api_state: 3 }])
+      : [{ api_no: 101, api_state: 1 }, { api_no: 102, api_state: 2 }, -1],
+  });
+};
+eval(process.argv[1].replace('__YAHAGI_BINARY_CAPTURE_ENABLED__', 'false'));
+(async () => {
+  await window.fetch('/kcsapi/api_get_member/questlist', {
+    method: 'POST', body: 'api_token=test&api_tab_id=9&api_page_no=1',
+  });
+  for (let i = 0; i < 10; i++) await new Promise(setImmediate);
+  const snapshots = messages.filter((event) => event.requestParams.yahagi_full_quest_snapshot === '1');
+  process.stdout.write(JSON.stringify({
+    requests,
+    data: snapshots.map((event) => JSON.parse(event.responseBody).api_data),
+  }));
+})().catch((error) => { process.stderr.write(String(error)); process.exitCode = 1; });
+''';
+        for (final scenario in [
+          'complete',
+          'incomplete',
+          'failure',
+          'modern',
+        ]) {
+          final result = Process.runSync('node', [
+            '-e',
+            harness,
+            nativeGameCaptureScript,
+            scenario,
+          ]);
+          expect(result.exitCode, 0, reason: result.stderr.toString());
+          final output =
+              jsonDecode(result.stdout.toString()) as Map<String, dynamic>;
+          expect(
+            output['requests'],
+            scenario == 'modern' ? 2 : 3,
+            reason: scenario,
+          );
+          final snapshots = output['data'] as List;
+          if (scenario == 'modern') {
+            expect(snapshots, hasLength(1));
+            expect(snapshots.single['api_list'], hasLength(12));
+          } else if (scenario == 'complete') {
+            expect(snapshots, hasLength(1));
+            expect(snapshots.single['api_count'], 3);
+            expect(
+              (snapshots.single['api_list'] as List).map((q) => q['api_state']),
+              [1, 2, 3],
+            );
+          } else {
+            expect(snapshots, isEmpty, reason: scenario);
+          }
+        }
+      },
+    );
+
     test('quest claim and stop both invalidate older snapshots', () {
       expect(nativeGameCaptureScript, contains('questMutationPaths.has(path)'));
       expect(
@@ -216,7 +298,8 @@ window.fetch = (url) => {
   }
   if (
     path === '/kcsapi/api_req_quest/clearitemget' ||
-    path === '/kcsapi/api_req_quest/stop'
+    path === '/kcsapi/api_req_quest/stop' ||
+    path === '/kcsapi/api_req_quest/start'
   ) {
     return Promise.resolve(response(envelope({}, mutationResult)));
   }
@@ -284,6 +367,20 @@ eval(captureScript);
               transport: 'fetch',
               expectedSnapshots: 1,
               expectedMutations: 0,
+            ),
+            (
+              path: '/kcsapi/api_req_quest/start',
+              apiResult: 1,
+              transport: 'fetch',
+              expectedSnapshots: 0,
+              expectedMutations: 1,
+            ),
+            (
+              path: '/kcsapi/api_req_quest/start',
+              apiResult: 1,
+              transport: 'xhr',
+              expectedSnapshots: 0,
+              expectedMutations: 1,
             ),
             (
               path: '/kcsapi/api_req_quest/clearitemget',

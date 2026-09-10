@@ -59,7 +59,13 @@ void main() {
     );
 
     expect(find.text('任务'), findsOneWidget);
-    expect(find.text('进行中'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('quest-mode-tabs')),
+        matching: find.text('进行中'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('全任务'), findsOneWidget);
     expect(find.textContaining('更新于'), findsNothing);
     expect(find.byKey(const Key('quest-mode-tabs')), findsOneWidget);
@@ -75,14 +81,14 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const Key('quest-card-status-201')),
-        matching: find.text('未完成'),
+        matching: find.text('进行中'),
       ),
       findsOneWidget,
     );
     expect(
       find.descendant(
         of: find.byKey(const Key('quest-card-status-402')),
-        matching: find.text('已完成'),
+        matching: find.text('待领取'),
       ),
       findsOneWidget,
     );
@@ -354,53 +360,54 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('known quest completion appears immediately in details', (
-    tester,
-  ) async {
-    final controller = GameStateController(
-      questStore: _QuestFixtureStore(<int, GameQuest>{
-        503: const GameQuest(
-          id: 503,
-          title: 'repair quest',
-          detail: '',
-          category: 5,
-          type: 1,
-          state: 2,
-          progressFlag: 2,
-          progressCurrent: 4,
-          progressRequired: 5,
+  testWidgets(
+    'local completion keeps server status while showing exact progress',
+    (tester) async {
+      final controller = GameStateController(
+        questStore: _QuestFixtureStore(<int, GameQuest>{
+          503: const GameQuest(
+            id: 503,
+            title: 'repair quest',
+            detail: '',
+            category: 5,
+            type: 1,
+            state: 2,
+            progressFlag: 2,
+            progressCurrent: 4,
+            progressRequired: 5,
+          ),
+        }),
+      );
+      await controller.idle;
+      controller.accept(
+        kcsapiEvent(
+          '/kcsapi/api_req_nyukyo/start',
+          const <String, Object?>{},
+          includeApiData: false,
+          requestParams: const <String, Object?>{
+            'api_ndock_id': '1',
+            'api_ship_id': '999',
+            'api_highspeed': '0',
+          },
         ),
-      }),
-    );
-    await controller.idle;
-    controller.accept(
-      kcsapiEvent(
-        '/kcsapi/api_req_nyukyo/start',
-        const <String, Object?>{},
-        includeApiData: false,
-        requestParams: const <String, Object?>{
-          'api_ndock_id': '1',
-          'api_ship_id': '999',
-          'api_highspeed': '0',
-        },
-      ),
-    );
-    await controller.idle;
+      );
+      await controller.idle;
 
-    await tester.pumpWidget(
-      MaterialApp(home: QuestCenterPage(controller: controller)),
-    );
+      await tester.pumpWidget(
+        MaterialApp(home: QuestCenterPage(controller: controller)),
+      );
 
-    expect(find.text('5/5'), findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.byKey(const Key('quest-detail-status-503')),
-        matching: find.text('已完成'),
-      ),
-      findsOneWidget,
-    );
-    controller.dispose();
-  });
+      expect(find.text('5/5'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('quest-detail-status-503')),
+          matching: find.text('进行中'),
+        ),
+        findsOneWidget,
+      );
+      controller.dispose();
+    },
+  );
 
   testWidgets('does not duplicate the quest header inside the workspace', (
     tester,
@@ -709,9 +716,12 @@ final class _CountingQuestCatalog extends QuestCatalog {
   int projectCalls = 0;
 
   @override
-  QuestCatalogProjection project(Map<int, GameQuest> liveQuests) {
+  QuestCatalogProjection project(
+    Map<int, GameQuest> liveQuests, {
+    bool isComplete = true,
+  }) {
     projectCalls += 1;
-    return super.project(liveQuests);
+    return super.project(liveQuests, isComplete: isComplete);
   }
 }
 

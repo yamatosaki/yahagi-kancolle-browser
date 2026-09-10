@@ -42,6 +42,7 @@ abstract final class GameCapturePathCatalog {
     '/kcsapi/api_req_nyukyo/speedchange',
     '/kcsapi/api_req_quest/clearitemget',
     '/kcsapi/api_req_quest/stop',
+    '/kcsapi/api_req_quest/start',
     '/kcsapi/api_req_map/select_eventmap_rank',
     '/kcsapi/api_req_map/start',
     '/kcsapi/api_req_map/next',

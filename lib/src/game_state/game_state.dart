@@ -634,6 +634,21 @@ class GameQuest {
     );
   }
 
+  GameQuest withState(int value) => GameQuest(
+    id: id,
+    title: title,
+    detail: detail,
+    category: category,
+    type: type,
+    state: value,
+    progressFlag: progressFlag,
+    materials: materials,
+    progressCurrent: progressCurrent,
+    progressRequired: progressRequired,
+    localCompletionVerified: localCompletionVerified,
+    updatedAt: updatedAt,
+  );
+
   GameQuest withLocalCompletionVerified(bool verified, {DateTime? updatedAt}) {
     return GameQuest(
       id: id,
@@ -921,7 +936,9 @@ class GameState {
     this.constructionDocks = const <ConstructionDock>[],
     this.landBases = const <LandBaseState>[],
     this.quests = const <int, GameQuest>{},
+    this.availableQuests = const <int, GameQuest>{},
     this.hasQuestData = false,
+    this.hasCompleteQuestData = false,
     this.activeQuestCount = 0,
     this.questCapacity = 5,
     this.combinedFleetType = CombinedFleetType.none,
@@ -973,7 +990,12 @@ class GameState {
   final List<ConstructionDock> constructionDocks;
   final List<LandBaseState> landBases;
   final Map<int, GameQuest> quests;
+
+  /// Tasks observed in this session, including available but unaccepted tasks.
+  /// Kept separate from [quests], which drives active progress tracking.
+  final Map<int, GameQuest> availableQuests;
   final bool hasQuestData;
+  final bool hasCompleteQuestData;
   final int activeQuestCount;
   final int questCapacity;
   final CombinedFleetType combinedFleetType;
@@ -1078,7 +1100,9 @@ class GameState {
     List<ConstructionDock>? constructionDocks,
     List<LandBaseState>? landBases,
     Map<int, GameQuest>? quests,
+    Map<int, GameQuest>? availableQuests,
     bool? hasQuestData,
+    bool? hasCompleteQuestData,
     int? activeQuestCount,
     int? questCapacity,
     CombinedFleetType? combinedFleetType,
@@ -1122,7 +1146,9 @@ class GameState {
       constructionDocks: constructionDocks ?? this.constructionDocks,
       landBases: landBases ?? this.landBases,
       quests: quests ?? this.quests,
+      availableQuests: availableQuests ?? this.availableQuests,
       hasQuestData: hasQuestData ?? this.hasQuestData,
+      hasCompleteQuestData: hasCompleteQuestData ?? this.hasCompleteQuestData,
       activeQuestCount: activeQuestCount ?? this.activeQuestCount,
       questCapacity: questCapacity ?? this.questCapacity,
       combinedFleetType: combinedFleetType ?? this.combinedFleetType,

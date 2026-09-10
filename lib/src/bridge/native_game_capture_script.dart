@@ -24,6 +24,7 @@ String buildNativeGameCaptureScript() {
   const questMutationPaths = new Set([
     '/kcsapi/api_req_quest/clearitemget',
     '/kcsapi/api_req_quest/stop',
+    '/kcsapi/api_req_quest/start',
   ]);
   const questSnapshotCooldownMs = 15000;
   const xhrUrl = Symbol('yahagiCaptureUrl');
@@ -233,7 +234,11 @@ String buildNativeGameCaptureScript() {
       const firstData = first.envelope.api_data;
       const questCount = Math.max(0, Number(firstData.api_count) || 0);
       const declaredPageCount = Number(firstData.api_page_count) || 0;
-      const pageCount = Math.max(
+      const firstList = Array.isArray(firstData.api_list) ? firstData.api_list : [];
+      const firstIds = new Set(firstList.filter(
+        (quest) => quest && typeof quest === 'object' && Number(quest.api_no) > 0,
+      ).map((quest) => Number(quest.api_no)));
+      const pageCount = declaredPageCount <= 1 && firstIds.size === questCount ? 1 : Math.max(
         1,
         Math.min(100, declaredPageCount || Math.ceil(questCount / 5)),
       );
@@ -242,7 +247,7 @@ String buildNativeGameCaptureScript() {
         pages.push(await fetchQuestPage(url, baseParams, pageNo));
       }
 
-      const activeById = new Map();
+      const availableById = new Map();
       for (const page of pages) {
         const list = Array.isArray(page.envelope.api_data.api_list)
           ? page.envelope.api_data.api_list
@@ -252,15 +257,19 @@ String buildNativeGameCaptureScript() {
             quest &&
             typeof quest === 'object' &&
             Number(quest.api_no) > 0 &&
-            Number(quest.api_state) >= 2
+            Number(quest.api_state) >= 1 &&
+            Number(quest.api_state) <= 3
           ) {
-            activeById.set(Number(quest.api_no), quest);
+            availableById.set(Number(quest.api_no), quest);
           }
         }
       }
 
       const activeCount = Math.max(0, Number(firstData.api_exec_count) || 0);
-      if (activeById.size !== activeCount) return;
+      const activeQuests = Array.from(availableById.values()).filter(
+        (quest) => Number(quest.api_state) >= 2,
+      );
+      if (availableById.size !== questCount || activeQuests.length !== activeCount) return;
       if (snapshotGeneration !== questMutationGeneration) return;
       const snapshotParams = new URLSearchParams(baseParams.toString());
       snapshotParams.set('api_tab_id', '0');
@@ -275,8 +284,8 @@ String buildNativeGameCaptureScript() {
           api_result_msg: 'OK',
           api_data: {
             ...firstData,
-            api_count: activeById.size,
-            api_list: Array.from(activeById.values()),
+            api_count: availableById.size,
+            api_list: Array.from(availableById.values()),
           },
         }),
         statusCode: first.response.status,

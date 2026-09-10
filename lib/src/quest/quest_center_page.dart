@@ -18,10 +18,11 @@ class QuestFilterController extends ChangeNotifier {
   int? category;
   int? period;
   QuestUnlockState? unlockState;
+  bool acceptedOnly = false;
 
   bool get hasSearch => query.trim().isNotEmpty;
   bool get hasFilters =>
-      category != null || period != null || unlockState != null;
+      category != null || period != null || unlockState != null || acceptedOnly;
 
   void setQuery(String value) {
     if (query == value) return;
@@ -52,6 +53,13 @@ class QuestFilterController extends ChangeNotifier {
     category = null;
     period = null;
     unlockState = null;
+    acceptedOnly = false;
+    notifyListeners();
+  }
+
+  void setAcceptedOnly(bool value) {
+    if (acceptedOnly == value) return;
+    acceptedOnly = value;
     notifyListeners();
   }
 }
@@ -301,12 +309,21 @@ Future<void> _showQuestFilters(
       context: context,
       isScrollControlled: true,
       backgroundColor: const Color(0xff142735),
-      builder: (_) => SafeArea(child: content),
+      builder: (context) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+          ),
+          child: SingleChildScrollView(child: content),
+        ),
+      ),
     );
   }
   return showDialog<void>(
     context: context,
-    builder: (_) => Dialog(child: SizedBox(width: 520, child: content)),
+    builder: (_) => Dialog(
+      child: SizedBox(width: 520, child: SingleChildScrollView(child: content)),
+    ),
   );
 }
 
@@ -435,7 +452,28 @@ class _QuestFilterSheet extends StatelessWidget {
                   selected: filters.unlockState == QuestUnlockState.locked,
                   onTap: () => filters.setUnlockState(QuestUnlockState.locked),
                 ),
+                CompactFilterChip(
+                  key: const Key('quest-filter-unlock-completed'),
+                  label: l10n.completed,
+                  selected: filters.unlockState == QuestUnlockState.completed,
+                  onTap: () =>
+                      filters.setUnlockState(QuestUnlockState.completed),
+                ),
               ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              l10n.questFilterHelp,
+              style: const TextStyle(fontSize: 11, color: Color(0xff9fb3bf)),
+            ),
+            CheckboxListTile(
+              key: const Key('quest-filter-accepted-only'),
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              controlAffinity: ListTileControlAffinity.leading,
+              title: Text(l10n.questAcceptedOnly),
+              value: filters.acceptedOnly,
+              onChanged: (value) => filters.setAcceptedOnly(value ?? false),
             ),
           ],
         ),
@@ -480,6 +518,8 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
   QuestCatalog? _catalog;
   QuestCatalog? _projectedCatalog;
   Map<int, GameQuest>? _projectedLiveQuests;
+  Map<int, GameQuest>? _projectedAvailableQuests;
+  bool? _projectedIsComplete;
   QuestCatalogProjection? _cachedProjection;
   final QuestFilterController _localFilters = QuestFilterController();
   bool _localTranslationEnabled = false;
@@ -593,7 +633,14 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
               ),
             Expanded(
               child: entries.isEmpty
-                  ? const _WaitingState()
+                  ? _mode == QuestCenterMode.all
+                        ? _QuestEmptyResults(
+                            filters: _filters,
+                            needsSync:
+                                !widget.controller.state.hasQuestData &&
+                                _filters.unlockState != null,
+                          )
+                        : const _WaitingState()
                   : LayoutBuilder(
                       builder: (context, constraints) {
                         final list = _QuestListPanel(
@@ -673,14 +720,18 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
       return values;
     }
     final projection = _projectionFor(live);
+    final keywords = _filters.query
+        .toLowerCase()
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .toList();
     return projection.items
         .where((item) {
           final entry = item.entry;
-          final query = _filters.query.trim().toLowerCase();
-          if (query.isNotEmpty &&
-              !entry.code.toLowerCase().contains(query) &&
-              !entry.name.toLowerCase().contains(query) &&
-              !entry.description.toLowerCase().contains(query)) {
+          if (!item.matchesSearch(keywords)) {
+            return false;
+          }
+          if (_filters.acceptedOnly && !(item.liveQuest?.isAccepted ?? false)) {
             return false;
           }
           if (_filters.category != null &&
@@ -690,8 +741,7 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
           if (_filters.period != null && entry.period != _filters.period) {
             return false;
           }
-          return _filters.unlockState == null ||
-              item.unlockState == _filters.unlockState;
+          return item.matchesUnlockFilter(_filters.unlockState);
         })
         .map((item) => _QuestViewEntry.fromCatalog(item, _catalog!))
         .toList(growable: false);
@@ -699,15 +749,24 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
 
   QuestCatalogProjection _projectionFor(Map<int, GameQuest> live) {
     final catalog = _catalog!;
+    final available = widget.controller.state.availableQuests;
+    final isComplete = widget.controller.state.hasCompleteQuestData;
     final cached = _cachedProjection;
     if (cached != null &&
         identical(_projectedCatalog, catalog) &&
-        identical(_projectedLiveQuests, live)) {
+        identical(_projectedLiveQuests, live) &&
+        identical(_projectedAvailableQuests, available) &&
+        _projectedIsComplete == isComplete) {
       return cached;
     }
-    final projection = catalog.project(live);
+    final projection = catalog.project({
+      ...available,
+      ...live,
+    }, isComplete: isComplete);
     _projectedCatalog = catalog;
     _projectedLiveQuests = live;
+    _projectedAvailableQuests = available;
+    _projectedIsComplete = isComplete;
     _cachedProjection = projection;
     return projection;
   }
@@ -799,6 +858,17 @@ class _QuestListPanel extends StatelessWidget {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
+      if (allMode)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+          child: Text(
+            (AppLocalizations.of(context) ??
+                    lookupAppLocalizations(const Locale('zh')))
+                .questResultsCount(entries.length),
+            key: const Key('quest-results-count'),
+            style: const TextStyle(fontSize: 11, color: Color(0xff9fb3bf)),
+          ),
+        ),
       Expanded(
         child: ListView.separated(
           padding: const EdgeInsets.all(12),
@@ -1174,7 +1244,9 @@ class _StatusBadge extends StatelessWidget {
     final l10n =
         AppLocalizations.of(context) ??
         lookupAppLocalizations(const Locale('zh'));
-    final positive = entry.allMode ? !entry.locked : entry.completed;
+    final positive =
+        entry.status != QuestStatus.locked &&
+        entry.status != QuestStatus.unknown;
     final color = positive ? const Color(0xff67d2a6) : const Color(0xffe0ad4f);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -1184,9 +1256,14 @@ class _StatusBadge extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.75)),
       ),
       child: Text(
-        entry.allMode
-            ? (entry.locked ? l10n.questLocked : l10n.questUnlocked)
-            : (entry.completed ? l10n.completed : l10n.notCompleted),
+        switch (entry.status) {
+          QuestStatus.available => l10n.questAvailable,
+          QuestStatus.inProgress => l10n.inProgress,
+          QuestStatus.claimable => l10n.questClaimable,
+          QuestStatus.locked => l10n.questLocked,
+          QuestStatus.completed => l10n.questInferredCompleted,
+          QuestStatus.unknown => l10n.questStateUnknown,
+        },
         style: TextStyle(
           color: color,
           fontSize: 10.5,
@@ -1291,6 +1368,49 @@ class _SmallTag extends StatelessWidget {
   );
 }
 
+class _QuestEmptyResults extends StatelessWidget {
+  const _QuestEmptyResults({required this.filters, required this.needsSync});
+  final QuestFilterController filters;
+  final bool needsSync;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
+    return Center(
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.search_off, color: Color(0xffd4a85f), size: 36),
+              const SizedBox(height: 10),
+              Text(
+                needsSync ? l10n.waitingQuestData : l10n.questNoResults,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                needsSync ? l10n.waitingQuestDataDesc : l10n.questNoResultsHint,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xff9fb3bf)),
+              ),
+              if (filters.hasFilters || filters.hasSearch)
+                TextButton(
+                  key: const Key('quest-empty-clear'),
+                  onPressed: filters.clear,
+                  child: Text(l10n.clearAll),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _WaitingState extends StatelessWidget {
   const _WaitingState();
 
@@ -1335,6 +1455,8 @@ class _QuestViewEntry {
     required this.progressLabel,
     required this.completed,
     required this.locked,
+    required this.unlockState,
+    required this.status,
     required this.allMode,
     required this.materials,
     required this.rewardsText,
@@ -1356,6 +1478,10 @@ class _QuestViewEntry {
       progressLabel: quest.progressPercentLabel,
       completed: quest.isCompleted,
       locked: false,
+      unlockState: QuestUnlockState.unlocked,
+      status: quest.isServerCompleted
+          ? QuestStatus.claimable
+          : QuestStatus.inProgress,
       allMode: false,
       materials: quest.materials,
       rewardsText: '',
@@ -1386,6 +1512,8 @@ class _QuestViewEntry {
       progressLabel: item.progressLabel,
       completed: live?.isCompleted ?? item.inferredCompleted,
       locked: item.unlockState == QuestUnlockState.locked,
+      unlockState: item.unlockState,
+      status: item.status,
       allMode: true,
       materials: live?.materials ?? const <int>[0, 0, 0, 0],
       rewardsText: doc.rewards,
@@ -1405,6 +1533,8 @@ class _QuestViewEntry {
   final String progressLabel;
   final bool completed;
   final bool locked;
+  final QuestUnlockState unlockState;
+  final QuestStatus status;
   final bool allMode;
   final List<int> materials;
   final String rewardsText;

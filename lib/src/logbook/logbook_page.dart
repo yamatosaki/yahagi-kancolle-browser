@@ -1631,6 +1631,16 @@ class _SortieResourceCell extends StatelessWidget {
       (GameResourceType.ammunition, _rowInt(row['ammo_delta'])),
       (GameResourceType.steel, _rowInt(row['steel_delta'])),
       (GameResourceType.bauxite, _rowInt(row['bauxite_delta'])),
+      (GameResourceType.instantBuild, _rowInt(row['instant_build_delta'])),
+      (GameResourceType.instantRepair, _rowInt(row['instant_repair_delta'])),
+      (
+        GameResourceType.developmentMaterial,
+        _rowInt(row['development_material_delta']),
+      ),
+      (
+        GameResourceType.improvementMaterial,
+        _rowInt(row['improvement_material_delta']),
+      ),
     ].where((entry) => entry.$2 != 0).toList(growable: false);
     if (values.isEmpty) return const _TextCell('-');
     return Padding(

@@ -6,7 +6,16 @@ import '../game_state/game_state.dart';
 import '../game_state/quest_text_normalizer.dart';
 import 'quest_translation_fallbacks.dart';
 
-enum QuestUnlockState { unlocked, locked }
+enum QuestUnlockState { unlocked, locked, completed, unknown }
+
+enum QuestStatus {
+  available,
+  inProgress,
+  claimable,
+  completed,
+  locked,
+  unknown,
+}
 
 class QuestCatalogEntry {
   const QuestCatalogEntry({
@@ -182,7 +191,10 @@ class QuestCatalog {
     return _successorsByCode[code] ?? const <QuestCatalogEntry>[];
   }
 
-  QuestCatalogProjection project(Map<int, GameQuest> liveQuests) {
+  QuestCatalogProjection project(
+    Map<int, GameQuest> liveQuests, {
+    bool isComplete = true,
+  }) {
     final completed = <int>{};
     final locked = <int>{};
 
@@ -202,6 +214,33 @@ class QuestCatalog {
       walkPrerequisites(gameId);
       walkSuccessors(gameId);
     }
+
+    // Match Quest Info 2's getCompletedQuest: an absent terminal branch
+    // with a completed ancestor and no currently available ancestor is
+    // inferred complete, including its prerequisites.
+    // https://github.com/lawvs/poi-plugin-quest-2/blob/main/src/questHelper.ts
+    final gameIds = _byGameId.keys.toList()..sort();
+    for (final gameId in gameIds) {
+      if (!isComplete ||
+          successorsOf(gameId).isNotEmpty ||
+          liveQuests.containsKey(gameId) ||
+          completed.contains(gameId)) {
+        continue;
+      }
+      final ancestors = <int>{};
+      final pending = <int>[gameId];
+      while (pending.isNotEmpty) {
+        for (final entry in prerequisitesOf(pending.removeLast())) {
+          if (ancestors.add(entry.gameId)) pending.add(entry.gameId);
+        }
+      }
+      if (ancestors.any(liveQuests.containsKey) ||
+          !ancestors.any(completed.contains)) {
+        continue;
+      }
+      completed.addAll(ancestors);
+      completed.add(gameId);
+    }
     locked.removeAll(completed);
     locked.removeAll(liveQuests.keys);
 
@@ -210,10 +249,16 @@ class QuestCatalog {
         QuestCatalogItem(
           entry: entry,
           liveQuest: liveQuests[entry.gameId],
-          unlockState: locked.contains(entry.gameId)
+          unlockState: liveQuests.containsKey(entry.gameId)
+              ? QuestUnlockState.unlocked
+              : completed.contains(entry.gameId)
+              ? QuestUnlockState.completed
+              : locked.contains(entry.gameId)
               ? QuestUnlockState.locked
-              : QuestUnlockState.unlocked,
-          inferredCompleted: completed.contains(entry.gameId),
+              : QuestUnlockState.unknown,
+          inferredCompleted:
+              completed.contains(entry.gameId) &&
+              !liveQuests.containsKey(entry.gameId),
         ),
     ]);
   }
@@ -232,9 +277,53 @@ class QuestCatalogItem {
   final QuestUnlockState unlockState;
   final bool inferredCompleted;
 
+  QuestStatus get status {
+    if (liveQuest case final live?) {
+      return switch (live.state) {
+        1 => QuestStatus.available,
+        2 => QuestStatus.inProgress,
+        3 => QuestStatus.claimable,
+        _ => QuestStatus.unknown,
+      };
+    }
+    if (inferredCompleted) return QuestStatus.completed;
+    return unlockState == QuestUnlockState.locked
+        ? QuestStatus.locked
+        : QuestStatus.unknown;
+  }
+
+  bool matchesSearch(List<String> keywords) {
+    if (keywords.isEmpty) return true;
+    final text = [
+      gameId,
+      entry.code,
+      entry.name,
+      entry.description,
+      entry.translatedName ?? '',
+      entry.translatedDescription ?? '',
+      entry.rewards,
+      entry.memo,
+      liveQuest?.title ?? '',
+      liveQuest?.detail ?? '',
+    ].join(' ').toLowerCase();
+    return keywords.any(text.contains);
+  }
+
+  /// Poi's ordinary filters group unknown tasks with locked tasks, and
+  /// server-confirmed tasks awaiting rewards with inferred completed tasks.
+  bool matchesUnlockFilter(QuestUnlockState? filter) => switch (filter) {
+    null => true,
+    QuestUnlockState.locked =>
+      unlockState == QuestUnlockState.locked ||
+          unlockState == QuestUnlockState.unknown,
+    QuestUnlockState.completed =>
+      liveQuest?.isServerCompleted ?? inferredCompleted,
+    _ => unlockState == filter,
+  };
+
   int get gameId => entry.gameId;
   String get progressLabel =>
-      liveQuest?.progressPercentLabel ?? (inferredCompleted ? '100%' : '＜50%');
+      liveQuest?.progressPercentLabel ?? (inferredCompleted ? '100%' : '—');
 }
 
 class QuestCatalogProjection {

@@ -2000,7 +2000,37 @@ class AppLocalizationsJa extends AppLocalizations {
   String get filterQuest => '任務を絞り込む';
 
   @override
-  String get searchQuestHint => '番号、任務名、説明を検索';
+  String get searchQuestHint => '番号・任務名・説明・報酬を検索（空白区切りでいずれかに一致）';
+
+  @override
+  String get questAvailable => '未受注';
+
+  @override
+  String get questAcceptedOnly => '受注済みのみ（報酬待ちを含む）';
+
+  @override
+  String get questClaimable => '報酬待ち';
+
+  @override
+  String get questInferredCompleted => '完了推定';
+
+  @override
+  String get questStateUnknown => '状態不明';
+
+  @override
+  String get questFilterHelp =>
+      '解放済みには未受注・遂行中・報酬待ち、未解放には状態不明、完了には報酬待ちと完了推定を含みます。';
+
+  @override
+  String get questNoResults => '条件に一致する任務がありません';
+
+  @override
+  String get questNoResultsHint => '検索内容を変更するか、絞り込みを解除してください。';
+
+  @override
+  String questResultsCount(int count) {
+    return '全 $count 件';
+  }
 
   @override
   String get clear => 'クリア';

@@ -110,6 +110,12 @@ final class LogbookEventRecorder {
         ammoDelta: deltas[GameResourceType.ammunition] ?? 0,
         steelDelta: deltas[GameResourceType.steel] ?? 0,
         bauxiteDelta: deltas[GameResourceType.bauxite] ?? 0,
+        instantBuildDelta: deltas[GameResourceType.instantBuild] ?? 0,
+        instantRepairDelta: deltas[GameResourceType.instantRepair] ?? 0,
+        developmentMaterialDelta:
+            deltas[GameResourceType.developmentMaterial] ?? 0,
+        improvementMaterialDelta:
+            deltas[GameResourceType.improvementMaterial] ?? 0,
         rewardItems: rewards,
         radarReduced: radarReduced,
       ),

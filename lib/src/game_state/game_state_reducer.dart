@@ -38,6 +38,7 @@ class GameStateReducer {
           event.path == '/kcsapi/api_req_air_corps/change_name' ||
           event.path == '/kcsapi/api_port/airCorpsCondRecoveryWithTimer' ||
           event.path == '/kcsapi/api_req_quest/clearitemget' ||
+          event.path == '/kcsapi/api_req_quest/start' ||
           event.path == '/kcsapi/api_req_quest/stop',
     );
     final origin = event.sourceOrigin.isEmpty
@@ -244,6 +245,7 @@ class GameStateReducer {
         event,
         origin,
       ),
+      '/kcsapi/api_req_quest/start' => _acceptQuest(state, event, origin),
       '/kcsapi/api_get_member/ship2' ||
       '/kcsapi/api_get_member/ship3' ||
       '/kcsapi/api_get_member/ship_deck' => _shipAndDeck(
@@ -799,9 +801,13 @@ class GameStateReducer {
   Map<int, GameQuest> _parseQuests(
     Map<String, Object?> data,
     Map<int, GameQuest> existing,
-    DateTime updatedAt,
-  ) {
-    final quests = Map<int, GameQuest>.of(existing);
+    DateTime updatedAt, {
+    int minimumState = 2,
+    bool retainOnlyReturned = false,
+  }) {
+    final quests = retainOnlyReturned
+        ? <int, GameQuest>{}
+        : Map<int, GameQuest>.of(existing);
     for (final value in _optionalList(data['api_list'])) {
       final item = _optionalMap(value);
       final id = _asInt(item?['api_no']);
@@ -809,11 +815,15 @@ class GameStateReducer {
         continue;
       }
       final state = _asInt(item['api_state']);
-      if (state < 2) {
+      if (state < minimumState || state > 3) {
         quests.remove(id);
         continue;
       }
       final rawMaterials = _optionalList(item['api_get_material']);
+      final previous = existing[id];
+      final prior = previous != null && !previous.isExpired(updatedAt)
+          ? previous
+          : null;
       final materials = List<int>.generate(
         4,
         (index) =>
@@ -830,7 +840,7 @@ class GameStateReducer {
         progressFlag: _asInt(item['api_progress_flag']),
         materials: materials,
         progressCurrent: _serverAlignedQuestCount(
-          existing[id]?.progressCurrent ?? _knownQuestGoals[id]?.initial ?? 0,
+          prior?.progressCurrent ?? _knownQuestGoals[id]?.initial ?? 0,
           _knownQuestGoals[id]?.required,
           _asInt(item['api_progress_flag']),
           state == 3,
@@ -838,7 +848,7 @@ class GameStateReducer {
         progressRequired: _knownQuestGoals[id]?.required,
         localCompletionVerified: id == _f96QuestId && state != 3
             ? false
-            : existing[id]?.localCompletionVerified,
+            : prior?.localCompletionVerified,
         updatedAt: updatedAt,
       );
     }
@@ -907,6 +917,51 @@ class GameStateReducer {
     return changed ? state.copyWith(quests: quests) : state;
   }
 
+  bool _isCompleteQuestList(Map<String, Object?> data, CapturedApiEvent event) {
+    if (_asInt(event.requestParams['api_tab_id'], -1) != 0 ||
+        _asInt(data['api_page_count']) > 1 ||
+        data['api_list'] is! List) {
+      return false;
+    }
+    final rows = _optionalList(
+      data['api_list'],
+    ).map(_optionalMap).whereType<Map<String, Object?>>().toList();
+    if (rows.any(
+      (q) =>
+          _asInt(q['api_no']) <= 0 ||
+          _asInt(q['api_state']) < 1 ||
+          _asInt(q['api_state']) > 3,
+    )) {
+      return false;
+    }
+    final ids = rows.map((q) => _asInt(q['api_no'])).toSet();
+    return ids.length == rows.length &&
+        ids.length == _asInt(data['api_count'], -1) &&
+        rows.where((q) => _asInt(q['api_state']) >= 2).length ==
+            _asInt(data['api_exec_count'], -1);
+  }
+
+  GameState _acceptQuest(
+    GameState state,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final id = _asInt(event.requestParams['api_quest_id']);
+    final quest = state.quests[id] ?? state.availableQuests[id];
+    if (quest == null || quest.isAccepted) {
+      return state.copyWith(hasCompleteQuestData: false);
+    }
+    final accepted = quest.withState(2);
+    return state.copyWith(
+      quests: {...state.quests, id: accepted},
+      availableQuests: {...state.availableQuests, id: accepted},
+      hasCompleteQuestData: false,
+      activeQuestCount: state.activeQuestCount + 1,
+      serverOrigin: origin,
+      updatedAt: event.capturedAt,
+    );
+  }
+
   GameState _questList(
     GameState state,
     Map<String, Object?> data,
@@ -915,15 +970,26 @@ class GameStateReducer {
   ) {
     final activeCount = _asInt(data['api_exec_count']).clamp(0, 99);
     final isCompleteSnapshot =
-        _asInt(event.requestParams['yahagi_full_quest_snapshot']) == 1;
+        _asInt(event.requestParams['yahagi_full_quest_snapshot']) == 1 ||
+        _isCompleteQuestList(data, event);
     final quests = _parseQuests(
       data,
-      isCompleteSnapshot ? const <int, GameQuest>{} : state.quests,
+      state.quests,
       event.capturedAt,
+      retainOnlyReturned: isCompleteSnapshot,
+    );
+    final availableQuests = _parseQuests(
+      data,
+      {...state.availableQuests, ...state.quests},
+      event.capturedAt,
+      minimumState: 1,
+      retainOnlyReturned: isCompleteSnapshot,
     );
     return state.copyWith(
       quests: quests,
+      availableQuests: availableQuests,
       hasQuestData: true,
+      hasCompleteQuestData: isCompleteSnapshot,
       activeQuestCount: activeCount,
       serverOrigin: origin,
       updatedAt: event.capturedAt,
@@ -941,8 +1007,17 @@ class GameStateReducer {
     }
     final quests = Map<int, GameQuest>.of(state.quests);
     quests.remove(questId);
+    final availableQuests = Map<int, GameQuest>.of(state.availableQuests);
+    final quest = state.quests[questId] ?? availableQuests[questId];
+    if (event.path.endsWith('/stop') && quest != null) {
+      availableQuests[questId] = quest.withState(1);
+    } else {
+      availableQuests.remove(questId);
+    }
     return state.copyWith(
       quests: quests,
+      availableQuests: availableQuests,
+      hasCompleteQuestData: false,
       activeQuestCount: state.activeQuestCount > 0
           ? state.activeQuestCount - 1
           : 0,
