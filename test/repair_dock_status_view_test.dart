@@ -42,14 +42,41 @@ void main() {
     expect(measurements.paintedText.width, lessThan(measurements.naturalWidth));
     _expectHpInsideSlot(measurements);
   });
+
+  testWidgets('three-digit repair HP leaves usable progress width on phone', (
+    tester,
+  ) async {
+    const phoneSize = Size(390, 844);
+    await _pumpRepairDock(
+      tester,
+      size: phoneSize,
+      textScaler: const TextScaler.linear(1.3),
+    );
+
+    expect(tester.takeException(), isNull);
+    final measurements = _measureHp(tester);
+    final minimumUsableProgressWidth =
+        phoneSize.width -
+        28 - // RepairDockStatusView list padding.
+        24 - // Operation card padding.
+        102 - // HP slot.
+        20 - // Gap between HP and progress.
+        16; // Allow stable layout slack.
+    expect(
+      measurements.progress.width,
+      greaterThanOrEqualTo(minimumUsableProgressWidth),
+    );
+    _expectHpInsideSlot(measurements);
+  });
 }
 
 Future<void> _pumpRepairDock(
   WidgetTester tester, {
+  Size size = const Size(1024, 487),
   TextScaler textScaler = TextScaler.noScaling,
 }) async {
   tester.view.devicePixelRatio = 1;
-  tester.view.physicalSize = const Size(1024, 487);
+  tester.view.physicalSize = size;
   addTearDown(tester.view.resetDevicePixelRatio);
   addTearDown(tester.view.resetPhysicalSize);
   final completionTime = DateTime.now().add(const Duration(hours: 2));
@@ -83,9 +110,7 @@ Future<void> _pumpRepairDock(
     MaterialApp(
       theme: ThemeData(fontFamily: 'RepairDockTestFont'),
       home: MediaQuery(
-        data: const MediaQueryData(
-          size: Size(1024, 487),
-        ).copyWith(textScaler: textScaler),
+        data: MediaQueryData(size: size, textScaler: textScaler),
         child: Scaffold(body: RepairDockStatusView(state: state)),
       ),
     ),
@@ -96,10 +121,14 @@ _HpMeasurements _measureHp(WidgetTester tester) {
   final hpText = find.text('HP 100/120');
   expect(hpText, findsOneWidget);
   expect(tester.widget<Text>(hpText).softWrap, isFalse);
-  expect(
-    find.ancestor(of: hpText, matching: find.byType(FittedBox)),
-    findsOneWidget,
+  final fittedBoxFinder = find.ancestor(
+    of: hpText,
+    matching: find.byType(FittedBox),
   );
+  expect(fittedBoxFinder, findsOneWidget);
+  final fittedBox = tester.widget<FittedBox>(fittedBoxFinder);
+  expect(fittedBox.fit, BoxFit.scaleDown);
+  expect(fittedBox.alignment, Alignment.centerLeft);
 
   final textRender = tester.renderObject<RenderParagraph>(hpText);
 
@@ -114,6 +143,7 @@ _HpMeasurements _measureHp(WidgetTester tester) {
   return _HpMeasurements(
     hpSlot: hpSlot,
     paintedText: paintedText,
+    progress: progress,
     naturalWidth: textRender.size.width,
   );
 }
@@ -121,7 +151,7 @@ _HpMeasurements _measureHp(WidgetTester tester) {
 void _expectHpInsideSlot(_HpMeasurements measurements) {
   expect(
     measurements.paintedText.left,
-    greaterThanOrEqualTo(measurements.hpSlot.left),
+    closeTo(measurements.hpSlot.left, 0.01),
   );
   expect(
     measurements.paintedText.right,
@@ -133,10 +163,12 @@ class _HpMeasurements {
   const _HpMeasurements({
     required this.hpSlot,
     required this.paintedText,
+    required this.progress,
     required this.naturalWidth,
   });
 
   final Rect hpSlot;
   final Rect paintedText;
+  final Rect progress;
   final double naturalWidth;
 }
