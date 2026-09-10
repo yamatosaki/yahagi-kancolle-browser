@@ -257,7 +257,7 @@ class LandBaseAirGroupRow extends StatelessWidget {
                           sectionGap * 2 -
                           6) /
                       4)
-                  .clamp(24.0, maximumSlotWidth)
+                  .clamp(0.0, maximumSlotWidth)
                   .toDouble();
           final l10n =
               AppLocalizations.of(context) ??

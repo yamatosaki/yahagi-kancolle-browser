@@ -301,6 +301,29 @@ void main() {
     },
   );
 
+  testWidgets('very narrow dashboard column shrinks slots without overflow', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _row(
+        // The row's horizontal padding leaves the 217.8 px content width
+        // reported by the iPhone 17 Pro overflow.
+        width: 229.8,
+        base: _base(currentHp: 200, conditions: const <int>[1, 1, 1, 1]),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+
+    final slots = <Rect>[
+      for (var id = 1; id <= 4; id++)
+        tester.getRect(find.byKey(Key('land-base-slot-62-1-$id'))),
+    ];
+    for (final slot in slots) {
+      expect(slot.width, closeTo(18.45, 0.1));
+    }
+  });
+
   testWidgets('single-column spare width expands hp toward right slots', (
     tester,
   ) async {
