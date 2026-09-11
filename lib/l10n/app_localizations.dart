@@ -99,6 +99,18 @@ abstract class AppLocalizations {
     Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
   ];
 
+  /// No description provided for @questCompletionNotice.
+  ///
+  /// In zh, this message translates to:
+  /// **'有任务已完成'**
+  String get questCompletionNotice;
+
+  /// No description provided for @questCompletionCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 个任务已完成，待领取'**
+  String questCompletionCount(int count);
+
   /// No description provided for @resourceTrend90d.
   ///
   /// In zh, this message translates to:

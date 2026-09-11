@@ -9,6 +9,14 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get questCompletionNotice => '達成した任務があります';
+
+  @override
+  String questCompletionCount(int count) {
+    return '達成済み・報酬未受領の任務が$count件';
+  }
+
+  @override
   String get resourceTrend90d => '90日';
 
   @override

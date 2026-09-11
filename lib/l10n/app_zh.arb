@@ -1,4 +1,9 @@
 {
+  "questCompletionNotice": "有任务已完成",
+  "questCompletionCount": "{count} 个任务已完成，待领取",
+  "@questCompletionCount": {
+    "placeholders": { "count": { "type": "int" } }
+  },
   "resourceTrend90d": "90天",
   "resourceTrendInventoryTitle": "库存趋势",
   "resourceTrendCustomize": "显示资源",

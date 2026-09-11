@@ -1,4 +1,3 @@
-import '../localization/runtime_message_text.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
@@ -112,45 +111,6 @@ class GameBrowserToolbar extends StatelessWidget {
               icon: Icon(Icons.crop_free, size: persistent ? 18 : 16),
             ),
           ),
-          if (!persistent && displayAddress.isNotEmpty) ...<Widget>[
-            const SizedBox(width: 4),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 220),
-              child: Container(
-                height: 24,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.04),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.lock_outline,
-                      size: 11,
-                      color: Color(0xff70c7bc),
-                    ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        runtimeMessageText(context, displayAddress),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xff9bb0bb),
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
           if (loadState == GamePageLoadState.loading)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 6),

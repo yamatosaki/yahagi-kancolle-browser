@@ -1,4 +1,6 @@
 {
+  "questCompletionNotice": "有任務已完成",
+  "questCompletionCount": "{count} 個任務已完成，待領取",
   "resourceTrend90d": "90天",
   "resourceTrendInventoryTitle": "庫存趨勢",
   "resourceTrendCustomize": "顯示資源",

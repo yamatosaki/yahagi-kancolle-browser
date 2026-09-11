@@ -94,6 +94,8 @@ import 'src/improvement/improvement_favorites_store.dart';
 import 'src/improvement/improvement_planner_controller.dart';
 import 'src/prototype_status_controller.dart';
 import 'src/quest/pinned_quests_summary.dart';
+import 'src/quest/quest_completion_badge.dart';
+import 'src/quest/quest_completion_feedback.dart';
 import 'src/quest/quest_center_page.dart';
 import 'src/quest/quest_catalog_controller.dart';
 import 'src/quest/quest_catalog_store.dart';
@@ -1475,12 +1477,16 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                       widget.layoutSettingsController.workspaceMenuOnRight,
                 ),
                 children: [
-                  WorkspaceNavigation(
-                    controller: widget.layoutSettingsController,
-                    selectedIndex: _workspaceIndex,
-                    onRight:
-                        widget.layoutSettingsController.workspaceMenuOnRight,
-                    onSelected: _selectWorkspace,
+                  QuestCompletionFeedback(
+                    controller: widget.gameStateController,
+                    builder: (context, completedCount) => WorkspaceNavigation(
+                      controller: widget.layoutSettingsController,
+                      selectedIndex: _workspaceIndex,
+                      onRight:
+                          widget.layoutSettingsController.workspaceMenuOnRight,
+                      onSelected: _selectWorkspace,
+                      completedQuestCount: completedCount,
+                    ),
                   ),
                   Expanded(
                     child: Stack(
@@ -1899,12 +1905,14 @@ class WorkspaceNavigation extends StatelessWidget {
     required this.selectedIndex,
     required this.onRight,
     required this.onSelected,
+    this.completedQuestCount = 0,
   });
 
   final LayoutSettingsController controller;
   final int selectedIndex;
   final bool onRight;
   final ValueChanged<int> onSelected;
+  final int completedQuestCount;
 
   @override
   Widget build(BuildContext context) {
@@ -1941,6 +1949,9 @@ class WorkspaceNavigation extends StatelessWidget {
                       key: Key('workspace-nav-${destination.id}'),
                       icon: destination.icon,
                       label: destination.label,
+                      completedCount: destination.id == 'quests'
+                          ? completedQuestCount
+                          : 0,
                       selected: selectedIndex == destination.pageIndex,
                       onTap: () => onSelected(destination.pageIndex),
                     ),
@@ -2047,12 +2058,14 @@ class _NavigationButton extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.completedCount = 0,
   });
 
   final IconData icon;
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final int completedCount;
 
   @override
   Widget build(BuildContext context) {
@@ -2071,7 +2084,10 @@ class _NavigationButton extends StatelessWidget {
               : Colors.transparent,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
         ),
-        icon: Icon(icon, size: 20),
+        icon: QuestCompletionBadge(
+          count: completedCount,
+          child: Icon(icon, size: 20),
+        ),
       ),
     );
   }

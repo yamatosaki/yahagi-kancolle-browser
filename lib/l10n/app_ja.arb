@@ -1,4 +1,6 @@
 {
+  "questCompletionNotice": "達成した任務があります",
+  "questCompletionCount": "達成済み・報酬未受領の任務が{count}件",
   "resourceTrend90d": "90日",
   "resourceTrendInventoryTitle": "在庫推移",
   "resourceTrendCustomize": "表示する資源",

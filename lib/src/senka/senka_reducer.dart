@@ -507,13 +507,19 @@ class SenkaReducer {
       for (var candidate = 10; candidate <= 99; candidate++)
         if (divisor % candidate == 0) candidate,
     ];
-    final historicalCandidate = _magicFromHistory(state, rows, candidates);
-    if (historicalCandidate != null) return historicalCandidate;
     final preferred = state.magic > 9
         ? state.magic
         : state.memberId > 0
         ? _magicLeft[state.memberId % 10]
         : 0;
+    // An incompatible old factor also makes its decoded history unreliable.
+    // Match poi's calibration fallback: use the largest two-digit divisor,
+    // including composite factors, instead of falling back to the old table.
+    if (!candidates.contains(preferred)) {
+      return candidates.isEmpty ? null : candidates.last;
+    }
+    final historicalCandidate = _magicFromHistory(state, rows, candidates);
+    if (historicalCandidate != null) return historicalCandidate;
     if (preferred >= 10 && preferred <= 99 && divisor % preferred == 0) {
       return preferred;
     }

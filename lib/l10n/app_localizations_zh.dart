@@ -9,6 +9,14 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get questCompletionNotice => '有任务已完成';
+
+  @override
+  String questCompletionCount(int count) {
+    return '$count 个任务已完成，待领取';
+  }
+
+  @override
   String get resourceTrend90d => '90天';
 
   @override
@@ -2947,6 +2955,14 @@ class AppLocalizationsZh extends AppLocalizations {
 /// The translations for Chinese, using the Han script (`zh_Hant`).
 class AppLocalizationsZhHant extends AppLocalizationsZh {
   AppLocalizationsZhHant() : super('zh_Hant');
+
+  @override
+  String get questCompletionNotice => '有任務已完成';
+
+  @override
+  String questCompletionCount(int count) {
+    return '$count 個任務已完成，待領取';
+  }
 
   @override
   String get resourceTrend90d => '90天';

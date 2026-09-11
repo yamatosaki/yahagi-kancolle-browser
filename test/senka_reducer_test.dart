@@ -129,6 +129,86 @@ void main() {
     expect(state.magic, 36);
   });
 
+  test('复合解密系数不能回退到无法整除当前排名的旧账号系数', () {
+    final state = reducer.reduce(
+      SenkaState.forMonth('2026-08').copyWith(memberId: 120, nickname: '本人'),
+      rankingEvent(
+        page: 40,
+        rows: [
+          rankingRow(rank: 391, senka: 451, nickname: '其他', magic: 78),
+          rankingRow(rank: 392, senka: 450, nickname: '本人', magic: 78),
+        ],
+        atJst: DateTime(2026, 8, 10, 15),
+      ),
+    );
+
+    // The legacy account factor 36 would turn 450 into 1081.1666... .
+    expect(state.playerRankingRow.senka, 450);
+    expect(state.calculatorCurrentSenka, 450);
+    expect(state.magic, 78);
+  });
+
+  test('顶部排名 747 保持正确时仍可因旧系数把 488 战果放大为 1453', () {
+    // Synthetic payload matching the report's scale, not a captured user API.
+    // Rank 747 uses right factor 3779; legacy factor 36 misdecodes this as 1453.
+    const encrypted = (488 + 91) * 96 * 3779;
+    expect(encrypted / 3779 / 36 - 91, 1453);
+    final state = reducer.reduce(
+      SenkaState.forMonth('2026-08').copyWith(memberId: 120, nickname: '本人'),
+      rankingEvent(
+        page: 75,
+        rows: [
+          rankingRow(rank: 746, senka: 489, nickname: '其他', magic: 96),
+          rankingEncryptedRow(
+            rank: 747,
+            encrypted: encrypted,
+            nickname: '本人',
+          ),
+        ],
+        atJst: DateTime(2026, 8, 10, 15),
+      ),
+    );
+
+    expect(state.playerRankingRow.rank, 747);
+    expect(state.playerRankingRow.senka, 488);
+    expect(state.calculatorCurrentSenka, 488);
+    expect(state.magic, 96);
+  });
+
+  test('旧系数失效时不能用错误历史战果选择新系数', () {
+    final oldSenka = (450 + 91) * 78 / 36 - 91;
+    final state = reducer.reduce(
+      SenkaState.forMonth('2026-08').copyWith(
+        memberId: 120,
+        nickname: '本人',
+        magic: 36,
+        calculatorCurrentSenka: oldSenka,
+        rankingHistory: {
+          'player': [
+            SenkaRankingSnapshot(
+              rank: 392,
+              senka: oldSenka,
+              capturedAt: DateTime.utc(2026, 8, 10, 5),
+              localSenkaAtCapture: 0,
+            ),
+          ],
+        },
+      ),
+      rankingEvent(
+        page: 40,
+        rows: [
+          rankingRow(rank: 391, senka: 452, nickname: '其他', magic: 78),
+          rankingRow(rank: 392, senka: 451, nickname: '本人', magic: 78),
+        ],
+        atJst: DateTime(2026, 8, 10, 15),
+      ),
+    );
+
+    expect(state.playerRankingRow.senka, 451);
+    expect(state.calculatorCurrentSenka, 451);
+    expect(state.magic, 78);
+  });
+
   test('旧排名事件不会覆盖更新的排名快照', () {
     var state = SenkaState.forMonth(
       '2026-08',

@@ -4,7 +4,7 @@ import 'package:yahagi_kancolle_browser/src/browser/game_browser_controller.dart
 import 'package:yahagi_kancolle_browser/src/browser/game_browser_toolbar.dart';
 
 void main() {
-  testWidgets('real web mode shows safe address and browser controls', (
+  testWidgets('real web mode shows browser controls without an address', (
     tester,
   ) async {
     var backCalls = 0;
@@ -34,7 +34,7 @@ void main() {
       ),
     );
 
-    expect(find.text('https://accounts.dmm.com/login'), findsOneWidget);
+    expect(find.text('https://accounts.dmm.com/login'), findsNothing);
     expect(find.textContaining('token='), findsNothing);
 
     await tester.tap(find.byKey(const Key('browser-back')));
@@ -78,7 +78,7 @@ void main() {
       ),
     );
 
-    expect(find.text('本地模拟页'), findsOneWidget);
+    expect(find.text('本地模拟页'), findsNothing);
     expect(find.byKey(const Key('browser-enter-dmm')), findsOneWidget);
     expect(find.byIcon(Icons.volume_off_outlined), findsOneWidget);
 
