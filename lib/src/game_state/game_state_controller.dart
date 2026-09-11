@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 
 import '../bridge/captured_api_event.dart';
 import '../quest/quest_store.dart';
+import '../quest/quest_progress_engine.dart';
+import '../battle/battle_models.dart';
 import '../performance/frame_notification_coalescer.dart';
 import 'game_state.dart';
 import 'game_api_event_pipeline.dart';
@@ -19,6 +21,7 @@ final class GameStateController extends ChangeNotifier
   GameStateController({
     GameStateReducer? reducer,
     this.questStore,
+    this.questProgress,
     this.gameStateStore,
     LogbookEventRecorder? logbookRecorder,
     FrameNotificationCoalescer? captureNotifications,
@@ -37,6 +40,11 @@ final class GameStateController extends ChangeNotifier
   final FrameNotificationCoalescer _captureNotifications;
   final TimerMechanicsService _timerService;
   final QuestStore? questStore;
+  final QuestProgressEngine? questProgress;
+  LiveBattle? Function()? questBattleSnapshot;
+  bool Function()? questBattleTrusted;
+  Set<int> get completedQuestIds =>
+      questProgress?.completedIds(DateTime.now().toUtc()) ?? const {};
   final GameStateStore? gameStateStore;
   Timer? _expirationTimer;
   late final Future<void> _initialization;
@@ -49,11 +57,22 @@ final class GameStateController extends ChangeNotifier
   Future<void> _initialize() async {
     await _initQuests();
     await _initGameState();
+    if (questProgress != null) {
+      _state = await questProgress!.restore(_state, DateTime.now().toUtc());
+    }
   }
 
   void _startExpirationTimer() {
     if (disableTimerForTest) return;
     _expirationTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      final expiredState = questProgress?.expire(
+        _state,
+        DateTime.now().toUtc(),
+      );
+      if (expiredState != null && !identical(expiredState, _state)) {
+        _state = expiredState;
+        notifyListeners();
+      }
       if (_state.quests.isEmpty && _state.availableQuests.isEmpty) return;
 
       final now = DateTime.now().toUtc();
@@ -128,6 +147,11 @@ final class GameStateController extends ChangeNotifier
   }
 
   Future<void> clearQuestsCache() async {
+    if (questProgress != null) {
+      await _initialization;
+      await _queue;
+      await questProgress!.clear();
+    }
     if (questStore != null) {
       await questStore!.clearQuests();
     }
@@ -167,7 +191,11 @@ final class GameStateController extends ChangeNotifier
 
   @override
   bool supportsPath(String path) {
-    return _reducer.supportsPath(path) || _logbookRecorder.supports(path);
+    return _reducer.supportsPath(path) ||
+        _logbookRecorder.supports(path) ||
+        (questProgress != null &&
+            (path == '/kcsapi/api_req_practice/battle' ||
+                path == '/kcsapi/api_req_kousyou/remodel_slot'));
   }
 
   @override
@@ -176,11 +204,14 @@ final class GameStateController extends ChangeNotifier
       return;
     }
     _hasAcceptedLiveEvent = true;
+    final questBattle = questBattleSnapshot?.call();
+    final questBattleIsTrusted = questBattleTrusted?.call() ?? false;
     _queue = _queue.then((_) async {
       if (_disposed) {
         return;
       }
       try {
+        if (questProgress != null) await _initialization;
         final previous = _state;
         if (_logbookRecorder.supports(event.path)) {
           _logbookQueue = _logbookQueue.then((_) async {
@@ -192,7 +223,16 @@ final class GameStateController extends ChangeNotifier
             }
           });
         }
-        final next = _reducer.reduce(previous, event);
+        var next = _reducer.reduce(previous, event);
+        if (questProgress != null) {
+          next = await questProgress!.process(
+            previous,
+            next,
+            event,
+            battle: questBattle,
+            battleTrusted: questBattleIsTrusted,
+          );
+        }
         if (!identical(next, previous)) {
           _timerService.observe(
             previousState: previous,

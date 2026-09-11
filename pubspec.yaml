@@ -84,6 +84,8 @@ flutter:
     - assets/data/fcd/map.json
     - assets/data/quests-scn.json
     - assets/data/quests-meta.json
+    - assets/data/quest-progress-goals.json
+    - assets/data/poi-quest-LICENSE.txt
     - assets/data/improvement/
     - assets/data/development/
     - assets/data/game_resource_static_catalog.json

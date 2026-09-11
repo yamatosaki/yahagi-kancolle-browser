@@ -9,6 +9,7 @@ import '../game_state/quest_text_normalizer.dart';
 import '../widgets/filter_controls.dart';
 import '../widgets/adaptive_input_dialog.dart';
 import 'quest_catalog.dart';
+import 'quest_progress_engine.dart';
 import 'quest_catalog_controller.dart';
 
 enum QuestCenterMode { active, all }
@@ -653,6 +654,13 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
                         final detail = _QuestDetail(
                           key: const Key('quest-detail-panel'),
                           entry: selected,
+                          serverProgress:
+                              live[selected.id]?.serverProgressPercentLabel,
+                          steps:
+                              widget.controller.questProgress?.stepsFor(
+                                selected.id,
+                              ) ??
+                              const [],
                           title: _translationEnabled
                               ? _catalog
                                         ?.byGameId(selected.id)
@@ -756,13 +764,15 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
         identical(_projectedCatalog, catalog) &&
         identical(_projectedLiveQuests, live) &&
         identical(_projectedAvailableQuests, available) &&
-        _projectedIsComplete == isComplete) {
+        _projectedIsComplete == isComplete &&
+        widget.controller.questProgress == null) {
       return cached;
     }
-    final projection = catalog.project({
-      ...available,
-      ...live,
-    }, isComplete: isComplete);
+    final projection = catalog.project(
+      {...available, ...live},
+      isComplete: isComplete,
+      confirmedCompleted: widget.controller.completedQuestIds,
+    );
     _projectedCatalog = catalog;
     _projectedLiveQuests = live;
     _projectedAvailableQuests = available;
@@ -1000,12 +1010,16 @@ class _QuestDetail extends StatelessWidget {
     required this.title,
     required this.detail,
     required this.onRelationSelected,
+    this.steps = const [],
+    this.serverProgress,
   });
 
   final _QuestViewEntry entry;
   final String title;
   final String detail;
   final ValueChanged<int> onRelationSelected;
+  final List<QuestStepProgress> steps;
+  final String? serverProgress;
 
   @override
   Widget build(BuildContext context) {
@@ -1054,10 +1068,11 @@ class _QuestDetail extends StatelessWidget {
                   label: entry.periodLabel(context),
                   color: entry.periodColor,
                 ),
-                _SmallTag(
-                  label: entry.progressLabel,
-                  color: entry.progressColor,
-                ),
+                if (entry.exactProgress == null)
+                  _SmallTag(
+                    label: entry.progressLabel,
+                    color: entry.progressColor,
+                  ),
                 _StatusBadge(
                   key: Key('quest-detail-status-${entry.id}'),
                   entry: entry,
@@ -1080,6 +1095,51 @@ class _QuestDetail extends StatelessWidget {
                 style: const TextStyle(fontSize: 13, height: 1.45),
               ),
             ),
+            if (steps.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              _DetailCard(
+                title: Localizations.localeOf(context).languageCode == 'ja'
+                    ? 'ローカル進捗'
+                    : Localizations.localeOf(context).scriptCode == 'Hant'
+                    ? '本機進度'
+                    : '本地进度',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (serverProgress != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          "${Localizations.localeOf(context).languageCode == 'ja'
+                              ? 'サーバー進捗'
+                              : Localizations.localeOf(context).scriptCode == 'Hant'
+                              ? '伺服器進度'
+                              : '服务器进度'}：$serverProgress",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xff8da7b7),
+                          ),
+                        ),
+                      ),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        for (final step in steps)
+                          Text(
+                            '${step.description}  ${step.count}/${step.required}',
+                            style: TextStyle(
+                              color: step.count >= step.required
+                                  ? const Color(0xff67d6a3)
+                                  : const Color(0xffdbe8ef),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
             if (entry.memo.isNotEmpty) ...[
               const SizedBox(height: 8),
               _DetailCard(
@@ -1475,7 +1535,7 @@ class _QuestViewEntry {
       detail: quest.detail,
       category: quest.category,
       period: quest.type,
-      progressLabel: quest.progressPercentLabel,
+      progressLabel: quest.exactProgressLabel ?? quest.progressPercentLabel,
       completed: quest.isCompleted,
       locked: false,
       unlockState: QuestUnlockState.unlocked,
@@ -1485,7 +1545,7 @@ class _QuestViewEntry {
       allMode: false,
       materials: quest.materials,
       rewardsText: '',
-      memo: '',
+      memo: doc?.memo ?? '',
       exactProgress: quest.exactProgressLabel,
       prerequisites: doc == null
           ? const <QuestCatalogEntry>[]
@@ -1596,6 +1656,13 @@ class _QuestViewEntry {
   };
 
   Color get progressColor {
+    if (completed) return const Color(0xff67d2a6);
+    final fraction = progressLabel.split('/');
+    if (fraction.length == 2) {
+      final current = int.tryParse(fraction[0]) ?? 0;
+      final total = int.tryParse(fraction[1]) ?? 0;
+      if (total > 0 && current * 2 >= total) return const Color(0xffe0ad4f);
+    }
     if (progressLabel == '100%' || progressLabel == '50%+') {
       return const Color(0xff67d2a6);
     }

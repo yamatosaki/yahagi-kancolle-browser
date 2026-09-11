@@ -175,7 +175,7 @@ class QuestCatalog {
               translatedDescription:
                   entry.translatedDescription ?? local.translatedDescription,
               rewards: entry.rewards,
-              memo: entry.memo,
+              memo: entry.memo.trim().isEmpty ? local.memo : entry.memo,
               prerequisites: entry.prerequisites,
             )
           else
@@ -194,8 +194,9 @@ class QuestCatalog {
   QuestCatalogProjection project(
     Map<int, GameQuest> liveQuests, {
     bool isComplete = true,
+    Set<int> confirmedCompleted = const {},
   }) {
-    final completed = <int>{};
+    final completed = <int>{...confirmedCompleted};
     final locked = <int>{};
 
     void walkPrerequisites(int gameId) {
@@ -323,7 +324,9 @@ class QuestCatalogItem {
 
   int get gameId => entry.gameId;
   String get progressLabel =>
-      liveQuest?.progressPercentLabel ?? (inferredCompleted ? '100%' : '—');
+      liveQuest?.exactProgressLabel ??
+      liveQuest?.progressPercentLabel ??
+      (inferredCompleted ? '100%' : '—');
 }
 
 class QuestCatalogProjection {

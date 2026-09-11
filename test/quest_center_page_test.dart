@@ -77,7 +77,7 @@ void main() {
     expect(find.byKey(const Key('quest-filter-button')), findsNothing);
     expect(find.byKey(const Key('quest-card-201')), findsOneWidget);
     expect(find.byKey(const Key('quest-card-402')), findsOneWidget);
-    expect(find.text('50%+'), findsWidgets);
+    expect(find.text('0/1'), findsWidgets);
     expect(
       find.descendant(
         of: find.byKey(const Key('quest-card-status-201')),
@@ -349,13 +349,13 @@ void main() {
       find.byKey(const Key('quest-detail-exact-progress-503')),
       findsOneWidget,
     );
-    expect(find.text('1/5'), findsOneWidget);
+    expect(find.text('1/5'), findsNWidgets(2));
     expect(
       find.descendant(
         of: find.byKey(const Key('quest-card-503')),
         matching: find.text('1/5'),
       ),
-      findsNothing,
+      findsOneWidget,
     );
     controller.dispose();
   });
@@ -397,7 +397,7 @@ void main() {
         MaterialApp(home: QuestCenterPage(controller: controller)),
       );
 
-      expect(find.text('5/5'), findsOneWidget);
+      expect(find.text('5/5'), findsNWidgets(2));
       expect(
         find.descendant(
           of: find.byKey(const Key('quest-detail-status-503')),
@@ -719,9 +719,14 @@ final class _CountingQuestCatalog extends QuestCatalog {
   QuestCatalogProjection project(
     Map<int, GameQuest> liveQuests, {
     bool isComplete = true,
+    Set<int> confirmedCompleted = const {},
   }) {
     projectCalls += 1;
-    return super.project(liveQuests, isComplete: isComplete);
+    return super.project(
+      liveQuests,
+      isComplete: isComplete,
+      confirmedCompleted: confirmedCompleted,
+    );
   }
 }
 

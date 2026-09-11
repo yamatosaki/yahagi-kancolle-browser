@@ -666,6 +666,14 @@ class GameQuest {
     );
   }
 
+  String get serverProgressPercentLabel => isServerCompleted
+      ? '100%'
+      : switch (progressFlag) {
+          1 => '50%+',
+          2 => '80%+',
+          _ => '＜50%',
+        };
+
   String get progressPercentLabel {
     if (isCompleted) {
       return '100%';

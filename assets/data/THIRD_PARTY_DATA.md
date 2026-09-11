@@ -2,7 +2,7 @@
 
 ## 舰队 Collection 任务目录
 
-`quests-scn.json` 是合并目录：日文任务名称、说明和奖励来自 [Kcanotify game data](https://github.com/antest1/kcanotify-gamedata) 的 `quests-jp.json`，英文编号和前置任务关系来自 [kcWiki kcQuests](https://github.com/kcwikizh/kcQuests)。应用在本地由前置关系反向生成后置关系，并参考 [poi-plugin-quest-info-2](https://github.com/lawvs/poi-plugin-quest-2) 的任务链算法推断已解锁和未解锁状态。数据可能存在更新延迟，实际状态以游戏为准。
+`quests-scn.json` 是合并目录：日文任务名称、说明和奖励来自 [Kcanotify game data](https://github.com/antest1/kcanotify-gamedata) 的 `quests-jp.json`，任务中文译文、完成条件（舰队、海域、胜利等级与次数）、英文编号和前置任务关系来自 [kcWiki kcQuests](https://github.com/kcwikizh/kcQuests)。应用在本地由前置关系反向生成后置关系，并参考 [poi-plugin-quest-info-2](https://github.com/lawvs/poi-plugin-quest-2) 的任务链算法推断已解锁和未解锁状态。数据可能存在更新延迟，实际状态以游戏为准。
 
 本目录下的 `equipment_fit_bonuses.json` 数据集由本项目从第三方网站**派生整理**（derived data），不是本项目独立创作的数据，也不属于第三方站点或其运营者的官方数据。
 
@@ -52,3 +52,7 @@
 参考项目作者已经通过项目维护者与本项目沟通，同意在本功能中使用相关数据和计算行为，并明确要求不复制其 UI。Yahagi 使用独立的「开发指挥台」界面，未复制参考站的 Vue 组件、CSS、图片或页面布局。计算实现为本项目中的独立 Dart 实现，并通过固定数值向量做兼容性回归。
 
 快照可能存在更新延迟或社区整理误差，实际开发结果以游戏为准。同步工具会写入来源仓库、提交号和每个源文件的 SHA-256，以便复核和重现。
+
+## 本地任务进度规则
+
+`quest-progress-goals.json` 派生自 POI 的 `assets/data/quest_goal.cson`（MIT，版权声明见 `poi-quest-LICENSE.txt`）。锁定提交及本地补充规则的来源记录在 `quest-progress-sources.json`。B182 补充四个独立地图目标，7-2 仅第二 Boss（13/M 节点）计数。规则覆盖不等同于游戏全部任务；涉及额外资源交付的工厂任务只显示已观察到的计数，未核验条件不触发本地完成。

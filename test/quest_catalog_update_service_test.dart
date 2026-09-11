@@ -10,7 +10,7 @@ import 'package:yahagi_kancolle_browser/src/quest/quest_catalog_update_service.d
 
 void main() {
   String raw(String name) => jsonEncode(<String, Object?>{
-    '1': <String, Object?>{'code': 'A1', 'name': name, 'desc': ''},
+    '1': <String, Object?>{'code': 'A1', 'name': name, 'desc': '', 'memo2': ''},
   });
 
   QuestCatalogDataset dataset(String name, int day, String sha) {
@@ -175,6 +175,61 @@ void main() {
     expect(saved.rewards, '日本語報酬');
     expect(saved.prerequisites, <String>['Fd4']);
   });
+
+  test(
+    'same upstream revision repairs legacy data but skips complete data',
+    () async {
+      final legacyRaw = jsonEncode({
+        '1': {'code': 'A1', 'name': 'old', 'desc': ''},
+      });
+      final current = QuestCatalogDataset.parse(
+        rawJson: legacyRaw,
+        version: QuestCatalogVersion(
+          committedAt: DateTime.utc(2026, 8, 1),
+          commitSha: 'a' * 40,
+          sha256: sha256.convert(utf8.encode(legacyRaw)).toString(),
+        ),
+        minimumQuestCount: 1,
+      );
+      var downloads = 0;
+      final storage = _Storage(current);
+      final service = QuestCatalogUpdateService(
+        client: MockClient((request) async {
+          if (request.url.host == 'api.github.com') {
+            return http.Response(
+              jsonEncode([
+                {
+                  'sha': 'a' * 40,
+                  'commit': {
+                    'committer': {'date': '2026-08-01T00:00:00Z'},
+                  },
+                },
+              ]),
+              200,
+            );
+          }
+          downloads++;
+          return http.Response(
+            jsonEncode({
+              '1': {'code': 'A1', 'name': 'name', 'desc': '', 'memo2': '1-1 S'},
+            }),
+            200,
+          );
+        }),
+        store: QuestCatalogStore(storage, minimumQuestCount: 1),
+        minimumQuestCount: 1,
+      );
+      final result = await service.checkAndUpdate(current: current);
+      expect(result, isA<QuestCatalogUpdated>());
+      expect(storage.saved!.catalog.byGameId(1)!.memo, '1-1 S');
+      expect(downloads, 2);
+      expect(
+        await service.checkAndUpdate(current: storage.saved!),
+        isA<QuestCatalogUpToDate>(),
+      );
+      expect(downloads, 2);
+    },
+  );
 
   test('keeps current catalog when either upstream fails', () async {
     final current = dataset('old', 1, 'a' * 40);

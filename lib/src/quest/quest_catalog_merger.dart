@@ -40,6 +40,7 @@ String mergeQuestCatalogJson({
       'code': code,
       'name': name,
       'desc': description,
+      'memo2': _optionalString(relation, 'memo2') ?? '',
       if (display['rewards'] case final String rewards) 'rewards': rewards,
       if (display['resources'] case final List resources)
         'resources': resources,

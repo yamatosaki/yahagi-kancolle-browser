@@ -30,6 +30,7 @@ abstract final class GameCapturePathCatalog {
     '/kcsapi/api_req_kaisou/slot_exchange_index',
     '/kcsapi/api_req_kousyou/createship',
     '/kcsapi/api_req_kousyou/createitem',
+    '/kcsapi/api_req_kousyou/remodel_slot',
     '/kcsapi/api_req_kousyou/destroyship',
     '/kcsapi/api_req_kousyou/destroyitem2',
     '/kcsapi/api_req_kousyou/createship_speedchange',

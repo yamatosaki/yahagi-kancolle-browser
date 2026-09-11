@@ -79,7 +79,10 @@ final class QuestCatalogUpdateService implements QuestCatalogUpdateClient {
       final displayRevision = revisions[0];
       final relationRevision = revisions[1];
       if (displayRevision.sha == current.version.displayCommitSha &&
-          relationRevision.sha == current.version.relationCommitSha) {
+          relationRevision.sha == current.version.relationCommitSha &&
+          (jsonDecode(current.rawJson) as Map<String, dynamic>).values.every(
+            (entry) => (entry as Map<String, dynamic>).containsKey('memo2'),
+          )) {
         final result = QuestCatalogUpToDate(
           current.version,
           sourceHost: 'api.github.com',
