@@ -8,6 +8,7 @@ import '../performance/second_tick_scope.dart';
 import 'anchorage_repair_calculator.dart';
 import 'anchorage_repair_view.dart';
 import 'dashboard_card.dart';
+import '../settings/module_display_settings.dart';
 import 'nosaki_sparkle_calculator.dart';
 import 'operation_progress.dart';
 import 'ship_portrait.dart';
@@ -24,8 +25,12 @@ class RepairSummaryCard extends StatefulWidget {
     required this.collapsed,
     required this.onToggleCollapse,
     required this.onOpenRepair,
+    this.visible = const {'portrait', 'empty'},
+    this.onOpenDisplaySettings,
   });
 
+  final Set<String> visible;
+  final VoidCallback? onOpenDisplaySettings;
   final GameStateController controller;
   final bool collapsed;
   final VoidCallback onToggleCollapse;
@@ -60,6 +65,11 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
             AppLocalizations.of(context) ??
             lookupAppLocalizations(const Locale('zh'));
         return DashboardCard(
+          headerAction: moduleDisplayGear(
+            context,
+            'repair',
+            widget.onOpenDisplaySettings,
+          ),
           title: strings.repairBrief,
           icon: const Icon(Icons.build_circle_outlined),
           collapsed: widget.collapsed,
@@ -86,45 +96,19 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
 
   Widget _buildDockGrid(GameState state, AppLocalizations strings) {
     final docks = state.repairDocks;
-    return Column(
+    return ModuleSlotGrid(
       key: const Key('repair-summary-dock-grid'),
+      emptyLabel: '暂无修理',
       children: [
-        Row(
-          children: [
+        for (var i = 0; i < 4; i++)
+          if (widget.visible.contains('empty') ||
+              (docks.length > i && docks[i].isRepairing))
             _buildDockSlot(
-              1,
-              docks.isNotEmpty ? docks[0] : null,
+              i + 1,
+              docks.length > i ? docks[i] : null,
               state,
               strings,
             ),
-            const SizedBox(width: 8),
-            _buildDockSlot(
-              2,
-              docks.length > 1 ? docks[1] : null,
-              state,
-              strings,
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            _buildDockSlot(
-              3,
-              docks.length > 2 ? docks[2] : null,
-              state,
-              strings,
-            ),
-            const SizedBox(width: 8),
-            _buildDockSlot(
-              4,
-              docks.length > 3 ? docks[3] : null,
-              state,
-              strings,
-            ),
-          ],
-        ),
-        const SizedBox(height: 2),
       ],
     );
   }
@@ -160,10 +144,11 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
         dock?.completionTime != null &&
         !_now.isBefore(dock!.completionTime!);
     return _RepairCapsule(
+      showPortrait: widget.visible.contains('portrait'),
       key: Key('repair-summary-dock-slot-$position'),
       state: state,
       master: master,
-      name: name,
+      name: widget.visible.contains('empty') ? name : '$position · $name',
       disabled: disabled,
       fitFullName: true,
       dotColor: active
@@ -222,22 +207,21 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
           onSelected: (id) => setState(() => _selectedFleetId = id),
         ),
         const SizedBox(height: 8),
-        for (var row = 0; row < 3; row++) ...[
-          Row(
-            children: [
-              _buildAnchorageSlot(row * 2, fleetId, state, projection, strings),
-              const SizedBox(width: 8),
-              _buildAnchorageSlot(
-                row * 2 + 1,
-                fleetId,
-                state,
-                projection,
-                strings,
-              ),
-            ],
-          ),
-          if (row < 2) const SizedBox(height: 8),
-        ],
+        ModuleSlotGrid(
+          emptyLabel: '暂无舰娘',
+          children: [
+            for (var position = 0; position < 6; position++)
+              if (widget.visible.contains('empty') ||
+                  state.shipsForFleet(fleetId).length > position)
+                _buildAnchorageSlot(
+                  position,
+                  fleetId,
+                  state,
+                  projection,
+                  strings,
+                ),
+          ],
+        ),
         const SizedBox(height: 2),
       ],
     );
@@ -254,11 +238,18 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
         .where((candidate) => candidate.position == position)
         .firstOrNull;
     if (row == null) {
+      final ships = state.shipsForFleet(fleetId);
+      final ship = position < ships.length ? ships[position] : null;
+      final master = ship == null ? null : state.masterForShip(ship);
       return _RepairCapsule(
+        showPortrait: widget.visible.contains('portrait'),
         key: Key('repair-summary-anchorage-slot-$position'),
         contentKey: const Key('repair-summary-anchorage-slot'),
         state: state,
-        name: strings.idle,
+        master: master,
+        name: master == null
+            ? strings.idle
+            : '${widget.visible.contains('empty') ? '' : '${position + 1} · '}${master.name}',
         disabled: false,
         detail: Text(
           strings.inactive,
@@ -272,11 +263,13 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
 
     final visual = _anchorageVisual(row.status, strings, row.remaining);
     return _RepairCapsule(
+      showPortrait: widget.visible.contains('portrait'),
       key: Key('repair-summary-anchorage-slot-$position'),
       contentKey: const Key('repair-summary-anchorage-slot'),
       state: state,
       master: row.master,
-      name: row.master?.name ?? fleetText(context, '未知'),
+      name:
+          '${widget.visible.contains('empty') ? '' : '${position + 1} · '}${row.master?.name ?? fleetText(context, '未知')}',
       disabled: false,
       fitFullName: true,
       dotColor: visual.color,
@@ -320,22 +313,15 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
           onSelected: (id) => setState(() => _selectedFleetId = id),
         ),
         const SizedBox(height: 8),
-        for (var row = 0; row < 3; row++) ...[
-          Row(
-            children: [
-              _buildNosakiSlot(row * 2, fleetId, state, projection, strings),
-              const SizedBox(width: 8),
-              _buildNosakiSlot(
-                row * 2 + 1,
-                fleetId,
-                state,
-                projection,
-                strings,
-              ),
-            ],
-          ),
-          if (row < 2) const SizedBox(height: 8),
-        ],
+        ModuleSlotGrid(
+          emptyLabel: '暂无舰娘',
+          children: [
+            for (var position = 0; position < 6; position++)
+              if (widget.visible.contains('empty') ||
+                  state.shipsForFleet(fleetId).length > position)
+                _buildNosakiSlot(position, fleetId, state, projection, strings),
+          ],
+        ),
         const SizedBox(height: 2),
       ],
     );
@@ -352,11 +338,18 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
         .where((candidate) => candidate.position == position)
         .firstOrNull;
     if (row == null) {
+      final ships = state.shipsForFleet(fleetId);
+      final ship = position < ships.length ? ships[position] : null;
+      final master = ship == null ? null : state.masterForShip(ship);
       return _RepairCapsule(
+        showPortrait: widget.visible.contains('portrait'),
         key: Key('repair-summary-nosaki-slot-$position'),
         contentKey: const Key('repair-summary-nosaki-slot'),
         state: state,
-        name: strings.idle,
+        master: master,
+        name: master == null
+            ? strings.idle
+            : '${widget.visible.contains('empty') ? '' : '${position + 1} · '}${master.name}',
         disabled: false,
         detail: Text(
           strings.inactive,
@@ -370,11 +363,13 @@ class _RepairSummaryCardState extends State<RepairSummaryCard> {
 
     final visual = _nosakiVisual(row.status, row.currentCond);
     return _RepairCapsule(
+      showPortrait: widget.visible.contains('portrait'),
       key: Key('repair-summary-nosaki-slot-$position'),
       contentKey: const Key('repair-summary-nosaki-slot'),
       state: state,
       master: row.master,
-      name: row.master?.name ?? fleetText(context, '未知'),
+      name:
+          '${widget.visible.contains('empty') ? '' : '${position + 1} · '}${row.master?.name ?? fleetText(context, '未知')}',
       disabled: false,
       fitFullName: true,
       dotColor: visual.color,
@@ -619,6 +614,7 @@ class _RepairCapsule extends StatelessWidget {
     this.dotColor,
     this.fitFullName = false,
     this.contentKey,
+    this.showPortrait = true,
   });
 
   final GameState state;
@@ -630,31 +626,32 @@ class _RepairCapsule extends StatelessWidget {
   final Color? dotColor;
   final bool fitFullName;
   final Key? contentKey;
+  final bool showPortrait;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final available = constraints.maxWidth - 18;
-          final portraitWidth = available >= 138
-              ? 96.0
-              : (available - 42).clamp(32.0, 96.0).toDouble();
-          final iconWidth = portraitWidth < 32 ? portraitWidth : 32.0;
-          return Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(6),
-              child: Container(
-                key: contentKey,
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xff0d1a26),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  children: [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final available = constraints.maxWidth - 18;
+        final portraitWidth = available >= 138
+            ? 96.0
+            : (available - 42).clamp(32.0, 96.0).toDouble();
+        final iconWidth = portraitWidth < 32 ? portraitWidth : 32.0;
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              key: contentKey,
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xff0d1a26),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                children: [
+                  if (showPortrait) ...[
                     if (master != null) ...[
                       ShipPortrait(
                         ship: master!,
@@ -683,6 +680,18 @@ class _RepairCapsule extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                     ],
+                  ],
+                  if (!showPortrait && constraints.maxWidth >= 180)
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Expanded(child: _nameText()),
+                          const SizedBox(width: 6),
+                          Flexible(child: detail),
+                        ],
+                      ),
+                    )
+                  else
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -716,13 +725,12 @@ class _RepairCapsule extends StatelessWidget {
                         ],
                       ),
                     ),
-                  ],
-                ),
+                ],
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 

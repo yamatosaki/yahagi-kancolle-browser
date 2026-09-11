@@ -149,9 +149,9 @@ class ExpeditionStrings {
             : value.label,
       ExpeditionConditionKind.composition =>
         _ja
-            ? '艦隊編成条件'
+            ? value.label.replaceFirst('舰队构成：', '艦隊編成：')
             : traditional
-            ? '艦隊構成條件'
+            ? value.label.replaceFirst('舰队构成：', '艦隊構成：')
             : value.label,
       ExpeditionConditionKind.flagshipType =>
         _ja

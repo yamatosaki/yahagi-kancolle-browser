@@ -5,6 +5,7 @@ import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
 import '../settings/battle_status_effect_settings.dart';
 import 'dashboard_card.dart';
+import '../settings/module_display_settings.dart';
 import 'equipment_type_icon.dart';
 import 'fleet_ship_status_capsule.dart';
 import 'land_base_air_power.dart';
@@ -21,8 +22,12 @@ class LandBaseSummaryCard extends StatefulWidget {
     required this.collapsed,
     required this.onToggleCollapse,
     this.damagePulseMode = DamagePulseFilter.all,
+    this.visible = const {'portrait', 'bars', 'airPower', 'range'},
+    this.onOpenDisplaySettings,
   });
 
+  final Set<String> visible;
+  final VoidCallback? onOpenDisplaySettings;
   final GameStateController controller;
   final bool collapsed;
   final VoidCallback onToggleCollapse;
@@ -55,6 +60,11 @@ class _LandBaseSummaryCardState extends State<LandBaseSummaryCard> {
       bases.sort((left, right) => left.baseId.compareTo(right.baseId));
 
       return DashboardCard(
+        headerAction: moduleDisplayGear(
+          context,
+          'land_base',
+          widget.onOpenDisplaySettings,
+        ),
         title: l10n.landBaseBrief,
         icon: const Icon(Icons.flight_rounded),
         collapsed: widget.collapsed,
@@ -102,6 +112,7 @@ class _LandBaseSummaryCardState extends State<LandBaseSummaryCard> {
                               child: LandBaseAirGroupRow(
                                 state: state,
                                 base: base,
+                                visible: widget.visible,
                                 damagePulseMode: widget.damagePulseMode,
                               ),
                             ),
@@ -204,8 +215,10 @@ class LandBaseAirGroupRow extends StatelessWidget {
     required this.state,
     required this.base,
     this.damagePulseMode = DamagePulseFilter.all,
+    this.visible = const {'portrait', 'bars', 'airPower', 'range'},
   });
 
+  final Set<String> visible;
   final GameState state;
   final LandBaseState base;
   final DamagePulseFilter damagePulseMode;
@@ -240,7 +253,9 @@ class LandBaseAirGroupRow extends StatelessWidget {
         builder: (context, constraints) {
           final narrow = constraints.maxWidth < 460;
           final portraitSize = fleetStatusPortraitSize(constraints.maxWidth);
-          final portraitWidth = portraitSize.width;
+          final portraitWidth = visible.contains('portrait')
+              ? portraitSize.width
+              : 0.0;
           final portraitHeight = portraitSize.height;
           final hpTrackHeight =
               fleetStatusMeterHeight(constraints.maxWidth) * 0.45;
@@ -249,12 +264,14 @@ class LandBaseAirGroupRow extends StatelessWidget {
               .toDouble();
           final sectionGap = narrow ? 5.0 : 7.0;
           final statusWidth = narrow ? 68.0 : 80.0;
-          final maximumSlotWidth = narrow ? 38.0 : 44.0;
+          final maximumSlotWidth = visible.contains('portrait')
+              ? (narrow ? 38.0 : 44.0)
+              : double.infinity;
           final slotWidth =
               ((constraints.maxWidth -
                           portraitWidth -
                           statusWidth -
-                          sectionGap * 2 -
+                          sectionGap * (visible.contains('portrait') ? 2 : 1) -
                           6) /
                       4)
                   .clamp(0.0, maximumSlotWidth)
@@ -277,81 +294,100 @@ class LandBaseAirGroupRow extends StatelessWidget {
                         label: base.name,
                       ),
                     ),
+                    if (!visible.contains('portrait') &&
+                        fatigue != LandBaseFatigueLevel.none) ...[
+                      const SizedBox(width: 4),
+                      FatigueFace(
+                        level: fatigue == LandBaseFatigueLevel.red
+                            ? FatigueFaceLevel.red
+                            : FatigueFaceLevel.yellow,
+                        size: 14,
+                        faceKey: Key('land-base-fatigue-face-$_keySuffix'),
+                      ),
+                    ],
                     const SizedBox(width: 4),
                     _LandBaseActionChip(
                       key: Key('land-base-action-chip-$_keySuffix'),
                       label: _actionLabel(base.actionKind, l10n),
                       color: _actionColor(base.actionKind),
                     ),
-                    const SizedBox(width: 3),
-                    _LandBaseInfoChip(
-                      key: Key('land-base-air-power-chip-$_keySuffix'),
-                      label: '${l10n.airPower} ${airPower.displayValue}',
-                      color: const Color(0xffd4a74e),
-                    ),
-                    const SizedBox(width: 3),
-                    _LandBaseInfoChip(
-                      key: Key('land-base-range-chip-$_keySuffix'),
-                      label: '${l10n.landBaseRange} ${base.effectiveDistance}',
-                      color: const Color(0xff70b8d8),
-                    ),
+                    if (visible.contains('airPower')) ...[
+                      const SizedBox(width: 3),
+                      _LandBaseInfoChip(
+                        key: Key('land-base-air-power-chip-$_keySuffix'),
+                        label: '${l10n.airPower} ${airPower.displayValue}',
+                        color: const Color(0xffd4a74e),
+                      ),
+                    ],
+                    if (visible.contains('range')) ...[
+                      const SizedBox(width: 3),
+                      _LandBaseInfoChip(
+                        key: Key('land-base-range-chip-$_keySuffix'),
+                        label:
+                            '${l10n.landBaseRange} ${base.effectiveDistance}',
+                        color: const Color(0xff70b8d8),
+                      ),
+                    ],
                   ],
                 ),
               ),
               const SizedBox(height: 3),
               Row(
                 children: <Widget>[
-                  SizedBox(
-                    key: Key('land-base-portrait-$_keySuffix'),
-                    width: portraitWidth,
-                    height: portraitHeight,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      clipBehavior: Clip.none,
-                      children: <Widget>[
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: SlotItemPortrait(
-                            item: portraitMaster,
-                            serverOrigin: state.serverOrigin,
-                            width: portraitWidth,
-                            height: portraitHeight,
-                          ),
-                        ),
-                        ShipHpFrame(
-                          key: Key('land-base-portrait-hp-frame-$_keySuffix'),
-                          shipId: base.areaId * 10 + base.baseId,
-                          currentHp: currentHp,
-                          maxHp: maximumHp,
-                          color: shipHpBarColor(
-                            hpRatio,
-                            isZeroHp: currentHp <= 0,
-                          ),
-                          filter: damagePulseMode,
-                          strokeWidth: 2,
-                        ),
-                        if (fatigue != LandBaseFatigueLevel.none)
-                          Positioned(
-                            right: 4,
-                            top: 0,
-                            child: FatigueFace(
-                              level: fatigue == LandBaseFatigueLevel.red
-                                  ? FatigueFaceLevel.red
-                                  : FatigueFaceLevel.yellow,
-                              size: fatigueFaceSize,
-                              faceKey: Key(
-                                'land-base-fatigue-face-$_keySuffix',
-                              ),
+                  if (visible.contains('portrait')) ...[
+                    SizedBox(
+                      key: Key('land-base-portrait-$_keySuffix'),
+                      width: portraitWidth,
+                      height: portraitHeight,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        clipBehavior: Clip.none,
+                        children: <Widget>[
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: SlotItemPortrait(
+                              item: portraitMaster,
+                              serverOrigin: state.serverOrigin,
+                              width: portraitWidth,
+                              height: portraitHeight,
                             ),
                           ),
-                      ],
+                          ShipHpFrame(
+                            key: Key('land-base-portrait-hp-frame-$_keySuffix'),
+                            shipId: base.areaId * 10 + base.baseId,
+                            currentHp: currentHp,
+                            maxHp: maximumHp,
+                            color: shipHpBarColor(
+                              hpRatio,
+                              isZeroHp: currentHp <= 0,
+                            ),
+                            filter: damagePulseMode,
+                            strokeWidth: 2,
+                          ),
+                          if (fatigue != LandBaseFatigueLevel.none)
+                            Positioned(
+                              right: 4,
+                              top: 0,
+                              child: FatigueFace(
+                                level: fatigue == LandBaseFatigueLevel.red
+                                    ? FatigueFaceLevel.red
+                                    : FatigueFaceLevel.yellow,
+                                size: fatigueFaceSize,
+                                faceKey: Key(
+                                  'land-base-fatigue-face-$_keySuffix',
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  SizedBox(width: sectionGap),
+                    SizedBox(width: sectionGap),
+                  ],
                   if (narrow)
                     SizedBox(
                       width: statusWidth,
                       child: _LandBaseStatusColumn(
+                        showTrack: visible.contains('bars'),
                         keySuffix: _keySuffix,
                         currentHp: currentHp,
                         maximumHp: maximumHp,
@@ -363,6 +399,7 @@ class LandBaseAirGroupRow extends StatelessWidget {
                   else
                     Expanded(
                       child: _LandBaseStatusColumn(
+                        showTrack: visible.contains('bars'),
                         keySuffix: _keySuffix,
                         currentHp: currentHp,
                         maximumHp: maximumHp,
@@ -408,6 +445,7 @@ class LandBaseAirGroupRow extends StatelessWidget {
 class _LandBaseStatusColumn extends StatelessWidget {
   const _LandBaseStatusColumn({
     required this.keySuffix,
+    this.showTrack = true,
     required this.currentHp,
     required this.maximumHp,
     required this.hpRatio,
@@ -416,6 +454,7 @@ class _LandBaseStatusColumn extends StatelessWidget {
   });
 
   final String keySuffix;
+  final bool showTrack;
   final int currentHp;
   final int maximumHp;
   final double hpRatio;
@@ -427,6 +466,7 @@ class _LandBaseStatusColumn extends StatelessWidget {
     key: Key('land-base-status-column-$keySuffix'),
     height: height,
     child: _LandBaseStackedHpMeter(
+      showTrack: showTrack,
       currentHp: currentHp,
       maximumHp: maximumHp,
       hpRatio: hpRatio,
@@ -517,6 +557,7 @@ class _LandBaseActionChip extends StatelessWidget {
 
 class _LandBaseStackedHpMeter extends StatelessWidget {
   const _LandBaseStackedHpMeter({
+    this.showTrack = true,
     required this.currentHp,
     required this.maximumHp,
     required this.hpRatio,
@@ -526,6 +567,7 @@ class _LandBaseStackedHpMeter extends StatelessWidget {
     required this.trackKey,
   });
 
+  final bool showTrack;
   final int currentHp;
   final int maximumHp;
   final double hpRatio;
@@ -570,21 +612,22 @@ class _LandBaseStackedHpMeter extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 3),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: Container(
-            key: trackKey,
-            height: trackHeight,
-            color: const Color(0xff294052),
-            alignment: Alignment.centerLeft,
-            child: FractionallySizedBox(
-              widthFactor: hpRatio,
-              heightFactor: 1,
-              child: ColoredBox(color: hpColor),
+        if (showTrack) const SizedBox(height: 3),
+        if (showTrack)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              key: trackKey,
+              height: trackHeight,
+              color: const Color(0xff294052),
+              alignment: Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: hpRatio,
+                heightFactor: 1,
+                child: ColoredBox(color: hpColor),
+              ),
             ),
           ),
-        ),
       ],
     );
   }

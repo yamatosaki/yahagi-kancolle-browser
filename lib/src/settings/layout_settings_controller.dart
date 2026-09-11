@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 
 import '../theme/app_fonts.dart';
 import 'header_resource_settings.dart';
+import 'fleet_display_options.dart';
+import 'module_display_settings.dart';
 import 'layout_settings_store.dart';
 
 class LayoutSettingsController extends ChangeNotifier {
@@ -157,7 +159,78 @@ class LayoutSettingsController extends ChangeNotifier {
         }
       }
     }
+    if (store is FleetDisplaySettingsStore) {
+      final saved = await (store as FleetDisplaySettingsStore)
+          .loadFleetDisplayFields();
+      controller._fleetDisplayFields = normalizeDisplayFields(
+        saved ?? defaultFields,
+      );
+      if (saved == null &&
+          fleetMoraleMetricMode == FleetMoraleMetricMode.recoveryCountdown) {
+        controller._fleetDisplayFields = {...controller._fleetDisplayFields}
+          ..remove('minimum-condition')
+          ..add('recovery-countdown');
+      }
+    }
+    if (store is ModuleDisplaySettingsStore) {
+      for (final module in moduleDisplayOptions.keys) {
+        final saved = await (store as ModuleDisplaySettingsStore)
+            .loadModuleDisplayFields(module);
+        if (saved != null) {
+          controller._moduleDisplayFields[module] = saved.toSet().intersection(
+            moduleDisplayOptions[module]!.keys.toSet(),
+          );
+        }
+      }
+    }
+    controller._expeditionCountdownConfigured = true;
+    controller._fleetDisplayFieldsLoaded = true;
     return controller;
+  }
+
+  Set<String> _fleetDisplayFields = {...defaultFields};
+  bool _fleetDisplayFieldsLoaded = false;
+  Set<String> get fleetDisplayFields => Set.unmodifiable(
+    _fleetDisplayFieldsLoaded
+        ? _fleetDisplayFields
+        : {..._fleetDisplayFields, 'hp'},
+  );
+  Future<void> setFleetDisplayFields(Iterable<String> fields) async {
+    _fleetDisplayFieldsLoaded = true;
+    _fleetDisplayFields = normalizeDisplayFields(fields);
+    notifyListeners();
+    if (_store is FleetDisplaySettingsStore) {
+      await (_store as FleetDisplaySettingsStore).saveFleetDisplayFields(
+        _fleetDisplayFields.toList(),
+      );
+    }
+  }
+
+  // Existing live settings gain the new default when hot reloaded.
+  bool _expeditionCountdownConfigured = false;
+  final Map<String, Set<String>> _moduleDisplayFields = {};
+  Set<String> moduleDisplayFields(String module) => Set.unmodifiable({
+    ...(_moduleDisplayFields[module] ??
+        moduleDisplayOptions[module]!.keys.toSet()),
+    if (module == 'expedition' && !_expeditionCountdownConfigured) 'time',
+  });
+  Future<void> setModuleDisplayFields(
+    String module,
+    Iterable<String> fields,
+  ) async {
+    if (!moduleDisplayOptions.containsKey(module)) return;
+    final selected = fields.toSet().intersection(
+      moduleDisplayOptions[module]!.keys.toSet(),
+    );
+    if (module == 'expedition') _expeditionCountdownConfigured = true;
+    _moduleDisplayFields[module] = selected;
+    notifyListeners();
+    if (_store is ModuleDisplaySettingsStore) {
+      await (_store as ModuleDisplaySettingsStore).saveModuleDisplayFields(
+        module,
+        selected.toList(),
+      );
+    }
   }
 
   final LayoutSettingsStore _store;

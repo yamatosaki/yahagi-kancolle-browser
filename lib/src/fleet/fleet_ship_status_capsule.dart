@@ -1,3 +1,4 @@
+import '../settings/fleet_display_options.dart';
 import 'package:flutter/material.dart';
 import 'fleet_ui_strings.dart';
 
@@ -30,6 +31,7 @@ class FleetShipStatusCapsule extends StatefulWidget {
     this.repairStatus,
     this.specialAttack,
     this.onTap,
+    this.visible = defaultFields,
   });
 
   final GameState state;
@@ -39,6 +41,7 @@ class FleetShipStatusCapsule extends StatefulWidget {
   final ShipRepairStatus? repairStatus;
   final EquipmentMechanismDisplay? specialAttack;
   final VoidCallback? onTap;
+  final Set<String> visible;
 
   @override
   State<FleetShipStatusCapsule> createState() => _FleetShipStatusCapsuleState();
@@ -47,6 +50,30 @@ class FleetShipStatusCapsule extends StatefulWidget {
 class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
     with SingleTickerProviderStateMixin {
   late final AnimationController _sparklePulse;
+  bool get effectiveSparkleEnabled =>
+      show('portrait') && widget.moraleSparkleEnabled;
+  DamagePulseFilter get effectiveDamagePulseFilter =>
+      show('portrait') ? widget.damagePulseFilter : DamagePulseFilter.off;
+
+  void _syncSparkleAnimation() {
+    if (effectiveSparkleEnabled) {
+      if (!_sparklePulse.isAnimating) _sparklePulse.repeat();
+    } else {
+      _sparklePulse.stop();
+    }
+  }
+
+  @override
+  void didUpdateWidget(FleetShipStatusCapsule oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncSparkleAnimation();
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    _syncSparkleAnimation();
+  }
 
   @override
   void initState() {
@@ -54,7 +81,8 @@ class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
     _sparklePulse = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1100),
-    )..repeat();
+    );
+    _syncSparkleAnimation();
   }
 
   @override
@@ -94,358 +122,591 @@ class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
         final sectionGap = narrow ? 6.0 : (compact ? 8.0 : 12.0);
         final meterHeight = fleetStatusMeterHeight(constraints.maxWidth);
 
-        return Container(
-          decoration: BoxDecoration(
-            color: const Color(0xff1c3547), // Brighter background
-            border: Border.all(
-              color: const Color(0xff4c6b84),
-              width: 1.2,
-            ), // Brighter & slightly thicker border
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black45, // Stronger shadow
-                blurRadius: 6,
-                offset: Offset(0, 3),
+        return Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xff1c3547), // Brighter background
+                border: Border.all(
+                  color: const Color(0xff4c6b84),
+                  width: 1.2,
+                ), // Brighter & slightly thicker border
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black45, // Stronger shadow
+                    blurRadius: 6,
+                    offset: Offset(0, 3),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: narrow ? 4 : (compact ? 6 : 8),
-                  right: narrow ? 4 : (compact ? 6 : 8),
-                  top: 3,
-                  bottom: 2,
-                ),
-                child: LayoutBuilder(
-                  builder: (context, identityConstraints) {
-                    final portraitWidth = (identityConstraints.maxWidth * 0.35)
-                        .clamp(0.0, portraitSize.width)
-                        .toDouble();
-                    final portraitHeight =
-                        portraitSize.height *
-                        portraitWidth /
-                        portraitSize.width;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Top Badges Row and Equipment Icons
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+                child: InkWell(
+                  onTap: onTap,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      left: narrow ? 4 : (compact ? 6 : 8),
+                      right: narrow ? 4 : (compact ? 6 : 8),
+                      top: 3,
+                      bottom: 2,
+                    ),
+                    child: LayoutBuilder(
+                      builder: (context, identityConstraints) {
+                        final portraitWidth =
+                            (identityConstraints.maxWidth * 0.35)
+                                .clamp(0.0, portraitSize.width)
+                                .toDouble();
+                        final portraitHeight =
+                            portraitSize.height *
+                            portraitWidth /
+                            portraitSize.width;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Expanded(
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerLeft,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    MiniBadge(
-                                      text: 'Lv. ${ship.level}',
-                                      color: const Color(0xffa9bac4),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    MiniBadge(
-                                      text:
-                                          type?.name ??
-                                          fleetText(context, '未知舰种'),
-                                      color: const Color(0xffa9bac4),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    MiniBadge(
-                                      key: Key('fleet-focus-speed-${ship.id}'),
-                                      text: fleetText(
-                                        context,
-                                        ShipSpeedVisual.fromSpeed(
-                                          ship.effectiveSpeed(master),
-                                        ).label,
-                                      ),
-                                      color: ShipSpeedVisual.fromSpeed(
-                                        ship.effectiveSpeed(master),
-                                      ).foreground,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    MiniBadge(
-                                      text: fleetText(
-                                        context,
-                                        '疲劳 ${ship.condition}',
-                                      ),
-                                      color: shipFatigueColor(ship.condition),
-                                    ),
-                                    for (
-                                      var i = 0;
-                                      i < allMechanisms.length;
-                                      i++
-                                    ) ...<Widget>[
-                                      const SizedBox(width: 4),
-                                      MiniBadge(
-                                        key: Key(
-                                          i == 0
-                                              ? 'fleet-focus-mechanism-${ship.id}'
-                                              : 'fleet-focus-mechanism-${ship.id}-$i',
-                                        ),
-                                        text: allMechanisms[i]
-                                            .effectiveShortLabel,
-                                        color: _mechanismColor(
-                                          allMechanisms[i].tone,
-                                        ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ),
-                            if (equipment.isNotEmpty)
+                            if (_badges(
+                                  type?.name,
+                                  master,
+                                  allMechanisms,
+                                ).isNotEmpty ||
+                                (show('equipment') &&
+                                    equipment.isNotEmpty)) ...[
                               Row(
-                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  for (final eq in equipment)
-                                    if (eq.master != null &&
-                                        eq.master!.type.length >= 4)
-                                      Padding(
-                                        padding: const EdgeInsets.only(left: 4),
-                                        child: EquipmentTypeIconImage(
-                                          iconId: eq.master!.type[3],
-                                          width: 16,
-                                          height: 16,
-                                          filterQuality: FilterQuality.medium,
+                                  if (_badges(
+                                    type?.name,
+                                    master,
+                                    allMechanisms,
+                                  ).isNotEmpty)
+                                    Expanded(
+                                      child: FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: Alignment.centerLeft,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: _spaced(
+                                            _badges(
+                                              type?.name,
+                                              master,
+                                              allMechanisms,
+                                            ),
+                                          ),
                                         ),
                                       ),
-                                ],
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        // Avatar and Status Info Row
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              key: Key('fleet-focus-portrait-${ship.id}'),
-                              width: portraitWidth,
-                              height: portraitHeight,
-                              child: Stack(
-                                fit: StackFit.expand,
-                                clipBehavior: Clip.none,
-                                children: [
-                                  Positioned.fill(
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(4),
-                                      child:
-                                          widget.repairStatus ==
-                                              ShipRepairStatus.retreat
-                                          ? ColorFiltered(
-                                              colorFilter:
-                                                  const ColorFilter.matrix(
-                                                    <double>[
-                                                      0.2126,
-                                                      0.7152,
-                                                      0.0722,
-                                                      0,
-                                                      0,
-                                                      0.2126,
-                                                      0.7152,
-                                                      0.0722,
-                                                      0,
-                                                      0,
-                                                      0.2126,
-                                                      0.7152,
-                                                      0.0722,
-                                                      0,
-                                                      0,
-                                                      0,
-                                                      0,
-                                                      0,
-                                                      1,
-                                                      0,
-                                                    ],
-                                                  ),
-                                              child: ShipPortrait(
-                                                ship: master,
-                                                serverOrigin:
-                                                    state.serverOrigin,
-                                                width: portraitWidth,
-                                                height: portraitHeight,
+                                    ),
+                                  if (show('equipment'))
+                                    Row(
+                                      key: Key('equipment-${ship.id}'),
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        for (final eq in equipment)
+                                          if (eq.master != null &&
+                                              eq.master!.type.length >= 4)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                left: 4,
                                               ),
-                                            )
-                                          : ShipPortrait(
-                                              ship: master,
-                                              serverOrigin: state.serverOrigin,
-                                              width: portraitWidth,
-                                              height: portraitHeight,
+                                              child: EquipmentTypeIconImage(
+                                                iconId: eq.master!.type[3],
+                                                width: 16,
+                                                height: 16,
+                                                filterQuality:
+                                                    FilterQuality.medium,
+                                              ),
                                             ),
+                                      ],
                                     ),
-                                  ),
-                                  ShipHpFrame(
-                                    key: Key(
-                                      'fleet-summary-hp-outer-frame-${ship.id}',
-                                    ),
-                                    shipId: ship.id,
-                                    currentHp:
-                                        widget.repairStatus ==
-                                            ShipRepairStatus.retreat
-                                        ? 0
-                                        : ship.currentHp,
-                                    maxHp: ship.maxHp,
-                                    color:
-                                        widget.repairStatus ==
-                                            ShipRepairStatus.retreat
-                                        ? yahagiStatusZeroHp
-                                        : shipHpBarColor(
-                                            hpRatio,
-                                            isZeroHp: ship.currentHp <= 0,
-                                          ),
-                                    filter: widget.damagePulseFilter,
-                                    strokeWidth: 2.0,
-                                  ),
-                                  ShipMoraleMark(
-                                    key: Key(
-                                      'fleet-summary-morale-mark-${ship.id}',
-                                    ),
-                                    shipId: ship.id,
-                                    value: ship.condition,
-                                    sparklePulse: _sparklePulse,
-                                    sparkleEnabled: widget.moraleSparkleEnabled,
-                                    showTextBadge: false,
-                                    repairLabel: widget.repairStatus?.label,
-                                    layout: ShipMoraleMarkLayout.brief,
-                                  ),
                                 ],
                               ),
-                            ),
-                            SizedBox(width: sectionGap),
-                            Expanded(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                              const SizedBox(height: 2),
+                            ],
+                            // Text-only mode reuses space instead of reserving an avatar column.
+                            if (!show('portrait'))
+                              _textIdentity(
+                                ship,
+                                master,
+                                identityConstraints.maxWidth,
+                              )
+                            else
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          master?.name ??
-                                              fleetText(context, '未知舰娘'),
-                                          maxLines: 1,
-                                          softWrap: false,
-                                          style: TextStyle(
-                                            fontSize: narrow
-                                                ? 11
-                                                : (compact ? 14 : 17),
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
+                                  if (show('portrait')) ...[
+                                    SizedBox(
+                                      key: Key(
+                                        'fleet-focus-portrait-${ship.id}',
                                       ),
-                                      SizedBox(width: sectionGap),
-                                      Expanded(
-                                        child: CompactStatusMeter(
-                                          height: meterHeight,
-                                          icon: Image.asset(
-                                            'assets/images/material/01.png',
-                                            width: 10,
-                                            height: 10,
-                                          ),
-                                          value:
-                                              '${ship.currentFuel}/${master?.maxFuel ?? 0}',
-                                          ratio: fuelRatio,
-                                          valueColor: shipSupplyValueColor(
-                                            fuelRatio,
-                                          ),
-                                          barColor: shipSupplyBarColor(
-                                            fuelRatio,
-                                          ),
-                                          valueKey: Key(
-                                            'fleet-focus-fuel-value-${ship.id}',
-                                          ),
-                                          trackKey: Key(
-                                            'fleet-focus-fuel-track-${ship.id}',
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: CompactStatusMeter(
-                                          height: meterHeight,
-                                          icon: Icon(
-                                            Icons.favorite_rounded,
-                                            key: Key(
-                                              'fleet-focus-hp-icon-${ship.id}',
+                                      width: portraitWidth,
+                                      height: portraitHeight,
+                                      child: Stack(
+                                        fit: StackFit.expand,
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          Positioned.fill(
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                              child:
+                                                  widget.repairStatus ==
+                                                      ShipRepairStatus.retreat
+                                                  ? ColorFiltered(
+                                                      colorFilter:
+                                                          const ColorFilter.matrix(
+                                                            <double>[
+                                                              0.2126,
+                                                              0.7152,
+                                                              0.0722,
+                                                              0,
+                                                              0,
+                                                              0.2126,
+                                                              0.7152,
+                                                              0.0722,
+                                                              0,
+                                                              0,
+                                                              0.2126,
+                                                              0.7152,
+                                                              0.0722,
+                                                              0,
+                                                              0,
+                                                              0,
+                                                              0,
+                                                              0,
+                                                              1,
+                                                              0,
+                                                            ],
+                                                          ),
+                                                      child: ShipPortrait(
+                                                        ship: master,
+                                                        serverOrigin:
+                                                            state.serverOrigin,
+                                                        width: portraitWidth,
+                                                        height: portraitHeight,
+                                                      ),
+                                                    )
+                                                  : ShipPortrait(
+                                                      ship: master,
+                                                      serverOrigin:
+                                                          state.serverOrigin,
+                                                      width: portraitWidth,
+                                                      height: portraitHeight,
+                                                    ),
                                             ),
-                                            color: const Color(0xffef5a5a),
-                                            size: 10,
                                           ),
-                                          value:
-                                              '${ship.currentHp}/${ship.maxHp}',
-                                          ratio: hpRatio,
-                                          valueColor: shipHpValueColor(
-                                            hpRatio,
-                                            isZeroHp: ship.currentHp <= 0,
+                                          ShipHpFrame(
+                                            key: Key(
+                                              'fleet-summary-hp-outer-frame-${ship.id}',
+                                            ),
+                                            shipId: ship.id,
+                                            currentHp:
+                                                widget.repairStatus ==
+                                                    ShipRepairStatus.retreat
+                                                ? 0
+                                                : ship.currentHp,
+                                            maxHp: ship.maxHp,
+                                            color:
+                                                widget.repairStatus ==
+                                                    ShipRepairStatus.retreat
+                                                ? yahagiStatusZeroHp
+                                                : shipHpBarColor(
+                                                    hpRatio,
+                                                    isZeroHp:
+                                                        ship.currentHp <= 0,
+                                                  ),
+                                            filter: effectiveDamagePulseFilter,
+                                            strokeWidth: 2.0,
                                           ),
-                                          barColor: shipHpBarColor(
-                                            hpRatio,
-                                            isZeroHp: ship.currentHp <= 0,
+                                          ShipMoraleMark(
+                                            key: Key(
+                                              'fleet-summary-morale-mark-${ship.id}',
+                                            ),
+                                            shipId: ship.id,
+                                            value: ship.condition,
+                                            sparklePulse: _sparklePulse,
+                                            sparkleEnabled:
+                                                effectiveSparkleEnabled,
+                                            showTextBadge: false,
+                                            repairLabel:
+                                                widget.repairStatus?.label,
+                                            layout: ShipMoraleMarkLayout.brief,
                                           ),
-                                          valueKey: Key(
-                                            'fleet-focus-hp-value-${ship.id}',
-                                          ),
-                                          trackKey: Key(
-                                            'fleet-focus-hp-track-${ship.id}',
-                                          ),
-                                        ),
+                                        ],
                                       ),
-                                      SizedBox(width: sectionGap),
-                                      Expanded(
-                                        child: CompactStatusMeter(
-                                          height: meterHeight,
-                                          icon: Image.asset(
-                                            'assets/images/material/02.png',
-                                            width: 10,
-                                            height: 10,
-                                          ),
-                                          value:
-                                              '${ship.currentAmmo}/${master?.maxAmmo ?? 0}',
-                                          ratio: ammoRatio,
-                                          valueColor: shipSupplyValueColor(
-                                            ammoRatio,
-                                          ),
-                                          barColor: shipSupplyBarColor(
-                                            ammoRatio,
-                                          ),
-                                          valueKey: Key(
-                                            'fleet-focus-ammo-value-${ship.id}',
-                                          ),
-                                          trackKey: Key(
-                                            'fleet-focus-ammo-track-${ship.id}',
-                                          ),
+                                    ),
+                                    SizedBox(width: sectionGap),
+                                  ],
+                                  Expanded(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            if (!show('portrait') &&
+                                                (ship.condition < 30 ||
+                                                    (ship.condition >= 50 &&
+                                                        effectiveSparkleEnabled)))
+                                              SizedBox(
+                                                width: 20,
+                                                height: 20,
+                                                child: ShipMoraleMark(
+                                                  shipId: ship.id,
+                                                  value: ship.condition,
+                                                  sparklePulse: _sparklePulse,
+                                                  sparkleEnabled:
+                                                      effectiveSparkleEnabled,
+                                                  showTextBadge: false,
+                                                ),
+                                              ),
+                                            Expanded(
+                                              child: Text(
+                                                master?.name ??
+                                                    fleetText(context, '未知舰娘'),
+                                                maxLines: 1,
+                                                softWrap: false,
+                                                style: TextStyle(
+                                                  fontSize: narrow
+                                                      ? 11
+                                                      : (compact ? 14 : 17),
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                            ),
+                                            if (show('fuel')) ...[
+                                              SizedBox(width: sectionGap),
+                                              Expanded(
+                                                child: CompactStatusMeter(
+                                                  height: meterHeight,
+                                                  showTrack: show('bars'),
+                                                  icon: Image.asset(
+                                                    'assets/images/material/01.png',
+                                                    width: 10,
+                                                    height: 10,
+                                                  ),
+                                                  value:
+                                                      '${ship.currentFuel}/${master?.maxFuel ?? 0}',
+                                                  ratio: fuelRatio,
+                                                  valueColor:
+                                                      shipSupplyValueColor(
+                                                        fuelRatio,
+                                                      ),
+                                                  barColor: shipSupplyBarColor(
+                                                    fuelRatio,
+                                                  ),
+                                                  valueKey: Key(
+                                                    'fleet-focus-fuel-value-${ship.id}',
+                                                  ),
+                                                  trackKey: Key(
+                                                    'fleet-focus-fuel-track-${ship.id}',
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
                                         ),
-                                      ),
-                                    ],
+                                        if (show('hp') || show('ammo')) ...[
+                                          const SizedBox(height: 3),
+                                          Row(
+                                            children: [
+                                              if (show('hp'))
+                                                Expanded(
+                                                  child: CompactStatusMeter(
+                                                    alignRight: !show('bars'),
+                                                    height: meterHeight,
+                                                    showTrack: show('bars'),
+                                                    icon: Icon(
+                                                      Icons.favorite_rounded,
+                                                      key: Key(
+                                                        'fleet-focus-hp-icon-${ship.id}',
+                                                      ),
+                                                      color: const Color(
+                                                        0xffef5a5a,
+                                                      ),
+                                                      size: 10,
+                                                    ),
+                                                    value:
+                                                        '${ship.currentHp}/${ship.maxHp}',
+                                                    ratio: hpRatio,
+                                                    valueColor:
+                                                        shipHpValueColor(
+                                                          hpRatio,
+                                                          isZeroHp:
+                                                              ship.currentHp <=
+                                                              0,
+                                                        ),
+                                                    barColor: shipHpBarColor(
+                                                      hpRatio,
+                                                      isZeroHp:
+                                                          ship.currentHp <= 0,
+                                                    ),
+                                                    valueKey: Key(
+                                                      'fleet-focus-hp-value-${ship.id}',
+                                                    ),
+                                                    trackKey: Key(
+                                                      'fleet-focus-hp-track-${ship.id}',
+                                                    ),
+                                                  ),
+                                                ),
+                                              if (show('ammo')) ...[
+                                                if (show('hp'))
+                                                  SizedBox(width: sectionGap),
+                                                Expanded(
+                                                  child: CompactStatusMeter(
+                                                    alignRight: !show('bars'),
+                                                    height: meterHeight,
+                                                    showTrack: show('bars'),
+                                                    icon: Image.asset(
+                                                      'assets/images/material/02.png',
+                                                      width: 10,
+                                                      height: 10,
+                                                    ),
+                                                    value:
+                                                        '${ship.currentAmmo}/${master?.maxAmmo ?? 0}',
+                                                    ratio: ammoRatio,
+                                                    valueColor:
+                                                        shipSupplyValueColor(
+                                                          ammoRatio,
+                                                        ),
+                                                    barColor:
+                                                        shipSupplyBarColor(
+                                                          ammoRatio,
+                                                        ),
+                                                    valueKey: Key(
+                                                      'fleet-focus-ammo-value-${ship.id}',
+                                                    ),
+                                                    trackKey: Key(
+                                                      'fleet-focus-ammo-track-${ship.id}',
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ],
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
                           ],
-                        ),
-                      ],
-                    );
-                  },
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
+            if (!show('portrait') && hpRatio <= .75)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: ShipHpFrame(
+                    shipId: ship.id,
+                    currentHp: ship.currentHp,
+                    maxHp: ship.maxHp,
+                    color: shipHpBarColor(
+                      hpRatio,
+                      isZeroHp: ship.currentHp <= 0,
+                    ),
+                    filter: effectiveDamagePulseFilter,
+                    strokeWidth: 1.2,
+                  ),
+                ),
+              ),
+          ],
         );
       },
     );
+  }
+
+  Widget _textIdentity(
+    OwnedShip ship,
+    MasterShip? master,
+    double availableWidth,
+  ) {
+    final name = Row(
+      key: Key('text-identity-${ship.id}'),
+      children: [
+        Flexible(
+          child: Text(
+            master?.name ?? fleetText(context, '未知舰娘'),
+            key: Key('text-name-${ship.id}'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+          ),
+        ),
+        if (ship.condition < 30 ||
+            (ship.condition >= 50 && effectiveSparkleEnabled)) ...[
+          const SizedBox(width: 4),
+          SizedBox(
+            key: Key('text-morale-${ship.id}'),
+            // The face is 14px wide with a 4px inset in ShipMoraleMark.
+            // Leave room on both sides so its Stack does not clip it.
+            width: 22,
+            height: 18,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: ShipMoraleMark(
+                shipId: ship.id,
+                value: ship.condition,
+                sparklePulse: _sparklePulse,
+                sparkleEnabled: effectiveSparkleEnabled,
+                showTextBadge: false,
+              ),
+            ),
+          ),
+        ],
+        if (widget.repairStatus != null) ...[
+          const SizedBox(width: 4),
+          MiniBadge(
+            key: Key('text-status-${ship.id}'),
+            text: fleetText(context, widget.repairStatus!.label),
+            color: const Color(0xffffc861),
+          ),
+        ],
+      ],
+    );
+    Widget meter(String key, int current, int max) {
+      final ratio = _ratio(current, max);
+      final hp = key == 'hp';
+      return CompactStatusMeter(
+        height: 16,
+        showTrack: show('bars'),
+        alignRight: !show('bars') && key != 'fuel',
+        icon: hp
+            ? const Icon(
+                Icons.favorite_rounded,
+                size: 10,
+                color: Color(0xffef5a5a),
+              )
+            : Image.asset(
+                'assets/images/material/${key == 'fuel' ? '01' : '02'}.png',
+                width: 10,
+                height: 10,
+              ),
+        value: '$current/$max',
+        ratio: ratio,
+        valueColor: hp
+            ? shipHpValueColor(ratio, isZeroHp: current <= 0)
+            : shipSupplyValueColor(ratio),
+        barColor: hp
+            ? shipHpBarColor(ratio, isZeroHp: current <= 0)
+            : shipSupplyBarColor(ratio),
+        valueKey: Key('fleet-focus-$key-value-${ship.id}'),
+        trackKey: Key('fleet-focus-$key-track-${ship.id}'),
+      );
+    }
+
+    final hp = meter('hp', ship.currentHp, ship.maxHp);
+    final supply = <Widget>[
+      if (show('fuel')) meter('fuel', ship.currentFuel, master?.maxFuel ?? 0),
+      if (show('ammo')) meter('ammo', ship.currentAmmo, master?.maxAmmo ?? 0),
+    ];
+    if (show('hp') && availableWidth < 300 && supply.length == 2) {
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: name),
+              const SizedBox(width: 8),
+              Expanded(child: hp),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Row(
+            children: [
+              Expanded(child: supply[0]),
+              const SizedBox(width: 8),
+              Expanded(child: supply[1]),
+            ],
+          ),
+        ],
+      );
+    }
+    if (!show('hp') && supply.isEmpty) return name;
+    if (!show('bars')) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            Expanded(child: name),
+            for (final item in [if (show('hp')) hp, ...supply]) ...[
+              const SizedBox(width: 6),
+              SizedBox(width: 56, child: item),
+            ],
+          ],
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: (availableWidth * .25).clamp(65.0, 120.0),
+            child: name,
+          ),
+          for (final item in [if (show('hp')) hp, ...supply]) ...[
+            const SizedBox(width: 6),
+            Expanded(child: item),
+          ],
+        ],
+      ),
+    );
+  }
+
+  bool show(String key) => widget.visible.contains(key);
+  List<Widget> _spaced(List<Widget> items) => [
+    for (var i = 0; i < items.length; i++) ...[
+      if (i > 0) const SizedBox(width: 4),
+      items[i],
+    ],
+  ];
+  List<Widget> _badges(
+    String? type,
+    MasterShip? master,
+    List<EquipmentMechanismDisplay> mechanisms,
+  ) {
+    final ship = widget.ship;
+    Widget badge(String key, String text, Color color) => MiniBadge(
+      key: Key(
+        key == 'shipSpeed'
+            ? 'fleet-focus-speed-${ship.id}'
+            : key.startsWith('mechanism')
+            ? 'fleet-focus-mechanism-${ship.id}${key.substring(9)}'
+            : '$key-${ship.id}',
+      ),
+      text: fleetText(context, text),
+      color: color,
+    );
+    return [
+      if (show('level'))
+        badge('level', 'Lv. ${ship.level}', const Color(0xffa9bac4)),
+      if (show('type')) badge('type', type ?? '未知舰种', const Color(0xffa9bac4)),
+      if (show('shipSpeed'))
+        badge(
+          'shipSpeed',
+          ShipSpeedVisual.fromSpeed(ship.effectiveSpeed(master)).label,
+          ShipSpeedVisual.fromSpeed(ship.effectiveSpeed(master)).foreground,
+        ),
+      if (show('morale'))
+        badge(
+          'morale',
+          '疲劳 ${ship.condition}',
+          shipFatigueColor(ship.condition),
+        ),
+      for (var i = 0; i < mechanisms.length; i++)
+        if (show('mechanisms'))
+          badge(
+            i == 0 ? 'mechanism' : 'mechanism-$i',
+            mechanisms[i].effectiveShortLabel,
+            _mechanismColor(mechanisms[i].tone),
+          ),
+    ];
   }
 }
 
@@ -495,6 +756,8 @@ class CompactStatusMeter extends StatelessWidget {
     required this.barColor,
     this.valueKey,
     this.trackKey,
+    this.showTrack = true,
+    this.alignRight = false,
   });
 
   final double height;
@@ -505,20 +768,30 @@ class CompactStatusMeter extends StatelessWidget {
   final Color barColor;
   final Key? valueKey;
   final Key? trackKey;
+  final bool showTrack;
+  final bool alignRight;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: height,
       child: Row(
+        mainAxisAlignment: alignRight
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         children: [
           SizedBox(width: 12, child: Center(child: icon)),
           const SizedBox(width: 4),
-          SizedBox(
-            width: 40,
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: alignRight && !showTrack ? 0 : 40,
+              maxWidth: 40,
+            ),
             child: FittedBox(
               fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
+              alignment: alignRight
+                  ? Alignment.centerRight
+                  : Alignment.centerLeft,
               child: Text(
                 value,
                 key: valueKey,
@@ -531,30 +804,31 @@ class CompactStatusMeter extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 2),
-          Expanded(
-            child: FractionallySizedBox(
-              heightFactor: 0.45,
-              child: Container(
-                key: trackKey,
-                decoration: BoxDecoration(
-                  color: const Color(0xff294052),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                alignment: Alignment.centerLeft,
-                child: FractionallySizedBox(
-                  widthFactor: ratio,
-                  heightFactor: 1.0,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: barColor,
-                      borderRadius: BorderRadius.circular(999),
+          if (showTrack) const SizedBox(width: 2),
+          if (showTrack)
+            Expanded(
+              child: FractionallySizedBox(
+                heightFactor: 0.45,
+                child: Container(
+                  key: trackKey,
+                  decoration: BoxDecoration(
+                    color: const Color(0xff294052),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  alignment: Alignment.centerLeft,
+                  child: FractionallySizedBox(
+                    widthFactor: ratio,
+                    heightFactor: 1.0,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: barColor,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../game_state/game_state_controller.dart';
 import '../game_state/game_state.dart';
 import 'dashboard_card.dart';
+import '../settings/module_display_settings.dart';
 import 'fleet_ui_strings.dart';
 import 'operation_progress.dart';
 import 'ship_portrait.dart';
@@ -15,8 +16,12 @@ class ConstructionSummaryCard extends StatelessWidget {
     required this.collapsed,
     required this.onToggleCollapse,
     required this.onOpenConstruction,
+    this.visible = const {'portrait', 'empty'},
+    this.onOpenDisplaySettings,
   });
 
+  final Set<String> visible;
+  final VoidCallback? onOpenDisplaySettings;
   final GameStateController controller;
   final bool collapsed;
   final VoidCallback onToggleCollapse;
@@ -30,41 +35,26 @@ class ConstructionSummaryCard extends StatelessWidget {
         final state = controller.state;
         final docks = state.constructionDocks;
         return DashboardCard(
+          headerAction: moduleDisplayGear(
+            context,
+            'construction',
+            onOpenDisplaySettings,
+          ),
           title: AppLocalizations.of(context)?.constructionBrief ?? '建造简报',
           icon: const Icon(Icons.handyman_outlined),
           collapsed: collapsed,
           onToggleCollapse: onToggleCollapse,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: ModuleSlotGrid(
+            emptyLabel: '暂无建造',
             children: [
-              Row(
-                children: [
+              for (var i = 0; i < 4; i++)
+                if (visible.contains('empty') ||
+                    (docks.length > i && docks[i].isBuilding))
                   _buildConstructionSlot(
-                    docks.isNotEmpty ? docks[0] : null,
+                    docks.length > i ? docks[i] : null,
                     state,
+                    i + 1,
                   ),
-                  const SizedBox(width: 8),
-                  _buildConstructionSlot(
-                    docks.length > 1 ? docks[1] : null,
-                    state,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _buildConstructionSlot(
-                    docks.length > 2 ? docks[2] : null,
-                    state,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildConstructionSlot(
-                    docks.length > 3 ? docks[3] : null,
-                    state,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
             ],
           ),
         );
@@ -72,7 +62,11 @@ class ConstructionSummaryCard extends StatelessWidget {
     );
   }
 
-  Widget _buildConstructionSlot(ConstructionDock? dock, GameState state) {
+  Widget _buildConstructionSlot(
+    ConstructionDock? dock,
+    GameState state,
+    int position,
+  ) {
     String name = '未知';
     bool active = false;
     bool disabled = true;
@@ -93,34 +87,36 @@ class ConstructionSummaryCard extends StatelessWidget {
       }
     }
 
-    return Expanded(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final available = constraints.maxWidth - 18;
-          final portraitWidth = available >= 138
-              ? 96.0
-              : (available - 42).clamp(32.0, 96.0).toDouble();
-          final iconWidth = portraitWidth < 32 ? portraitWidth : 32.0;
-          final completed =
-              active &&
-              dock != null &&
-              dock.isCompletedAt(DateTime.now().toUtc());
-          final statusDotColor = completed
-              ? const Color(0xff4caf50)
-              : const Color(0xffffc940);
-          return Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onOpenConstruction,
-              borderRadius: BorderRadius.circular(6),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xff0d1a26),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  children: [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inline =
+            !visible.contains('portrait') && constraints.maxWidth >= 180;
+        final available = constraints.maxWidth - 18;
+        final portraitWidth = available >= 138
+            ? 96.0
+            : (available - 42).clamp(32.0, 96.0).toDouble();
+        final iconWidth = portraitWidth < 32 ? portraitWidth : 32.0;
+        final completed =
+            active &&
+            dock != null &&
+            dock.isCompletedAt(DateTime.now().toUtc());
+        final statusDotColor = completed
+            ? const Color(0xff4caf50)
+            : const Color(0xffffc940);
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onOpenConstruction,
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xff0d1a26),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                children: [
+                  if (visible.contains('portrait')) ...[
                     if (master != null) ...[
                       ShipPortrait(
                         ship: master,
@@ -149,18 +145,22 @@ class ConstructionSummaryCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                     ],
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
+                  ],
+                  Expanded(
+                    child: Flex(
+                      direction: inline ? Axis.horizontal : Axis.vertical,
+                      crossAxisAlignment: inline
+                          ? CrossAxisAlignment.center
+                          : CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _constructionTextPart(
+                          !inline,
                           Row(
                             children: [
                               Expanded(
                                 child: Text(
-                                  master == null
-                                      ? fleetText(context, name)
-                                      : name,
+                                  '${visible.contains('empty') ? '' : '$position · '}${master == null ? fleetText(context, name) : name}',
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
@@ -184,7 +184,11 @@ class ConstructionSummaryCard extends StatelessWidget {
                                 ),
                             ],
                           ),
-                          if (active && dock != null)
+                        ),
+                        if (inline) const SizedBox(width: 6),
+                        if (active && dock != null)
+                          _constructionTextPart(
+                            !inline,
                             FittedBox(
                               fit: BoxFit.scaleDown,
                               alignment: Alignment.centerLeft,
@@ -195,29 +199,32 @@ class ConstructionSummaryCard extends StatelessWidget {
                                 countingColor: const Color(0xffd4a85f),
                                 style: const TextStyle(fontSize: 11),
                               ),
-                            )
-                          else ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              fleetText(context, disabled ? '锁' : '闲置'),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: disabled
-                                    ? const Color(0xff4a5c68)
-                                    : const Color(0xff8197a5),
-                              ),
                             ),
-                          ],
+                          )
+                        else ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            fleetText(context, disabled ? '锁' : '闲置'),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: disabled
+                                  ? const Color(0xff4a5c68)
+                                  : const Color(0xff8197a5),
+                            ),
+                          ),
                         ],
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 }
+
+Widget _constructionTextPart(bool portrait, Widget child) =>
+    portrait ? child : Expanded(child: child);

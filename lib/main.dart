@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'src/settings/fleet_display_settings_section.dart';
+import 'src/settings/module_display_settings.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:http/http.dart' as http;
@@ -1486,6 +1488,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                           widget.layoutSettingsController.workspaceMenuOnRight,
                       onSelected: _selectWorkspace,
                       completedQuestCount: completedCount,
+                      gameStateController: widget.gameStateController,
                     ),
                   ),
                   Expanded(
@@ -1906,6 +1909,8 @@ class WorkspaceNavigation extends StatelessWidget {
     required this.onRight,
     required this.onSelected,
     this.completedQuestCount = 0,
+    this.gameStateController,
+    this.clock,
   });
 
   final LayoutSettingsController controller;
@@ -1913,54 +1918,87 @@ class WorkspaceNavigation extends StatelessWidget {
   final bool onRight;
   final ValueChanged<int> onSelected;
   final int completedQuestCount;
+  final GameStateController? gameStateController;
+  final DateTime Function()? clock;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Container(
-      width: 58,
-      decoration: BoxDecoration(
-        color: const Color(0xff0a1823),
-        border: workspaceNavigationBorder(menuOnRight: onRight),
-      ),
-      child: AnimatedBuilder(
-        animation: controller,
-        builder: (context, _) {
-          final destinations = _workspaceDestinations(l10n);
-          final ordered = controller.workspaceMenuOrder
-              .map((id) => destinations[id])
-              .whereType<_WorkspaceDestination>()
-              .toList(growable: false);
-          return ReorderableListView.builder(
-            key: const Key('workspace-navigation-list'),
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            buildDefaultDragHandles: false,
-            itemCount: ordered.length,
-            onReorderItem: controller.reorderWorkspaceMenu,
-            itemBuilder: (context, index) {
-              final destination = ordered[index];
-              return SizedBox(
-                key: ValueKey('workspace-nav-item-${destination.id}'),
-                height: 50,
-                child: Center(
-                  child: ReorderableDelayedDragStartListener(
-                    index: index,
-                    child: _NavigationButton(
-                      key: Key('workspace-nav-${destination.id}'),
-                      icon: destination.icon,
-                      label: destination.label,
-                      completedCount: destination.id == 'quests'
-                          ? completedQuestCount
-                          : 0,
-                      selected: selectedIndex == destination.pageIndex,
-                      onTap: () => onSelected(destination.pageIndex),
+    return SecondTickBuilder(
+      now: clock,
+      enabled: gameStateController != null,
+      builder: (context, now, _) => Container(
+        width: 58,
+        decoration: BoxDecoration(
+          color: const Color(0xff0a1823),
+          border: workspaceNavigationBorder(menuOnRight: onRight),
+        ),
+        child: AnimatedBuilder(
+          animation: Listenable.merge([
+            controller,
+            if (gameStateController != null) gameStateController!,
+          ]),
+          builder: (context, _) {
+            final destinations = _workspaceDestinations(l10n);
+            final ordered = controller.workspaceMenuOrder
+                .map((id) => destinations[id])
+                .whereType<_WorkspaceDestination>()
+                .toList(growable: false);
+            return ReorderableListView.builder(
+              key: const Key('workspace-navigation-list'),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              buildDefaultDragHandles: false,
+              itemCount: ordered.length,
+              onReorderItem: controller.reorderWorkspaceMenu,
+              itemBuilder: (context, index) {
+                final destination = ordered[index];
+                return SizedBox(
+                  key: ValueKey('workspace-nav-item-${destination.id}'),
+                  height: 50,
+                  child: Center(
+                    child: ReorderableDelayedDragStartListener(
+                      index: index,
+                      child: _NavigationButton(
+                        key: Key('workspace-nav-${destination.id}'),
+                        icon: destination.icon,
+                        label: destination.label,
+                        completedCount: switch (destination.id) {
+                          'quests' => completedQuestCount,
+                          'construction' =>
+                            gameStateController?.state.constructionDocks
+                                    .where((dock) => dock.isCompletedAt(now))
+                                    .length ??
+                                0,
+                          'repair' =>
+                            gameStateController?.state.repairDocks
+                                    .where(
+                                      (dock) =>
+                                          dock.isRepairing &&
+                                          (dock.completionTime == null ||
+                                              now.isBefore(
+                                                dock.completionTime!,
+                                              )),
+                                    )
+                                    .length ??
+                                0,
+                          _ => 0,
+                        },
+                        countKey: Key(
+                          '${destination.id == 'repair' ? 'repair-active' : '${destination.id == 'quests' ? 'quest' : destination.id}-completion'}-count',
+                        ),
+                        countLabel: destination.id == 'quests'
+                            ? null
+                            : destination.label,
+                        selected: selectedIndex == destination.pageIndex,
+                        onTap: () => onSelected(destination.pageIndex),
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
-          );
-        },
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
@@ -2059,6 +2097,8 @@ class _NavigationButton extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.completedCount = 0,
+    this.countKey = const Key("quest-completion-count"),
+    this.countLabel,
   });
 
   final IconData icon;
@@ -2066,6 +2106,8 @@ class _NavigationButton extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final int completedCount;
+  final Key countKey;
+  final String? countLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -2086,6 +2128,10 @@ class _NavigationButton extends StatelessWidget {
         ),
         icon: QuestCompletionBadge(
           count: completedCount,
+          countKey: countKey,
+          semanticLabel: countLabel == null
+              ? null
+              : "$countLabel: $completedCount",
           child: Icon(icon, size: 20),
         ),
       ),
@@ -2184,13 +2230,16 @@ class _InformationPanelState extends State<_InformationPanel> {
                 .toggleDashboardCardCollapsed(id);
             final child = switch (id) {
               'fleet' => FleetSummaryCard(
+                onOpenDisplaySettings: _isEditing
+                    ? () => showFleetDisplaySettings(
+                        context,
+                        widget.layoutSettingsController,
+                      )
+                    : null,
+                visible: widget.layoutSettingsController.fleetDisplayFields,
                 controller: widget.gameStateController,
                 moraleRecoveryTimerController:
                     widget.moraleRecoveryTimerController,
-                moraleMetricMode:
-                    widget.layoutSettingsController.fleetMoraleMetricMode,
-                onToggleMoraleMetricMode:
-                    widget.layoutSettingsController.toggleFleetMoraleMetricMode,
                 damagePulseFilter: widget
                     .safetySettingsController
                     .battleStatusEffects
@@ -2200,42 +2249,82 @@ class _InformationPanelState extends State<_InformationPanel> {
                     .battleStatusEffects
                     .sparkleEnabledFor(BattleEffectSurface.fleet),
                 collapsed: isCollapsed,
-                onToggleCollapse: toggle,
+                onToggleCollapse: _isEditing ? () {} : toggle,
                 onOpenFleet: widget.onOpenFleet,
               ),
               'land_base' => LandBaseSummaryCard(
+                visible: widget.layoutSettingsController.moduleDisplayFields(
+                  'land_base',
+                ),
+                onOpenDisplaySettings: _isEditing
+                    ? () => showModuleDisplaySettings(
+                        context,
+                        widget.layoutSettingsController,
+                        'land_base',
+                      )
+                    : null,
                 controller: widget.gameStateController,
                 damagePulseMode: widget
                     .safetySettingsController
                     .battleStatusEffects
                     .pulseFilterFor(BattleEffectSurface.fleet),
                 collapsed: isCollapsed,
-                onToggleCollapse: toggle,
+                onToggleCollapse: _isEditing ? () {} : toggle,
               ),
               'expedition' => ExpeditionSummaryCard(
+                visible: widget.layoutSettingsController.moduleDisplayFields(
+                  'expedition',
+                ),
+                onOpenDisplaySettings: _isEditing
+                    ? () => showModuleDisplaySettings(
+                        context,
+                        widget.layoutSettingsController,
+                        'expedition',
+                      )
+                    : null,
                 controller: widget.gameStateController,
                 collapsed: isCollapsed,
-                onToggleCollapse: toggle,
+                onToggleCollapse: _isEditing ? () {} : toggle,
                 onOpenExpedition: widget.onOpenExpedition,
                 onOpenExpeditionCheck: widget.onOpenExpeditionCheck,
               ),
 
               'repair' => RepairSummaryCard(
+                visible: widget.layoutSettingsController.moduleDisplayFields(
+                  'repair',
+                ),
+                onOpenDisplaySettings: _isEditing
+                    ? () => showModuleDisplaySettings(
+                        context,
+                        widget.layoutSettingsController,
+                        'repair',
+                      )
+                    : null,
                 controller: widget.gameStateController,
                 collapsed: isCollapsed,
-                onToggleCollapse: toggle,
+                onToggleCollapse: _isEditing ? () {} : toggle,
                 onOpenRepair: widget.onOpenRepair,
               ),
               'construction' => ConstructionSummaryCard(
+                visible: widget.layoutSettingsController.moduleDisplayFields(
+                  'construction',
+                ),
+                onOpenDisplaySettings: _isEditing
+                    ? () => showModuleDisplaySettings(
+                        context,
+                        widget.layoutSettingsController,
+                        'construction',
+                      )
+                    : null,
                 controller: widget.gameStateController,
                 collapsed: isCollapsed,
-                onToggleCollapse: toggle,
+                onToggleCollapse: _isEditing ? () {} : toggle,
                 onOpenConstruction: widget.onOpenConstruction,
               ),
               'quests' => PinnedQuestsSummary(
                 controller: widget.gameStateController,
                 collapsed: isCollapsed,
-                onToggleCollapse: toggle,
+                onToggleCollapse: _isEditing ? () {} : toggle,
                 onOpenQuest: widget.onOpenQuest,
               ),
               'battle' => LiveBattleCard(
@@ -2256,13 +2345,13 @@ class _InformationPanelState extends State<_InformationPanel> {
                     .battleStatusEffects
                     .pulseFilterFor(BattleEffectSurface.prediction),
                 collapsed: isCollapsed,
-                onToggleCollapse: toggle,
+                onToggleCollapse: _isEditing ? () {} : toggle,
               ),
               'pre_sortie' => PreSortieCheckSummary(
                 key: const PageStorageKey('dashboard-pre-sortie'),
                 controller: widget.gameStateController,
                 collapsed: isCollapsed,
-                onToggleCollapse: toggle,
+                onToggleCollapse: _isEditing ? () {} : toggle,
                 onOpenFleet: widget.onOpenFleet,
               ),
               _ => const SizedBox.shrink(),
@@ -2299,7 +2388,16 @@ class _InformationPanelState extends State<_InformationPanel> {
                           child: Container(
                             key: Key('dashboard-drag-region-$id'),
                             color: Colors.transparent,
-                            child: IgnorePointer(child: child),
+                            child: IgnorePointer(
+                              ignoring: !{
+                                'fleet',
+                                'land_base',
+                                'repair',
+                                'construction',
+                                'expedition',
+                              }.contains(id),
+                              child: child,
+                            ),
                           ),
                         ),
                       ),

@@ -14,6 +14,7 @@ class DashboardCard extends StatelessWidget {
     this.padding,
     this.borderColor,
     this.collapseButtonKey,
+    this.headerAction,
   });
 
   final String title;
@@ -26,6 +27,7 @@ class DashboardCard extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final Color? borderColor;
   final Key? collapseButtonKey;
+  final Widget? headerAction;
 
   @override
   Widget build(BuildContext context) {
@@ -81,6 +83,7 @@ class DashboardCard extends StatelessWidget {
                   trailing!,
                   const SizedBox(width: 3),
                 ],
+                if (headerAction != null) headerAction!,
                 IconButton(
                   key: collapseButtonKey,
                   tooltip: collapsed

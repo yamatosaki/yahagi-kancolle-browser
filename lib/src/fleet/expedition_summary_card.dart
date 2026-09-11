@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../game_state/game_state.dart';
 import '../game_state/game_state_controller.dart';
 import 'dashboard_card.dart';
+import '../settings/module_display_settings.dart';
+import '../expedition/expedition_mission_picker.dart' show expeditionDisplayId;
 import 'fleet_ui_strings.dart';
 import 'operation_progress.dart';
 
@@ -18,8 +20,12 @@ class ExpeditionSummaryCard extends StatefulWidget {
     required this.onToggleCollapse,
     required this.onOpenExpedition,
     required this.onOpenExpeditionCheck,
+    this.visible = const {'fleet', 'number', 'name', 'time'},
+    this.onOpenDisplaySettings,
   });
 
+  final Set<String> visible;
+  final VoidCallback? onOpenDisplaySettings;
   final GameStateController controller;
   final bool collapsed;
   final VoidCallback onToggleCollapse;
@@ -48,6 +54,11 @@ class _ExpeditionSummaryCardState extends State<ExpeditionSummaryCard> {
             lookupAppLocalizations(const Locale('zh'));
 
         return DashboardCard(
+          headerAction: moduleDisplayGear(
+            context,
+            'expedition',
+            widget.onOpenDisplaySettings,
+          ),
           title: strings.expeditionBrief,
           icon: const Icon(Icons.explore_outlined),
           collapsed: widget.collapsed,
@@ -95,7 +106,9 @@ class _ExpeditionSummaryCardState extends State<ExpeditionSummaryCard> {
             return Padding(
               padding: const EdgeInsets.only(bottom: 6.0),
               child: _buildExpeditionItem(
+                fleet.id,
                 fleet.name,
+                expeditionDisplayId(fleet.mission.missionId, mission),
                 missionName,
                 OperationCountdownText(
                   completionTime: fleet.mission.completionTime,
@@ -114,7 +127,13 @@ class _ExpeditionSummaryCardState extends State<ExpeditionSummaryCard> {
     );
   }
 
-  Widget _buildExpeditionItem(String fleet, String mission, Widget time) {
+  Widget _buildExpeditionItem(
+    int fleetId,
+    String fleet,
+    String number,
+    String mission,
+    Widget time,
+  ) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -127,39 +146,80 @@ class _ExpeditionSummaryCardState extends State<ExpeditionSummaryCard> {
             borderRadius: BorderRadius.circular(6),
           ),
           child: Row(
+            key: Key('expedition-summary-row-$fleetId'),
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xff03a9f4).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  fleet,
-                  style: const TextStyle(
-                    color: Color(0xff03a9f4),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  mission,
-                  style: const TextStyle(fontSize: 12),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: Row(
+                  children: [
+                    if (widget.visible.contains('fleet'))
+                      Flexible(
+                        child: _summaryBadge(
+                          'fleet',
+                          fleetId,
+                          fleet,
+                          const Color(0xff03a9f4),
+                        ),
+                      ),
+                    if (widget.visible.contains('number')) ...[
+                      if (widget.visible.contains('fleet'))
+                        const SizedBox(width: 4),
+                      _summaryBadge(
+                        'number',
+                        fleetId,
+                        number,
+                        const Color(0xffd4a85f),
+                      ),
+                    ],
+                    if (widget.visible.contains('name')) ...[
+                      if (widget.visible.contains('fleet') ||
+                          widget.visible.contains('number'))
+                        const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          mission,
+                          key: Key('expedition-summary-name-$fleetId'),
+                          style: const TextStyle(fontSize: 12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(width: 6),
-              time,
+              if (widget.visible.contains('time')) ...[
+                const SizedBox(width: 6),
+                KeyedSubtree(
+                  key: Key('expedition-summary-time-$fleetId'),
+                  child: time,
+                ),
+              ],
             ],
           ),
         ),
       ),
     );
   }
+
+  Widget _summaryBadge(String kind, int fleetId, String label, Color color) =>
+      Container(
+        key: Key('expedition-summary-$kind-$fleetId'),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
 }
 
 class ExpeditionModeSelector extends StatelessWidget {

@@ -1,3 +1,4 @@
+import '../settings/fleet_display_options.dart';
 import 'package:flutter/material.dart';
 import '../game_state/fleet_metrics.dart';
 import '../game_state/game_state_controller.dart';
@@ -12,7 +13,6 @@ import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import 'fleet_ship_status_capsule.dart';
 import 'fleet_line_of_sight_details.dart';
 import '../performance/second_tick_scope.dart';
-import '../settings/layout_settings_store.dart';
 import '../settings/battle_status_effect_settings.dart';
 import 'fleet_air_power_details.dart';
 import 'morale_recovery_display.dart';
@@ -28,9 +28,9 @@ class FleetSummaryCard extends StatefulWidget {
     this.damagePulseFilter = DamagePulseFilter.all,
     this.moraleSparkleEnabled = true,
     this.moraleRecoveryTimerController,
-    this.moraleMetricMode = FleetMoraleMetricMode.minimumCondition,
-    this.onToggleMoraleMetricMode,
     this.clock,
+    this.visible = defaultFields,
+    this.onOpenDisplaySettings,
   });
 
   final GameStateController controller;
@@ -40,9 +40,9 @@ class FleetSummaryCard extends StatefulWidget {
   final DamagePulseFilter damagePulseFilter;
   final bool moraleSparkleEnabled;
   final MoraleRecoveryTimerController? moraleRecoveryTimerController;
-  final FleetMoraleMetricMode moraleMetricMode;
-  final VoidCallback? onToggleMoraleMetricMode;
   final DateTime Function()? clock;
+  final Set<String> visible;
+  final VoidCallback? onOpenDisplaySettings;
 
   @override
   State<FleetSummaryCard> createState() => _FleetSummaryCardState();
@@ -81,6 +81,23 @@ class _FleetSummaryCardState extends State<FleetSummaryCard> {
             icon: const Icon(Icons.directions_boat_filled_outlined),
             collapsed: widget.collapsed,
             onToggleCollapse: widget.onToggleCollapse,
+            headerAction: widget.onOpenDisplaySettings == null
+                ? null
+                : IconButton(
+                    key: const Key('fleet-display-settings-button'),
+                    tooltip: fleetText(context, '编队简报显示内容'),
+                    constraints: const BoxConstraints(
+                      minWidth: 36,
+                      minHeight: 36,
+                    ),
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(
+                      Icons.settings_outlined,
+                      size: 19,
+                      color: Color(0xffd4a85f),
+                    ),
+                    onPressed: widget.onOpenDisplaySettings,
+                  ),
             trailing: _FleetSegmentedSwitcher(
               fleets: state.fleets,
               selectedFleetId: _selectedFleetId,
@@ -89,17 +106,18 @@ class _FleetSummaryCardState extends State<FleetSummaryCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _FleetSummaryMetrics(
-                  state: state,
-                  fleetId: _selectedFleetId,
-                  metrics: metrics,
-                  now: now,
-                  moraleRecoveryTimerController:
-                      widget.moraleRecoveryTimerController,
-                  moraleMetricMode: widget.moraleMetricMode,
-                  onToggleMoraleMetricMode: widget.onToggleMoraleMetricMode,
-                ),
-                const SizedBox(height: 6),
+                if (widget.visible.any(summaryFields.contains)) ...[
+                  _FleetSummaryMetrics(
+                    visible: widget.visible,
+                    state: state,
+                    fleetId: _selectedFleetId,
+                    metrics: metrics,
+                    now: now,
+                    moraleRecoveryTimerController:
+                        widget.moraleRecoveryTimerController,
+                  ),
+                  const SizedBox(height: 6),
+                ],
                 if (ships.isEmpty)
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -114,8 +132,13 @@ class _FleetSummaryCardState extends State<FleetSummaryCard> {
                     FleetShipStatusCapsule(
                       state: state,
                       ship: ship,
-                      damagePulseFilter: widget.damagePulseFilter,
-                      moraleSparkleEnabled: widget.moraleSparkleEnabled,
+                      visible: widget.visible,
+                      damagePulseFilter: widget.visible.contains('portrait')
+                          ? widget.damagePulseFilter
+                          : DamagePulseFilter.off,
+                      moraleSparkleEnabled:
+                          widget.visible.contains('portrait') &&
+                          widget.moraleSparkleEnabled,
                       repairStatus: shipRepairStatusFor(
                         state: state,
                         shipId: ship.id,
@@ -202,20 +225,18 @@ class _FleetSummaryMetrics extends StatelessWidget {
   const _FleetSummaryMetrics({
     required this.state,
     required this.fleetId,
+    required this.visible,
     required this.metrics,
     required this.now,
     required this.moraleRecoveryTimerController,
-    required this.moraleMetricMode,
-    required this.onToggleMoraleMetricMode,
   });
 
   final GameState state;
   final int fleetId;
+  final Set<String> visible;
   final FleetMetrics? metrics;
   final DateTime now;
   final MoraleRecoveryTimerController? moraleRecoveryTimerController;
-  final FleetMoraleMetricMode moraleMetricMode;
-  final VoidCallback? onToggleMoraleMetricMode;
 
   @override
   Widget build(BuildContext context) {
@@ -229,49 +250,77 @@ class _FleetSummaryMetrics extends StatelessWidget {
         airPower != null &&
         airPowerMaximum != null &&
         current?.airPowerWithoutProficiency != null;
-    final showsCountdown =
-        moraleRecoveryTimerController != null &&
-        moraleMetricMode == FleetMoraleMetricMode.recoveryCountdown;
-    final moraleLabel = showsCountdown
-        ? requiredL10n.moraleRecoveryCountdown
-        : (l10n?.averageCondition ?? '最低疲劳');
-    final moraleValue = showsCountdown
-        ? fleetMoraleRecoveryDisplay(
-            state: state,
-            fleetId: fleetId,
-            targetAt: moraleRecoveryTimerController?.targetForFleet(fleetId),
-            now: now,
-            recoveredLabel: requiredL10n.moraleRecovered,
-            noValueLabel: '—',
-          )
-        : (current == null ? noValue : '${current.minimumCondition}');
-    final values = <(String, String, String)>[
-      (
-        'speed',
-        l10n?.speed ?? '速度',
-        fleetText(context, current?.speedLabel ?? noValue),
-      ),
-      (
-        'total-level',
-        l10n?.totalLevel ?? '总等级',
-        current == null ? noValue : '${current.totalLevel}',
-      ),
-      (
-        'air-power',
-        l10n?.airPower ?? '制空',
-        airPower == null
-            ? noValue
-            : airPowerMaximum != null && airPowerMaximum > airPower
-            ? '$airPower+'
-            : '$airPower',
-      ),
-      (
-        'line-of-sight',
-        l10n?.lineOfSight ?? '索敌',
-        current == null ? noValue : '${current.lineOfSight}',
-      ),
-      ('minimum-condition', moraleLabel, moraleValue),
-    ];
+    final recoveryValue = fleetMoraleRecoveryDisplay(
+      state: state,
+      fleetId: fleetId,
+      targetAt: moraleRecoveryTimerController?.targetForFleet(fleetId),
+      now: now,
+      recoveredLabel: requiredL10n.moraleRecovered,
+      noValueLabel: noValue,
+    );
+    final values =
+        <(String, String, String)>[
+              (
+                'speed',
+                l10n?.speed ?? '速度',
+                fleetText(context, current?.speedLabel ?? noValue),
+              ),
+              (
+                'total-level',
+                l10n?.totalLevel ?? '总等级',
+                current == null ? noValue : '${current.totalLevel}',
+              ),
+              (
+                'firepower',
+                fleetText(context, '火力'),
+                current == null ? noValue : '${current.firepower}',
+              ),
+              (
+                'torpedo',
+                fleetText(context, '雷装'),
+                current == null ? noValue : '${current.torpedo}',
+              ),
+              (
+                'anti-air',
+                fleetText(context, '对空'),
+                current == null ? noValue : '${current.antiAir}',
+              ),
+              (
+                'anti-sub',
+                fleetText(context, '对潜'),
+                current == null ? noValue : '${current.antiSub}',
+              ),
+              (
+                'air-power',
+                l10n?.airPower ?? '制空',
+                airPower == null
+                    ? noValue
+                    : airPowerMaximum != null && airPowerMaximum > airPower
+                    ? '$airPower+'
+                    : '$airPower',
+              ),
+              (
+                'line-of-sight',
+                l10n?.lineOfSight ?? '索敌',
+                current == null || current.formula33.isEmpty
+                    ? noValue
+                    : current.formula33.first.total.toStringAsFixed(2),
+              ),
+              (
+                'minimum-condition',
+                fleetText(context, '最低疲劳'),
+                current == null ? noValue : '${current.minimumCondition}',
+              ),
+              (
+                'recovery-countdown',
+                fleetText(context, '恢复倒计时'),
+                recoveryValue,
+              ),
+            ]
+            .where((value) => visible.contains(value.$1))
+            .take(maximumSummaryFields)
+            .toList();
+    if (values.isEmpty) return const SizedBox.shrink();
     return Row(
       key: const Key('fleet-summary-metrics'),
       children: [
@@ -284,7 +333,6 @@ class _FleetSummaryMetrics extends StatelessWidget {
               semanticLabel: switch (values[index].$1) {
                 'air-power' when hasAirPowerDetails =>
                   requiredL10n.showAirPowerDetails,
-                'minimum-condition' => requiredL10n.toggleMoraleMetric,
                 _ => null,
               },
               onTap:
@@ -296,8 +344,6 @@ class _FleetSummaryMetrics extends StatelessWidget {
                         current != null &&
                         current.formula33.isNotEmpty
                   ? () => showFleetLineOfSightDetails(context, current)
-                  : values[index].$1 == 'minimum-condition'
-                  ? onToggleMoraleMetricMode
                   : null,
             ),
           ),

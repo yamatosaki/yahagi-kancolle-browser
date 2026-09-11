@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yahagi_kancolle_browser/src/settings/fleet_display_options.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/fleet_ship_status_capsule.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/fleet_summary_card.dart';
@@ -203,7 +204,7 @@ void main() {
     expect(find.text('无加成'), findsOneWidget);
   });
 
-  testWidgets('clicking minimum fatigue switches the shared display mode', (
+  testWidgets('selected recovery countdown shows the live timer', (
     tester,
   ) async {
     final controller = await _controllerWithPortData();
@@ -221,14 +222,12 @@ void main() {
       },
     );
     addTearDown(timerController.dispose);
-    var taps = 0;
 
     await tester.pumpWidget(
       _card(
         controller: controller,
         moraleRecoveryTimerController: timerController,
         moraleMetricMode: FleetMoraleMetricMode.recoveryCountdown,
-        onToggleMoraleMetricMode: () => taps++,
         clock: () => now,
       ),
     );
@@ -236,10 +235,14 @@ void main() {
 
     expect(find.text('恢复倒计时'), findsOneWidget);
     expect(find.text('08:42'), findsOneWidget);
-    await tester.tap(
-      find.byKey(const Key('fleet-summary-metric-minimum-condition')),
+    expect(
+      find.byKey(const Key('fleet-summary-metric-recovery-countdown')),
+      findsOneWidget,
     );
-    expect(taps, 1);
+    expect(
+      find.byKey(const Key('fleet-summary-metric-minimum-condition')),
+      findsNothing,
+    );
   });
 
   testWidgets('home portraits show repair badges without fatigue text badges', (
@@ -285,8 +288,11 @@ Widget _card({
       onToggleCollapse: () {},
       onOpenFleet: onOpenFleet ?? (_) {},
       moraleRecoveryTimerController: moraleRecoveryTimerController,
-      moraleMetricMode: moraleMetricMode,
-      onToggleMoraleMetricMode: onToggleMoraleMetricMode,
+      visible: moraleMetricMode == FleetMoraleMetricMode.recoveryCountdown
+          ? ({...defaultFields}
+              ..remove('minimum-condition')
+              ..add('recovery-countdown'))
+          : defaultFields,
       clock: clock,
     ),
   ),

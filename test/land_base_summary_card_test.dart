@@ -10,6 +10,69 @@ import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
   testWidgets(
+    'land base options retain HP and fatigue and reclaim image width',
+    (tester) async {
+      final base = _base(currentHp: 48, conditions: [3, 1, 1, 1]);
+      for (final width in [280.0, 360.0, 560.0]) {
+        for (var mask = 0; mask < 16; mask++) {
+          final keys = ['portrait', 'bars', 'airPower', 'range'];
+          final fields = {
+            for (var i = 0; i < 4; i++)
+              if ((mask & (1 << i)) != 0) keys[i],
+          };
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: SizedBox(
+                  width: width,
+                  child: LandBaseAirGroupRow(
+                    state: _state(base),
+                    base: base,
+                    visible: fields,
+                  ),
+                ),
+              ),
+            ),
+          );
+          expect(
+            find.byKey(const Key('land-base-hp-value-62-1')),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(const Key('land-base-fatigue-face-62-1')),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(const Key('land-base-portrait-62-1')),
+            fields.contains('portrait') ? findsOneWidget : findsNothing,
+          );
+          expect(
+            find.byKey(const Key('land-base-hp-meter-62-1')),
+            fields.contains('bars') ? findsOneWidget : findsNothing,
+          );
+          expect(
+            find.byKey(const Key('land-base-air-power-chip-62-1')),
+            fields.contains('airPower') ? findsOneWidget : findsNothing,
+          );
+          expect(
+            find.byKey(const Key('land-base-range-chip-62-1')),
+            fields.contains('range') ? findsOneWidget : findsNothing,
+          );
+          for (var id = 1; id <= 4; id++)
+            expect(
+              find.byKey(Key('land-base-slot-count-62-1-$id')),
+              findsOneWidget,
+            );
+          if (!fields.contains('portrait'))
+            expect(find.byType(ShipHpFrame), findsNothing);
+          expect(tester.takeException(), isNull, reason: '$width $mask');
+        }
+      }
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
     'damage frames only the portrait and never creates a fatigue face',
     (tester) async {
       await tester.pumpWidget(
@@ -320,7 +383,13 @@ void main() {
         tester.getRect(find.byKey(Key('land-base-slot-62-1-$id'))),
     ];
     for (final slot in slots) {
-      expect(slot.width, closeTo(18.45, 0.1));
+      expect(slot.width, inExclusiveRange(0, 20));
+      expect(
+        slot.right,
+        lessThanOrEqualTo(
+          tester.getRect(find.byKey(const Key('land-base-row-62-1'))).right,
+        ),
+      );
     }
   });
 

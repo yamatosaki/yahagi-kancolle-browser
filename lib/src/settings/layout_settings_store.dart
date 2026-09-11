@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../theme/app_fonts.dart';
 import 'header_resource_settings.dart';
+import 'module_display_settings.dart';
 
 enum FleetMoraleMetricMode { minimumCondition, recoveryCountdown }
 
@@ -79,6 +80,11 @@ abstract interface class HeaderResourceSettingsStore {
   Future<void> saveVisibleHeaderResourceIds(List<String> visibleIds);
 }
 
+abstract interface class FleetDisplaySettingsStore {
+  Future<List<String>?> loadFleetDisplayFields();
+  Future<void> saveFleetDisplayFields(List<String> fields);
+}
+
 abstract interface class FleetMoraleMetricSettingsStore {
   Future<FleetMoraleMetricMode> loadFleetMoraleMetricMode();
   Future<void> saveFleetMoraleMetricMode(FleetMoraleMetricMode mode);
@@ -87,10 +93,54 @@ abstract interface class FleetMoraleMetricSettingsStore {
 class SharedPreferencesLayoutSettingsStore
     implements
         LayoutSettingsStore,
+        ModuleDisplaySettingsStore,
+        FleetDisplaySettingsStore,
         FleetMoraleMetricSettingsStore,
         HeaderResourceSettingsStore,
         WorkspaceMenuOrderSettingsStore,
         InformationPanelSideSettingsStore {
+  @override
+  Future<List<String>?> loadModuleDisplayFields(String module) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (module == 'expedition') {
+      final current = prefs.getStringList('module_display_expedition_v2');
+      if (current != null) return current;
+      final old = prefs.getStringList('module_display_expedition');
+      return old == null ? null : {...old, 'time'}.toList();
+    }
+    return prefs.getStringList('module_display_$module');
+  }
+
+  @override
+  Future<void> saveModuleDisplayFields(
+    String module,
+    List<String> fields,
+  ) async {
+    await (await SharedPreferences.getInstance()).setStringList(
+      module == 'expedition'
+          ? 'module_display_expedition_v2'
+          : 'module_display_$module',
+      fields,
+    );
+  }
+
+  @override
+  Future<List<String>?> loadFleetDisplayFields() async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = prefs.getStringList('fleet_brief_display_fields_v2');
+    if (current != null) return current;
+    final old = prefs.getStringList('fleet_brief_display_fields_v1');
+    return old == null ? null : {...old, 'hp'}.toList();
+  }
+
+  @override
+  Future<void> saveFleetDisplayFields(List<String> fields) async {
+    await (await SharedPreferences.getInstance()).setStringList(
+      'fleet_brief_display_fields_v2',
+      fields,
+    );
+  }
+
   static const _keyInformationPanelOnLeft = 'layout_information_panel_on_left';
 
   @override
