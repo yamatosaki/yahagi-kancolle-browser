@@ -6,6 +6,7 @@ import '../game_state/game_state_controller.dart';
 import 'dashboard_card.dart';
 import 'fleet_ui_strings.dart';
 import 'ship_status_style.dart';
+import '../settings/layout_settings_controller.dart';
 
 enum SortieCheckMode { ships, maps }
 
@@ -16,12 +17,14 @@ class PreSortieCheckSummary extends StatefulWidget {
     required this.collapsed,
     required this.onToggleCollapse,
     required this.onOpenFleet,
+    this.settingsController,
   });
 
   final GameStateController controller;
   final bool collapsed;
   final VoidCallback onToggleCollapse;
   final ValueChanged<int> onOpenFleet;
+  final LayoutSettingsController? settingsController;
 
   @override
   State<PreSortieCheckSummary> createState() => _PreSortieCheckSummaryState();
@@ -29,7 +32,7 @@ class PreSortieCheckSummary extends StatefulWidget {
 
 class _PreSortieCheckSummaryState extends State<PreSortieCheckSummary> {
   SortieCheckMode _mode = SortieCheckMode.ships;
-  bool _showClearedMaps = true;
+  bool _showClearedMaps = false;
   bool _modeRestored = false;
 
   @override
@@ -51,10 +54,25 @@ class _PreSortieCheckSummaryState extends State<PreSortieCheckSummary> {
     PageStorage.maybeOf(context)?.writeState(context, mode.name);
   }
 
+  bool get _effectiveShowClearedMaps =>
+      widget.settingsController?.showClearedMaps ?? _showClearedMaps;
+
+  void _toggleShowClearedMaps() {
+    final next = !_effectiveShowClearedMaps;
+    if (widget.settingsController case final settings?) {
+      settings.setShowClearedMaps(next);
+    } else {
+      setState(() => _showClearedMaps = next);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: widget.controller,
+      animation: Listenable.merge([
+        widget.controller,
+        if (widget.settingsController != null) widget.settingsController!,
+      ]),
       builder: (context, _) {
         final state = widget.controller.state;
         final l10n =
@@ -176,7 +194,7 @@ class _PreSortieCheckSummaryState extends State<PreSortieCheckSummary> {
       );
     }
 
-    final displayedGauges = _showClearedMaps
+    final displayedGauges = _effectiveShowClearedMaps
         ? allGauges
         : allGauges.where((m) => !m.isGaugeCleared).toList();
 
@@ -204,7 +222,7 @@ class _PreSortieCheckSummaryState extends State<PreSortieCheckSummary> {
           children: [
             InkWell(
               key: const Key('map-gauge-toggle-show-cleared'),
-              onTap: () => setState(() => _showClearedMaps = !_showClearedMaps),
+              onTap: _toggleShowClearedMaps,
               borderRadius: BorderRadius.circular(4),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -212,7 +230,7 @@ class _PreSortieCheckSummaryState extends State<PreSortieCheckSummary> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _showClearedMaps
+                      _effectiveShowClearedMaps
                           ? Icons.check_box_outlined
                           : Icons.check_box_outline_blank_outlined,
                       size: 14,

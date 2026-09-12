@@ -33,6 +33,28 @@ import 'package:yahagi_kancolle_browser/src/settings/network_settings_controller
 import 'package:yahagi_kancolle_browser/src/settings/network_settings_store.dart';
 
 void main() {
+  testWidgets('DMM compatibility receives the complete native login URL', (
+    tester,
+  ) async {
+    final fixture = _SurfaceFixture();
+    addTearDown(fixture.dispose);
+    await fixture.pump(tester);
+    await tester.pump();
+    const url =
+        'https://accounts.dmm.com/service/login/password?return_url=fixture';
+    fixture.port.addEvent(_event('pageStarted', generationId: 7, url: url));
+    fixture.port.addEvent(_event('pageFinished', generationId: 7, url: url));
+    await tester.pump();
+    final scripts = fixture.port.executedScripts.where(
+      (s) => s.contains('ckcy=1'),
+    );
+    expect(scripts, hasLength(1));
+    expect(scripts.single, contains(url));
+    expect(
+      fixture.browserController.displayAddress,
+      isNot(contains('return_url')),
+    );
+  });
   testWidgets(
     'shows a decoded popup preview while the native surface is hidden',
     (tester) async {

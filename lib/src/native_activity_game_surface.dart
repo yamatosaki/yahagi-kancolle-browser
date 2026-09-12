@@ -770,7 +770,11 @@ final class _NativeActivityGameSurfaceState
         final url = event.url!;
         _lastFinishedPageUrl = url;
         widget.statusController.onPageFinished(url);
-        widget.browserController.onPageFinished(url);
+        // Compatibility scripts need the actual URL; the controller sanitizes
+        // it separately for display.
+        widget.browserController.onPageFinished(
+          event.navigationUri?.toString() ?? url,
+        );
         final port = _port;
         if (port != null) {
           _schedulePageFinish(

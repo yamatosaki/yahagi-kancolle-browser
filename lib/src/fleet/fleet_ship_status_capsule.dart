@@ -1,6 +1,7 @@
 import '../settings/fleet_display_options.dart';
 import 'package:flutter/material.dart';
 import 'fleet_ui_strings.dart';
+import 'fleet_ship_type_label.dart';
 
 import '../game_state/game_state.dart';
 import '../settings/battle_status_effect_settings.dart';
@@ -32,6 +33,7 @@ class FleetShipStatusCapsule extends StatefulWidget {
     this.specialAttack,
     this.onTap,
     this.visible = defaultFields,
+    this.shipTypeLabelMode = FleetShipTypeLabelMode.localizedName,
   });
 
   final GameState state;
@@ -42,6 +44,7 @@ class FleetShipStatusCapsule extends StatefulWidget {
   final EquipmentMechanismDisplay? specialAttack;
   final VoidCallback? onTap;
   final Set<String> visible;
+  final FleetShipTypeLabelMode shipTypeLabelMode;
 
   @override
   State<FleetShipStatusCapsule> createState() => _FleetShipStatusCapsuleState();
@@ -104,6 +107,13 @@ class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
 
     final master = state.masterForShip(ship);
     final type = state.masterShipTypes[master?.shipTypeId];
+    final typeLabel =
+        widget.shipTypeLabelMode == FleetShipTypeLabelMode.abbreviation
+        ? fleetShipTypeAbbreviation(
+            master?.shipTypeId ?? 0,
+            fallback: type?.name ?? fleetText(context, '未知舰种'),
+          )
+        : type?.name;
     final hpRatio = _ratio(ship.currentHp, ship.maxHp);
     final fuelRatio = _ratio(ship.currentFuel, master?.maxFuel ?? 0);
     final ammoRatio = _ratio(ship.currentAmmo, master?.maxAmmo ?? 0);
@@ -168,7 +178,7 @@ class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (_badges(
-                                  type?.name,
+                                  typeLabel,
                                   master,
                                   allMechanisms,
                                 ).isNotEmpty ||
@@ -177,7 +187,7 @@ class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
                               Row(
                                 children: [
                                   if (_badges(
-                                    type?.name,
+                                    typeLabel,
                                     master,
                                     allMechanisms,
                                   ).isNotEmpty)
@@ -189,7 +199,7 @@ class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
                                           mainAxisSize: MainAxisSize.min,
                                           children: _spaced(
                                             _badges(
-                                              type?.name,
+                                              typeLabel,
                                               master,
                                               allMechanisms,
                                             ),

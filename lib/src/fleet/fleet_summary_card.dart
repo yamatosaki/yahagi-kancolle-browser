@@ -30,6 +30,7 @@ class FleetSummaryCard extends StatefulWidget {
     this.moraleRecoveryTimerController,
     this.clock,
     this.visible = defaultFields,
+    this.shipTypeLabelMode = FleetShipTypeLabelMode.localizedName,
     this.onOpenDisplaySettings,
   });
 
@@ -42,6 +43,7 @@ class FleetSummaryCard extends StatefulWidget {
   final MoraleRecoveryTimerController? moraleRecoveryTimerController;
   final DateTime Function()? clock;
   final Set<String> visible;
+  final FleetShipTypeLabelMode shipTypeLabelMode;
   final VoidCallback? onOpenDisplaySettings;
 
   @override
@@ -133,6 +135,7 @@ class _FleetSummaryCardState extends State<FleetSummaryCard> {
                       state: state,
                       ship: ship,
                       visible: widget.visible,
+                      shipTypeLabelMode: widget.shipTypeLabelMode,
                       damagePulseFilter: widget.visible.contains('portrait')
                           ? widget.damagePulseFilter
                           : DamagePulseFilter.off,

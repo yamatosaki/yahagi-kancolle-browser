@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_fonts.dart';
 import 'header_resource_settings.dart';
 import 'module_display_settings.dart';
+import 'fleet_display_options.dart';
 
 enum FleetMoraleMetricMode { minimumCondition, recoveryCountdown }
 
@@ -83,6 +84,10 @@ abstract interface class HeaderResourceSettingsStore {
 abstract interface class FleetDisplaySettingsStore {
   Future<List<String>?> loadFleetDisplayFields();
   Future<void> saveFleetDisplayFields(List<String> fields);
+  Future<FleetShipTypeLabelMode> loadFleetShipTypeLabelMode();
+  Future<void> saveFleetShipTypeLabelMode(FleetShipTypeLabelMode mode);
+  Future<bool> loadShowClearedMaps();
+  Future<void> saveShowClearedMaps(bool show);
 }
 
 abstract interface class FleetMoraleMetricSettingsStore {
@@ -138,6 +143,41 @@ class SharedPreferencesLayoutSettingsStore
     await (await SharedPreferences.getInstance()).setStringList(
       'fleet_brief_display_fields_v2',
       fields,
+    );
+  }
+
+  static const _keyFleetShipTypeLabelMode = 'fleet_brief_ship_type_label_mode';
+  static const _keyShowClearedMaps = 'pre_sortie_show_cleared_maps';
+
+  @override
+  Future<FleetShipTypeLabelMode> loadFleetShipTypeLabelMode() async {
+    final saved = (await SharedPreferences.getInstance()).getString(
+      _keyFleetShipTypeLabelMode,
+    );
+    return FleetShipTypeLabelMode.values.firstWhere(
+      (mode) => mode.name == saved,
+      orElse: () => FleetShipTypeLabelMode.localizedName,
+    );
+  }
+
+  @override
+  Future<void> saveFleetShipTypeLabelMode(FleetShipTypeLabelMode mode) async {
+    await (await SharedPreferences.getInstance()).setString(
+      _keyFleetShipTypeLabelMode,
+      mode.name,
+    );
+  }
+
+  @override
+  Future<bool> loadShowClearedMaps() async =>
+      (await SharedPreferences.getInstance()).getBool(_keyShowClearedMaps) ??
+      false;
+
+  @override
+  Future<void> saveShowClearedMaps(bool show) async {
+    await (await SharedPreferences.getInstance()).setBool(
+      _keyShowClearedMaps,
+      show,
     );
   }
 

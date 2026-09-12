@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'dmm_region_compatibility.dart';
 import 'game_launch_config.dart';
 import 'origin_cookie_manager_port.dart';
 import 'safe_page_address.dart';
@@ -63,6 +64,7 @@ final class GameBrowserController extends ChangeNotifier {
   ) : _displayAddress = _homeUri.toString();
 
   GameBrowserPort? _port;
+  final _dmmRegionCompatibility = DmmRegionCompatibility();
   Uri _homeUri;
   final OriginCookieManagerPort _originCookieManagerPort;
   final FutureOr<void> Function()? onSessionReset;
@@ -95,6 +97,7 @@ final class GameBrowserController extends ChangeNotifier {
       return;
     }
     _port = port;
+    _dmmRegionCompatibility.reset();
     _reloadInFlight = null;
     _gameFrameReloadInFlight = null;
   }
@@ -116,6 +119,7 @@ final class GameBrowserController extends ChangeNotifier {
     await onSessionReset?.call();
     if (generation != _sessionResetGeneration) return;
     _homeUri = target;
+    _dmmRegionCompatibility.reset();
     final port = _readyPort();
     if (port == null) {
       return;
@@ -160,6 +164,7 @@ final class GameBrowserController extends ChangeNotifier {
   Future<void> goHome() async {
     final port = _readyPort();
     if (port == null) return;
+    _dmmRegionCompatibility.reset();
     _mode = GameBrowserMode.realWeb;
     _errorMessage = null;
     notifyListeners();
@@ -173,6 +178,7 @@ final class GameBrowserController extends ChangeNotifier {
     }
     final port = _readyPort();
     if (port != null) {
+      _dmmRegionCompatibility.reset();
       final pending = port.reload();
       _reloadInFlight = pending;
       try {
@@ -248,6 +254,7 @@ final class GameBrowserController extends ChangeNotifier {
     }
     await port.clearSession();
     if (generation != _sessionResetGeneration) return;
+    _dmmRegionCompatibility.reset();
     _mode = GameBrowserMode.realWeb;
     _errorMessage = null;
     notifyListeners();
@@ -262,10 +269,28 @@ final class GameBrowserController extends ChangeNotifier {
   }
 
   void onPageFinished(String url) {
+    // Shared by the Activity WebView and Flutter WebView.
+    final port = _port;
+    if (port != null && _mode == GameBrowserMode.realWeb) {
+      final script = _dmmRegionCompatibility.scriptForPage(url);
+      if (script != null) unawaited(_applyDmmRegionCompatibility(port, script));
+    }
     _loadState = GamePageLoadState.ready;
     _errorMessage = null;
     _updateDisplayAddress(url);
     notifyListeners();
+  }
+
+  Future<void> _applyDmmRegionCompatibility(
+    GameBrowserPort port,
+    String script,
+  ) async {
+    try {
+      await port.runJavaScript(script);
+    } catch (_) {
+      // Keep the page available for manual retry without logging login data.
+      debugPrint('DMM region compatibility script could not be applied.');
+    }
   }
 
   void onWebResourceError({

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/pre_sortie_check_summary.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/combat_state.dart';
@@ -8,6 +9,8 @@ import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dar
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_reducer.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_serializer.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_store.dart';
+import 'package:yahagi_kancolle_browser/src/settings/layout_settings_controller.dart';
+import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
 
 import 'fixtures/kcsapi_fixtures.dart';
 
@@ -295,6 +298,11 @@ void main() {
     testWidgets('defaults to ships mode and switches to maps gauge mode', (
       tester,
     ) async {
+      SharedPreferences.setMockInitialValues({});
+      final layoutSettings = await LayoutSettingsController.load(
+        SharedPreferencesLayoutSettingsStore(),
+      );
+      addTearDown(layoutSettings.dispose);
       final state = GameState(
         hasMasterData: true,
         hasPortData: true,
@@ -359,6 +367,7 @@ void main() {
           home: Scaffold(
             body: PreSortieCheckSummary(
               controller: controller,
+              settingsController: layoutSettings,
               collapsed: false,
               onToggleCollapse: () {},
               onOpenFleet: (_) {},
@@ -381,26 +390,48 @@ void main() {
       await tester.tap(find.byKey(const Key('sortie-check-mode-maps')));
       await tester.pumpAndSettle();
 
-      // In Maps mode (cleared maps are shown by default at bottom, normal maps excluded)
+      // Cleared maps are hidden by default.
       expect(find.text('1-6 鎮守府近海航路'), findsOneWidget);
       expect(find.text('5 / 7'), findsOneWidget);
-      expect(find.text('额外作战'), findsNWidgets(2));
+      expect(find.text('额外作战'), findsOneWidget);
       expect(find.text('62-1 九州沖/南西諸島沖 甲'), findsOneWidget);
       expect(find.text('200 / 300'), findsOneWidget);
       expect(find.text('活动海域'), findsOneWidget);
-      expect(find.text('2-5 沖ノ島沖'), findsOneWidget);
-      expect(find.text('0 / 4'), findsOneWidget);
+      expect(find.text('2-5 沖ノ島沖'), findsNothing);
       // Normal single-kill maps are never shown
       expect(find.text('1-1 鎮守府正面海域'), findsNothing);
       expect(find.text('7-1 ブルネイ泊地沖'), findsNothing);
 
-      // Toggle hide cleared maps
+      // Opt in to showing cleared maps.
       await tester.tap(find.byKey(const Key('map-gauge-toggle-show-cleared')));
       await tester.pumpAndSettle();
 
-      // Now cleared 2-5 is hidden
-      expect(find.text('2-5 沖ノ島沖'), findsNothing);
+      expect(find.text('2-5 沖ノ島沖'), findsOneWidget);
+      expect(find.text('0 / 4'), findsOneWidget);
       expect(find.text('1-6 鎮守府近海航路'), findsOneWidget);
+
+      // Rebuilding the card keeps the user's choice.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: PreSortieCheckSummary(
+              controller: controller,
+              settingsController: layoutSettings,
+              collapsed: false,
+              onToggleCollapse: () {},
+              onOpenFleet: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('sortie-check-mode-maps')));
+      await tester.pumpAndSettle();
+      expect(find.text('2-5 沖ノ島沖'), findsOneWidget);
 
       // Switch back to Ships mode
       await tester.tap(find.byKey(const Key('sortie-check-mode-ships')));

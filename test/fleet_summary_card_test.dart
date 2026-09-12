@@ -26,6 +26,22 @@ void main() {
     expect(find.text('吹雪'), findsOneWidget);
   });
 
+  testWidgets('ship type badges can use English abbreviations', (tester) async {
+    final controller = await _controllerWithPortData();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      _card(
+        controller: controller,
+        shipTypeLabelMode: FleetShipTypeLabelMode.abbreviation,
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('DD'), findsOneWidget);
+    expect(find.text('CL'), findsOneWidget);
+  });
+
   testWidgets('home ship capsule shows a same-size combat mechanism badge', (
     tester,
   ) async {
@@ -280,6 +296,8 @@ Widget _card({
       FleetMoraleMetricMode.minimumCondition,
   VoidCallback? onToggleMoraleMetricMode,
   DateTime Function()? clock,
+  FleetShipTypeLabelMode shipTypeLabelMode =
+      FleetShipTypeLabelMode.localizedName,
 }) => MaterialApp(
   home: Scaffold(
     body: FleetSummaryCard(
@@ -293,6 +311,7 @@ Widget _card({
               ..remove('minimum-condition')
               ..add('recovery-countdown'))
           : defaultFields,
+      shipTypeLabelMode: shipTypeLabelMode,
       clock: clock,
     ),
   ),

@@ -160,11 +160,15 @@ class LayoutSettingsController extends ChangeNotifier {
       }
     }
     if (store is FleetDisplaySettingsStore) {
-      final saved = await (store as FleetDisplaySettingsStore)
-          .loadFleetDisplayFields();
+      final fleetDisplayStore = store as FleetDisplaySettingsStore;
+      final saved = await fleetDisplayStore.loadFleetDisplayFields();
       controller._fleetDisplayFields = normalizeDisplayFields(
         saved ?? defaultFields,
       );
+      controller._fleetShipTypeLabelMode = await fleetDisplayStore
+          .loadFleetShipTypeLabelMode();
+      controller._showClearedMaps = await fleetDisplayStore
+          .loadShowClearedMaps();
       if (saved == null &&
           fleetMoraleMetricMode == FleetMoraleMetricMode.recoveryCountdown) {
         controller._fleetDisplayFields = {...controller._fleetDisplayFields}
@@ -203,6 +207,31 @@ class LayoutSettingsController extends ChangeNotifier {
       await (_store as FleetDisplaySettingsStore).saveFleetDisplayFields(
         _fleetDisplayFields.toList(),
       );
+    }
+  }
+
+  FleetShipTypeLabelMode _fleetShipTypeLabelMode =
+      FleetShipTypeLabelMode.localizedName;
+  FleetShipTypeLabelMode get fleetShipTypeLabelMode => _fleetShipTypeLabelMode;
+  Future<void> setFleetShipTypeLabelMode(FleetShipTypeLabelMode mode) async {
+    if (_fleetShipTypeLabelMode == mode) return;
+    _fleetShipTypeLabelMode = mode;
+    notifyListeners();
+    if (_store is FleetDisplaySettingsStore) {
+      await (_store as FleetDisplaySettingsStore).saveFleetShipTypeLabelMode(
+        mode,
+      );
+    }
+  }
+
+  bool _showClearedMaps = false;
+  bool get showClearedMaps => _showClearedMaps;
+  Future<void> setShowClearedMaps(bool show) async {
+    if (_showClearedMaps == show) return;
+    _showClearedMaps = show;
+    notifyListeners();
+    if (_store is FleetDisplaySettingsStore) {
+      await (_store as FleetDisplaySettingsStore).saveShowClearedMaps(show);
     }
   }
 

@@ -2342,6 +2342,8 @@ class _InformationPanelState extends State<_InformationPanel> {
                       )
                     : null,
                 visible: widget.layoutSettingsController.fleetDisplayFields,
+                shipTypeLabelMode:
+                    widget.layoutSettingsController.fleetShipTypeLabelMode,
                 controller: widget.gameStateController,
                 moraleRecoveryTimerController:
                     widget.moraleRecoveryTimerController,
@@ -2455,6 +2457,7 @@ class _InformationPanelState extends State<_InformationPanel> {
               'pre_sortie' => PreSortieCheckSummary(
                 key: const PageStorageKey('dashboard-pre-sortie'),
                 controller: widget.gameStateController,
+                settingsController: widget.layoutSettingsController,
                 collapsed: isCollapsed,
                 onToggleCollapse: _isEditing ? () {} : toggle,
                 onOpenFleet: widget.onOpenFleet,
