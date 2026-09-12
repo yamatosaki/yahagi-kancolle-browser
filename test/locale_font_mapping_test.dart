@@ -12,24 +12,24 @@ void main() {
 
       await controller.setLocaleCode('zh');
       expect(controller.fontFamily, 'HarmonyOS_Sans_SC');
-      expect(
-        controller.fontFamilyFallback,
-        everyElement(startsWith('HarmonyOS_')),
-      );
+      expect(controller.fontFamilyFallback, [
+        'HarmonyOS_Sans_TC',
+        'HarmonyOS_Sans',
+      ]);
 
       await controller.setLocaleCode('zh_Hant');
       expect(controller.fontFamily, 'HarmonyOS_Sans_TC');
-      expect(
-        controller.fontFamilyFallback,
-        everyElement(startsWith('HarmonyOS_')),
-      );
+      expect(controller.fontFamilyFallback, [
+        'HarmonyOS_Sans_SC',
+        'HarmonyOS_Sans',
+      ]);
 
       await controller.setLocaleCode('ja');
       expect(controller.fontFamily, 'HarmonyOS_Sans_SC');
-      expect(
-        controller.fontFamilyFallback,
-        everyElement(startsWith('HarmonyOS_')),
-      );
+      expect(controller.fontFamilyFallback, [
+        'HarmonyOS_Sans_TC',
+        'HarmonyOS_Sans',
+      ]);
     },
   );
 
