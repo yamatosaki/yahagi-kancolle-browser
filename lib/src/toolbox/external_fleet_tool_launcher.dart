@@ -41,6 +41,12 @@ String _noro6ImportJson(String deckBuilderJson, GameState state) {
             'lv': ship.level,
             'exp': <int>[ship.experience, ship.nextExperience, 0],
             'ex': ship.extraSlotId != 0 ? 1 : 0,
+            'area': ship.sallyArea,
+            if (ship.specialEffectKinds.isNotEmpty)
+              'sp': ship.specialEffectKinds,
+            if (ship.maxSlotCounts.isNotEmpty) 'slots': ship.maxSlotCounts,
+            if (ship.modernization.length >= 7)
+              'st': ship.modernization.take(7).toList(),
           },
         )
         .toList(),

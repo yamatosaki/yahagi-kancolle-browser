@@ -191,6 +191,12 @@ class GameStateSerializer {
           'level': v.level,
           'currentHp': v.currentHp,
           'maxHp': v.maxHp,
+          'luck': v.luck,
+          'luckMax': v.luckMax,
+          'modernization': v.modernization,
+          'sallyArea': v.sallyArea,
+          'specialEffectKinds': v.specialEffectKinds,
+          'maxSlotCounts': v.maxSlotCounts,
           'condition': v.condition,
           'experience': v.experience,
           'nextExperience': v.nextExperience,
@@ -576,6 +582,24 @@ class GameStateSerializer {
               level: _int(v['level']) ?? 1,
               currentHp: _int(v['currentHp']) ?? 0,
               maxHp: _int(v['maxHp']) ?? 0,
+              luck: _int(v['luck']) ?? 0,
+              luckMax: _int(v['luckMax']) ?? 0,
+              sallyArea: _int(v['sallyArea']) ?? 0,
+              specialEffectKinds: v['specialEffectKinds'] is List
+                  ? (v['specialEffectKinds'] as List)
+                        .map((value) => _int(value) ?? 0)
+                        .toList()
+                  : const [],
+              maxSlotCounts: v['maxSlotCounts'] is List
+                  ? (v['maxSlotCounts'] as List)
+                        .map((value) => _int(value) ?? 0)
+                        .toList()
+                  : const [],
+              modernization: v['modernization'] is List
+                  ? (v['modernization'] as List)
+                        .map((value) => _int(value) ?? 0)
+                        .toList()
+                  : const [],
               condition: _int(v['condition']) ?? 49,
               currentFuel: 100,
               currentAmmo: 100,

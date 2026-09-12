@@ -150,12 +150,24 @@ void main() {
       expect(shouldShowPostBattleWarning(battle), isTrue);
     });
 
-    test('still warns for a combined main-fleet ship', () {
+    test('does not warn for only a combined main-fleet flagship', () {
       final battle = resultBattle(
         main: <BattleShipSnapshot>[_heavyDamageShip(position: 0, name: '一队旗舰')],
       );
 
-      expect(shouldShowPostBattleWarning(battle), isTrue);
+      expect(shouldShowPostBattleWarning(battle), isFalse);
+    });
+
+    test('does not warn for only a normal fleet flagship', () {
+      expect(
+        shouldShowPostBattleWarning(
+          resultBattle(
+            context: const BattleContext(node: 4, bossNode: 5),
+            main: [_heavyDamageShip(position: 0)],
+          ),
+        ),
+        isFalse,
+      );
     });
 
     test('still warns when another ship is heavy with the escort flagship', () {
@@ -240,14 +252,45 @@ void main() {
       expect(shouldShowAdvanceWarning(state), isFalse);
     });
 
-    test('still warns for the combined main-fleet flagship', () {
+    test('does not warn for only the combined main-fleet flagship', () {
       final state = _sortieState(
         main: <OwnedShip>[_ownedShip(101, currentHp: 2), _ownedShip(102)],
         escort: <OwnedShip>[_ownedShip(201), _ownedShip(202)],
         combinedFleetType: CombinedFleetType.surfaceTaskForce,
       );
 
-      expect(shouldShowAdvanceWarning(state), isTrue);
+      expect(shouldShowAdvanceWarning(state), isFalse);
+    });
+
+    test('ignores main flagship but keeps warnings for accompanying ships', () {
+      for (final type in CombinedFleetType.values) {
+        final state = _sortieState(
+          main: [_ownedShip(101, currentHp: 2), _ownedShip(102)],
+          combinedFleetType: type,
+        );
+        expect(shouldShowAdvanceWarning(state), isFalse, reason: type.name);
+        expect(
+          shouldShowAdvanceWarning(
+            state.copyWith(
+              ships: {...state.ships, 102: _ownedShip(102, currentHp: 2)},
+            ),
+          ),
+          isTrue,
+          reason: type.name,
+        );
+      }
+    });
+
+    test('missing flagship data must not reclassify a damaged second ship', () {
+      final state = _sortieState(
+        main: [_ownedShip(101), _ownedShip(102, currentHp: 2)],
+      );
+      expect(
+        shouldShowAdvanceWarning(
+          state.copyWith(ships: {102: state.ships[102]!}),
+        ),
+        isTrue,
+      );
     });
 
     test('pending escape is not treated as confirmed escape', () {
@@ -283,6 +326,32 @@ void main() {
     expect(fixture.alerts.alerts, isEmpty);
     expect(find.byType(AlertDialog), findsNothing);
   });
+
+  for (final type in [
+    CombinedFleetType.none,
+    CombinedFleetType.surfaceTaskForce,
+  ]) {
+    testWidgets(
+      'flagship alone does not show an advance dialog or vibration ${type.name}',
+      (tester) async {
+        final fixture = await _WarningOverlayFixture.create(
+          mode: BattleWarningMode.confirm,
+          initialState: _sortieState(
+            main: [_ownedShip(101, currentHp: 2), _ownedShip(102)],
+            combinedFleetType: type,
+          ),
+        );
+        addTearDown(fixture.dispose);
+        await fixture.pump(tester);
+        await fixture.publishEvent(
+          tester,
+          kcsapiEvent('/kcsapi/api_req_map/next', const {}),
+        );
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(fixture.alerts.alerts, isEmpty);
+      },
+    );
+  }
 
   testWidgets('every successful advance recomputes and shows the warning', (
     tester,

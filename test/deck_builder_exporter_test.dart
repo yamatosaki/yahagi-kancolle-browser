@@ -22,10 +22,12 @@ void main() {
       expect(result['version'], 4);
       expect(result['hqlv'], 120);
       expect(result['f1'], <String, Object?>{
+        'name': 'First',
         's1': <String, Object?>{
           'id': 187,
           'lv': 70,
           'luck': 12,
+          'exa': true,
           'items': <String, Object?>{},
         },
       });
@@ -139,12 +141,14 @@ void main() {
       expect((eventOnly['a3'] as Map)['mode'], 1);
       expect(eventOnly.containsKey('a4'), isFalse);
       expect(eventOnly['a1'], <String, Object?>{
+        'name': 'Event A',
         'mode': 2,
         'items': <String, Object?>{
           'i2': <String, Object?>{'id': 364, 'rf': 0, 'mas': 3},
         },
       });
       expect(eventOnly['a2'], <String, Object?>{
+        'name': 'Event B',
         'mode': 0,
         'items': <String, Object?>{
           'i2': <String, Object?>{'id': 286, 'rf': 0},

@@ -395,6 +395,10 @@ class OwnedShip {
     this.evasion = 0,
     this.luck = 0,
     this.luckMax = 0,
+    this.modernization = const <int>[],
+    this.sallyArea = 0,
+    this.specialEffectKinds = const <int>[],
+    this.maxSlotCounts = const <int>[],
     this.speed = 0,
     this.range = 0,
     this.slotIds = const <int>[],
@@ -429,6 +433,14 @@ class OwnedShip {
   final int evasion;
   final int luck;
   final int luckMax;
+
+  /// api_kyouka: firepower, torpedo, anti-air, armor, luck, HP, ASW increments.
+  final List<int> modernization;
+  final int sallyArea;
+  final List<int> specialEffectKinds;
+
+  /// Personal hangar capacities (api_onslot_max), distinct from surviving planes.
+  final List<int> maxSlotCounts;
   final int speed;
   final int range;
   final List<int> slotIds;
@@ -953,6 +965,7 @@ class GameState {
     this.serverOrigin = '',
     this.hasMasterData = false,
     this.hasPortData = false,
+    this.hasEquipmentInventory = false,
     this.combatState = CombatState.empty,
     this.updatedAt,
   }) : // Private nullable backing fields keep pre-hot-reload instances safe.
@@ -1010,6 +1023,10 @@ class GameState {
   final String serverOrigin;
   final bool hasMasterData;
   final bool hasPortData;
+  // Only a complete live inventory response makes equipment exportable.
+  final bool hasEquipmentInventory;
+
+  bool get canExportFleet => hasPortData && hasEquipmentInventory;
   final CombatState combatState;
   final DateTime? updatedAt;
 
@@ -1117,6 +1134,7 @@ class GameState {
     String? serverOrigin,
     bool? hasMasterData,
     bool? hasPortData,
+    bool? hasEquipmentInventory,
     CombatState? combatState,
     DateTime? updatedAt,
   }) {
@@ -1163,6 +1181,8 @@ class GameState {
       serverOrigin: serverOrigin ?? this.serverOrigin,
       hasMasterData: hasMasterData ?? this.hasMasterData,
       hasPortData: hasPortData ?? this.hasPortData,
+      hasEquipmentInventory:
+          hasEquipmentInventory ?? this.hasEquipmentInventory,
       combatState: combatState ?? this.combatState,
       updatedAt: updatedAt ?? this.updatedAt,
     );

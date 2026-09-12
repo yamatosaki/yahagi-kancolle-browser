@@ -30,6 +30,7 @@ class GameStateReducer {
           event.path == '/kcsapi/api_req_kaisou/slotset' ||
           event.path == '/kcsapi/api_req_kaisou/slotset_ex' ||
           event.path == '/kcsapi/api_req_kaisou/unsetslot_all' ||
+          event.path == '/kcsapi/api_req_kaisou/open_exslot' ||
           event.path == '/kcsapi/api_req_kousyou/createship' ||
           event.path == '/kcsapi/api_req_kousyou/createship_speedchange' ||
           event.path == '/kcsapi/api_req_nyukyo/start' ||
@@ -92,6 +93,7 @@ class GameStateReducer {
       ),
       '/kcsapi/api_get_member/slot_item' => state.copyWith(
         slotItems: _parseSlotItems(_requiredList(data, 'slot_item')),
+        hasEquipmentInventory: true,
         serverOrigin: origin,
         updatedAt: event.capturedAt,
       ),
@@ -193,6 +195,57 @@ class GameStateReducer {
         event,
         origin,
       ),
+      '/kcsapi/api_req_kousyou/remodel_slot' => _remodelSlotItems(
+        state,
+        _requiredMap(data, 'equipment modernization'),
+        event,
+        origin,
+      ),
+      '/kcsapi/api_req_kousyou/remodel_slot_recover' => _createSlotItems(
+        state,
+        {
+          'api_slot_item': _requiredMap(
+            data,
+            'equipment recovery',
+          )['api_after_slot'],
+        },
+        event,
+        origin,
+      ),
+      '/kcsapi/api_req_member/itemuse' => _createSlotItems(
+        state,
+        {
+          'api_get_items': [
+            for (final entry in _optionalList(
+              _requiredMap(data, 'item use')['api_getitem'],
+            ))
+              if (entry is Map && entry['api_slotitem'] is Map)
+                entry['api_slotitem'],
+          ],
+        },
+        event,
+        origin,
+      ),
+      '/kcsapi/api_req_kaisou/marriage' => _shipAndDeck(
+        state,
+        {
+          'api_ship_data': [data],
+        },
+        event,
+        origin,
+      ),
+      '/kcsapi/api_req_kaisou/open_exslot' => _updateShipCapacity(
+        state,
+        const {},
+        event,
+        origin,
+      ),
+      '/kcsapi/api_req_kaisou/hangar_expand' => _updateShipCapacity(
+        state,
+        _requiredMap(data, 'hangar expansion'),
+        event,
+        origin,
+      ),
       '/kcsapi/api_req_kousyou/destroyship' => _consumeShips(
         state,
         _requestIds(event.requestParams['api_ship_id']),
@@ -225,12 +278,11 @@ class GameStateReducer {
         event,
         origin,
       ),
-      '/kcsapi/api_req_kaisou/powerup' => _consumeShips(
+      '/kcsapi/api_req_kaisou/powerup' => _modernizeShip(
         state,
-        _requestIds(event.requestParams['api_id_items']),
-        removeEquipment: _asInt(event.requestParams['api_slot_dest_flag']) != 0,
-        event: event,
-        origin: origin,
+        _optionalMap(data) ?? const <String, Object?>{},
+        event,
+        origin,
       ),
       '/kcsapi/api_req_nyukyo/speedchange' => _repairSpeedChange(
         state,
@@ -371,6 +423,74 @@ class GameStateReducer {
       slotItems: Map<int, OwnedSlotItem>.of(state.slotItems)..addAll(parsed),
       serverOrigin: origin,
       updatedAt: event.capturedAt,
+    );
+  }
+
+  GameState _updateShipCapacity(
+    GameState state,
+    Map<String, Object?> data,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final id = _asInt(
+      event.requestParams['api_ship_id'] ?? event.requestParams['api_id'],
+    );
+    final ship = state.ships[id];
+    if (ship == null) return state;
+    final expanded = event.path.endsWith('/open_exslot');
+    return _replaceShip(
+      state,
+      _copyShip(
+        ship,
+        extraSlotId: expanded && ship.extraSlotId == 0 ? -1 : null,
+        maxSlotCounts: data['api_onslot_max'] is List
+            ? _intList(data['api_onslot_max'], includeNonPositive: true)
+            : null,
+      ),
+      event,
+      origin,
+    );
+  }
+
+  GameState _remodelSlotItems(
+    GameState state,
+    Map<String, Object?> data,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final consumed = _intList(data['api_use_slot_id']).toSet();
+    final items = Map<int, OwnedSlotItem>.of(state.slotItems)
+      ..removeWhere((id, _) => consumed.contains(id));
+    if (_asInt(data['api_remodel_flag']) == 1) {
+      items.addAll(_parseSlotItems([data['api_after_slot']]));
+    }
+    return state.copyWith(
+      slotItems: items,
+      serverOrigin: origin,
+      updatedAt: event.capturedAt,
+    );
+  }
+
+  GameState _modernizeShip(
+    GameState state,
+    Map<String, Object?> data,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final consumed = _consumeShips(
+      state,
+      _requestIds(event.requestParams['api_id_items']),
+      removeEquipment: _asInt(event.requestParams['api_slot_dest_flag']) != 0,
+      event: event,
+      origin: origin,
+    );
+    final ship = _optionalMap(data['api_ship']);
+    if (ship == null) return consumed;
+    return consumed.copyWith(
+      ships: {
+        ...consumed.ships,
+        ..._parseShips([ship], previous: consumed.ships),
+      },
     );
   }
 
@@ -577,7 +697,7 @@ class GameStateReducer {
     CapturedApiEvent event,
     String origin,
   ) {
-    final parsed = _parseShips(values);
+    final parsed = _parseShips(values, previous: state.ships);
     final ships = Map<int, OwnedShip>.of(state.ships)..addAll(parsed);
     return state.copyWith(
       ships: ships,
@@ -608,7 +728,7 @@ class GameStateReducer {
     String origin,
   ) {
     final ships = Map<int, OwnedShip>.of(state.ships)
-      ..addAll(_parseShips(<Object?>[data['api_ship']]));
+      ..addAll(_parseShips(<Object?>[data['api_ship']], previous: state.ships));
     final slotItems = Map<int, OwnedSlotItem>.of(state.slotItems)
       ..addAll(_parseSlotItems(_optionalList(data['api_slotitem'])));
     final parsedDocks = _parseConstructionDocks(
@@ -1154,6 +1274,8 @@ class GameStateReducer {
     CapturedApiEvent event,
     String origin,
   ) {
+    // A fresh login may deliver require_info before the member identity.
+    state = _clearMemberData(state);
     final shipTypes = _parseMasterShipTypes(
       _optionalList(data['api_mst_stype']),
     );
@@ -1252,12 +1374,33 @@ class GameStateReducer {
     );
   }
 
+  GameState _clearMemberData(GameState state) => GameState(
+    masterShipTypes: state.masterShipTypes,
+    masterShips: state.masterShips,
+    masterSlotItems: state.masterSlotItems,
+    masterSlotItemTypes: state.masterSlotItemTypes,
+    expansionSlotEquipmentTypeIds: state.expansionSlotEquipmentTypeIds,
+    expansionSlotSpecialRules: state.expansionSlotSpecialRules,
+    expansionSlotLimitsByShipId: state.expansionSlotLimitsByShipId,
+    hasEquipmentCompatibilityData: state.hasEquipmentCompatibilityData,
+    masterMissions: state.masterMissions,
+    masterMapInfos: state.masterMapInfos,
+    masterMapAreas: state.masterMapAreas,
+    hasMasterData: state.hasMasterData,
+    serverOrigin: state.serverOrigin,
+  );
+
+  GameState _forMember(GameState state, int memberId) =>
+      state.memberId > 0 && memberId > 0 && state.memberId != memberId
+      ? _clearMemberData(state)
+      : state;
+
   GameState _basic(
     GameState state,
     Map<String, Object?> basic,
     CapturedApiEvent event,
     String origin,
-  ) => state.copyWith(
+  ) => _forMember(state, _asInt(basic['api_member_id'])).copyWith(
     memberId: _asInt(basic['api_member_id']),
     admiralLevel: _asInt(basic['api_level']),
     maxShipCount: basic.containsKey('api_max_chara')
@@ -1282,6 +1425,7 @@ class GameStateReducer {
     bool hasPortData = false,
   }) {
     final basic = _optionalMap(data['api_basic']);
+    state = _forMember(state, _asInt(basic?['api_member_id']));
     return state.copyWith(
       memberId: basic == null ? null : _asInt(basic['api_member_id']),
       admiralLevel: basic == null ? null : _asInt(basic['api_level']),
@@ -1330,6 +1474,7 @@ class GameStateReducer {
       slotItems: data.containsKey('api_slot_item')
           ? _parseSlotItems(_optionalList(data['api_slot_item']))
           : null,
+      hasEquipmentInventory: data['api_slot_item'] is List ? true : null,
       serverOrigin: origin,
       hasPortData: hasPortData ? true : null,
       combatState: hasPortData ? CombatState.empty : null,
@@ -1751,7 +1896,10 @@ class GameStateReducer {
     String origin,
   ) {
     if (data is List) {
-      final newShips = _parseShips(List<Object?>.from(data));
+      final newShips = _parseShips(
+        List<Object?>.from(data),
+        previous: state.ships,
+      );
       final mergedShips = Map<int, OwnedShip>.from(state.ships)
         ..addAll(newShips);
       return state.copyWith(
@@ -1770,7 +1918,10 @@ class GameStateReducer {
 
     Map<int, OwnedShip>? mergedShips;
     if (shipData != null) {
-      final newShips = _parseShips(_optionalList(shipData));
+      final newShips = _parseShips(
+        _optionalList(shipData),
+        previous: state.ships,
+      );
       mergedShips = Map<int, OwnedShip>.from(state.ships)..addAll(newShips);
     }
 
@@ -1890,6 +2041,7 @@ class GameStateReducer {
     List<int>? slotIds,
     List<int>? onSlot,
     int? extraSlotId,
+    List<int>? maxSlotCounts,
   }) {
     return OwnedShip(
       id: ship.id,
@@ -1915,6 +2067,10 @@ class GameStateReducer {
       evasion: ship.evasion,
       luck: ship.luck,
       luckMax: ship.luckMax,
+      modernization: ship.modernization,
+      sallyArea: ship.sallyArea,
+      specialEffectKinds: ship.specialEffectKinds,
+      maxSlotCounts: maxSlotCounts ?? ship.maxSlotCounts,
       speed: ship.speed,
       range: ship.range,
       slotIds: slotIds ?? ship.slotIds,
@@ -2112,7 +2268,10 @@ class GameStateReducer {
     return result;
   }
 
-  Map<int, OwnedShip> _parseShips(List<Object?> values) {
+  Map<int, OwnedShip> _parseShips(
+    List<Object?> values, {
+    Map<int, OwnedShip> previous = const {},
+  }) {
     final result = <int, OwnedShip>{};
     for (final value in values) {
       final item = _optionalMap(value);
@@ -2121,41 +2280,109 @@ class GameStateReducer {
       if (item == null || id <= 0 || masterId <= 0) {
         continue;
       }
+      final existing = previous[id]?.masterId == masterId ? previous[id] : null;
       final experience = _optionalList(item['api_exp']);
       final repairItems = _optionalList(item['api_ndock_item']);
       result[id] = OwnedShip(
         id: id,
         masterId: masterId,
-        level: _asInt(item['api_lv']),
-        currentHp: _asInt(item['api_nowhp']),
-        maxHp: _asInt(item['api_maxhp']),
-        condition: _asInt(item['api_cond'], 49),
-        currentFuel: _asInt(item['api_fuel']),
-        currentAmmo: _asInt(item['api_bull']),
-        experience: experience.isNotEmpty ? _asInt(experience[0]) : 0,
-        nextExperience: experience.length > 1 ? _asInt(experience[1]) : 0,
-        firepower: _currentStat(item['api_karyoku']),
-        firepowerMax: _maximumStat(item['api_karyoku']),
-        torpedo: _currentStat(item['api_raisou']),
-        torpedoMax: _maximumStat(item['api_raisou']),
-        antiAir: _currentStat(item['api_taiku']),
-        antiAirMax: _maximumStat(item['api_taiku']),
-        antiSub: _currentStat(item['api_taisen']),
-        lineOfSight: _currentStat(item['api_sakuteki']),
-        armor: _currentStat(item['api_soukou']),
-        armorMax: _maximumStat(item['api_soukou']),
-        evasion: _currentStat(item['api_kaihi']),
-        luck: _currentStat(item['api_lucky']),
-        luckMax: _maximumStat(item['api_lucky']),
-        speed: _asInt(item['api_soku']),
-        range: _asInt(item['api_leng']),
-        slotIds: _intList(item['api_slot']),
-        onSlot: _intList(item['api_onslot'], includeNonPositive: true),
-        extraSlotId: _asInt(item['api_slot_ex'], -1),
-        repairDurationMilliseconds: _asInt(item['api_ndock_time']),
-        repairFuelCost: repairItems.isNotEmpty ? _asInt(repairItems[0]) : 0,
-        repairSteelCost: repairItems.length > 2 ? _asInt(repairItems[2]) : 0,
-        locked: _asInt(item['api_locked']) > 0,
+        level: _asInt(item['api_lv'], existing?.level ?? 0),
+        currentHp: _asInt(item['api_nowhp'], existing?.currentHp ?? 0),
+        maxHp: _asInt(item['api_maxhp'], existing?.maxHp ?? 0),
+        condition: _asInt(item['api_cond'], existing?.condition ?? 49),
+        currentFuel: _asInt(item['api_fuel'], existing?.currentFuel ?? 0),
+        currentAmmo: _asInt(item['api_bull'], existing?.currentAmmo ?? 0),
+        experience: experience.isNotEmpty
+            ? _asInt(experience[0])
+            : existing?.experience ?? 0,
+        nextExperience: experience.length > 1
+            ? _asInt(experience[1])
+            : existing?.nextExperience ?? 0,
+        firepower: item.containsKey('api_karyoku')
+            ? _currentStat(item['api_karyoku'])
+            : existing?.firepower ?? 0,
+        firepowerMax: item.containsKey('api_karyoku')
+            ? _maximumStat(item['api_karyoku'])
+            : existing?.firepowerMax ?? 0,
+        torpedo: item.containsKey('api_raisou')
+            ? _currentStat(item['api_raisou'])
+            : existing?.torpedo ?? 0,
+        torpedoMax: item.containsKey('api_raisou')
+            ? _maximumStat(item['api_raisou'])
+            : existing?.torpedoMax ?? 0,
+        antiAir: item.containsKey('api_taiku')
+            ? _currentStat(item['api_taiku'])
+            : existing?.antiAir ?? 0,
+        antiAirMax: item.containsKey('api_taiku')
+            ? _maximumStat(item['api_taiku'])
+            : existing?.antiAirMax ?? 0,
+        antiSub: item.containsKey('api_taisen')
+            ? _currentStat(item['api_taisen'])
+            : existing?.antiSub ?? 0,
+        lineOfSight: item.containsKey('api_sakuteki')
+            ? _currentStat(item['api_sakuteki'])
+            : existing?.lineOfSight ?? 0,
+        armor: item.containsKey('api_soukou')
+            ? _currentStat(item['api_soukou'])
+            : existing?.armor ?? 0,
+        armorMax: item.containsKey('api_soukou')
+            ? _maximumStat(item['api_soukou'])
+            : existing?.armorMax ?? 0,
+        evasion: item.containsKey('api_kaihi')
+            ? _currentStat(item['api_kaihi'])
+            : existing?.evasion ?? 0,
+        luck: item.containsKey('api_lucky')
+            ? _currentStat(item['api_lucky'])
+            : existing?.luck ?? 0,
+        luckMax: item.containsKey('api_lucky')
+            ? _maximumStat(item['api_lucky'])
+            : existing?.luckMax ?? 0,
+        modernization: item.containsKey('api_kyouka')
+            ? _intList(item['api_kyouka'], includeNonPositive: true)
+            : existing?.modernization ?? const [],
+        sallyArea: _asInt(item['api_sally_area'], existing?.sallyArea ?? 0),
+        specialEffectKinds: !item.containsKey('api_sp_effect_items')
+            ? existing?.specialEffectKinds ?? const []
+            : [
+                for (final effect in _optionalList(item['api_sp_effect_items']))
+                  if (_asInt(_optionalMap(effect)?['api_kind']) > 0)
+                    _asInt(_optionalMap(effect)?['api_kind']),
+              ],
+        maxSlotCounts: !item.containsKey('api_onslot_max')
+            ? existing?.maxSlotCounts ?? const []
+            : _intList(item['api_onslot_max'], includeNonPositive: true)
+                  .take(
+                    _asInt(
+                      item['api_slotnum'],
+                      _optionalList(item['api_onslot_max']).length,
+                    ).clamp(0, _optionalList(item['api_onslot_max']).length),
+                  )
+                  .toList(),
+        speed: _asInt(item['api_soku'], existing?.speed ?? 0),
+        range: _asInt(item['api_leng'], existing?.range ?? 0),
+        slotIds: item.containsKey('api_slot')
+            ? _intList(item['api_slot'], includeNonPositive: true)
+            : existing?.slotIds ?? const [],
+        onSlot: item.containsKey('api_onslot')
+            ? _intList(item['api_onslot'], includeNonPositive: true)
+            : existing?.onSlot ?? const [],
+        extraSlotId: _asInt(item['api_slot_ex'], existing?.extraSlotId ?? -1),
+        repairDurationMilliseconds: _asInt(
+          item['api_ndock_time'],
+          existing?.repairDurationMilliseconds ?? 0,
+        ),
+        repairFuelCost: !item.containsKey('api_ndock_item')
+            ? existing?.repairFuelCost ?? 0
+            : repairItems.isNotEmpty
+            ? _asInt(repairItems[0])
+            : 0,
+        repairSteelCost: !item.containsKey('api_ndock_item')
+            ? existing?.repairSteelCost ?? 0
+            : repairItems.length > 2
+            ? _asInt(repairItems[2])
+            : 0,
+        locked:
+            _asInt(item['api_locked'], existing?.locked == true ? 1 : 0) > 0,
       );
     }
     return result;

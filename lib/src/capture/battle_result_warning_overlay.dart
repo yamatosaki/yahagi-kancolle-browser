@@ -27,11 +27,11 @@ bool shouldShowPostBattleWarning(LiveBattle? battle) {
     if (ship.isEscaped || !ship.isHeavilyDamaged) {
       return false;
     }
-    final isEscortFlagship =
-        isCombinedFleet &&
-        ship.fleetRole == BattleFleetRole.escort &&
-        ship.position == 0;
-    return !isEscortFlagship;
+    final isExcludedFlagship =
+        ship.position == 0 &&
+        (ship.fleetRole == BattleFleetRole.main ||
+            (isCombinedFleet && ship.fleetRole == BattleFleetRole.escort));
+    return !isExcludedFlagship;
   });
 }
 
@@ -43,12 +43,16 @@ bool shouldShowAdvanceWarning(GameState state) {
   }
 
   final escapedShipIds = combat.escapedShipIds;
-  bool hasHeavyDamage(int fleetId, {bool ignoreFlagship = false}) {
-    final ships = state.shipsForFleet(fleetId);
-    for (var position = 0; position < ships.length; position += 1) {
-      final ship = ships[position];
-      if ((ignoreFlagship && position == 0) ||
-          escapedShipIds.contains(ship.id)) {
+  bool hasHeavyDamage(int fleetId) {
+    final fleet = state.fleets
+        .where((fleet) => fleet.id == fleetId)
+        .firstOrNull;
+    if (fleet == null) return false;
+    // Keep the original positions: missing ship data must not promote a
+    // non-flagship into the flagship exception.
+    for (final shipId in fleet.shipIds.skip(1)) {
+      final ship = state.ships[shipId];
+      if (ship == null || escapedShipIds.contains(ship.id)) {
         continue;
       }
       if (shipDamageLevel(currentHp: ship.currentHp, maxHp: ship.maxHp) ==
@@ -64,7 +68,7 @@ bool shouldShowAdvanceWarning(GameState state) {
   }
   final isCombinedSortie =
       sortieFleetId == 1 && state.combinedFleetType != CombinedFleetType.none;
-  return isCombinedSortie && hasHeavyDamage(2, ignoreFlagship: true);
+  return isCombinedSortie && hasHeavyDamage(2);
 }
 
 class BattleResultWarningOverlay extends StatefulWidget {

@@ -2008,6 +2008,17 @@ class WorkspaceNavigation extends StatelessWidget {
                         label: destination.label,
                         completedCount: switch (destination.id) {
                           'quests' => completedQuestCount,
+                          'expedition' =>
+                            gameStateController?.state.fleets
+                                    .where(
+                                      (fleet) =>
+                                          fleet.mission.isActive &&
+                                          now.isBefore(
+                                            fleet.mission.completionTime!,
+                                          ),
+                                    )
+                                    .length ??
+                                0,
                           'construction' =>
                             gameStateController?.state.constructionDocks
                                     .where((dock) => dock.isCompletedAt(now))
@@ -2027,9 +2038,12 @@ class WorkspaceNavigation extends StatelessWidget {
                                 0,
                           _ => 0,
                         },
-                        countKey: Key(
-                          '${destination.id == 'repair' ? 'repair-active' : '${destination.id == 'quests' ? 'quest' : destination.id}-completion'}-count',
-                        ),
+                        countKey: Key(switch (destination.id) {
+                          'repair' => 'repair-active-count',
+                          'expedition' => 'expedition-active-count',
+                          'quests' => 'quest-completion-count',
+                          _ => '${destination.id}-completion-count',
+                        }),
                         countLabel: destination.id == 'quests'
                             ? null
                             : destination.label,

@@ -13,7 +13,7 @@ class DeckBuilderExporter {
 
     for (final fleet in state.fleets) {
       if (fleet.id < 1 || fleet.id > 4) continue;
-      final fleetData = <String, Object?>{};
+      final fleetData = <String, Object?>{'name': fleet.name};
       if (fleet.id == 1 && state.combinedFleetType != CombinedFleetType.none) {
         fleetData['t'] = state.combinedFleetType.apiValue;
       }
@@ -24,6 +24,13 @@ class DeckBuilderExporter {
           'id': ship.masterId,
           'lv': ship.level,
           'luck': ship.luck,
+          if (ship.maxHp > 0) 'hp': ship.maxHp,
+          if (ship.antiSub > 0) 'asw': ship.antiSub,
+          'exa': ship.extraSlotId != 0,
+          if (ship.specialEffectKinds.isNotEmpty)
+            'spi': [
+              for (final kind in ship.specialEffectKinds) {'kind': kind},
+            ],
           'items': _shipItems(state, ship),
         };
       }
@@ -36,12 +43,17 @@ class DeckBuilderExporter {
     var outputIndex = 1;
     for (final base in landBases.take(3)) {
       final items = <String, Object?>{};
-      for (var index = 0; index < base.squadrons.length; index += 1) {
-        final item = state.slotItems[base.squadrons[index].slotItemId];
+      for (final squadron in base.squadrons) {
+        if (squadron.squadronId < 1 || squadron.squadronId > 4) continue;
+        final item = state.slotItems[squadron.slotItemId];
         if (item == null) continue;
-        items['i${index + 1}'] = _itemData(item);
+        items['i${squadron.squadronId}'] = {
+          ..._itemData(item),
+          if (squadron.maxCount > 0) 'ac': squadron.currentCount,
+        };
       }
       result['a$outputIndex'] = <String, Object?>{
+        'name': base.name,
         'mode': base.actionKind,
         'items': items,
       };
@@ -56,7 +68,10 @@ class DeckBuilderExporter {
     for (var index = 0; index < ship.slotIds.length; index += 1) {
       final item = state.slotItems[ship.slotIds[index]];
       if (item == null) continue;
-      items['i${index + 1}'] = _itemData(item);
+      items['i${index + 1}'] = {
+        ..._itemData(item),
+        if (index < ship.onSlot.length) 'ac': ship.onSlot[index],
+      };
     }
     final extraItem = state.slotItems[ship.extraSlotId];
     if (extraItem != null) {

@@ -10,12 +10,69 @@ import 'package:yahagi_kancolle_browser/src/toolbox/toolbox_page.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 
 void main() {
+  testWidgets(
+    'port waits for full equipment inventory and clears stale preview',
+    (tester) async {
+      await tester.pumpWidget(
+        _testApp(
+          const FleetExportPage(
+            state: GameState(
+              memberId: 1,
+              hasPortData: true,
+              hasEquipmentInventory: true,
+            ),
+          ),
+        ),
+      );
+      expect(find.textContaining('"version":4'), findsOneWidget);
+      await tester.pumpWidget(
+        _testApp(
+          const FleetExportPage(
+            state: GameState(memberId: 2, hasPortData: true),
+          ),
+        ),
+      );
+      expect(find.text('装备数据等待更新'), findsOneWidget);
+      expect(find.textContaining('"version":4'), findsNothing);
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('fleet-export-noro6')))
+            .onPressed,
+        isNull,
+      );
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('copy-fleet-export')))
+            .onPressed,
+        isNull,
+      );
+      await tester.pumpWidget(
+        _testApp(
+          const FleetExportPage(
+            state: GameState(
+              memberId: 2,
+              hasPortData: true,
+              hasEquipmentInventory: true,
+            ),
+          ),
+        ),
+      );
+      expect(find.textContaining('"version":4'), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('fleet-export-noro6')))
+            .onPressed,
+        isNotNull,
+      );
+    },
+  );
   testWidgets('ready port data shows an initial DeckBuilder export', (
     tester,
   ) async {
     const state = GameState(
       admiralLevel: 120,
       hasPortData: true,
+      hasEquipmentInventory: true,
       ships: <int, OwnedShip>{
         101: OwnedShip(id: 101, masterId: 187, level: 70),
       },
@@ -81,8 +138,16 @@ void main() {
   testWidgets(
     'refresh uses the latest state without overwriting it beforehand',
     (tester) async {
-      const oldState = GameState(admiralLevel: 10, hasPortData: true);
-      const newState = GameState(admiralLevel: 99, hasPortData: true);
+      const oldState = GameState(
+        admiralLevel: 10,
+        hasPortData: true,
+        hasEquipmentInventory: true,
+      );
+      const newState = GameState(
+        admiralLevel: 99,
+        hasPortData: true,
+        hasEquipmentInventory: true,
+      );
 
       await tester.pumpWidget(_testApp(const FleetExportPage(state: oldState)));
       expect(find.textContaining('"hqlv":10'), findsOneWidget);
@@ -92,6 +157,60 @@ void main() {
 
       await tester.tap(find.byKey(const Key('refresh-fleet-export')));
       await tester.pump();
+      expect(find.textContaining('"hqlv":99'), findsOneWidget);
+    },
+  );
+
+  testWidgets('copy regenerates the latest fleet without a manual refresh', (
+    tester,
+  ) async {
+    String? copied;
+    Widget page(int level) => _testApp(
+      FleetExportPage(
+        state: GameState(
+          admiralLevel: level,
+          hasPortData: true,
+          hasEquipmentInventory: true,
+        ),
+        copyText: (text) async => copied = text,
+      ),
+    );
+    await tester.pumpWidget(page(10));
+    await tester.pumpWidget(page(99));
+    await tester.tap(find.byKey(const Key('copy-fleet-export')));
+    await tester.pump();
+    expect(jsonDecode(copied!)['hqlv'], 99);
+    expect(find.textContaining('"hqlv":99'), findsOneWidget);
+  });
+
+  testWidgets(
+    'switching accounts immediately replaces the visible export preview',
+    (tester) async {
+      await tester.pumpWidget(
+        _testApp(
+          const FleetExportPage(
+            state: GameState(
+              memberId: 1,
+              admiralLevel: 10,
+              hasPortData: true,
+              hasEquipmentInventory: true,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpWidget(
+        _testApp(
+          const FleetExportPage(
+            state: GameState(
+              memberId: 2,
+              admiralLevel: 99,
+              hasPortData: true,
+              hasEquipmentInventory: true,
+            ),
+          ),
+        ),
+      );
+      expect(find.textContaining('"hqlv":10'), findsNothing);
       expect(find.textContaining('"hqlv":99'), findsOneWidget);
     },
   );
@@ -107,7 +226,11 @@ void main() {
     await tester.pumpWidget(
       _testApp(
         const FleetExportPage(
-          state: GameState(admiralLevel: 77, hasPortData: true),
+          state: GameState(
+            admiralLevel: 77,
+            hasPortData: true,
+            hasEquipmentInventory: true,
+          ),
         ),
       ),
     );
@@ -122,7 +245,11 @@ void main() {
     await tester.pumpWidget(
       _testApp(
         FleetExportPage(
-          state: const GameState(admiralLevel: 80, hasPortData: true),
+          state: const GameState(
+            admiralLevel: 80,
+            hasPortData: true,
+            hasEquipmentInventory: true,
+          ),
           copyText: (text) async => copied = text,
         ),
       ),
@@ -141,7 +268,11 @@ void main() {
     await tester.pumpWidget(
       _testApp(
         FleetExportPage(
-          state: const GameState(admiralLevel: 81, hasPortData: true),
+          state: const GameState(
+            admiralLevel: 81,
+            hasPortData: true,
+            hasEquipmentInventory: true,
+          ),
           copyText: (_) => Future<void>.error(StateError('clipboard failed')),
         ),
       ),
@@ -161,6 +292,7 @@ void main() {
     const state = GameState(
       admiralLevel: 88,
       hasPortData: true,
+      hasEquipmentInventory: true,
       ships: <int, OwnedShip>{
         101: OwnedShip(
           id: 101,
@@ -212,6 +344,7 @@ void main() {
         'lv': 70,
         'exp': <int>[123456, 2345, 0],
         'ex': 1,
+        'area': 0,
       },
       <String, Object?>{
         'id': 202,
@@ -219,6 +352,7 @@ void main() {
         'lv': 45,
         'exp': <int>[0, 0, 0],
         'ex': 1,
+        'area': 0,
       },
       <String, Object?>{
         'id': 303,
@@ -226,6 +360,7 @@ void main() {
         'lv': 30,
         'exp': <int>[0, 0, 0],
         'ex': 0,
+        'area': 0,
       },
     ]);
     expect(payload['items'], <Object?>[
@@ -243,6 +378,7 @@ void main() {
       const state = GameState(
         admiralLevel: 88,
         hasPortData: true,
+        hasEquipmentInventory: true,
         ships: <int, OwnedShip>{
           101: OwnedShip(
             id: 101,
@@ -300,6 +436,7 @@ void main() {
           'lv': 70,
           'exp': <int>[123456, 2345, 0],
           'ex': 1,
+          'area': 0,
         },
         <String, Object?>{
           'id': 202,
@@ -307,6 +444,7 @@ void main() {
           'lv': 45,
           'exp': <int>[0, 0, 0],
           'ex': 1,
+          'area': 0,
         },
         <String, Object?>{
           'id': 303,
@@ -314,6 +452,7 @@ void main() {
           'lv': 30,
           'exp': <int>[0, 0, 0],
           'ex': 0,
+          'area': 0,
         },
       ]);
       expect(payload['items'], <Object?>[
@@ -336,7 +475,11 @@ void main() {
     await tester.pumpWidget(
       _testApp(
         const FleetExportPage(
-          state: GameState(admiralLevel: 120, hasPortData: true),
+          state: GameState(
+            admiralLevel: 120,
+            hasPortData: true,
+            hasEquipmentInventory: true,
+          ),
         ),
       ),
     );

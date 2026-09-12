@@ -1224,7 +1224,11 @@ class _RepairNavigationReducer extends GameStateReducer {
 class _ToolboxStateReducer extends GameStateReducer {
   @override
   GameState reduce(GameState state, CapturedApiEvent event) =>
-      const GameState(admiralLevel: 77, hasPortData: true);
+      const GameState(
+        admiralLevel: 77,
+        hasPortData: true,
+        hasEquipmentInventory: true,
+      );
 }
 
 class _LifecycleProbe extends StatefulWidget {

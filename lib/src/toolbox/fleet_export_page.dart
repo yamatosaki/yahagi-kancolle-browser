@@ -40,12 +40,13 @@ class _FleetExportPageState extends State<FleetExportPage> {
   @override
   void didUpdateWidget(covariant FleetExportPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!oldWidget.state.hasPortData && widget.state.hasPortData) {
+    if (oldWidget.state.memberId != widget.state.memberId ||
+        (oldWidget.state.canExportFleet != widget.state.canExportFleet)) {
       _exportText = _generateText();
     }
   }
 
-  String _generateText() => widget.state.hasPortData
+  String _generateText() => widget.state.canExportFleet
       ? widget.exporter.exportJson(
           widget.state,
           eventLandBasesOnly: _eventLandBasesOnly,
@@ -57,6 +58,7 @@ class _FleetExportPageState extends State<FleetExportPage> {
   }
 
   Future<void> _open(ExternalFleetTool tool) async {
+    if (!widget.state.canExportFleet) return;
     final latestText = _generateText();
     setState(() => _exportText = latestText);
     var launched = false;
@@ -79,10 +81,13 @@ class _FleetExportPageState extends State<FleetExportPage> {
   }
 
   Future<void> _copy() async {
+    if (!widget.state.canExportFleet) return;
+    final latestText = _generateText();
+    setState(() => _exportText = latestText);
     final l10n = AppLocalizations.of(context)!;
     try {
-      await (widget.copyText?.call(_exportText) ??
-          Clipboard.setData(ClipboardData(text: _exportText)));
+      await (widget.copyText?.call(latestText) ??
+          Clipboard.setData(ClipboardData(text: latestText)));
       if (!mounted) return;
       TopNotice.show(
         context,
@@ -111,21 +116,21 @@ class _FleetExportPageState extends State<FleetExportPage> {
               _ExternalToolButton(
                 buttonKey: const Key('fleet-export-noro6'),
                 label: l10n.exportToNoro6,
-                enabled: widget.state.hasPortData,
+                enabled: widget.state.canExportFleet,
                 onPressed: () => _open(ExternalFleetTool.noro6),
               ),
               const SizedBox(height: 10),
               _ExternalToolButton(
                 buttonKey: const Key('fleet-export-noro6-mirror'),
                 label: l10n.exportToNoro6Mirror,
-                enabled: widget.state.hasPortData,
+                enabled: widget.state.canExportFleet,
                 onPressed: () => _open(ExternalFleetTool.noro6Mirror),
               ),
               const SizedBox(height: 10),
               _ExternalToolButton(
                 buttonKey: const Key('fleet-export-jervis'),
                 label: l10n.exportToJervis,
-                enabled: widget.state.hasPortData,
+                enabled: widget.state.canExportFleet,
                 onPressed: () => _open(ExternalFleetTool.jervis),
               ),
               const SizedBox(height: 10),
@@ -187,13 +192,13 @@ class _FleetExportPageState extends State<FleetExportPage> {
                   _FormatBadge(label: l10n.deckBuilderV4),
                   OutlinedButton.icon(
                     key: const Key('refresh-fleet-export'),
-                    onPressed: widget.state.hasPortData ? _refresh : null,
+                    onPressed: widget.state.canExportFleet ? _refresh : null,
                     icon: const Icon(Icons.refresh_rounded, size: 16),
                     label: Text(l10n.refreshExportText),
                   ),
                   FilledButton.tonalIcon(
                     key: const Key('copy-fleet-export'),
-                    onPressed: widget.state.hasPortData ? _copy : null,
+                    onPressed: widget.state.canExportFleet ? _copy : null,
                     icon: const Icon(Icons.copy_rounded, size: 16),
                     label: Text(l10n.copyExportText),
                   ),
@@ -209,8 +214,10 @@ class _FleetExportPageState extends State<FleetExportPage> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: SelectableText(
-                  widget.state.hasPortData
+                  widget.state.canExportFleet
                       ? _exportText
+                      : widget.state.hasPortData
+                      ? l10n.waitingForEquip
                       : l10n.waitingForPortData,
                   key: const Key('fleet-export-text'),
                   style: const TextStyle(
