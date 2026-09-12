@@ -819,14 +819,14 @@ class AppLocalizationsJa extends AppLocalizations {
   String get resourceTrendAuxGroup => '補助資源';
 
   @override
-  String get gadgetBypass => 'ゲームクライアントリソースの迂回（実験的）';
+  String get gadgetBypass => 'ゲームリソースミラーとIP制限回避';
 
   @override
   String get gadgetBypassDesc =>
-      'クライアントの静的リソースサーバーへのアクセスが制限された場合のみミラーを使用します。DMM ログイン、Cookie、ゲームデータ API は変更しません。オフの場合、この機能は通信に一切介入しません。';
+      '有効にすると、ゲームクライアントの静的リソースをミラー経由で読み込みます。DMM の地域制限への互換処理は自動で動作し、このスイッチの影響を受けません。';
 
   @override
-  String get gadgetBypassEnable => '迂回を有効にする';
+  String get gadgetBypassEnable => 'ミラー経由の読み込みを有効にする';
 
   @override
   String get gadgetBypassEndpoint => 'ミラーエンドポイント';

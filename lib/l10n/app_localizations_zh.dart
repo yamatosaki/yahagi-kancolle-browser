@@ -812,14 +812,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get resourceTrendAuxGroup => '辅助资源';
 
   @override
-  String get gadgetBypass => '游戏客户端资源绕行（实验性）';
+  String get gadgetBypass => '游戏资源镜像与IP限制绕行';
 
   @override
-  String get gadgetBypassDesc =>
-      '仅在客户端静态资源服务器受限时改用镜像；不修改 DMM 登录、Cookie 或游戏数据接口。关闭时完全旁路。';
+  String get gadgetBypassDesc => '开启后通过镜像加载游戏客户端静态资源。DMM 地区限制兼容处理自动生效，不受此开关影响。';
 
   @override
-  String get gadgetBypassEnable => '开启绕行';
+  String get gadgetBypassEnable => '开启镜像绕行';
 
   @override
   String get gadgetBypassEndpoint => '镜像端点';
@@ -3761,14 +3760,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get resourceTrendAuxGroup => '輔助資源';
 
   @override
-  String get gadgetBypass => '遊戲用戶端資源繞行（實驗性）';
+  String get gadgetBypass => '遊戲資源鏡像與IP限制繞行';
 
   @override
-  String get gadgetBypassDesc =>
-      '僅在用戶端靜態資源伺服器受限時改用鏡像；不修改 DMM 登入、Cookie 或遊戲資料介面。關閉時完全略過此功能。';
+  String get gadgetBypassDesc => '開啟後透過鏡像載入遊戲用戶端靜態資源。DMM 地區限制相容處理自動生效，不受此開關影響。';
 
   @override
-  String get gadgetBypassEnable => '開啟繞行';
+  String get gadgetBypassEnable => '開啟鏡像繞行';
 
   @override
   String get gadgetBypassEndpoint => '鏡像端點';

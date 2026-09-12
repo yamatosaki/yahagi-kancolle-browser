@@ -1656,19 +1656,19 @@ abstract class AppLocalizations {
   /// No description provided for @gadgetBypass.
   ///
   /// In zh, this message translates to:
-  /// **'游戏客户端资源绕行（实验性）'**
+  /// **'游戏资源镜像与IP限制绕行'**
   String get gadgetBypass;
 
   /// No description provided for @gadgetBypassDesc.
   ///
   /// In zh, this message translates to:
-  /// **'仅在客户端静态资源服务器受限时改用镜像；不修改 DMM 登录、Cookie 或游戏数据接口。关闭时完全旁路。'**
+  /// **'开启后通过镜像加载游戏客户端静态资源。DMM 地区限制兼容处理自动生效，不受此开关影响。'**
   String get gadgetBypassDesc;
 
   /// No description provided for @gadgetBypassEnable.
   ///
   /// In zh, this message translates to:
-  /// **'开启绕行'**
+  /// **'开启镜像绕行'**
   String get gadgetBypassEnable;
 
   /// No description provided for @gadgetBypassEndpoint.
