@@ -10,6 +10,43 @@ import 'package:yahagi_kancolle_browser/src/toolbox/toolbox_page.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 
 void main() {
+  testWidgets('a pending ship refresh disables export until its stats arrive', (
+    tester,
+  ) async {
+    const ready = GameState(
+      memberId: 1,
+      hasPortData: true,
+      hasEquipmentInventory: true,
+    );
+    await tester.pumpWidget(_testApp(const FleetExportPage(state: ready)));
+    await tester.pumpWidget(
+      _testApp(
+        FleetExportPage(state: ready.copyWith(pendingExportShipIds: {7})),
+      ),
+    );
+    expect(find.text('装备数据等待更新'), findsOneWidget);
+    for (final key in [
+      'fleet-export-noro6',
+      'fleet-export-noro6-mirror',
+      'fleet-export-jervis',
+      'copy-fleet-export',
+    ]) {
+      expect(
+        tester.widget<FilledButton>(find.byKey(Key(key))).onPressed,
+        isNull,
+      );
+    }
+    expect(find.textContaining('"version":4'), findsNothing);
+    await tester.pumpWidget(_testApp(const FleetExportPage(state: ready)));
+    expect(find.textContaining('"version":4'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('fleet-export-noro6')))
+          .onPressed,
+      isNotNull,
+    );
+  });
+
   testWidgets(
     'port waits for full equipment inventory and clears stale preview',
     (tester) async {

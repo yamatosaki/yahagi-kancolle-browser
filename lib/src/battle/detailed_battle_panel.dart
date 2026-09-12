@@ -10,6 +10,7 @@ import '../game_state/game_state.dart';
 import '../settings/battle_status_effect_settings.dart';
 import 'battle_models.dart';
 import 'battle_pills.dart';
+import 'battle_ship_details_popover.dart';
 import 'land_base_raid_panel.dart';
 import 'official_enemy_preview.dart';
 import 'prophet_hp_bar.dart';
@@ -41,69 +42,72 @@ class DetailedBattlePanel extends StatelessWidget {
     final enemyMainTitle = battle.enemyFormation > 0
         ? '敌方主力（${formationLabel(battle.enemyFormation)}）'
         : '敌方主力';
-    return Column(
-      key: const Key('detailed-battle-panel'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (navigation)
-          _NavigationOverview(
-            battle: battle,
-            showLastFormationHint: showLastFormationHint,
-          )
-        else
-          _BattleOverview(battle: battle, gameState: gameState),
-        if (navigation && enemyPreviewShips.isNotEmpty) ...[
-          const SizedBox(height: 7),
-          OfficialEnemyPreview(
-            ships: enemyPreviewShips,
-            combined: battle.enemyPreviewCombined,
-            showPortraits: showEnemyPortraits,
-            masterShips: gameState.masterShips,
-            serverOrigin: gameState.serverOrigin,
-          ),
-        ],
-        if (navigation && battle.landBaseRaid != null) ...[
-          const SizedBox(height: 7),
-          LandBaseRaidPanel(result: battle.landBaseRaid!),
-        ],
-        if (battle.displayStage == BattleDisplayStage.result &&
-            !isPhoneDensity(context))
-          _DropResult(battle: battle, gameState: gameState),
-        const SizedBox(height: 9),
-        if (navigation)
-          NavigationFriendlyFleets(
-            battle: battle,
-            damagePulseMode: damagePulseMode,
-          )
-        else
-          Row(
-            key: const Key('battle-side-by-side-fleets'),
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: _FleetColumn(
-                  mainTitle: friendMainTitle,
-                  mainShips: battle.friendMain,
-                  escortTitle: '我方随伴',
-                  escortShips: battle.friendEscort,
-                  mvpPositions: battle.mvpPositions,
-                  damagePulseMode: damagePulseMode,
+    return BattleShipDetailsHost(
+      battle: battle,
+      child: Column(
+        key: const Key('detailed-battle-panel'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (navigation)
+            _NavigationOverview(
+              battle: battle,
+              showLastFormationHint: showLastFormationHint,
+            )
+          else
+            _BattleOverview(battle: battle, gameState: gameState),
+          if (navigation && enemyPreviewShips.isNotEmpty) ...[
+            const SizedBox(height: 7),
+            OfficialEnemyPreview(
+              ships: enemyPreviewShips,
+              combined: battle.enemyPreviewCombined,
+              showPortraits: showEnemyPortraits,
+              masterShips: gameState.masterShips,
+              serverOrigin: gameState.serverOrigin,
+            ),
+          ],
+          if (navigation && battle.landBaseRaid != null) ...[
+            const SizedBox(height: 7),
+            LandBaseRaidPanel(result: battle.landBaseRaid!),
+          ],
+          if (battle.displayStage == BattleDisplayStage.result &&
+              !isPhoneDensity(context))
+            _DropResult(battle: battle, gameState: gameState),
+          const SizedBox(height: 9),
+          if (navigation)
+            NavigationFriendlyFleets(
+              battle: battle,
+              damagePulseMode: damagePulseMode,
+            )
+          else
+            Row(
+              key: const Key('battle-side-by-side-fleets'),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _FleetColumn(
+                    mainTitle: friendMainTitle,
+                    mainShips: battle.friendMain,
+                    escortTitle: '我方随伴',
+                    escortShips: battle.friendEscort,
+                    mvpPositions: battle.mvpPositions,
+                    damagePulseMode: damagePulseMode,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 7),
-              Expanded(
-                child: _FleetColumn(
-                  mainTitle: enemyMainTitle,
-                  mainShips: battle.enemyMain,
-                  escortTitle: '敌方护卫',
-                  escortShips: battle.enemyEscort,
-                  mvpPositions: const <int>[],
-                  damagePulseMode: damagePulseMode,
+                const SizedBox(width: 7),
+                Expanded(
+                  child: _FleetColumn(
+                    mainTitle: enemyMainTitle,
+                    mainShips: battle.enemyMain,
+                    escortTitle: '敌方护卫',
+                    escortShips: battle.enemyEscort,
+                    mvpPositions: const <int>[],
+                    damagePulseMode: damagePulseMode,
+                  ),
                 ),
-              ),
-            ],
-          ),
-      ],
+              ],
+            ),
+        ],
+      ),
     );
   }
 }
@@ -441,11 +445,14 @@ class _FleetGroup extends StatelessWidget {
           ),
           for (var index = 0; index < ships.length; index++) ...[
             if (index > 0) const Divider(height: 1, color: Color(0xff203746)),
-            _BattleShipRow(
+            BattleShipDetailsTap(
               ship: ships[index],
-              absolutePosition: index + positionOffset,
-              isMvp: mvpPositions.contains(index + positionOffset),
-              damagePulseMode: damagePulseMode,
+              child: _BattleShipRow(
+                ship: ships[index],
+                absolutePosition: index + positionOffset,
+                isMvp: mvpPositions.contains(index + positionOffset),
+                damagePulseMode: damagePulseMode,
+              ),
             ),
           ],
         ],

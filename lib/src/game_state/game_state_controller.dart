@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import '../account/account_session.dart';
+import '../account/shared_game_data.dart';
 
 import '../bridge/captured_api_event.dart';
 import '../quest/quest_store.dart';
@@ -23,6 +25,7 @@ final class GameStateController extends ChangeNotifier
     this.questStore,
     this.questProgress,
     this.gameStateStore,
+    this.accountSession,
     LogbookEventRecorder? logbookRecorder,
     FrameNotificationCoalescer? captureNotifications,
     TimerMechanicsService? timerService,
@@ -30,7 +33,10 @@ final class GameStateController extends ChangeNotifier
        _logbookRecorder = logbookRecorder ?? LogbookEventRecorder(),
        _captureNotifications =
            captureNotifications ?? FrameNotificationCoalescer(),
-       _timerService = timerService ?? TimerMechanicsService() {
+       _timerService =
+           timerService ??
+           TimerMechanicsService(accountSession: accountSession) {
+    accountSession?.addListener(_onAccountChanged);
     _initialization = _initialize();
     _startExpirationTimer();
   }
@@ -46,6 +52,7 @@ final class GameStateController extends ChangeNotifier
   Set<int> get completedQuestIds =>
       questProgress?.completedIds(DateTime.now().toUtc()) ?? const {};
   final GameStateStore? gameStateStore;
+  final AccountSession? accountSession;
   Timer? _expirationTimer;
   late final Future<void> _initialization;
 
@@ -54,11 +61,39 @@ final class GameStateController extends ChangeNotifier
 
   Future<void> initialize() => _initialization;
 
+  bool _isCurrent(AccountScope? scope) =>
+      !_disposed && (scope == null || accountSession!.isCurrent(scope));
+
+  QuestStore? _questsFor(int memberId) {
+    final store = questStore;
+    return store is AccountQuestStore ? store.forAccount(memberId) : store;
+  }
+
+  void _onAccountChanged() {
+    final scope = accountSession!.current;
+    _hasAcceptedLiveEvent = true;
+    if (!scope.isKnown ||
+        (_state.memberId > 0 && _state.memberId != scope.memberId)) {
+      _state = sharedGameData(_state);
+    }
+    questProgress?.resetSession();
+    _lastError = null;
+    _lastUpdatedPath = null;
+    _lastLogbookError = null;
+    notifyListeners();
+  }
+
   Future<void> _initialize() async {
+    final scope = accountSession?.current;
     await _initQuests();
     await _initGameState();
+    if (!_isCurrent(scope)) return;
     if (questProgress != null) {
-      _state = await questProgress!.restore(_state, DateTime.now().toUtc());
+      final restored = await questProgress!.restore(
+        _state,
+        DateTime.now().toUtc(),
+      );
+      if (_isCurrent(scope)) _state = restored;
     }
   }
 
@@ -108,8 +143,10 @@ final class GameStateController extends ChangeNotifier
 
   Future<void> _initQuests() async {
     if (questStore == null) return;
+    final scope = accountSession?.current;
     try {
       final cachedQuests = await questStore!.loadQuests();
+      if (!_isCurrent(scope)) return;
       if (cachedQuests.isNotEmpty && _state.quests.isEmpty) {
         final now = DateTime.now().toUtc();
         final validQuests = <int, GameQuest>{};
@@ -133,10 +170,14 @@ final class GameStateController extends ChangeNotifier
 
   Future<void> _initGameState() async {
     if (gameStateStore == null) return;
+    final scope = accountSession?.current;
     try {
       final cachedState = await gameStateStore!.load();
+      if (!_isCurrent(scope)) return;
       if (!_hasAcceptedLiveEvent &&
-          (cachedState.updatedAt != null || cachedState.hasPortData)) {
+          (cachedState.updatedAt != null ||
+              cachedState.hasPortData ||
+              cachedState.hasMasterData)) {
         // Keep existing quests if they were already loaded by _initQuests
         _state = cachedState.copyWith(quests: _state.quests);
         notifyListeners();
@@ -147,14 +188,18 @@ final class GameStateController extends ChangeNotifier
   }
 
   Future<void> clearQuestsCache() async {
+    final scope = accountSession?.current;
+    final store = _questsFor(_state.memberId);
     if (questProgress != null) {
       await _initialization;
       await _queue;
+      if (!_isCurrent(scope)) return;
       await questProgress!.clear();
     }
-    if (questStore != null) {
-      await questStore!.clearQuests();
+    if (store != null) {
+      await store.clearQuests();
     }
+    if (!_isCurrent(scope)) return;
     _state = _state.copyWith(
       quests: const {},
       availableQuests: const {},
@@ -204,14 +249,16 @@ final class GameStateController extends ChangeNotifier
       return;
     }
     _hasAcceptedLiveEvent = true;
+    final scope = accountSession?.current;
     final questBattle = questBattleSnapshot?.call();
     final questBattleIsTrusted = questBattleTrusted?.call() ?? false;
     _queue = _queue.then((_) async {
-      if (_disposed) {
+      if (!_isCurrent(scope)) {
         return;
       }
       try {
         if (questProgress != null) await _initialization;
+        if (!_isCurrent(scope)) return;
         final previous = _state;
         if (_logbookRecorder.supports(event.path)) {
           _logbookQueue = _logbookQueue.then((_) async {
@@ -224,6 +271,20 @@ final class GameStateController extends ChangeNotifier
           });
         }
         var next = _reducer.reduce(previous, event);
+        var hasAccountScopedQuests = false;
+        if (accountSession != null &&
+            next.memberId > 0 &&
+            previous.memberId != next.memberId) {
+          // Restore only this verified account's task state. Inventory and
+          // safety flags come from live responses, never from a cached login.
+          final cached = await gameStateStore?.loadForAccount(next.memberId);
+          final quests = await _questsFor(next.memberId)?.loadQuests();
+          if (!_isCurrent(scope)) return;
+          next = next.copyWith(
+            quests: quests?.isNotEmpty == true ? quests : cached?.quests,
+          );
+          hasAccountScopedQuests = true;
+        }
         if (questProgress != null) {
           next = await questProgress!.process(
             previous,
@@ -231,8 +292,10 @@ final class GameStateController extends ChangeNotifier
             event,
             battle: questBattle,
             battleTrusted: questBattleIsTrusted,
+            hasAccountScopedQuests: hasAccountScopedQuests,
           );
         }
+        if (!_isCurrent(scope)) return;
         if (!identical(next, previous)) {
           _timerService.observe(
             previousState: previous,
@@ -249,21 +312,22 @@ final class GameStateController extends ChangeNotifier
                   event.path.contains('/api_req_quest/stop') ||
                   event.path.contains('/api_req_quest/start')) &&
               questStore != null) {
-            await questStore!.saveQuests(next.quests);
+            await _questsFor(next.memberId)!.saveQuests(next.quests);
           }
           if (gameStateStore != null) {
             gameStateStore!.save(next);
           }
 
-          if (event.path.endsWith('/api_port/port')) {
-            LogbookDatabase.instance.insertResourceSnapshot(next).catchError((
-              error,
-            ) {
+          if (next.memberId > 0 && event.path.endsWith('/api_port/port')) {
+            LogbookDatabase.forAccount(
+              next.memberId,
+            ).insertResourceSnapshot(next).catchError((error) {
               debugPrint('资源快照写入失败: $error');
             });
           }
         }
       } catch (error) {
+        if (!_isCurrent(scope)) return;
         _lastError = '游戏数据解析失败（${error.runtimeType}）';
         _captureNotifications.schedule(notifyListeners);
       }
@@ -272,8 +336,9 @@ final class GameStateController extends ChangeNotifier
 
   void applyFriendlyBattleHp(Map<int, int> hpByShipId, DateTime capturedAt) {
     if (_disposed || hpByShipId.isEmpty) return;
+    final scope = accountSession?.current;
     _queue = _queue.then((_) {
-      if (_disposed) return;
+      if (!_isCurrent(scope)) return;
       final previous = _state;
       // A delayed prediction is not authoritative after returning to port.
       if (!previous.combatState.isActive) return;
@@ -291,6 +356,8 @@ final class GameStateController extends ChangeNotifier
 
   @override
   void dispose() {
+    accountSession?.removeListener(_onAccountChanged);
+    _timerService.dispose();
     _expirationTimer?.cancel();
     _disposed = true;
     _captureNotifications.dispose();

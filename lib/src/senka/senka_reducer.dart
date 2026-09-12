@@ -109,8 +109,14 @@ class SenkaReducer {
       basic = data;
     }
     if (basic == null) return state;
+    final memberId = _int(basic['api_member_id'], state.memberId);
+    if (state.memberId > 0 && memberId > 0 && state.memberId != memberId) {
+      state = SenkaState.forMonth(
+        state.monthKey,
+      ).copyWith(serverOrigin: state.serverOrigin);
+    }
     return state.copyWith(
-      memberId: _int(basic['api_member_id'], state.memberId),
+      memberId: memberId,
       nickname: '${basic['api_nickname'] ?? state.nickname}',
     );
   }

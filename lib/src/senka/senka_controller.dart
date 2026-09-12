@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../account/account_session.dart';
 import '../bridge/captured_api_event.dart';
 import '../game_state/game_api_event_pipeline.dart';
 import '../performance/frame_notification_coalescer.dart';
@@ -17,20 +18,28 @@ class SenkaController extends ChangeNotifier implements GameApiEventConsumer {
     this._reducer = const SenkaReducer(),
     DateTime Function()? now,
     FrameNotificationCoalescer? captureNotifications,
+    AccountSession? accountSession,
   }) : _now = now ?? DateTime.now,
+       _accountSession =
+           accountSession ??
+           (store is AccountSenkaStore ? AccountSession.shared : null),
        _captureNotifications =
            captureNotifications ?? FrameNotificationCoalescer(),
        _state = SenkaState.forMonth(
          currentSenkaMonthKey((now ?? DateTime.now)()),
-       );
+       ) {
+    _accountSession?.addListener(_onAccountChanged);
+  }
 
   final SenkaStore store;
   final SenkaReducer _reducer;
   final FrameNotificationCoalescer _captureNotifications;
   final DateTime Function() _now;
+  final AccountSession? _accountSession;
   SenkaState _state;
   Future<void> _queue = Future<void>.value();
   int _revision = 0;
+  final Map<int, ({int revision, SenkaState state})> _pendingAccountSaves = {};
   bool _disposed = false;
   Object? _persistenceError;
 
@@ -44,6 +53,11 @@ class SenkaController extends ChangeNotifier implements GameApiEventConsumer {
   bool supportsPath(String path) => _reducer.supportsPath(path);
 
   Future<void> initialize() async {
+    if (_accountSession != null) {
+      _onAccountChanged();
+      await _queue;
+      return;
+    }
     final revisionAtStart = _revision;
     final SenkaState? loaded;
     try {
@@ -74,6 +88,7 @@ class SenkaController extends ChangeNotifier implements GameApiEventConsumer {
         : rebaseSenkaDailyTarget(monthMigrated, rewardMigrated, instant);
     _state = migrated;
     final revision = ++_revision;
+    _rememberAccountSave(migrated, revision);
     notifyListeners();
     if (!identical(migrated, loaded)) {
       _enqueue(() => _saveIfCurrent(migrated, revision));
@@ -84,15 +99,68 @@ class SenkaController extends ChangeNotifier implements GameApiEventConsumer {
   @override
   void accept(CapturedApiEvent event) {
     if (_disposed) return;
+    final scope = _accountSession?.current;
+    if (scope != null && !scope.isKnown) return;
     _enqueue(() async {
-      if (_disposed) return;
+      if (_disposed || (scope != null && !_accountSession!.isCurrent(scope))) {
+        return;
+      }
       final next = _reducer.reduce(_state, event);
       if (identical(next, _state)) return;
       _state = next;
       final revision = ++_revision;
+      _rememberAccountSave(next, revision);
       _captureNotifications.schedule(notifyListeners);
       await _saveIfCurrent(next, revision);
     });
+  }
+
+  void _onAccountChanged() {
+    if (_disposed) return;
+    final scope = _accountSession!.current;
+    _state = SenkaState.forMonth(
+      currentSenkaMonthKey(_now()),
+    ).copyWith(memberId: scope.memberId);
+    final revision = ++_revision;
+    _persistenceError = null;
+    notifyListeners();
+    if (!scope.isKnown) return;
+    _enqueue(() => _restoreAccount(scope, revision));
+  }
+
+  Future<void> _restoreAccount(AccountScope scope, int revision) async {
+    final session = _accountSession!;
+    if (_disposed || !session.isCurrent(scope) || revision != _revision) {
+      return;
+    }
+    try {
+      final pending = _pendingAccountSaves[scope.memberId]?.state;
+      final archive =
+          pending ??
+          (store is AccountSenkaStore
+              ? await (store as AccountSenkaStore).loadForAccount(
+                  scope.memberId,
+                )
+              : await store.load());
+      if (_disposed || !session.isCurrent(scope) || revision != _revision) {
+        return;
+      }
+      if (archive == null || archive.memberId != scope.memberId) return;
+      final instant = _now();
+      final current = migrateSenkaExperienceTracking(
+        migrateSenkaStateToMonth(archive, currentSenkaMonthKey(instant)),
+      );
+      final rewards = migrateSenkaRewardCycles(current, instant);
+      _state = identical(rewards, current)
+          ? ensureSenkaDailyTarget(current, instant)
+          : rebaseSenkaDailyTarget(current, rewards, instant);
+      _revision++;
+      notifyListeners();
+    } catch (error) {
+      if (_disposed || !session.isCurrent(scope)) return;
+      _persistenceError = error;
+      notifyListeners();
+    }
   }
 
   void cycleEoReward(int id) {
@@ -192,16 +260,22 @@ class SenkaController extends ChangeNotifier implements GameApiEventConsumer {
       _state.sortieStats.containsKey(mapKey);
 
   void _replace(SenkaState next) {
+    if (_accountSession != null && !_accountSession.current.isKnown) return;
     _state = next;
     final revision = ++_revision;
+    _rememberAccountSave(next, revision);
     notifyListeners();
     _enqueue(() => _saveIfCurrent(next, revision));
   }
 
   Future<bool> _replaceForSettings(SenkaState next) {
-    if (_disposed) return Future<bool>.value(false);
+    if (_disposed ||
+        (_accountSession != null && !_accountSession.current.isKnown)) {
+      return Future<bool>.value(false);
+    }
     _state = next;
     final revision = ++_revision;
+    _rememberAccountSave(next, revision);
     notifyListeners();
     final result = Completer<bool>();
     _enqueue(() async {
@@ -232,10 +306,26 @@ class SenkaController extends ChangeNotifier implements GameApiEventConsumer {
     );
   }
 
+  void _rememberAccountSave(SenkaState snapshot, int revision) {
+    if (_accountSession == null || snapshot.memberId <= 0) return;
+    _pendingAccountSaves[snapshot.memberId] = (
+      revision: revision,
+      state: snapshot,
+    );
+  }
+
   Future<void> _saveIfCurrent(SenkaState snapshot, int revision) async {
-    if (revision != _revision) return;
+    // A switch changes the UI revision, but cannot revoke a save already
+    // accepted for another owner. Only a newer save for that owner supersedes it.
+    final latest = _accountSession == null
+        ? _revision
+        : _pendingAccountSaves[snapshot.memberId]?.revision;
+    if (revision != latest) return;
     try {
       await store.save(snapshot);
+      if (_pendingAccountSaves[snapshot.memberId]?.revision == revision) {
+        _pendingAccountSaves.remove(snapshot.memberId);
+      }
       if (revision == _revision && _persistenceError != null) {
         _persistenceError = null;
         if (!_disposed) notifyListeners();
@@ -252,6 +342,7 @@ class SenkaController extends ChangeNotifier implements GameApiEventConsumer {
   @override
   void dispose() {
     _disposed = true;
+    _accountSession?.removeListener(_onAccountChanged);
     _captureNotifications.dispose();
     super.dispose();
   }

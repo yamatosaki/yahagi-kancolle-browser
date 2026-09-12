@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../account/account_session.dart';
+
 import '../localization/ui_text.dart';
 
 import '../game_state/game_state.dart';
@@ -16,12 +18,14 @@ class ExpeditionCheckContent extends StatefulWidget {
     super.key,
     required this.controller,
     required this.onOpenDetails,
-    this.selectionStore = const SharedPreferencesExpeditionSelectionStore(),
+    this.selectionStore,
+    this.accountSession,
   });
 
   final GameStateController controller;
   final ValueChanged<int> onOpenDetails;
-  final ExpeditionSelectionStore selectionStore;
+  final ExpeditionSelectionStore? selectionStore;
+  final AccountSession? accountSession;
 
   @override
   State<ExpeditionCheckContent> createState() => _ExpeditionCheckContentState();
@@ -33,16 +37,34 @@ class _ExpeditionCheckContentState extends State<ExpeditionCheckContent> {
   int _target = 100;
   int _fleetId = 2;
   int _missionId = 1;
+  int _restoreGeneration = 0;
+  late final AccountSession _accountSession;
+  late final ExpeditionSelectionStore _selectionStore;
 
   @override
   void initState() {
     super.initState();
+    _accountSession = widget.accountSession ?? AccountSession.shared;
+    _selectionStore =
+        widget.selectionStore ??
+        SharedPreferencesExpeditionSelectionStore(
+          accountSession: _accountSession,
+        );
+    _accountSession.addListener(_onAccountChanged);
     _restoreMissionForFleet(_fleetId);
   }
 
   Future<void> _restoreMissionForFleet(int fleetId) async {
-    final savedMissionId = await widget.selectionStore.loadMissionId(fleetId);
-    if (!mounted || _fleetId != fleetId) return;
+    final generation = ++_restoreGeneration;
+    final scope = _accountSession.current;
+    if (!scope.isKnown) return;
+    final savedMissionId = await _selectionStore.loadMissionId(fleetId);
+    if (!mounted ||
+        _fleetId != fleetId ||
+        generation != _restoreGeneration ||
+        !_accountSession.isCurrent(scope)) {
+      return;
+    }
     final restoredMissionId =
         savedMissionId != null && expeditionRules.containsKey(savedMissionId)
         ? savedMissionId
@@ -60,8 +82,25 @@ class _ExpeditionCheckContentState extends State<ExpeditionCheckContent> {
   }
 
   void _selectMission(int missionId) {
+    _restoreGeneration++;
     setState(() => _missionId = missionId);
-    widget.selectionStore.saveMissionId(_fleetId, missionId);
+    if (_accountSession.current.isKnown) {
+      _selectionStore.saveMissionId(_fleetId, missionId);
+    }
+  }
+
+  void _onAccountChanged() {
+    setState(() {
+      _fleetId = 2;
+      _missionId = expeditionRules.keys.first;
+    });
+    _restoreMissionForFleet(_fleetId);
+  }
+
+  @override
+  void dispose() {
+    _accountSession.removeListener(_onAccountChanged);
+    super.dispose();
   }
 
   @override

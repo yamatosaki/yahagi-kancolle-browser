@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/dashboard_card.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/expedition_summary_card.dart';
 import 'package:yahagi_kancolle_browser/src/expedition/expedition_check_card.dart';
@@ -12,6 +14,51 @@ import 'package:yahagi_kancolle_browser/src/game_state/game_state_reducer.dart';
 import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
+  setUp(() {
+    AccountSession.shared.selectMember(1001);
+    SharedPreferences.setMockInitialValues({});
+  });
+
+  testWidgets(
+    'switching accounts restores that accounts expedition selection',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'account.1001.expedition.selected_mission.fleet_2': 105,
+        'account.2002.expedition.selected_mission.fleet_2': 112,
+      });
+      final controller = GameStateController();
+      addTearDown(controller.dispose);
+      controller
+        ..accept(start2Event)
+        ..accept(portEvent);
+      await controller.idle;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ExpeditionCheckContent(
+              controller: controller,
+              onOpenDetails: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('expedition-mission-name')))
+            .data,
+        startsWith('A6'),
+      );
+      AccountSession.shared.selectMember(2002);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('expedition-mission-name')))
+            .data,
+        startsWith('B3'),
+      );
+    },
+  );
   testWidgets('首页远征检查按舰队恢复上次选择的 A6', (tester) async {
     final controller = GameStateController();
     final store = _MemoryExpeditionSelectionStore(<int, int>{1: 112, 2: 105});

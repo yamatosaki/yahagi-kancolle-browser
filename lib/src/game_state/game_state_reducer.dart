@@ -121,6 +121,12 @@ class GameStateReducer {
         event,
         origin,
       ),
+      '/kcsapi/api_req_air_corps/expand_base' => _expandLandBases(
+        state,
+        _requiredList(data, 'new land bases'),
+        event,
+        origin,
+      ),
       '/kcsapi/api_req_air_corps/set_plane' ||
       '/kcsapi/api_req_air_corps/supply' ||
       '/kcsapi/api_req_air_corps/cond_recovery' => _updateLandBasePlanes(
@@ -487,6 +493,7 @@ class GameStateReducer {
     final ship = _optionalMap(data['api_ship']);
     if (ship == null) return consumed;
     return consumed.copyWith(
+      pendingExportShipIds: _remainingExportShipIds(consumed, [ship]),
       ships: {
         ...consumed.ships,
         ..._parseShips([ship], previous: consumed.ships),
@@ -533,6 +540,7 @@ class GameStateReducer {
       ships: ships,
       slotItems: slotItems,
       fleets: fleets,
+      pendingExportShipIds: state.pendingExportShipIds.difference(shipIds),
       serverOrigin: origin,
       updatedAt: event.capturedAt,
     );
@@ -684,8 +692,25 @@ class GameStateReducer {
     CapturedApiEvent event,
     String origin,
   ) {
+    final previous = state.ships[ship.id];
+    final slotsChanged =
+        previous != null &&
+        (previous.extraSlotId != ship.extraSlotId ||
+            previous.slotIds.length != ship.slotIds.length ||
+            Iterable<int>.generate(
+              ship.slotIds.length,
+            ).any((index) => previous.slotIds[index] != ship.slotIds[index]));
     return state.copyWith(
       ships: Map<int, OwnedShip>.of(state.ships)..[ship.id] = ship,
+      pendingExportShipIds:
+          slotsChanged &&
+              const {
+                '/kcsapi/api_req_kaisou/slotset',
+                '/kcsapi/api_req_kaisou/slotset_ex',
+                '/kcsapi/api_req_kaisou/unsetslot_all',
+              }.contains(event.path)
+          ? {...state.pendingExportShipIds, ship.id}
+          : null,
       serverOrigin: origin,
       updatedAt: event.capturedAt,
     );
@@ -701,9 +726,27 @@ class GameStateReducer {
     final ships = Map<int, OwnedShip>.of(state.ships)..addAll(parsed);
     return state.copyWith(
       ships: ships,
+      pendingExportShipIds: _remainingExportShipIds(state, values),
       serverOrigin: origin,
       updatedAt: event.capturedAt,
     );
+  }
+
+  Set<int> _remainingExportShipIds(GameState state, List<Object?> values) {
+    if (state.pendingExportShipIds.isEmpty) return state.pendingExportShipIds;
+    final pending = {...state.pendingExportShipIds};
+    for (final value in values) {
+      final ship = _optionalMap(value);
+      // A charge/partial response cannot confirm that displayed stats match
+      // the new equipment. Wait for the authoritative ship response.
+      if (ship != null &&
+          _asInt(ship['api_ship_id']) > 0 &&
+          ship['api_slot'] is List &&
+          ship.containsKey('api_taisen')) {
+        pending.remove(_asInt(ship['api_id']));
+      }
+    }
+    return pending;
   }
 
   GameState _slotDeprive(
@@ -744,6 +787,7 @@ class GameStateReducer {
       ships: ships,
       slotItems: slotItems,
       constructionDocks: docks,
+      pendingExportShipIds: _remainingExportShipIds(state, [data['api_ship']]),
       serverOrigin: origin,
       updatedAt: event.capturedAt,
     );
@@ -1327,6 +1371,7 @@ class GameStateReducer {
       ships[id] = MasterShip(
         id: id,
         name: name,
+        reading: _asString(item['api_yomi'], ''),
         shipTypeId: shipTypeId,
         afterShipId: _asInt(item['api_aftershipid']),
         sortNo: _asInt(item['api_sortno']),
@@ -1475,6 +1520,9 @@ class GameStateReducer {
           ? _parseSlotItems(_optionalList(data['api_slot_item']))
           : null,
       hasEquipmentInventory: data['api_slot_item'] is List ? true : null,
+      pendingExportShipIds: hasPortData && data['api_ship'] is List
+          ? const <int>{}
+          : _remainingExportShipIds(state, _optionalList(data['api_ship'])),
       serverOrigin: origin,
       hasPortData: hasPortData ? true : null,
       combatState: hasPortData ? CombatState.empty : null,
@@ -1599,40 +1647,66 @@ class GameStateReducer {
 
     List<LandBaseState>? bases;
     if (data.containsKey('api_air_base')) {
-      bases = <LandBaseState>[];
-      for (final value in _optionalList(data['api_air_base'])) {
-        final item = _optionalMap(value);
-        final areaId = _asInt(item?['api_area_id']);
-        final baseId = _asInt(item?['api_rid']);
-        if (item == null || areaId <= 0 || baseId <= 0) continue;
-        bases.add(
-          LandBaseState(
-            areaId: areaId,
-            baseId: baseId,
-            name: _asString(item['api_name'], '第 $baseId 基地航空队'),
-            actionKind: _asInt(item['api_action_kind']),
-            distanceBase: _asInt(
-              _optionalMap(item['api_distance'])?['api_base'],
-            ),
-            distanceBonus: _asInt(
-              _optionalMap(item['api_distance'])?['api_bonus'],
-            ),
-            squadrons: _mergeLandBaseSquadrons(
-              const <LandBaseSquadronState>[],
-              _optionalList(item['api_plane_info']),
-            ),
-          ),
-        );
-      }
-      bases.sort((left, right) {
-        final byArea = left.areaId.compareTo(right.areaId);
-        return byArea != 0 ? byArea : left.baseId.compareTo(right.baseId);
-      });
+      bases = _parseLandBases(_optionalList(data['api_air_base']));
     }
     return state.copyWith(
       landBases: bases,
       mapDifficulties: mapDifficulties,
       memberMapInfos: memberMapInfos,
+      serverOrigin: origin,
+      updatedAt: event.capturedAt,
+    );
+  }
+
+  List<LandBaseState> _parseLandBases(List<Object?> values) {
+    final bases = <LandBaseState>[];
+    for (final value in values) {
+      final item = _optionalMap(value);
+      final areaId = _asInt(item?['api_area_id']);
+      final baseId = _asInt(item?['api_rid']);
+      if (item == null || areaId <= 0 || baseId <= 0) continue;
+      bases.add(
+        LandBaseState(
+          areaId: areaId,
+          baseId: baseId,
+          name: _asString(item['api_name'], '第 $baseId 基地航空队'),
+          actionKind: _asInt(item['api_action_kind']),
+          distanceBase: _asInt(_optionalMap(item['api_distance'])?['api_base']),
+          distanceBonus: _asInt(
+            _optionalMap(item['api_distance'])?['api_bonus'],
+          ),
+          squadrons: _mergeLandBaseSquadrons(
+            const <LandBaseSquadronState>[],
+            _optionalList(item['api_plane_info']),
+          ),
+        ),
+      );
+    }
+    bases.sort((left, right) {
+      final byArea = left.areaId.compareTo(right.areaId);
+      return byArea != 0 ? byArea : left.baseId.compareTo(right.baseId);
+    });
+    return bases;
+  }
+
+  GameState _expandLandBases(
+    GameState state,
+    List<Object?> values,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final basesById = <(int, int), LandBaseState>{
+      for (final base in state.landBases) (base.areaId, base.baseId): base,
+      for (final base in _parseLandBases(values))
+        (base.areaId, base.baseId): base,
+    };
+    final bases = basesById.values.toList()
+      ..sort((left, right) {
+        final byArea = left.areaId.compareTo(right.areaId);
+        return byArea != 0 ? byArea : left.baseId.compareTo(right.baseId);
+      });
+    return state.copyWith(
+      landBases: bases,
       serverOrigin: origin,
       updatedAt: event.capturedAt,
     );
@@ -1796,11 +1870,19 @@ class GameStateReducer {
     String origin,
   ) {
     final areaId = _asInt(event.requestParams['api_area_id']);
-    final baseIds = _requestIds(event.requestParams['api_base_id']).toList();
-    final actions = _requestIds(
-      event.requestParams['api_action_kind'],
-    ).toList();
-    if (areaId <= 0 || baseIds.isEmpty || baseIds.length != actions.length) {
+    // These are parallel CSV lists, not sets of IDs. Action 0 is standby,
+    // and several bases may receive the same action in one request.
+    List<int> requestValues(String key) => event.requestParams[key]
+        .toString()
+        .split(',')
+        .map((value) => _asInt(value, -1))
+        .toList();
+    final baseIds = requestValues('api_base_id');
+    final actions = requestValues('api_action_kind');
+    if (areaId <= 0 ||
+        baseIds.any((id) => id <= 0) ||
+        actions.any((action) => action < 0) ||
+        baseIds.length != actions.length) {
       return state;
     }
     var changed = false;
@@ -1904,6 +1986,10 @@ class GameStateReducer {
         ..addAll(newShips);
       return state.copyWith(
         ships: mergedShips,
+        pendingExportShipIds: _remainingExportShipIds(
+          state,
+          List<Object?>.from(data),
+        ),
         serverOrigin: origin,
         updatedAt: event.capturedAt,
       );
@@ -1945,6 +2031,10 @@ class GameStateReducer {
     return state.copyWith(
       ships: mergedShips ?? state.ships,
       fleets: mergedFleets ?? state.fleets,
+      pendingExportShipIds: _remainingExportShipIds(
+        state,
+        _optionalList(shipData),
+      ),
       serverOrigin: origin,
       updatedAt: event.capturedAt,
     );

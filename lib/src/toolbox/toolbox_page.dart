@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../game_state/game_state.dart';
 import 'fleet_export_page.dart';
+import 'composition_image_page.dart';
 
-enum ToolboxMode { export, other }
+enum ToolboxMode { export, composition, other }
 
 class ToolboxPage extends StatelessWidget {
   const ToolboxPage({
@@ -21,6 +22,7 @@ class ToolboxPage extends StatelessWidget {
     index: mode.index,
     children: [
       FleetExportPage(state: state),
+      CompositionImagePage(state: state, visible: mode == ToolboxMode.composition),
       Center(
         child: Text(
           AppLocalizations.of(context)!.otherToolsComingSoon,

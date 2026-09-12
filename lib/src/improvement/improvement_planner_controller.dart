@@ -2,6 +2,8 @@
 
 import 'package:flutter/foundation.dart';
 
+import '../account/account_session.dart';
+
 import '../game_state/game_state.dart';
 import '../inventory/owned_inventory_projection.dart';
 import 'improvement_dataset.dart';
@@ -17,11 +19,18 @@ class ImprovementPlannerController extends ChangeNotifier {
     ImprovementFavoritesStore? favoritesStore,
     DateTime Function()? clock,
     ImprovementUpdateClient? updater,
+    AccountSession? accountSession,
   }) : _dataset = dataset,
        _favoritesStore = favoritesStore,
        _updater = updater,
-       selectedWeekday = jstWeekday((clock ?? DateTime.now).call());
+       accountSession = accountSession ?? AccountSession.shared,
+       selectedWeekday = jstWeekday((clock ?? DateTime.now).call()) {
+    this.accountSession.addListener(_onAccountChanged);
+  }
 
+  final AccountSession accountSession;
+  bool _disposed = false;
+  int _favoriteLoadGeneration = 0;
   ImprovementDataset _dataset;
   final ImprovementFavoritesStore? _favoritesStore;
   final ImprovementUpdateClient? _updater;
@@ -84,12 +93,27 @@ class ImprovementPlannerController extends ChangeNotifier {
   }
 
   Future<void> loadFavorites() async {
+    final scope = accountSession.current;
+    final generation = ++_favoriteLoadGeneration;
     final store = _favoritesStore;
-    if (store == null) return;
+    if (store == null || !scope.isKnown) return;
+    final favorites = await store.load();
+    if (_disposed ||
+        !accountSession.isCurrent(scope) ||
+        generation != _favoriteLoadGeneration) {
+      return;
+    }
     _favoriteEquipmentIds
       ..clear()
-      ..addAll(await store.load());
+      ..addAll(favorites);
     notifyListeners();
+  }
+
+  void _onAccountChanged() {
+    _favoriteLoadGeneration++;
+    _favoriteEquipmentIds.clear();
+    notifyListeners();
+    loadFavorites().catchError((Object _) {});
   }
 
   void selectWeekday(int value) {
@@ -137,6 +161,7 @@ class ImprovementPlannerController extends ChangeNotifier {
       _favoriteEquipmentIds.add(equipmentId);
     }
     notifyListeners();
+    if (!accountSession.current.isKnown) return;
     try {
       await _favoritesStore?.save(_favoriteEquipmentIds);
     } catch (_) {
@@ -147,5 +172,12 @@ class ImprovementPlannerController extends ChangeNotifier {
   void replaceDataset(ImprovementDataset value) {
     _dataset = value;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    accountSession.removeListener(_onAccountChanged);
+    super.dispose();
   }
 }

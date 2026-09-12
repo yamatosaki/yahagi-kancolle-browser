@@ -6,6 +6,7 @@ import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import 'battle_controller.dart';
 import 'battle_models.dart';
 import 'battle_pills.dart';
+import 'battle_ship_details_popover.dart';
 import '../fleet/dashboard_card.dart';
 import '../fleet/ship_status_style.dart';
 import '../fleet/ship_status_visuals.dart';
@@ -115,11 +116,14 @@ class _LiveBattleCardState extends State<LiveBattleCard> {
                   showLastFormationHint: widget.showLastFormationHint,
                 )
               else
-                _CompactBattlePanel(
+                BattleShipDetailsHost(
                   battle: battle,
-                  gameState: widget.controller.gameStateSnapshot,
-                  damagePulseMode: widget.damagePulseMode,
-                  showLastFormationHint: widget.showLastFormationHint,
+                  child: _CompactBattlePanel(
+                    battle: battle,
+                    gameState: widget.controller.gameStateSnapshot,
+                    damagePulseMode: widget.damagePulseMode,
+                    showLastFormationHint: widget.showLastFormationHint,
+                  ),
                 ),
             ],
           ),
@@ -588,12 +592,15 @@ class _CompactFleetColumn extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         for (var index = 0; index < ships.length; index++)
-          _CompactBarRow(
+          BattleShipDetailsTap(
             ship: ships[index],
-            keyName: keyName,
-            index: index,
-            isMvp: mvpPositions.contains(index + positionOffset),
-            damagePulseMode: damagePulseMode,
+            child: _CompactBarRow(
+              ship: ships[index],
+              keyName: keyName,
+              index: index,
+              isMvp: mvpPositions.contains(index + positionOffset),
+              damagePulseMode: damagePulseMode,
+            ),
           ),
       ],
     );

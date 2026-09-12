@@ -7,10 +7,11 @@ import 'expedition_log_catalog.dart';
 import 'logbook_database.dart';
 
 final class LogbookEventRecorder {
-  LogbookEventRecorder({LogbookDatabase? database})
-    : _database = database ?? LogbookDatabase.instance;
+  LogbookEventRecorder({LogbookDatabase? database}) : _fixedDatabase = database;
 
-  final LogbookDatabase _database;
+  final LogbookDatabase? _fixedDatabase;
+  LogbookDatabase get _database => _fixedDatabase!;
+  final Map<int, LogbookEventRecorder> _accountRecorders = {};
   final Map<int, _PendingConstruction> _pendingConstructions = {};
 
   static const supportedPaths = GameCapturePathCatalog.logbook;
@@ -19,6 +20,16 @@ final class LogbookEventRecorder {
 
   Future<void> record(CapturedApiEvent event, GameState state) async {
     if (!supports(event.path) || event.apiResult != 1) return;
+    if (_fixedDatabase == null) {
+      if (state.memberId <= 0) return;
+      final recorder = _accountRecorders.putIfAbsent(
+        state.memberId,
+        () => LogbookEventRecorder(
+          database: LogbookDatabase.forAccount(state.memberId),
+        ),
+      );
+      return recorder.record(event, state);
+    }
     switch (event.path) {
       case '/kcsapi/api_req_map/start':
       case '/kcsapi/api_req_map/next':

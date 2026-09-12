@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import '../account/account_session.dart';
 
 import '../fleet/anchorage_repair_calculator.dart';
 import '../game_state/game_state.dart';
@@ -185,15 +186,33 @@ abstract interface class NotificationTimerAnchorStore {
   Future<void> save(NotificationTimerAnchors anchors);
 }
 
+abstract interface class AccountNotificationTimerAnchorStore {
+  NotificationTimerAnchorStore forAccount(int memberId);
+}
+
 class SharedPreferencesNotificationTimerAnchorStore
-    implements NotificationTimerAnchorStore {
-  const SharedPreferencesNotificationTimerAnchorStore();
+    implements
+        NotificationTimerAnchorStore,
+        AccountNotificationTimerAnchorStore {
+  const SharedPreferencesNotificationTimerAnchorStore({this.memberId});
+  final int? memberId;
 
   static const key = 'yahagi_notification_timer_anchors';
 
   @override
+  NotificationTimerAnchorStore forAccount(int memberId) =>
+      SharedPreferencesNotificationTimerAnchorStore(memberId: memberId);
+
+  String? _storageKey() {
+    final id = memberId ?? AccountSession.shared.current.memberId;
+    return id > 0 ? 'account.$id.$key' : null;
+  }
+
+  @override
   Future<NotificationTimerAnchors> load() async {
-    final raw = (await SharedPreferences.getInstance()).getString(key);
+    final storageKey = _storageKey();
+    if (storageKey == null) return NotificationTimerAnchors.empty;
+    final raw = (await SharedPreferences.getInstance()).getString(storageKey);
     if (raw == null || raw.isEmpty) return NotificationTimerAnchors.empty;
     return _decode(raw);
   }
@@ -208,8 +227,10 @@ class SharedPreferencesNotificationTimerAnchorStore
 
   @override
   Future<void> save(NotificationTimerAnchors anchors) async {
+    final storageKey = _storageKey();
+    if (storageKey == null) return;
     await (await SharedPreferences.getInstance()).setString(
-      key,
+      storageKey,
       jsonEncode(anchors.toJson()),
     );
   }

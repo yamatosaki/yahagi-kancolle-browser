@@ -20,6 +20,7 @@ import '../settings/layout_settings_controller.dart';
 import '../senka/senka_page.dart' show SenkaCenterMode, senkaCenterModeLabel;
 import '../senka/senka_state.dart';
 import '../toolbox/toolbox_page.dart';
+import '../toolbox/composition_image_strings.dart';
 
 class WorkspaceContextHeader extends StatelessWidget {
   const WorkspaceContextHeader({
@@ -630,9 +631,14 @@ class ToolboxModeTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    String label(ToolboxMode value) => switch (value) {
+      ToolboxMode.export => l10n.fleetExport,
+      ToolboxMode.composition => CompositionImageStrings.of(context).title,
+      ToolboxMode.other => l10n.otherTools,
+    };
     return Container(
       key: const Key('toolbox-mode-tabs'),
-      width: 190,
+      width: 270,
       height: 38,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
@@ -647,9 +653,7 @@ class ToolboxModeTabs extends StatelessWidget {
               child: Semantics(
                 button: true,
                 selected: mode == value,
-                label: (value == ToolboxMode.export
-                    ? l10n.fleetExport
-                    : l10n.otherTools),
+                label: label(value),
                 excludeSemantics: true,
                 child: Material(
                   key: Key('toolbox-tab-${value.name}'),
@@ -662,9 +666,7 @@ class ToolboxModeTabs extends StatelessWidget {
                     onTap: () => onChanged(value),
                     child: Center(
                       child: Text(
-                        (value == ToolboxMode.export
-                            ? l10n.fleetExport
-                            : l10n.otherTools),
+                        label(value),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

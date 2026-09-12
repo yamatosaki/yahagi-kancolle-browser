@@ -153,6 +153,8 @@ class NotificationPresentation {
 class NotificationSnapshot {
   const NotificationSnapshot({
     this.schemaVersion = 1,
+    this.memberId,
+    this.sessionId,
     required this.updatedAt,
     this.immediateAlerts = const [],
     required this.alarms,
@@ -161,6 +163,8 @@ class NotificationSnapshot {
   });
 
   final int schemaVersion;
+  final int? memberId;
+  final String? sessionId;
   final DateTime updatedAt;
   final List<ImmediateNotificationItem> immediateAlerts;
   final List<ScheduledNotificationItem> alarms;
@@ -169,6 +173,8 @@ class NotificationSnapshot {
 
   Map<String, Object?> toMap() => {
     'schemaVersion': schemaVersion,
+    if (memberId != null) 'memberId': memberId,
+    if (sessionId != null) 'sessionId': sessionId,
     'updatedAtEpochMs': updatedAt.millisecondsSinceEpoch,
     'immediateAlerts': immediateAlerts.map((item) => item.toMap()).toList(),
     'alarms': alarms.map((item) => item.toMap()).toList(),

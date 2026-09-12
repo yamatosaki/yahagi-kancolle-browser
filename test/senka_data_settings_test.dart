@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_browser_controller.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode_controller.dart';
@@ -14,6 +15,63 @@ import 'package:yahagi_kancolle_browser/src/settings/data_settings_page.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 
 void main() {
+  testWidgets('account switch closes stale base senka input without saving', (
+    tester,
+  ) async {
+    AccountSession.shared.selectMember(1001);
+    addTearDown(AccountSession.shared.reset);
+    final dependencies = await _Dependencies.create();
+    addTearDown(dependencies.dispose);
+    final senka = SenkaController(
+      store: _MemorySenkaStore(),
+      now: () => DateTime.utc(2026, 8, 20, 3),
+    );
+    await senka.initialize();
+    addTearDown(senka.dispose);
+    await dependencies.pump(tester, senkaController: senka);
+    final set = find.byKey(const Key('settings-set-base-senka'));
+    await tester.ensureVisible(set);
+    await tester.tap(set);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('settings-base-senka-input')),
+      '123.45',
+    );
+    AccountSession.shared.selectMember(2002);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('settings-base-senka-dialog')), findsNothing);
+    expect(senka.monthBaseSenka, 0);
+  });
+
+  testWidgets(
+    'account switch cancels a pending base senka reset confirmation',
+    (tester) async {
+      AccountSession.shared.selectMember(1001);
+      addTearDown(AccountSession.shared.reset);
+      final dependencies = await _Dependencies.create();
+      addTearDown(dependencies.dispose);
+      final senka = SenkaController(
+        store: _MemorySenkaStore(),
+        now: () => DateTime.utc(2026, 8, 20, 3),
+      );
+      await senka.initialize();
+      await senka.setBaseSenka(55);
+      addTearDown(senka.dispose);
+      await dependencies.pump(tester, senkaController: senka);
+      final reset = find.byKey(const Key('settings-reset-base-senka'));
+      await tester.ensureVisible(reset);
+      await tester.tap(reset);
+      await tester.pumpAndSettle();
+      AccountSession.shared.selectMember(2002);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('settings-reset-base-senka-dialog')),
+        findsNothing,
+      );
+      expect(senka.monthBaseSenka, 55);
+    },
+  );
+
   testWidgets('横屏键盘弹出后素战果输入弹窗不溢出', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(844, 390);

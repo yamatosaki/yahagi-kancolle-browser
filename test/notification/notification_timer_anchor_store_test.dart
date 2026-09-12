@@ -7,7 +7,7 @@ void main() {
 
   test('timer anchors round trip through shared preferences', () async {
     SharedPreferences.setMockInitialValues({});
-    const store = SharedPreferencesNotificationTimerAnchorStore();
+    const store = SharedPreferencesNotificationTimerAnchorStore(memberId: 1001);
     final anchors = NotificationTimerAnchors(
       akashi: GlobalNotificationTimerAnchor(
         anchorAt: DateTime.utc(2026, 8, 22, 1),
@@ -30,15 +30,29 @@ void main() {
     await store.save(anchors);
 
     expect(await store.load(), anchors);
+    expect(
+      await const SharedPreferencesNotificationTimerAnchorStore(
+        memberId: 2002,
+      ).load(),
+      NotificationTimerAnchors.empty,
+    );
+    expect(
+      await const SharedPreferencesNotificationTimerAnchorStore(
+        memberId: 0,
+      ).load(),
+      NotificationTimerAnchors.empty,
+    );
   });
 
   test('malformed persisted timer anchors fall back to empty state', () async {
     SharedPreferences.setMockInitialValues({
-      'yahagi_notification_timer_anchors': '{bad json',
+      'account.1001.yahagi_notification_timer_anchors': '{bad json',
     });
 
     expect(
-      await const SharedPreferencesNotificationTimerAnchorStore().load(),
+      await const SharedPreferencesNotificationTimerAnchorStore(
+        memberId: 1001,
+      ).load(),
       NotificationTimerAnchors.empty,
     );
   });

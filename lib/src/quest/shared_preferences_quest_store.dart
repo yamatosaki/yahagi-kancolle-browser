@@ -4,14 +4,28 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../game_state/game_state.dart';
 import '../game_state/quest_text_normalizer.dart';
 import 'quest_store.dart';
+import '../account/account_session.dart';
 
-class SharedPreferencesQuestStore implements QuestStore {
-  static const _keyQuests = 'yahagi_quests';
+class SharedPreferencesQuestStore implements AccountQuestStore {
+  SharedPreferencesQuestStore({AccountSession? accountSession, int? memberId})
+    : _session = accountSession ?? AccountSession.shared,
+      _fixedMemberId = memberId;
+
+  final AccountSession _session;
+  final int? _fixedMemberId;
+  int get _memberId => _fixedMemberId ?? _session.current.memberId;
+  String _keyQuests(int memberId) => 'account.$memberId.quests.v1';
+
+  @override
+  QuestStore forAccount(int memberId) =>
+      SharedPreferencesQuestStore(accountSession: _session, memberId: memberId);
 
   @override
   Future<Map<int, GameQuest>> loadQuests() async {
+    final memberId = _memberId;
+    if (memberId <= 0) return {};
     final prefs = await SharedPreferences.getInstance();
-    final jsonStr = prefs.getString(_keyQuests);
+    final jsonStr = prefs.getString(_keyQuests(memberId));
     if (jsonStr == null) {
       return const <int, GameQuest>{};
     }
@@ -59,6 +73,8 @@ class SharedPreferencesQuestStore implements QuestStore {
 
   @override
   Future<void> saveQuests(Map<int, GameQuest> quests) async {
+    final memberId = _memberId;
+    if (memberId <= 0) return;
     final prefs = await SharedPreferences.getInstance();
     final list = quests.values
         .map(
@@ -78,13 +94,15 @@ class SharedPreferencesQuestStore implements QuestStore {
           },
         )
         .toList(growable: false);
-    await prefs.setString(_keyQuests, jsonEncode(list));
+    await prefs.setString(_keyQuests(memberId), jsonEncode(list));
   }
 
   @override
   Future<void> clearQuests() async {
+    final memberId = _memberId;
+    if (memberId <= 0) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_keyQuests);
+    await prefs.remove(_keyQuests(memberId));
   }
 
   static int? _int(Object? value) {

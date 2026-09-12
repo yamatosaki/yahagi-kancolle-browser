@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../capture/game_capture_path_catalog.dart';
 
 final String nativeGameCaptureScript = buildNativeGameCaptureScript();
+const captureSessionIdPlaceholder = '__YAHAGI_CAPTURE_SESSION_ID__';
 
 String buildNativeGameCaptureScript() {
   final paths = GameCapturePathCatalog.all.toList(growable: false)..sort();
@@ -16,6 +17,13 @@ String buildNativeGameCaptureScript() {
 
   if (window.__yahagiMobileNativeCaptureInstalled === true) return;
   window.__yahagiMobileNativeCaptureInstalled = true;
+  // Fixed for this document: late responses must retain their original session.
+  const captureSessionId = '$captureSessionIdPlaceholder';
+  const captureDocumentStartedAtEpochMs =
+    typeof performance === 'object' && Number.isFinite(performance.timeOrigin)
+      ? performance.timeOrigin : Date.now();
+  const captureDocumentId = String(captureDocumentStartedAtEpochMs) + ':' +
+    Math.random().toString(36).slice(2);
 
   const targetPrefix = '/kcsapi/';
   const targetPaths = newTargetPaths;
@@ -123,6 +131,9 @@ String buildNativeGameCaptureScript() {
       const event = {
         version: 1,
         kind: 'kcsapi_response',
+        captureSessionId,
+        captureDocumentId,
+        captureDocumentStartedAtEpochMs,
         method: String(method || 'GET').toUpperCase(),
         path,
         requestParams: parseRequestParams(requestBody),

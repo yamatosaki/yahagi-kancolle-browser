@@ -12,10 +12,26 @@ import app.yahagi.kancollebrowser.R
 
 class NotificationAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        synchronized(AppNotificationManager) {
+            deliverCurrentAlarm(context, intent)
+        }
+    }
+
+    private fun deliverCurrentAlarm(context: Context, intent: Intent) {
         val key = intent.getStringExtra("key") ?: return
         val taskId = intent.getStringExtra("taskId") ?: return
         val stage = NotificationDelivery.stageFor(key, intent.getStringExtra("stage"))
         val triggerTimeEpochMs = intent.getLongExtra("triggerTimeEpochMs", 0L)
+        val snapshot = AppNotificationManager.loadSnapshot(context)
+        val currentAlarm = NotificationDelivery.currentAlarm(
+            snapshot = snapshot,
+            memberId = intent.getLongExtra("memberId", 0L),
+            sessionId = intent.getStringExtra("sessionId"),
+            key = key,
+            taskId = taskId,
+            stage = stage,
+            triggerTimeEpochMs = triggerTimeEpochMs,
+        ) ?: return
         val channelId = intent.getStringExtra("channelId") ?: "channel_expedition"
         val title = intent.getStringExtra("title") ?: NotificationStrings(AppNotificationManager.loadSnapshot(context).presentation.localeCode).fallbackTitle
         val body = intent.getStringExtra("body") ?: ""
@@ -56,12 +72,8 @@ class NotificationAlarmReceiver : BroadcastReceiver() {
         }
         val notification = builder.build()
 
-        val snapshot = AppNotificationManager.loadSnapshot(context)
-        val currentAlarm = snapshot.alarms.firstOrNull { it.key == key }
-        val notificationId = currentAlarm?.let {
-            NotificationDelivery.notificationIdForAlarm(snapshot, it)
-        } ?: NotificationDelivery.notificationId(key, triggerTimeEpochMs)
-        runCatching { notificationManager.notify(notificationId, notification) }
+        val notificationId = NotificationDelivery.notificationIdForAlarm(snapshot, currentAlarm)
+        runCatching { notificationManager.notify(AppNotificationManager.GAME_ALERT_TAG, notificationId, notification) }
             .onSuccess {
                 AppNotificationManager.onAlarmFired(context, key, taskId, stage)
             }

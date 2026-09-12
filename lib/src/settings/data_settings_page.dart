@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
+import '../account/account_session.dart';
+
 import '../battle/fcd_map_controller.dart';
 import '../browser/game_browser_controller.dart';
 import '../browser/game_resource_cache_controller.dart';
@@ -62,6 +64,9 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
   final FcdMapController? fcdMapController;
   final QuestCatalogController? questCatalogController;
   final ImprovementPlannerController? improvementPlannerController;
+
+  AccountSession get _accountSession =>
+      gameStateController.accountSession ?? LogbookDatabase.accountSession;
 
   @override
   Widget build(BuildContext context) {
@@ -229,8 +234,10 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
                     subtitle: l10n.clearQuestCacheDesc,
                     trailing: const Icon(Icons.delete_outline),
                     onTap: () async {
+                      final session = _accountSession;
+                      final scope = session.current;
                       await gameStateController.clearQuestsCache();
-                      if (context.mounted) {
+                      if (context.mounted && session.isCurrent(scope)) {
                         TopNotice.show(
                           context,
                           message: l10n.questCacheCleared,
@@ -370,7 +377,9 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
     BuildContext context,
     AppLocalizations l10n,
   ) async {
-    final confirmed = await showDialog<bool>(
+    final session = _accountSession;
+    final scope = session.current;
+    final confirmed = await _showAccountDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.logoutConfirmTitle),
@@ -389,7 +398,7 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true || !session.isCurrent(scope)) return;
     try {
       await browserController.logoutAndClearSession();
       if (context.mounted) {
@@ -436,7 +445,9 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
     AppLocalizations l10n,
     SenkaController controller,
   ) async {
-    final confirmed = await showDialog<bool>(
+    final session = _accountSession;
+    final scope = session.current;
+    final confirmed = await _showAccountDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         key: const Key('settings-reset-base-senka-dialog'),
@@ -455,9 +466,9 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true || !session.isCurrent(scope)) return;
     final saved = await controller.resetBaseSenka();
-    if (!context.mounted) return;
+    if (!context.mounted || !session.isCurrent(scope)) return;
     TopNotice.show(
       context,
       message: saved ? l10n.baseSenkaResetSuccess : l10n.baseSenkaSaveFailed,
@@ -470,16 +481,18 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
     AppLocalizations l10n,
     SenkaController controller,
   ) async {
-    final value = await showDialog<double>(
+    final session = _accountSession;
+    final scope = session.current;
+    final value = await _showAccountDialog<double>(
       context: context,
       builder: (_) => _BaseSenkaInputDialog(
         l10n: l10n,
         initialValue: controller.monthBaseSenka,
       ),
     );
-    if (value == null) return;
+    if (value == null || !session.isCurrent(scope)) return;
     final saved = await controller.setBaseSenka(value);
-    if (!context.mounted) return;
+    if (!context.mounted || !session.isCurrent(scope)) return;
     TopNotice.show(
       context,
       message: saved
@@ -493,19 +506,23 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
     BuildContext context,
     AppLocalizations l10n,
   ) async {
+    final session = _accountSession;
+    final scope = session.current;
+    final database = LogbookDatabase.forAccount(scope.memberId);
     final confirmed = await _confirmClear(
       context,
       title: l10n.clearLogbookConfirmTitle,
       description: l10n.clearLogbookConfirmDesc,
       l10n: l10n,
+      accountScoped: true,
     );
-    if (!confirmed) return;
+    if (!confirmed || !session.isCurrent(scope)) return;
     try {
-      await LogbookDatabase.instance.clearAll();
+      await database.clearAll();
     } catch (error) {
       debugPrint('清理航海日志失败: $error');
     }
-    if (context.mounted) {
+    if (context.mounted && session.isCurrent(scope)) {
       TopNotice.show(
         context,
         message: l10n.logbookCleared,
@@ -519,25 +536,47 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
     required String title,
     required String description,
     required AppLocalizations l10n,
+    bool accountScoped = false,
   }) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(title),
-            content: Text(description),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: Text(l10n.cancel),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: Text(l10n.confirmClear),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+    Widget builder(BuildContext dialogContext) => AlertDialog(
+      title: Text(title),
+      content: Text(description),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: Text(l10n.cancel),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          child: Text(l10n.confirmClear),
+        ),
+      ],
+    );
+    final result = accountScoped
+        ? _showAccountDialog<bool>(context: context, builder: builder)
+        : showDialog<bool>(context: context, builder: builder);
+    return await result ?? false;
+  }
+
+  Future<T?> _showAccountDialog<T>({
+    required BuildContext context,
+    required WidgetBuilder builder,
+  }) async {
+    final session = _accountSession;
+    final scope = session.current;
+    final route = DialogRoute<T>(context: context, builder: builder);
+    void dismissStaleDialog() {
+      if (!session.isCurrent(scope) && route.isActive) {
+        route.navigator?.removeRoute(route);
+      }
+    }
+
+    session.addListener(dismissStaleDialog);
+    try {
+      return await Navigator.of(context, rootNavigator: true).push<T>(route);
+    } finally {
+      session.removeListener(dismissStaleDialog);
+    }
   }
 }
 

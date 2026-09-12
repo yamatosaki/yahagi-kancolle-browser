@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_controller.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_damage_alert.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_models.dart';
@@ -59,6 +61,7 @@ GameState _sortieState({
     for (final ship in <OwnedShip>[...main, ...escort]) ship.id: ship,
   };
   return GameState(
+    memberId: 1001,
     ships: ships,
     fleets: <Fleet>[
       Fleet(
@@ -571,6 +574,112 @@ void main() {
     expect(find.byType(AlertDialog), findsOneWidget);
   });
 
+  testWidgets('account round trip cancels a delayed advance safety result', (
+    tester,
+  ) async {
+    final settledState = Completer<GameState>();
+    final fixture = await _WarningOverlayFixture.create(
+      mode: BattleWarningMode.confirm,
+      loadSafetyState: () => settledState.future,
+    );
+    addTearDown(fixture.dispose);
+    await fixture.pump(tester);
+    await fixture.publishEvent(
+      tester,
+      kcsapiEvent('/kcsapi/api_req_map/next', const {}),
+    );
+
+    fixture.accountSession.selectMember(2002);
+    fixture.accountSession.selectMember(1001);
+    settledState.complete(fixture.state);
+    await tester.pumpAndSettle();
+
+    expect(fixture.alerts.alerts, isEmpty);
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('capture reset cancels a delayed advance safety result', (
+    tester,
+  ) async {
+    final settledState = Completer<GameState>();
+    final fixture = await _WarningOverlayFixture.create(
+      mode: BattleWarningMode.confirm,
+      loadSafetyState: () => settledState.future,
+    );
+    addTearDown(fixture.dispose);
+    await fixture.pump(tester);
+    await fixture.publishEvent(
+      tester,
+      kcsapiEvent('/kcsapi/api_req_map/next', const {}),
+    );
+
+    await fixture.captureController.invalidateSession();
+    settledState.complete(fixture.state);
+    await tester.pumpAndSettle();
+
+    expect(fixture.captureController.latestEvent, isNull);
+    expect(fixture.alerts.alerts, isEmpty);
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets(
+    'account switch closes old warnings and permits current warnings',
+    (tester) async {
+      final fixture = await _WarningOverlayFixture.create(
+        mode: BattleWarningMode.confirm,
+      );
+      addTearDown(fixture.dispose);
+      await fixture.pump(tester);
+      await fixture.publishEvent(
+        tester,
+        kcsapiEvent('/kcsapi/api_req_map/next', const {}),
+      );
+      expect(find.byType(AlertDialog), findsOneWidget);
+
+      fixture.accountSession.selectMember(2002);
+      fixture.state = fixture.state.copyWith(memberId: 2002);
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(fixture.alerts.alerts, hasLength(1));
+
+      await fixture.publishEvent(
+        tester,
+        kcsapiEvent('/kcsapi/api_req_map/next', const {}),
+      );
+      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(fixture.alerts.alerts, hasLength(2));
+      fixture.accountSession.reset();
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+    },
+  );
+
+  testWidgets('unknown account and mismatched safety state do not warn', (
+    tester,
+  ) async {
+    final fixture = await _WarningOverlayFixture.create(
+      mode: BattleWarningMode.confirm,
+    );
+    addTearDown(fixture.dispose);
+    await fixture.pump(tester);
+    fixture.accountSession.reset();
+    await fixture.publishEvent(
+      tester,
+      kcsapiEvent('/kcsapi/api_req_map/next', const {}),
+    );
+    expect(fixture.alerts.alerts, isEmpty);
+    expect(find.byType(AlertDialog), findsNothing);
+
+    fixture.accountSession.selectMember(2002);
+    await fixture.publishEvent(
+      tester,
+      kcsapiEvent('/kcsapi/api_req_map/next', const {}),
+    );
+    expect(fixture.state.memberId, 1001);
+    expect(fixture.alerts.alerts, isEmpty);
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
   testWidgets('warning uses heavy filter while keeping dialog independent', (
     tester,
   ) async {
@@ -595,14 +704,13 @@ void main() {
     'production queue order warns without waiting for an unrelated consumer',
     (tester) async {
       const queueTimeout = Duration(seconds: 1);
-      final gameStateController = GameStateController();
+      final accountSession = AccountSession();
+      final gameStateController = GameStateController(
+        accountSession: accountSession,
+      );
       await gameStateController.initialize().timeout(queueTimeout);
-      gameStateController
-        ..accept(start2Event)
-        ..accept(portEvent);
-      await gameStateController.idle.timeout(queueTimeout);
-
       final battleController = BattleController(
+        accountSession: accountSession,
         gameState: () => gameStateController.state,
         waitForGameState: () => gameStateController.idle,
         onFriendlyHpUpdated: gameStateController.applyFriendlyBattleHp,
@@ -610,7 +718,10 @@ void main() {
       );
       final unrelatedConsumer = _BlockingGameApiConsumer();
       final pipeline = GameApiEventPipeline(
+        decodeEnvelope: (body) async =>
+            Map<String, Object?>.from(jsonDecode(body) as Map),
         consumers: <GameApiEventConsumer>[
+          accountSession,
           gameStateController,
           battleController,
           unrelatedConsumer,
@@ -633,11 +744,33 @@ void main() {
         gameStateController.dispose();
         capturePort.dispose();
         settingsController.dispose();
+        accountSession.dispose();
       });
+
+      capturePort.add(start2Event);
+      await pipeline.dispatchIdle.timeout(queueTimeout);
+      await gameStateController.idle.timeout(queueTimeout);
+      final portData =
+          (jsonDecode(portEvent.responseBody) as Map)['api_data'] as Map;
+      capturePort.add(
+        kcsapiEvent('/kcsapi/api_port/port', <String, Object?>{
+          ...Map<String, Object?>.from(portData),
+          'api_basic': <String, Object?>{
+            ...Map<String, Object?>.from(portData['api_basic'] as Map),
+            'api_member_id': 1001,
+          },
+        }),
+      );
+      await pipeline.dispatchIdle.timeout(queueTimeout);
+      await gameStateController.idle.timeout(queueTimeout);
+      await battleController.idle.timeout(queueTimeout);
+      expect(accountSession.current.memberId, 1001);
+      expect(gameStateController.state.memberId, 1001);
 
       await tester.pumpWidget(
         MaterialApp(
           home: BattleResultWarningOverlay(
+            accountSession: accountSession,
             gameCaptureController: captureController,
             loadSafetyState: () async {
               await pipeline.dispatchIdle;
@@ -714,6 +847,7 @@ final class _WarningOverlayFixture {
     required this.alerts,
     required this.state,
     required this.loadSafetyState,
+    required this.accountSession,
   });
 
   final GameCaptureController captureController;
@@ -724,6 +858,7 @@ final class _WarningOverlayFixture {
   final GameStateReducer reducer = GameStateReducer();
   GameState state;
   final Future<GameState> Function() loadSafetyState;
+  final AccountSession accountSession;
 
   static Future<_WarningOverlayFixture> create({
     required BattleWarningMode mode,
@@ -757,6 +892,7 @@ final class _WarningOverlayFixture {
       alerts: _RecordingDamageAlertPort(),
       state: state,
       loadSafetyState: loadSafetyState ?? () async => fixture.state,
+      accountSession: AccountSession(initialMemberId: state.memberId),
     );
     return fixture;
   }
@@ -764,6 +900,7 @@ final class _WarningOverlayFixture {
   Future<void> pump(WidgetTester tester) => tester.pumpWidget(
     MaterialApp(
       home: BattleResultWarningOverlay(
+        accountSession: accountSession,
         gameCaptureController: captureController,
         loadSafetyState: loadSafetyState,
         safetySettingsController: settingsController,
@@ -823,6 +960,7 @@ final class _WarningOverlayFixture {
     captureController.dispose();
     capturePort.dispose();
     settingsController.dispose();
+    accountSession.dispose();
   }
 }
 

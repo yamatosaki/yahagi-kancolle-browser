@@ -47,6 +47,24 @@ abstract final class AndroidCaptureEvent {
     final capturedAtValue = map['capturedAt'];
     final sequence = map['sequence'];
     final rawParams = map['requestParams'];
+    final captureSessionId = map['captureSessionId'];
+    final captureDocumentId = map['captureDocumentId'];
+    final documentStartedAt = map['captureDocumentStartedAtEpochMs'];
+    if (captureSessionId != null &&
+        (captureSessionId is! String ||
+            captureSessionId.isEmpty ||
+            captureSessionId.length > 128)) {
+      throw const FormatException('Invalid capture session');
+    }
+    if ((captureDocumentId != null || documentStartedAt != null) &&
+        (captureDocumentId is! String ||
+            captureDocumentId.isEmpty ||
+            captureDocumentId.length > 128 ||
+            documentStartedAt is! num ||
+            !documentStartedAt.isFinite ||
+            documentStartedAt <= 0)) {
+      throw const FormatException('Invalid capture document');
+    }
 
     if (method is! String || (method != 'GET' && method != 'POST')) {
       throw const FormatException('Unsupported request method');
@@ -88,6 +106,9 @@ abstract final class AndroidCaptureEvent {
       capturedAt: capturedAt,
       sequence: sequence,
       responseByteLength: responsePayload.byteLength,
+      captureSessionId: captureSessionId as String?,
+      captureDocumentId: captureDocumentId as String?,
+      captureDocumentStartedAtEpochMs: (documentStartedAt as num?)?.toDouble(),
     );
   }
 

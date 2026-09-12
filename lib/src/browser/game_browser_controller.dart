@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'game_launch_config.dart';
@@ -43,11 +45,13 @@ final class GameBrowserController extends ChangeNotifier {
     GameBrowserPort? port,
     Uri? homeUri,
     OriginCookieManagerPort? originCookieManagerPort,
+    FutureOr<void> Function()? onSessionReset,
   }) {
     return GameBrowserController._(
       port,
       homeUri ?? GameLaunchConfig.dmmGameEntry,
       originCookieManagerPort ?? const MethodChannelOriginCookieManagerPort(),
+      onSessionReset,
     );
   }
 
@@ -55,11 +59,14 @@ final class GameBrowserController extends ChangeNotifier {
     this._port,
     this._homeUri,
     this._originCookieManagerPort,
+    this.onSessionReset,
   ) : _displayAddress = _homeUri.toString();
 
   GameBrowserPort? _port;
   Uri _homeUri;
   final OriginCookieManagerPort _originCookieManagerPort;
+  final FutureOr<void> Function()? onSessionReset;
+  int _sessionResetGeneration = 0;
   bool _initialHomePrepared = false;
   Future<void>? _initialHomePreparation;
 
@@ -105,6 +112,9 @@ final class GameBrowserController extends ChangeNotifier {
   }
 
   Future<void> switchHome(Uri target) async {
+    final generation = ++_sessionResetGeneration;
+    await onSessionReset?.call();
+    if (generation != _sessionResetGeneration) return;
     _homeUri = target;
     final port = _readyPort();
     if (port == null) {
@@ -114,6 +124,7 @@ final class GameBrowserController extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     await _clearEphemeralSessionFor(target);
+    if (generation != _sessionResetGeneration) return;
     _initialHomePrepared = true;
     await port.loadUri(target);
   }
@@ -228,11 +239,15 @@ final class GameBrowserController extends ChangeNotifier {
   }
 
   Future<void> logoutAndClearSession() async {
+    final generation = ++_sessionResetGeneration;
+    await onSessionReset?.call();
+    if (generation != _sessionResetGeneration) return;
     final port = _readyPort();
     if (port == null) {
       return;
     }
     await port.clearSession();
+    if (generation != _sessionResetGeneration) return;
     _mode = GameBrowserMode.realWeb;
     _errorMessage = null;
     notifyListeners();

@@ -5,3 +5,7 @@ abstract class QuestStore {
   Future<void> saveQuests(Map<int, GameQuest> quests);
   Future<void> clearQuests();
 }
+
+abstract interface class AccountQuestStore implements QuestStore {
+  QuestStore forAccount(int memberId);
+}

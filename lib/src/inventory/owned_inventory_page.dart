@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import '../fleet/equipment_type_icon.dart';
+import '../account/account_session.dart';
 import '../fleet/ship_portrait.dart';
 import '../fleet/ship_status_style.dart';
 import '../game_state/game_state.dart';
@@ -28,6 +29,7 @@ class OwnedInventoryPage extends StatefulWidget {
     this.showShips,
     this.onSectionChanged,
     this.showSectionControl = true,
+    this.accountSession,
   });
 
   final GameStateController controller;
@@ -37,6 +39,7 @@ class OwnedInventoryPage extends StatefulWidget {
   final bool? showShips;
   final ValueChanged<bool>? onSectionChanged;
   final bool showSectionControl;
+  final AccountSession? accountSession;
 
   @override
   State<OwnedInventoryPage> createState() => _OwnedInventoryPageState();
@@ -62,6 +65,7 @@ class _OwnedInventoryPageState extends State<OwnedInventoryPage> {
   int? _selectedEquipmentMasterId;
   int? _selectedOwnedShipInstanceId;
   int? _selectedUnownedShipMasterId;
+  late final AccountSession _accountSession;
 
   bool get _showShips => widget.showShips ?? _localShowShips;
   bool get _showOwned => widget.showOwned ?? _localShowOwned;
@@ -69,6 +73,8 @@ class _OwnedInventoryPageState extends State<OwnedInventoryPage> {
   @override
   void initState() {
     super.initState();
+    _accountSession = widget.accountSession ?? AccountSession.shared;
+    _accountSession.addListener(_handleAccountChanged);
     _state = widget.controller.state;
     _inventoryDependencies = _InventoryDependencies.from(_state);
     widget.controller.addListener(_handleControllerChanged);
@@ -105,6 +111,7 @@ class _OwnedInventoryPageState extends State<OwnedInventoryPage> {
 
   @override
   void dispose() {
+    _accountSession.removeListener(_handleAccountChanged);
     widget.controller.removeListener(_handleControllerChanged);
     widget.reminderController?.removeListener(_handleReminderChanged);
     super.dispose();
@@ -112,6 +119,14 @@ class _OwnedInventoryPageState extends State<OwnedInventoryPage> {
 
   void _handleControllerChanged() {
     final nextState = widget.controller.state;
+    if (_state.memberId != nextState.memberId) {
+      _state = nextState;
+      _inventoryDependencies = _InventoryDependencies.from(nextState);
+      _clearDrawerSelection();
+      _clearDerivedData();
+      setState(() {});
+      return;
+    }
     final nextDependencies = _InventoryDependencies.from(nextState);
     final shipProjectionChanged = !_inventoryDependencies.matchesShipProjection(
       nextDependencies,
@@ -161,6 +176,12 @@ class _OwnedInventoryPageState extends State<OwnedInventoryPage> {
   bool get _hasSelectedShip =>
       _selectedOwnedShipInstanceId != null ||
       _selectedUnownedShipMasterId != null;
+
+  void _handleAccountChanged() {
+    _clearDrawerSelection();
+    _clearDerivedData();
+    setState(() {});
+  }
 
   void _clearDrawerSelection() {
     _selectedEquipmentMasterId = null;

@@ -76,12 +76,60 @@ final class GameApiEventPipeline {
   int _pendingEventCount = 0;
   String? _activePath;
   int _backgroundFallbackCount = 0;
+  int _sessionGeneration = 0;
+  bool _awaitingLoginStart = false;
+  String? _activeDocumentId;
+  double? _activeDocumentStartedAt;
+  final Set<String> _retiredDocumentIds = {};
+
+  /// Called before leaving a login session, including while decoding an event.
+  void invalidatePendingEvents({bool waitForLoginStart = false}) {
+    _sessionGeneration++;
+    _awaitingLoginStart = waitForLoginStart;
+    _activeDocumentId = null;
+    _activeDocumentStartedAt = null;
+    _retiredDocumentIds.clear();
+  }
+
+  bool _acceptDocument(CapturedApiEvent event) {
+    final documentId = event.captureDocumentId;
+    final startedAt = event.captureDocumentStartedAtEpochMs;
+    if (documentId == _activeDocumentId) return true;
+    if (documentId == null || startedAt == null) {
+      return _activeDocumentId == null;
+    }
+    if (event.path != '/kcsapi/api_start2/getData' || event.apiResult != 1) {
+      return _activeDocumentId == null;
+    }
+    // A late response from an older game document must not restart that login.
+    if (_retiredDocumentIds.contains(documentId) ||
+        (_activeDocumentStartedAt != null &&
+            startedAt <= _activeDocumentStartedAt!)) {
+      return false;
+    }
+    if (_activeDocumentId case final previous?) {
+      _retiredDocumentIds.add(previous);
+      if (_retiredDocumentIds.length > 64) {
+        _retiredDocumentIds.remove(_retiredDocumentIds.first);
+      }
+    }
+    _activeDocumentId = documentId;
+    _activeDocumentStartedAt = startedAt;
+    return true;
+  }
 
   int get pendingEventCount => _pendingEventCount;
   String? get activePath => _activePath;
   int get backgroundFallbackCount => _backgroundFallbackCount;
 
+  /// For side effects that run after awaiting this pipeline's dispatch queue.
+  bool isCurrentDocument(CapturedApiEvent event) =>
+      !_awaitingLoginStart &&
+      (_activeDocumentId == null ||
+          event.captureDocumentId == _activeDocumentId);
+
   void add(CapturedApiEvent event) {
+    final generation = _sessionGeneration;
     _pendingEventCount += 1;
     final queueDepth = _pendingEventCount;
     final queued = Stopwatch()..start();
@@ -92,12 +140,14 @@ final class GameApiEventPipeline {
         currentObserver,
         queued,
         queueDepth,
+        generation,
       ),
       onError: (_) => _prepareDispatchAndObserve(
         event,
         currentObserver,
         queued,
         queueDepth,
+        generation,
       ),
     );
   }
@@ -107,6 +157,7 @@ final class GameApiEventPipeline {
     GameApiPipelineObserver? target,
     Stopwatch queued,
     int queueDepth,
+    int generation,
   ) async {
     queued.stop();
     final queueWaitMicros = queued.elapsedMicroseconds;
@@ -117,7 +168,9 @@ final class GameApiEventPipeline {
       usedSynchronousFallback: false,
     );
     try {
-      result = await _prepareAndDispatch(event);
+      if (generation == _sessionGeneration) {
+        result = await _prepareAndDispatch(event, generation);
+      }
     } finally {
       _pendingEventCount -= 1;
       target?.onCompleted(
@@ -156,7 +209,7 @@ final class GameApiEventPipeline {
       bool usedSynchronousFallback,
     })
   >
-  _prepareAndDispatch(CapturedApiEvent event) async {
+  _prepareAndDispatch(CapturedApiEvent event, int generation) async {
     final consumers = <GameApiEventConsumer>[
       for (final consumer in _consumers)
         if (consumer.supportsPath(event.path)) consumer,
@@ -206,10 +259,16 @@ final class GameApiEventPipeline {
       decodeWatch.stop();
 
       final dispatchWatch = Stopwatch()..start();
-      if (prepared.hasDecodedEnvelope &&
-          prepared.decodedEnvelope!['api_result'].toString() != '1') {
+      if (generation != _sessionGeneration ||
+          (_awaitingLoginStart &&
+              (prepared.path != '/kcsapi/api_start2/getData' ||
+                  prepared.apiResult != 1)) ||
+          (prepared.hasDecodedEnvelope &&
+              prepared.decodedEnvelope!['api_result'].toString() != '1') ||
+          !_acceptDocument(prepared)) {
         success = false;
       } else {
+        _awaitingLoginStart = false;
         for (final consumer in consumers) {
           consumer.accept(prepared);
         }

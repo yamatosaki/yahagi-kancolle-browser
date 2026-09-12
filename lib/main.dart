@@ -72,6 +72,8 @@ import 'src/fleet/pre_sortie_check_summary.dart';
 import 'src/game_webview.dart';
 import 'src/native_activity_game_surface.dart';
 import 'src/game_state/game_state_controller.dart';
+import 'src/game_state/game_state.dart';
+import 'src/account/account_session.dart';
 import 'src/game_state/game_api_event_pipeline.dart';
 import 'src/game_state/game_state_store.dart';
 import 'src/layout/adaptive_layout.dart';
@@ -138,6 +140,10 @@ import 'src/widgets/top_notice.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final accountSession = AccountSession.shared;
+  LogbookDatabase.bindAccountSession(accountSession);
+  late final GameApiEventPipeline gameApiEventPipeline;
+  late final GameCaptureController gameCaptureController;
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   final layoutSettingsController = await LayoutSettingsController.load(
@@ -166,6 +172,7 @@ Future<void> main() async {
       );
   final formationMemoryController = await FormationMemoryController.load(
     SharedPreferencesFormationMemoryStore(),
+    accountSession: accountSession,
   );
   final displayModeController = await DisplayModeController.load(
     SharedPreferencesDisplayModeStore(),
@@ -196,6 +203,11 @@ Future<void> main() async {
   );
   final browserController = GameBrowserController(
     homeUri: gameConnectorController.connector.entryUri,
+    onSessionReset: () async {
+      gameApiEventPipeline.invalidatePendingEvents(waitForLoginStart: true);
+      accountSession.reset();
+      await gameCaptureController.invalidateSession();
+    },
   );
   final audioController = await GameAudioController.load(
     SharedPreferencesGameAudioStore(),
@@ -207,9 +219,10 @@ Future<void> main() async {
   final gameScreenshotController = GameScreenshotController(
     const MethodChannelGameScreenshotPort(),
   );
-  final questStore = SharedPreferencesQuestStore();
+  final questStore = SharedPreferencesQuestStore(accountSession: accountSession);
   final gameStateStore = GameStateStore();
   final gameStateController = GameStateController(
+    accountSession: accountSession,
     questStore: questStore,
     questProgress: await QuestProgressEngine.load(),
     gameStateStore: gameStateStore,
@@ -221,7 +234,8 @@ Future<void> main() async {
   final gameResourceCacheController = GameResourceCacheController();
   await gameResourceCacheController.initialize();
   final senkaController = SenkaController(
-    store: await SharedPreferencesSenkaStore.create(),
+    accountSession: accountSession,
+    store: await SharedPreferencesSenkaStore.create(accountSession: accountSession),
   );
   await senkaController.initialize();
   ImprovementDatasetStorage improvementStorage;
@@ -234,6 +248,7 @@ Future<void> main() async {
   final improvementStore = ImprovementDatasetStore(improvementStorage);
   final improvementDataset = await improvementStore.loadBestAvailable();
   final improvementPlannerController = ImprovementPlannerController(
+    accountSession: accountSession,
     dataset: improvementDataset,
     favoritesStore: SharedPreferencesImprovementFavoritesStore(),
     updater: ImprovementDatasetUpdateService(
@@ -297,6 +312,7 @@ Future<void> main() async {
     sourceHost: questCatalogState?.source ?? '',
   );
   final battleController = BattleController(
+    accountSession: accountSession,
     gameState: () => gameStateController.state,
     waitForGameState: () => gameStateController.idle,
     onFriendlyHpUpdated: gameStateController.applyFriendlyBattleHp,
@@ -352,6 +368,7 @@ Future<void> main() async {
     onDropped: kcwikiReportController.recordDropped,
   );
   final kcwikiReportConsumer = KcwikiReportConsumer(
+    accountSession: accountSession,
     controller: kcwikiReportController,
     collector: KcwikiReportCollector(),
     dispatcher: kcwikiReportDispatcher,
@@ -360,7 +377,9 @@ Future<void> main() async {
   );
   late final GameNotificationCoordinator notificationCoordinator;
   final newShipReminderController = NewShipReminderController(
+    accountSession: accountSession,
     stateProvider: () => gameStateController.state,
+    waitForGameState: () => gameStateController.idle,
     store: NewShipReminderStore(await SharedPreferences.getInstance()),
     onPublish: (alert) {
       final state = gameStateController.state;
@@ -381,13 +400,14 @@ Future<void> main() async {
       );
     },
   );
-  final gameApiEventPipeline = GameApiEventPipeline(
+  gameApiEventPipeline = GameApiEventPipeline(
     settleGameState: () async {
       await gameStateController.idle;
       await battleController.idle;
       await gameStateController.idle;
     },
     consumers: <GameApiEventConsumer>[
+      accountSession,
       gameStateController,
       kcwikiReportConsumer,
       gameResourceManifestConsumer,
@@ -403,7 +423,7 @@ Future<void> main() async {
       );
     },
   );
-  final gameCaptureController = GameCaptureController(
+  gameCaptureController = GameCaptureController(
     onAcceptedEvent: gameApiEventPipeline.add,
   );
   final releaseChecker = GitHubReleaseChecker();
@@ -468,7 +488,7 @@ Future<void> main() async {
     activeApiPath: () => gameApiEventPipeline.activePath,
     backgroundDecodeFallbacks: () =>
         gameApiEventPipeline.backgroundFallbackCount,
-    databaseBytes: LogbookDatabase.instance.diagnosticFileSizeBytes,
+    databaseBytes: () => LogbookDatabase.instance.diagnosticFileSizeBytes(),
     webViewHost: diagnosticWebViewHost,
     renderer: diagnosticRenderer,
     generationId: diagnosticGeneration,
@@ -507,6 +527,7 @@ Future<void> main() async {
       SharedPreferencesNotificationTimerAnchorStore();
   final notificationTimerAnchors = await notificationTimerAnchorStore.load();
   notificationCoordinator = GameNotificationCoordinator(
+    accountSession: accountSession,
     gameStateController: gameStateController,
     settingsController: notificationSettingsController,
     localeCodeProvider: () =>
@@ -787,11 +808,17 @@ class YahagiApp extends StatelessWidget {
 
   Widget _buildGameSurface() {
     Widget withBattleWarning(Widget child) => BattleResultWarningOverlay(
+      accountSession: gameStateController.accountSession,
       gameCaptureController: gameCaptureController,
       loadSafetyState: () async {
+        final event = gameCaptureController.latestEvent;
         await gameApiEventPipeline?.dispatchIdle;
         await battleController.idle;
         await gameStateController.idle;
+        if (event != null &&
+            gameApiEventPipeline?.isCurrentDocument(event) == false) {
+          return GameState.empty;
+        }
         return gameStateController.state;
       },
       safetySettingsController: safetySettingsController,
@@ -984,6 +1011,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   bool _inventoryShowShips = true;
   bool _inventoryShowOwned = true;
   bool _newShipDialogScheduled = false;
+  DialogRoute<void>? _newShipDialogRoute;
   int _logbookTabIndex = 0;
   int _settingsTabIndex = 0;
   RepairCenterMode _repairCenterMode = RepairCenterMode.dock;
@@ -1035,10 +1063,23 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   void _handleNewShipAlert() {
     final controller = widget.newShipReminderController;
     final alert = controller?.currentAlert;
-    if (alert == null || _newShipDialogScheduled || !mounted) return;
+    if (!mounted) return;
+    if (alert == null) {
+      final route = _newShipDialogRoute;
+      if (route != null && route.isActive) {
+        route.navigator?.removeRoute(route);
+      }
+      return;
+    }
+    if (_newShipDialogScheduled) return;
     _newShipDialogScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
+      if (!identical(controller?.currentAlert, alert)) {
+        _newShipDialogScheduled = false;
+        _handleNewShipAlert();
+        return;
+      }
       final state = widget.gameStateController.state;
       final l10n = AppLocalizations.of(context)!;
       final names = alert.masterIds
@@ -1046,7 +1087,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
             (id) => state.masterShips[id]?.name ?? l10n.newShipFallbackName(id),
           )
           .toList(growable: false);
-      await showDialog<void>(
+      final route = DialogRoute<void>(
         context: context,
         builder: (context) => AlertDialog(
           key: const Key('new-ship-alert-dialog'),
@@ -1060,9 +1101,15 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
           ],
         ),
       );
+      _newShipDialogRoute = route;
+      await Navigator.of(context, rootNavigator: true).push<void>(route);
+      _newShipDialogRoute = null;
+      if (!mounted) return;
       controller?.acknowledge(alert.key);
       _newShipDialogScheduled = false;
+      _handleNewShipAlert();
     });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   @override

@@ -59,7 +59,8 @@ class _ResourceTrendPageState extends State<ResourceTrendPage>
   bool _loading = true, _error = false, _preferencesEdited = false;
   Timer? _midnight, _refreshDebounce;
   final _chartRevision = ValueNotifier(0);
-  LogbookDatabase get _database => widget.database ?? LogbookDatabase.instance;
+  late LogbookDatabase _database;
+  final Set<Route<dynamic>> _accountDialogs = {};
   DateTime get _now => widget.now?.call() ?? DateTime.now();
   AppLocalizations get _l =>
       AppLocalizations.of(context) ??
@@ -68,6 +69,8 @@ class _ResourceTrendPageState extends State<ResourceTrendPage>
   @override
   void initState() {
     super.initState();
+    _database = widget.database ?? LogbookDatabase.instance;
+    LogbookDatabase.accountSession.addListener(_accountChanged);
     WidgetsBinding.instance.addObserver(this);
     _database
         .changesFor(LogbookChangeCategory.resource)
@@ -81,9 +84,10 @@ class _ResourceTrendPageState extends State<ResourceTrendPage>
   void didUpdateWidget(covariant ResourceTrendPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.database != widget.database) {
-      (oldWidget.database ?? LogbookDatabase.instance)
+      _database
           .changesFor(LogbookChangeCategory.resource)
           .removeListener(_recordsChanged);
+      _database = widget.database ?? LogbookDatabase.instance;
       _database
           .changesFor(LogbookChangeCategory.resource)
           .addListener(_recordsChanged);
@@ -93,6 +97,62 @@ class _ResourceTrendPageState extends State<ResourceTrendPage>
         oldWidget.now != widget.now) {
       _load(clear: true);
       _scheduleMidnight();
+    }
+  }
+
+  void _accountChanged() {
+    _closeAccountDialogs();
+    _generation++;
+    _refreshDebounce?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _data = null;
+      _loading = false;
+      _error = false;
+    });
+    if (widget.database == null) {
+      _database
+          .changesFor(LogbookChangeCategory.resource)
+          .removeListener(_recordsChanged);
+      _database = LogbookDatabase.instance;
+      _database
+          .changesFor(LogbookChangeCategory.resource)
+          .addListener(_recordsChanged);
+      _load(clear: true);
+    }
+  }
+
+  Future<T?> _showAccountDialog<T>({
+    required WidgetBuilder builder,
+    bool useSafeArea = true,
+  }) {
+    final route = DialogRoute<T>(
+      context: context,
+      builder: builder,
+      useSafeArea: useSafeArea,
+    );
+    _accountDialogs.add(route);
+    return Navigator.of(context, rootNavigator: true).push(route).whenComplete(
+      () {
+        _accountDialogs.remove(route);
+      },
+    );
+  }
+
+  void _closeAccountDialogs() {
+    final routes = _accountDialogs.toList();
+    _accountDialogs.clear();
+    void close() {
+      for (final route in routes) {
+        if (route.isActive) route.navigator?.removeRoute(route);
+      }
+    }
+
+    if (WidgetsBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => close());
+    } else {
+      close();
     }
   }
 
@@ -183,6 +243,8 @@ class _ResourceTrendPageState extends State<ResourceTrendPage>
   @override
   void dispose() {
     _generation++;
+    LogbookDatabase.accountSession.removeListener(_accountChanged);
+    _closeAccountDialogs();
     _midnight?.cancel();
     _refreshDebounce?.cancel();
     _database
@@ -195,8 +257,7 @@ class _ResourceTrendPageState extends State<ResourceTrendPage>
 
   Future<void> _customize() async {
     final draft = {..._visible};
-    final result = await showDialog<Set<String>>(
-      context: context,
+    final result = await _showAccountDialog<Set<String>>(
       builder: (context) => StatefulBuilder(
         builder: (context, update) => AlertDialog(
           backgroundColor: const Color(0xff102532),
@@ -306,8 +367,7 @@ class _ResourceTrendPageState extends State<ResourceTrendPage>
   }
 
   void _expand() {
-    showDialog<void>(
-      context: context,
+    _showAccountDialog<void>(
       useSafeArea: false,
       builder: (dialogContext) => Dialog.fullscreen(
         backgroundColor: const Color(0xff091b28),

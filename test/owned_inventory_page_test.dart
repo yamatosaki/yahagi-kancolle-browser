@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yahagi_kancolle_browser/src/bridge/captured_api_event.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
@@ -20,6 +21,37 @@ import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
   setUp(() => GameStateController.disableTimerForTest = true);
+
+  testWidgets(
+    'account change closes an owned ship drawer even before matching instance IDs refresh',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1100, 700);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      AccountSession.shared.selectMember(1001);
+      final controller = await _equipmentCompatibilityController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('zh'),
+          home: Scaffold(body: OwnedInventoryPage(controller: controller)),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('owned-ship-name-row-9001')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('ship-equipment-compatibility-drawer')),
+        findsOneWidget,
+      );
+      AccountSession.shared.selectMember(2002);
+      await tester.pump();
+      expect(
+        find.byKey(const Key('ship-equipment-compatibility-drawer')),
+        findsNothing,
+      );
+    },
+  );
 
   testWidgets(
     'unowned ship cards are flat and exclusions follow the active filter',

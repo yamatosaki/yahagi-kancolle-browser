@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../account/account_session.dart';
+
 import 'development_resources.dart';
 
 enum DevelopmentWorkbenchMode { calculator, formula }
@@ -114,18 +116,25 @@ abstract interface class DevelopmentWorkbenchStateStore {
 
 final class SharedPreferencesDevelopmentWorkbenchStateStore
     implements DevelopmentWorkbenchStateStore {
+  SharedPreferencesDevelopmentWorkbenchStateStore({
+    AccountSession? accountSession,
+  }) : accountSession = accountSession ?? AccountSession.shared;
+
+  final AccountSession accountSession;
   static const key = 'development_workbench_state_v1';
   static Future<void> _pendingSave = Future<void>.value();
-  static DevelopmentWorkbenchState? _latestState;
+  static final Map<int, DevelopmentWorkbenchState> _latestStates = {};
 
   @override
   Future<DevelopmentWorkbenchState?> load() async {
-    final latest = _latestState;
+    final scope = accountSession.current;
+    if (!scope.isKnown) return null;
+    final latest = _latestStates[scope.memberId];
     if (latest != null) return latest;
     await _pendingSave;
-    if (_latestState case final latest?) return latest;
+    if (_latestStates[scope.memberId] case final latest?) return latest;
     final preferences = await SharedPreferences.getInstance();
-    final encoded = preferences.getString(key);
+    final encoded = preferences.getString(scope.key(key));
     if (encoded == null) return null;
     try {
       final decoded = jsonDecode(encoded);
@@ -138,13 +147,15 @@ final class SharedPreferencesDevelopmentWorkbenchStateStore
 
   @override
   Future<void> save(DevelopmentWorkbenchState state) async {
-    _latestState = state;
+    final scope = accountSession.current;
+    if (!scope.isKnown) return;
+    _latestStates[scope.memberId] = state;
     _pendingSave = _pendingSave
         .onError((Object error, StackTrace stackTrace) {})
         .then((_) async {
           final preferences = await SharedPreferences.getInstance();
           final saved = await preferences.setString(
-            key,
+            scope.key(key),
             jsonEncode(state.toJson()),
           );
           if (!saved) {
@@ -162,7 +173,7 @@ final class SharedPreferencesDevelopmentWorkbenchStateStore
       // A failed mocked write must not leak into the next test.
     }
     _pendingSave = Future<void>.value();
-    _latestState = null;
+    _latestStates.clear();
   }
 }
 

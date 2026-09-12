@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_browser_controller.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode_controller.dart';
@@ -10,6 +11,7 @@ import 'package:yahagi_kancolle_browser/src/browser/game_resource_cache_controll
 import 'package:yahagi_kancolle_browser/src/browser/game_resource_cache_store.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
 import 'package:yahagi_kancolle_browser/src/kcwiki_report/kcwiki_report_settings.dart';
+import 'package:yahagi_kancolle_browser/src/logbook/logbook_database.dart';
 import 'package:yahagi_kancolle_browser/src/prototype_status_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/data_settings_page.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
@@ -19,6 +21,64 @@ Widget withTopNotice(Widget child) => MaterialApp(
 );
 
 void main() {
+  testWidgets(
+    'account switch cancels logbook clearing and preserves both accounts',
+    (tester) async {
+      final session = AccountSession(initialMemberId: 87001);
+      final capture = await CaptureModeController.load(
+        _MemoryCaptureModeStore(),
+      );
+      final browser = GameBrowserController();
+      final gameCapture = GameCaptureController();
+      final prototype = PrototypeStatusController();
+      final gameState = GameStateController(accountSession: session);
+      final first = LogbookDatabase.forAccount(87001);
+      final second = LogbookDatabase.forAccount(87002);
+      addTearDown(session.dispose);
+      addTearDown(capture.dispose);
+      addTearDown(browser.dispose);
+      addTearDown(gameCapture.dispose);
+      addTearDown(prototype.dispose);
+      addTearDown(gameState.dispose);
+      addTearDown(first.close);
+      addTearDown(second.close);
+      await tester.runAsync(() async {
+        for (final database in <LogbookDatabase>[first, second]) {
+          await database.insertRetirementRecord(
+            timestamp: 1,
+            type: '解体',
+            shipType: '驱逐舰',
+            shipName: '五月雨',
+            level: 1,
+          );
+        }
+      });
+      await tester.pumpWidget(
+        withTopNotice(
+          DataSettingsPage(
+            captureModeController: capture,
+            browserController: browser,
+            gameCaptureController: gameCapture,
+            prototypeStatusController: prototype,
+            gameStateController: gameState,
+          ),
+        ),
+      );
+      final clear = find.byKey(const Key('settings-clear-logbook'));
+      await tester.ensureVisible(clear);
+      await tester.tap(clear);
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget);
+      session.selectMember(87002);
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      await tester.runAsync(() async {
+        expect(await first.getRetirementRecords(), hasLength(1));
+        expect(await second.getRetirementRecords(), hasLength(1));
+      });
+    },
+  );
+
   testWidgets('data settings contain capture mode and local data actions', (
     tester,
   ) async {

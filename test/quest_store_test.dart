@@ -11,7 +11,7 @@ void main() {
   test(
     'SharedPreferencesQuestStore saves and loads quests successfully',
     () async {
-      final store = SharedPreferencesQuestStore();
+      final store = SharedPreferencesQuestStore(memberId: 1001);
       final quests = <int, GameQuest>{
         101: GameQuest(
           id: 101,
@@ -37,7 +37,7 @@ void main() {
   );
 
   test('SharedPreferencesQuestStore clearQuests removes quests', () async {
-    final store = SharedPreferencesQuestStore();
+    final store = SharedPreferencesQuestStore(memberId: 1001);
     final quests = <int, GameQuest>{
       101: GameQuest(
         id: 101,
@@ -60,7 +60,7 @@ void main() {
   test(
     'SharedPreferencesQuestStore restores F96 without false completion',
     () async {
-      final store = SharedPreferencesQuestStore();
+      final store = SharedPreferencesQuestStore(memberId: 1001);
       const quests = <int, GameQuest>{
         1101: GameQuest(
           id: 1101,
@@ -87,10 +87,10 @@ void main() {
   );
 
   test(
-    'legacy quest store migrates completion verification by quest',
+    'account quest cache migrates completion verification by quest',
     () async {
       SharedPreferences.setMockInitialValues(<String, Object>{
-        'yahagi_quests':
+        'account.1001.quests.v1':
             '[{"id":1101,"title":"F96","detail":"","category":6,'
             '"type":4,"state":2,"progressFlag":2,"progressCurrent":8,'
             '"progressRequired":8},{"id":503,"title":"repair quest",'
@@ -98,7 +98,9 @@ void main() {
             '"progressFlag":2,"progressCurrent":5,"progressRequired":5}]',
       });
 
-      final restored = await SharedPreferencesQuestStore().loadQuests();
+      final restored = await SharedPreferencesQuestStore(
+        memberId: 1001,
+      ).loadQuests();
 
       expect(restored[1101]?.progressCurrent, 8);
       expect(restored[1101]?.localCompletionVerified, isFalse);
@@ -109,15 +111,17 @@ void main() {
     },
   );
 
-  test('legacy quest store removes hard line breaks from details', () async {
+  test('account quest cache removes hard line breaks from details', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{
-      'yahagi_quests':
+      'account.1001.quests.v1':
           '[{"id":439,"title":"兵站強化遠征任務",'
           '"detail":"ボーキサイト輸送任務」及び\\r\\n「南西方面航空偵察作戦」",'
           '"category":4,"type":1,"state":2,"progressFlag":0}]',
     });
 
-    final restored = await SharedPreferencesQuestStore().loadQuests();
+    final restored = await SharedPreferencesQuestStore(
+      memberId: 1001,
+    ).loadQuests();
 
     expect(restored[439]?.detail, 'ボーキサイト輸送任務」及び「南西方面航空偵察作戦」');
   });
@@ -130,13 +134,15 @@ void main() {
       'corrupt F96 quest-store verification (${entry.key}) is safe',
       () async {
         SharedPreferences.setMockInitialValues(<String, Object>{
-          'yahagi_quests':
+          'account.1001.quests.v1':
               '[{"id":1101,"title":"F96","detail":"","category":6,'
               '"type":4,"state":2,"progressFlag":2,"progressCurrent":8,'
               '"progressRequired":8,"localCompletionVerified":${entry.value}}]',
         });
 
-        final restored = await SharedPreferencesQuestStore().loadQuests();
+        final restored = await SharedPreferencesQuestStore(
+          memberId: 1001,
+        ).loadQuests();
 
         expect(restored[1101]?.localCompletionVerified, isFalse);
         expect(restored[1101]?.isCompleted, isFalse);
@@ -147,14 +153,16 @@ void main() {
       'corrupt ordinary quest-store verification (${entry.key}) keeps semantics',
       () async {
         SharedPreferences.setMockInitialValues(<String, Object>{
-          'yahagi_quests':
+          'account.1001.quests.v1':
               '[{"id":503,"title":"repair quest","detail":"",'
               '"category":5,"type":1,"state":2,"progressFlag":2,'
               '"progressCurrent":5,"progressRequired":5,'
               '"localCompletionVerified":${entry.value}}]',
         });
 
-        final restored = await SharedPreferencesQuestStore().loadQuests();
+        final restored = await SharedPreferencesQuestStore(
+          memberId: 1001,
+        ).loadQuests();
 
         expect(restored[503]?.localCompletionVerified, isNull);
         expect(restored[503]?.isCompleted, isTrue);

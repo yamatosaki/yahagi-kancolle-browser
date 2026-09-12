@@ -1,4 +1,5 @@
 import '../bridge/captured_api_event.dart';
+import '../account/account_session.dart';
 import '../game_state/game_api_event_pipeline.dart';
 import '../game_state/game_state.dart';
 import 'kcwiki_report_collector.dart';
@@ -12,17 +13,22 @@ final class KcwikiReportConsumer implements GameApiEventConsumer {
     required this.dispatcher,
     required GameState Function() gameState,
     required Future<void> Function() waitForGameState,
-  }) {
+    AccountSession? accountSession,
+  }) : accountSession = accountSession ?? AccountSession.shared {
     _gameState = gameState;
     _waitForGameState = waitForGameState;
     _lastEnabled = controller.enabled;
     controller.addListener(_onSettingsChanged);
-    if (controller.enabled) dispatcher.start();
+    this.accountSession.addListener(_onAccountChanged);
+    if (controller.enabled && this.accountSession.current.isKnown) {
+      dispatcher.start();
+    }
   }
 
   final KcwikiReportController controller;
   final KcwikiReportCollector collector;
   final KcwikiReportDispatcher dispatcher;
+  final AccountSession accountSession;
   late final GameState Function() _gameState;
   late final Future<void> Function() _waitForGameState;
 
@@ -43,19 +49,40 @@ final class KcwikiReportConsumer implements GameApiEventConsumer {
   @override
   void accept(CapturedApiEvent event) {
     if (!supportsPath(event.path)) return;
+    final scope = accountSession.current;
+    if (!scope.isKnown) return;
     final session = _session;
+    final Future<void> stateReady;
+    try {
+      stateReady = _waitForGameState();
+    } catch (_) {
+      controller.recordDropped();
+      return;
+    }
     _pendingEventCount += 1;
     _queue = _queue.then(
-      (_) => _process(event, session),
-      onError: (_) => _process(event, session),
+      (_) => _process(event, session, scope, stateReady),
+      onError: (_) => _process(event, session, scope, stateReady),
     );
   }
 
-  Future<void> _process(CapturedApiEvent event, int session) async {
+  Future<void> _process(
+    CapturedApiEvent event,
+    int session,
+    AccountScope scope,
+    Future<void> stateReady,
+  ) async {
     try {
-      await _waitForGameState();
-      if (_disposed || session != _session || !controller.enabled) return;
-      final reports = collector.accept(event, _gameState());
+      await stateReady;
+      if (_disposed ||
+          session != _session ||
+          !controller.enabled ||
+          !accountSession.isCurrent(scope)) {
+        return;
+      }
+      final state = _gameState();
+      if (state.memberId != scope.memberId) return;
+      final reports = collector.accept(event, state);
       if (_disposed || session != _session || !controller.enabled) return;
       for (final report in reports) {
         dispatcher.submit(report);
@@ -70,12 +97,16 @@ final class KcwikiReportConsumer implements GameApiEventConsumer {
   void _onSettingsChanged() {
     if (controller.enabled == _lastEnabled) return;
     _lastEnabled = controller.enabled;
+    _onAccountChanged();
+  }
+
+  void _onAccountChanged() {
     _session += 1;
+    _queue = Future<void>.value();
     collector.reset();
-    if (controller.enabled) {
+    dispatcher.stop();
+    if (controller.enabled && accountSession.current.isKnown) {
       dispatcher.start();
-    } else {
-      dispatcher.stop();
     }
   }
 
@@ -90,6 +121,7 @@ final class KcwikiReportConsumer implements GameApiEventConsumer {
     _disposed = true;
     _session += 1;
     controller.removeListener(_onSettingsChanged);
+    accountSession.removeListener(_onAccountChanged);
     collector.reset();
     dispatcher.dispose();
   }

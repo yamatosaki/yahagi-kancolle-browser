@@ -36,6 +36,9 @@ class CapturedApiEvent {
     this.sequence = 0,
     this.responseByteLength,
     this.decodedEnvelope,
+    this.captureSessionId,
+    this.captureDocumentId,
+    this.captureDocumentStartedAtEpochMs,
   });
 
   final String method;
@@ -49,6 +52,9 @@ class CapturedApiEvent {
   final int sequence;
   final int? responseByteLength;
   final Map<String, Object?>? decodedEnvelope;
+  final String? captureSessionId;
+  final String? captureDocumentId;
+  final double? captureDocumentStartedAtEpochMs;
 
   bool get hasDecodedEnvelope => decodedEnvelope != null;
 
@@ -65,6 +71,9 @@ class CapturedApiEvent {
       sequence: sequence,
       responseByteLength: responseByteLength,
       decodedEnvelope: envelope,
+      captureSessionId: captureSessionId,
+      captureDocumentId: captureDocumentId,
+      captureDocumentStartedAtEpochMs: captureDocumentStartedAtEpochMs,
     );
   }
 

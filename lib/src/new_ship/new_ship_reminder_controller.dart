@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import '../account/account_session.dart';
 import '../bridge/captured_api_event.dart';
 import '../game_state/game_api_event_pipeline.dart';
 import '../game_state/game_state.dart';
@@ -32,15 +33,24 @@ final class NewShipReminderController extends ChangeNotifier
     required this.stateProvider,
     required this.store,
     required this.onPublish,
-  });
+    this.waitForGameState,
+    this.accountSession,
+  }) {
+    accountSession?.addListener(_onAccountChanged);
+  }
 
   final GameState Function() stateProvider;
   final NewShipReminderStore store;
   final NewShipAlertPublisher onPublish;
+  final Future<void> Function()? waitForGameState;
+  final AccountSession? accountSession;
+  bool _disposed = false;
   Future<void> _queue = Future<void>.value();
   final Set<String> _acceptedEventKeys = <String>{};
   Set<int> _excludedFamilyIds = <int>{};
   int _loadedMemberId = 0;
+  int _activeMemberId = 0;
+  int _accountGeneration = 0;
   NewShipAlert? _currentAlert;
 
   Set<int> get excludedFamilyIds => Set<int>.unmodifiable(_excludedFamilyIds);
@@ -51,41 +61,83 @@ final class NewShipReminderController extends ChangeNotifier
 
   @override
   bool supportsPath(String path) =>
+      path == '/kcsapi/api_start2/getData' ||
+      path == '/kcsapi/api_get_member/basic' ||
       path == '/kcsapi/api_port/port' ||
       path.endsWith('/battleresult') ||
       path.endsWith('/battle_result') ||
       path == '/kcsapi/api_req_kousyou/getship' ||
-      path == '/kcsapi/api_req_quest/clearitemget' ||
-      path == '/kcsapi/api_req_map/next';
+      path == '/kcsapi/api_req_quest/clearitemget';
+
+  void _onAccountChanged() =>
+      _selectAccount(accountSession!.current.memberId, newSession: true);
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _accountGeneration += 1;
+    accountSession?.removeListener(_onAccountChanged);
+    super.dispose();
+  }
 
   @override
   void accept(CapturedApiEvent event) {
+    if (_disposed || !supportsPath(event.path) || event.apiResult != 1) return;
+    if (event.path == '/kcsapi/api_start2/getData') {
+      _selectAccount(0, newSession: true);
+      return;
+    }
     final stateBeforeEvent = stateProvider();
-    _queue = _queue.then(
-      (_) => _process(event, stateBeforeEvent),
-      onError: (_) => _process(event, stateBeforeEvent),
-    );
+    final data = _apiData(event);
+    final basic = event.path == '/kcsapi/api_port/port' && data is Map
+        ? data['api_basic']
+        : event.path == '/kcsapi/api_get_member/basic'
+        ? data
+        : null;
+    // The first port response can belong to a different account than the
+    // pre-event snapshot. Its identity is authoritative for pending reminders.
+    final memberId = basic is Map
+        ? (_positiveInt(basic['api_member_id']) ?? 0)
+        : stateBeforeEvent.memberId;
+    _selectAccount(memberId);
+    final generation = _accountGeneration;
+    // Capture this event's reducer future now, before later events are queued.
+    final stateReady = waitForGameState?.call();
+    Future<void> process() async {
+      await stateReady;
+      if (!_isCurrentAccount(memberId, generation)) return;
+      await _process(event, stateBeforeEvent, memberId, generation);
+    }
+
+    _queue = _queue.then((_) => process(), onError: (_) => process());
   }
 
   Future<void> setFamilyExcluded(int familyRootId, bool excluded) async {
     final memberId = stateProvider().memberId;
-    await _ensureAccount(memberId);
     if (familyRootId <= 0 || memberId <= 0) return;
+    _selectAccount(memberId);
+    final generation = _accountGeneration;
+    await _ensureAccount(memberId);
+    if (!_isCurrentAccount(memberId, generation)) return;
     if (excluded) {
       _excludedFamilyIds.add(familyRootId);
     } else {
       _excludedFamilyIds.remove(familyRootId);
     }
     await store.saveExcludedFamilyIds(memberId, _excludedFamilyIds);
-    notifyListeners();
+    if (_isCurrentAccount(memberId, generation)) notifyListeners();
   }
 
   Future<void> clearExcludedFamilies() async {
     final memberId = stateProvider().memberId;
+    if (memberId <= 0) return;
+    _selectAccount(memberId);
+    final generation = _accountGeneration;
     await _ensureAccount(memberId);
+    if (!_isCurrentAccount(memberId, generation)) return;
     _excludedFamilyIds.clear();
     await store.saveExcludedFamilyIds(memberId, _excludedFamilyIds);
-    notifyListeners();
+    if (_isCurrentAccount(memberId, generation)) notifyListeners();
   }
 
   void acknowledge(String alertKey) {
@@ -94,59 +146,123 @@ final class NewShipReminderController extends ChangeNotifier
     notifyListeners();
   }
 
-  Future<void> _process(CapturedApiEvent event, GameState state) async {
-    if (!supportsPath(event.path) || event.apiResult != 1) return;
-    final memberId = state.memberId;
-    if (memberId <= 0) return;
+  Future<void> _process(
+    CapturedApiEvent event,
+    GameState state,
+    int memberId,
+    int generation,
+  ) async {
     await _ensureAccount(memberId);
-    final eventKey = '${event.path}:${event.sequence}';
+    if (!_isCurrentAccount(memberId, generation)) return;
+    if (event.path == '/kcsapi/api_get_member/basic') return;
+    final eventKey = '$memberId:${event.path}:${event.sequence}';
     if (!_acceptedEventKeys.add(eventKey)) return;
     if (_acceptedEventKeys.length > 512) {
       _acceptedEventKeys.remove(_acceptedEventKeys.first);
     }
 
     if (event.path == '/kcsapi/api_port/port') {
-      await _publishPending(memberId);
+      await _publishPending(memberId, generation, _apiData(event));
       return;
     }
 
     final data = _apiData(event);
     final source = _sourceFor(event.path);
-    final detected = _shipMasterIds(data, event.path);
-    final eligible = _eligibleMasterIds(state, detected);
-    if (eligible.isEmpty) return;
-
-    final pending = PendingNewShipAcquisition(
-      key: eventKey,
-      masterIds: eligible,
-      source: source,
-      occurredAt: event.capturedAt,
-    );
+    final detections = <NewShipAcquisitionSource, Set<int>>{
+      source: _shipMasterIds(data, event.path),
+      if (source == NewShipAcquisitionSource.battle)
+        NewShipAcquisitionSource.eventReward: _eventRewardShipIds(data),
+    };
+    final pending = <PendingNewShipAcquisition>[
+      for (final entry in detections.entries)
+        if (_eligibleMasterIds(state, entry.value) case final ids
+            when ids.isNotEmpty)
+          PendingNewShipAcquisition(
+            key: '$eventKey:${entry.key.name}',
+            masterIds: ids,
+            source: entry.key,
+            occurredAt: event.capturedAt,
+          ),
+    ];
+    if (pending.isEmpty) return;
     if (source == NewShipAcquisitionSource.battle) {
       final existing = await store.loadPending(memberId);
+      if (!_isCurrentAccount(memberId, generation)) return;
       await store.savePending(memberId, <PendingNewShipAcquisition>[
         ...existing,
-        pending,
+        ...pending,
       ]);
       return;
     }
-    _publish(<PendingNewShipAcquisition>[pending]);
+    _publish(pending, memberId, generation);
   }
+
+  void _selectAccount(int memberId, {bool newSession = false}) {
+    if (!newSession && memberId == _activeMemberId) return;
+    _activeMemberId = memberId;
+    _accountGeneration += 1;
+    _loadedMemberId = 0;
+    _excludedFamilyIds = <int>{};
+    _acceptedEventKeys.clear();
+    _currentAlert = null;
+    notifyListeners();
+  }
+
+  bool _isCurrentAccount(int memberId, int generation) =>
+      !_disposed &&
+      memberId > 0 &&
+      (accountSession == null ||
+          accountSession!.current.memberId == memberId) &&
+      memberId == _activeMemberId &&
+      generation == _accountGeneration &&
+      stateProvider().memberId == memberId;
 
   Future<void> _ensureAccount(int memberId) async {
     if (memberId <= 0 || memberId == _loadedMemberId) return;
-    _excludedFamilyIds = await store.loadExcludedFamilyIds(memberId);
+    final generation = _accountGeneration;
+    final excluded = await store.loadExcludedFamilyIds(memberId);
+    if (!_isCurrentAccount(memberId, generation)) return;
+    _excludedFamilyIds = excluded;
     _loadedMemberId = memberId;
     notifyListeners();
   }
 
-  Future<void> _publishPending(int memberId) async {
+  Future<void> _publishPending(
+    int memberId,
+    int generation,
+    Object? data,
+  ) async {
+    if (data is! Map || data['api_ship'] is! List) return;
+    // Revalidate persisted drops against this account's authoritative inventory.
+    // A ship may have been locked or removed since the reminder was queued.
+    final unlockedIds = <int>{
+      for (final ship in data['api_ship'] as List)
+        if (ship is Map && _positiveInt(ship['api_locked']) != 1)
+          ?_positiveInt(ship['api_ship_id']),
+    };
     final pending = await store.loadPending(memberId);
+    if (!_isCurrentAccount(memberId, generation)) return;
     await store.savePending(memberId, const <PendingNewShipAcquisition>[]);
-    if (pending.isNotEmpty) _publish(pending);
+    final verified = <PendingNewShipAcquisition>[
+      for (final item in pending)
+        if (item.masterIds.where(unlockedIds.contains).toList() case final ids
+            when ids.isNotEmpty)
+          PendingNewShipAcquisition(
+            key: item.key,
+            masterIds: ids,
+            source: item.source,
+            occurredAt: item.occurredAt,
+          ),
+    ];
+    if (verified.isNotEmpty) _publish(verified, memberId, generation);
   }
 
-  void _publish(List<PendingNewShipAcquisition> acquisitions) {
+  void _publish(
+    List<PendingNewShipAcquisition> acquisitions,
+    int memberId,
+    int generation,
+  ) {
+    if (!_isCurrentAccount(memberId, generation)) return;
     final ids = <int>{};
     final sources = <NewShipAcquisitionSource>{};
     var occurredAt = acquisitions.first.occurredAt;
@@ -223,30 +339,29 @@ final class NewShipReminderController extends ChangeNotifier
       final ship = data['api_ship'];
       return ship is Map ? <int>{?_positiveInt(ship['api_ship_id'])} : <int>{};
     }
-    final result = <int>{};
-    _collectRewardShipIds(data, result);
-    return result;
+    if (path == '/kcsapi/api_req_quest/clearitemget') {
+      final bonuses = data['api_bounus'];
+      if (bonuses is! List) return <int>{};
+      // Quest type 1 is a consumable (e.g. development material ID 7),
+      // not a ship master ID. Type 11 carries an actual awarded ship.
+      return <int>{
+        for (final bonus in bonuses)
+          if (bonus is Map && _positiveInt(bonus['api_type']) == 11)
+            if (bonus['api_item'] case final Map ship)
+              ?_positiveInt(ship['api_ship_id']),
+      };
+    }
+    return <int>{};
   }
 
-  static void _collectRewardShipIds(Object? value, Set<int> result) {
-    if (value is List) {
-      for (final item in value) {
-        _collectRewardShipIds(item, result);
-      }
-      return;
-    }
-    if (value is! Map) return;
-    final direct = _positiveInt(value['api_ship_id']);
-    if (direct != null) result.add(direct);
-    final type = _positiveInt(value['api_type']);
-    final item = value['api_item'];
-    if (type == 1 && item is Map) {
-      final rewardId = _positiveInt(item['api_id']);
-      if (rewardId != null) result.add(rewardId);
-    }
-    for (final child in value.values) {
-      _collectRewardShipIds(child, result);
-    }
+  static Set<int> _eventRewardShipIds(Object? data) {
+    if (data is! Map || data['api_get_eventitem'] is! List) return <int>{};
+    // Event type 2 is a ship; type 1 is an item and type 3 is equipment.
+    return <int>{
+      for (final reward in data['api_get_eventitem'] as List)
+        if (reward is Map && _positiveInt(reward['api_type']) == 2)
+          ?_positiveInt(reward['api_id']),
+    };
   }
 
   static int? _positiveInt(Object? value) {

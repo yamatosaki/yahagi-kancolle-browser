@@ -134,6 +134,7 @@ final class KcwikiReportCollector {
   }
 
   void reset() {
+    _quests.clear();
     _clearedQuestId = null;
     _clearedQuestDay = null;
     _remodelList = <Map<String, Object?>>[];

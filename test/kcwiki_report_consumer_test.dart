@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/src/bridge/captured_api_event.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_api_event_pipeline.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
@@ -13,6 +14,36 @@ import 'package:yahagi_kancolle_browser/src/kcwiki_report/kcwiki_report_settings
 import 'package:yahagi_kancolle_browser/src/kcwiki_report/kcwiki_report_transport.dart';
 
 void main() {
+  setUp(() => AccountSession.shared.selectMember(1001));
+
+  test(
+    'a synchronous wait callback failure does not escape the consumer',
+    () async {
+      final harness = await _Harness.create(
+        enabled: true,
+        waitForGameState: () => throw StateError('unavailable reducer'),
+      );
+      addTearDown(harness.dispose);
+      expect(() => harness.consumer.accept(_mapStart), returnsNormally);
+      await harness.consumer.idle;
+      expect(harness.controller.status.droppedCount, 1);
+      expect(harness.transport.sent, isEmpty);
+    },
+  );
+
+  test('switching accounts discards queued report work', () async {
+    final gate = Completer<void>();
+    final harness = await _Harness.create(
+      enabled: true,
+      waitForGameState: () => gate.future,
+    );
+    addTearDown(harness.dispose);
+    harness.consumer.accept(_mapStart);
+    AccountSession.shared.selectMember(2002);
+    gate.complete();
+    await harness.consumer.idle;
+    expect(harness.transport.sent, isEmpty);
+  });
   test('disabled consumer rejects every KCWiki event', () async {
     final harness = await _Harness.create(enabled: false);
     addTearDown(harness.dispose);
@@ -139,6 +170,7 @@ final class _Harness {
       collector: KcwikiReportCollector(),
       dispatcher: dispatcher,
       gameState: () => const GameState(
+        memberId: 1001,
         admiralLevel: 100,
         fleets: <Fleet>[Fleet(id: 1, name: 'fleet', shipIds: <int>[])],
       ),

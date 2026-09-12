@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/src/development/development_repository.dart';
 import 'package:yahagi_kancolle_browser/src/development/development_resources.dart';
 import 'package:yahagi_kancolle_browser/src/development/development_workbench_state_store.dart';
@@ -9,6 +10,48 @@ import 'package:yahagi_kancolle_browser/src/development/equipment_development_co
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 
 void main() {
+  setUp(() => AccountSession.shared.selectMember(1001));
+
+  test(
+    'a delayed previous account load cannot replace the new account plan',
+    () async {
+      final session = AccountSession(initialMemberId: 1001);
+      addTearDown(session.dispose);
+      final store = _DeferredStateStore();
+      final controller = EquipmentDevelopmentController(
+        repository: _repository(),
+        stateStore: store,
+        accountSession: session,
+      );
+      addTearDown(controller.dispose);
+      final initializing = controller.initialize(_stateWithFlagship(101));
+      session.selectMember(2002);
+      store.loads[1].complete(const DevelopmentWorkbenchState(targetIds: [8]));
+      await Future<void>.delayed(Duration.zero);
+      store.loads[0].complete(const DevelopmentWorkbenchState(targetIds: [7]));
+      await initializing;
+      expect(controller.targets, {8});
+      expect(controller.dataset, isNotNull);
+    },
+  );
+
+  test(
+    'switching accounts clears previous development targets and manual recipe',
+    () async {
+      final controller = EquipmentDevelopmentController(
+        repository: _repository(),
+      );
+      addTearDown(controller.dispose);
+      await controller.initialize(_stateWithFlagship(101));
+      controller.toggleTarget(7);
+      controller.selectPool('gunnery-other#3');
+      controller.commitResources(const DevelopmentResources(20, 30, 40, 50));
+      AccountSession.shared.selectMember(2002);
+      expect(controller.targets, isEmpty);
+      expect(controller.followsCurrentFlagship, isTrue);
+      expect(controller.resources, const DevelopmentResources(10, 10, 10, 10));
+    },
+  );
   test(
     'initializes from fleet 1 flagship and preserves manual pool selection',
     () async {
@@ -196,6 +239,19 @@ void main() {
     dataset.complete(jsonEncode(_snapshot()));
     await initialization;
   });
+}
+
+final class _DeferredStateStore implements DevelopmentWorkbenchStateStore {
+  final List<Completer<DevelopmentWorkbenchState?>> loads = [];
+  @override
+  Future<DevelopmentWorkbenchState?> load() {
+    final completer = Completer<DevelopmentWorkbenchState?>();
+    loads.add(completer);
+    return completer.future;
+  }
+
+  @override
+  Future<void> save(DevelopmentWorkbenchState state) async {}
 }
 
 final class _MemoryStateStore implements DevelopmentWorkbenchStateStore {

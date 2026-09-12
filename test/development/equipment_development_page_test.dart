@@ -4,6 +4,7 @@ import 'dart:ui' show Tristate;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import 'package:yahagi_kancolle_browser/src/development/development_workbench_state_store.dart';
 import 'package:yahagi_kancolle_browser/src/development/development_repository.dart';
@@ -16,6 +17,7 @@ import 'package:yahagi_kancolle_browser/src/layout/workspace_context_header.dart
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 
 void main() {
+  setUp(() => AccountSession.shared.selectMember(1001));
   testWidgets(
     'development workbench shows calculator table without old groups',
     (tester) async {
@@ -545,11 +547,11 @@ class _TestAppHost extends StatefulWidget {
 class _TestAppHostState extends State<_TestAppHost> {
   late DevelopmentWorkbenchMode _mode =
       widget.stateStore is _MemoryDevelopmentWorkbenchStateStore
-          ? (widget.stateStore as _MemoryDevelopmentWorkbenchStateStore)
-                  .state
-                  ?.mode ??
-              DevelopmentWorkbenchMode.calculator
-          : DevelopmentWorkbenchMode.calculator;
+      ? (widget.stateStore as _MemoryDevelopmentWorkbenchStateStore)
+                .state
+                ?.mode ??
+            DevelopmentWorkbenchMode.calculator
+      : DevelopmentWorkbenchMode.calculator;
 
   @override
   Widget build(BuildContext context) {

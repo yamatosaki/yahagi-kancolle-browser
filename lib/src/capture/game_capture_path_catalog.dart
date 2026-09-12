@@ -16,6 +16,7 @@ abstract final class GameCapturePathCatalog {
     '/kcsapi/api_get_member/questlist',
     '/kcsapi/api_get_member/mapinfo',
     '/kcsapi/api_req_air_corps/set_plane',
+    '/kcsapi/api_req_air_corps/expand_base',
     '/kcsapi/api_req_air_corps/change_deployment_base',
     '/kcsapi/api_req_air_corps/set_action',
     '/kcsapi/api_req_air_corps/supply',

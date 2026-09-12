@@ -335,7 +335,8 @@ class _FleetViewState extends State<_FleetView> {
   @override
   void didUpdateWidget(_FleetView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.selectedFleetId != widget.selectedFleetId) {
+    if (oldWidget.selectedFleetId != widget.selectedFleetId ||
+        oldWidget.state.memberId != widget.state.memberId) {
       _selectedShipId = null;
       _selectedEquipmentIndex = null;
       return;

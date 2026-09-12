@@ -20,6 +20,7 @@ import app.yahagi.kancollebrowser.R
 
 object AppNotificationManager {
     const val ONGOING_NOTIFICATION_ID = 999
+    internal const val GAME_ALERT_TAG = "yahagi_game_alert"
     val VIBRATION_PATTERN = longArrayOf(0, 255, 90, 255)
 
     private const val PREFERENCES_NAME = "yahagi_native_notification_snapshot"
@@ -78,6 +79,9 @@ object AppNotificationManager {
         val desired = NotificationSnapshotCodec.fromMap(raw)
         initChannels(context, desired.presentation.localeCode)
         require(desired.schemaVersion == 1) { "Unsupported notification snapshot schema" }
+        require(!desired.presentation.enabled || desired.hasKnownAccountSession) {
+            "Enabled notification snapshot requires an account session"
+        }
         val previous = loadSnapshot(context)
         val next = NotificationSnapshotReconciliation.beforeApply(
             previous = previous,
@@ -85,6 +89,7 @@ object AppNotificationManager {
             nowEpochMs = System.currentTimeMillis(),
         )
         val diff = NotificationSnapshotDiff.between(previous, next)
+        if (!previous.hasSameAccountSession(next)) clearPreviousAccountAlerts(context, previous)
         val failures = mutableListOf<String>()
         val failedScheduleKeys = mutableSetOf<String>()
         val failedImmediateKeys = mutableSetOf<String>()
@@ -97,7 +102,7 @@ object AppNotificationManager {
         var inexact = 0
         diff.upsert.forEach { alarm ->
             runCatching {
-                if (scheduleAlarm(context, alarm, next.presentation)) exact++ else inexact++
+                if (scheduleAlarm(context, alarm, next)) exact++ else inexact++
             }.onFailure {
                 failures += "${alarm.key}:schedule"
                 failedScheduleKeys += alarm.key
@@ -144,6 +149,19 @@ object AppNotificationManager {
             .commit()
     }
 
+    private fun clearPreviousAccountAlerts(context: Context, previous: NativeNotificationSnapshot) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        previous.alarms.forEach { manager.cancel(NotificationDelivery.notificationIdForAlarm(previous, it)) }
+        previous.immediateAlerts.forEach { manager.cancel(NotificationDelivery.notificationIdForImmediate(it)) }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            manager.activeNotifications.forEach { active ->
+                val legacyGameChannel = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                    channelTypes.any { active.notification.channelId?.startsWith("channel_$it") == true }
+                if (active.tag == GAME_ALERT_TAG || legacyGameChannel) manager.cancel(active.tag, active.id)
+            }
+        }
+    }
+
     fun onAlarmFired(
         context: Context,
         key: String,
@@ -177,7 +195,7 @@ object AppNotificationManager {
             scheduleAlarm(
                 context = context,
                 alarm = failed,
-                presentation = next.presentation,
+                snapshot = next,
                 scheduledAtEpochMs = nowEpochMs + delayMs,
             )
         }
@@ -213,13 +231,16 @@ object AppNotificationManager {
     private fun scheduleAlarm(
         context: Context,
         alarm: NotificationAlarm,
-        presentation: NotificationPresentation,
+        snapshot: NativeNotificationSnapshot,
         scheduledAtEpochMs: Long = alarm.triggerTimeEpochMs,
     ): Boolean {
+        val presentation = snapshot.presentation
         val manager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
             ?: error("AlarmManager unavailable")
         val intent = Intent(context, NotificationAlarmReceiver::class.java).apply {
             putExtra("key", alarm.key)
+            putExtra("memberId", snapshot.memberId ?: 0L)
+            putExtra("sessionId", snapshot.sessionId)
             putExtra("taskId", alarm.taskId)
             putExtra("stage", alarm.stage)
             putExtra("triggerTimeEpochMs", alarm.triggerTimeEpochMs)
@@ -296,6 +317,7 @@ object AppNotificationManager {
             )
         }
         manager.notify(
+            GAME_ALERT_TAG,
             NotificationDelivery.notificationIdForImmediate(alert),
             builder.build(),
         )
@@ -303,7 +325,7 @@ object AppNotificationManager {
 
     internal fun updateOngoingProgress(context: Context, snapshot: NativeNotificationSnapshot) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
-        if (!snapshot.presentation.enabled ||
+        if (!snapshot.hasKnownAccountSession || !snapshot.presentation.enabled ||
             !snapshot.presentation.ongoingLive ||
             snapshot.ongoingItems.isEmpty()
         ) {

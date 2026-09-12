@@ -48,5 +48,6 @@ List<BattleShipSnapshot> clonePoiBattleFleet(
       usedDamageControlItemIds: List<int>.from(ship.usedDamageControlItemIds),
       isEscaped: ship.isEscaped,
       hpUnknown: ship.hpUnknown,
+      details: ship.details,
     ),
 ];

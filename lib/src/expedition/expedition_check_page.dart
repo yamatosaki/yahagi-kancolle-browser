@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../account/account_session.dart';
+
 import '../localization/ui_text.dart';
 
 import '../fleet/fleet_switcher_bar.dart';
@@ -19,13 +21,15 @@ class ExpeditionCheckPage extends StatefulWidget {
     required this.onBack,
     this.initialFleetId,
     this.showHeader = true,
-    this.selectionStore = const SharedPreferencesExpeditionSelectionStore(),
+    this.selectionStore,
+    this.accountSession,
   });
   final GameStateController controller;
   final VoidCallback onBack;
   final int? initialFleetId;
   final bool showHeader;
-  final ExpeditionSelectionStore selectionStore;
+  final ExpeditionSelectionStore? selectionStore;
+  final AccountSession? accountSession;
   @override
   State<ExpeditionCheckPage> createState() => _ExpeditionCheckPageState();
 }
@@ -34,18 +38,34 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
   late int fleetId = widget.initialFleetId ?? 2;
   int missionId = 1, target = 100;
   bool great = false;
+  int _restoreGeneration = 0;
+  late final AccountSession _accountSession;
+  late final ExpeditionSelectionStore _selectionStore;
 
   @override
   void initState() {
     super.initState();
+    _accountSession = widget.accountSession ?? AccountSession.shared;
+    _selectionStore =
+        widget.selectionStore ??
+        SharedPreferencesExpeditionSelectionStore(
+          accountSession: _accountSession,
+        );
+    _accountSession.addListener(_onAccountChanged);
     _restoreMissionForFleet(fleetId);
   }
 
   Future<void> _restoreMissionForFleet(int restoredFleetId) async {
-    final savedMissionId = await widget.selectionStore.loadMissionId(
-      restoredFleetId,
-    );
-    if (!mounted || fleetId != restoredFleetId) return;
+    final generation = ++_restoreGeneration;
+    final scope = _accountSession.current;
+    if (!scope.isKnown) return;
+    final savedMissionId = await _selectionStore.loadMissionId(restoredFleetId);
+    if (!mounted ||
+        fleetId != restoredFleetId ||
+        generation != _restoreGeneration ||
+        !_accountSession.isCurrent(scope)) {
+      return;
+    }
     final restoredMissionId =
         savedMissionId != null && expeditionRules.containsKey(savedMissionId)
         ? savedMissionId
@@ -63,8 +83,25 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
   }
 
   void _selectMission(int selectedMissionId) {
+    _restoreGeneration++;
     setState(() => missionId = selectedMissionId);
-    widget.selectionStore.saveMissionId(fleetId, selectedMissionId);
+    if (_accountSession.current.isKnown) {
+      _selectionStore.saveMissionId(fleetId, selectedMissionId);
+    }
+  }
+
+  void _onAccountChanged() {
+    setState(() {
+      fleetId = widget.initialFleetId ?? 2;
+      missionId = expeditionRules.keys.first;
+    });
+    _restoreMissionForFleet(fleetId);
+  }
+
+  @override
+  void dispose() {
+    _accountSession.removeListener(_onAccountChanged);
+    super.dispose();
   }
 
   @override

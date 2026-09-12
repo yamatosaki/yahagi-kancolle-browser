@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../account/account_session.dart';
 
 import '../bridge/captured_api_event.dart';
 import '../game_state/game_state.dart';
@@ -10,8 +11,35 @@ class TimerMechanicsService {
   TimerMechanicsService({
     GlobalGameTimer? akashiTimer,
     GlobalGameTimer? nozakiTimer,
-  })  : akashiTimer = akashiTimer ?? GlobalGameTimer(),
-        nozakiTimer = nozakiTimer ?? GlobalGameTimer();
+    this.accountSession,
+  }) : akashiTimer = akashiTimer ?? GlobalGameTimer(),
+       nozakiTimer = nozakiTimer ?? GlobalGameTimer() {
+    _memberId = accountSession?.current.memberId ?? 0;
+    accountSession?.addListener(_onAccountChanged);
+  }
+
+  final AccountSession? accountSession;
+  int _memberId = 0;
+  final Map<int, ({DateTime? akashi, DateTime? nozaki})> _anchorsByMember = {};
+
+  void _onAccountChanged() => _selectAccount(accountSession!.current.memberId);
+
+  void _selectAccount(int memberId) {
+    if (_memberId > 0) {
+      _anchorsByMember[_memberId] = (
+        akashi: akashiTimer.anchorAt,
+        nozaki: nozakiTimer.anchorAt,
+      );
+    }
+    _memberId = memberId;
+    akashiTimer.clear();
+    nozakiTimer.clear();
+    final saved = _anchorsByMember[memberId];
+    if (saved?.akashi != null) akashiTimer.restore(saved!.akashi!);
+    if (saved?.nozaki != null) nozakiTimer.restore(saved!.nozaki!);
+  }
+
+  void dispose() => accountSession?.removeListener(_onAccountChanged);
 
   final GlobalGameTimer akashiTimer;
   final GlobalGameTimer nozakiTimer;
@@ -22,6 +50,14 @@ class TimerMechanicsService {
     required CapturedApiEvent event,
     DateTime? now,
   }) {
+    if (accountSession != null && !accountSession!.current.isKnown) return;
+    if (event.path == '/kcsapi/api_start2/getData') {
+      _selectAccount(0);
+      return;
+    }
+    if (previousState.memberId != nextState.memberId) {
+      if (_memberId != nextState.memberId) _selectAccount(nextState.memberId);
+    }
     final capturedAt = (now ?? event.capturedAt).toUtc();
 
     switch (event.path) {
@@ -86,8 +122,9 @@ class TimerMechanicsService {
       if (fleet == null || fleet.shipIds.isEmpty) continue;
 
       final flagship = nextState.ships[fleet.shipIds.first];
-      final flagshipMaster =
-          flagship == null ? null : nextState.masterForShip(flagship);
+      final flagshipMaster = flagship == null
+          ? null
+          : nextState.masterForShip(flagship);
 
       // Akashi Reset condition: Flagship of the changed fleet is a repair ship (Akashi / Asahi Kai)
       if (AnchorageRepairCalculator.isRepairShip(flagshipMaster)) {
@@ -98,8 +135,9 @@ class TimerMechanicsService {
       final secondShip = fleet.shipIds.length > 1
           ? nextState.ships[fleet.shipIds[1]]
           : null;
-      final secondMaster =
-          secondShip == null ? null : nextState.masterForShip(secondShip);
+      final secondMaster = secondShip == null
+          ? null
+          : nextState.masterForShip(secondShip);
 
       if (NosakiSparkleCalculator.isNosaki(flagshipMaster) ||
           NosakiSparkleCalculator.isNosaki(secondMaster)) {
@@ -108,17 +146,11 @@ class TimerMechanicsService {
     }
 
     if (resetAkashi) {
-      akashiTimer.reset(
-        now,
-        reason: AkashiResetReason.manualFleetChange.name,
-      );
+      akashiTimer.reset(now, reason: AkashiResetReason.manualFleetChange.name);
     }
 
     if (resetNozaki) {
-      nozakiTimer.reset(
-        now,
-        reason: NozakiResetReason.manualFleetChange.name,
-      );
+      nozakiTimer.reset(now, reason: NozakiResetReason.manualFleetChange.name);
     }
   }
 

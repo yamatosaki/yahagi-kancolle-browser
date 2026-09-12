@@ -103,43 +103,54 @@ class _LogbookPageState extends State<LogbookPage>
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: LogbookDatabase.accountSession,
+      builder: (context, _) => _buildAccountLogbook(context),
+    );
+  }
+
+  Widget _buildAccountLogbook(BuildContext context) {
     final database = widget.database ?? LogbookDatabase.instance;
-    return ColoredBox(
-      color: const Color(0xff081521),
-      // Both record lists and details consume device insets exactly once.
-      child: SafeArea(
-        top: false,
-        child: TabBarView(
-          controller: _tabController,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            _LogbookTablePage(
-              category: _LogbookCategory.sortie,
-              database: database,
-              battleController: widget.battleController,
-            ),
-            _LogbookTablePage(
-              category: _LogbookCategory.expedition,
-              database: database,
-              battleController: widget.battleController,
-            ),
-            _LogbookTablePage(
-              category: _LogbookCategory.construction,
-              database: database,
-              battleController: widget.battleController,
-            ),
-            _LogbookTablePage(
-              category: _LogbookCategory.development,
-              database: database,
-              battleController: widget.battleController,
-            ),
-            _LogbookTablePage(
-              category: _LogbookCategory.retirement,
-              database: database,
-              battleController: widget.battleController,
-            ),
-            ResourceTrendPage(database: database),
-          ],
+    final scope = LogbookDatabase.accountSession.current;
+    return KeyedSubtree(
+      key: ValueKey((database, scope.generation)),
+      child: ColoredBox(
+        color: const Color(0xff081521),
+        // Both record lists and details consume device insets exactly once.
+        child: SafeArea(
+          top: false,
+          child: TabBarView(
+            controller: _tabController,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              _LogbookTablePage(
+                category: _LogbookCategory.sortie,
+                database: database,
+                battleController: widget.battleController,
+              ),
+              _LogbookTablePage(
+                category: _LogbookCategory.expedition,
+                database: database,
+                battleController: widget.battleController,
+              ),
+              _LogbookTablePage(
+                category: _LogbookCategory.construction,
+                database: database,
+                battleController: widget.battleController,
+              ),
+              _LogbookTablePage(
+                category: _LogbookCategory.development,
+                database: database,
+                battleController: widget.battleController,
+              ),
+              _LogbookTablePage(
+                category: _LogbookCategory.retirement,
+                database: database,
+                battleController: widget.battleController,
+              ),
+              ResourceTrendPage(database: database),
+            ],
+          ),
         ),
       ),
     );
@@ -282,6 +293,12 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
       _sortieStatusesByLabel = const {};
       _selectedDetail = null;
       _loadingDetailRowId = null;
+      _queryGeneration += 1;
+      _records.clear();
+      _loading = false;
+      _refreshing = false;
+      _refreshQueued = false;
+      _hasMore = true;
       _loadSortieFilterCatalog();
     }
     _refreshLatest();

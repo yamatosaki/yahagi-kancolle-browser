@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import '../account/account_session.dart';
 
 import '../bridge/captured_api_event.dart';
 import '../capture/game_capture_path_catalog.dart';
@@ -11,6 +12,7 @@ import '../game_state/game_state.dart';
 import '../game_state/land_base_raid.dart';
 import 'formation_memory.dart';
 import 'battle_models.dart';
+import 'battle_ship_details.dart';
 import 'battle_node_label_resolver.dart';
 import 'battle_session.dart';
 import 'sortie_damage_control_ledger.dart';
@@ -41,12 +43,16 @@ final class BattleController extends ChangeNotifier
     FrameNotificationCoalescer? captureNotifications,
     BattlePredictionExecutor? predictionExecutor,
     this.formationMemory,
+    this.accountSession,
   }) : _friendlyHpUpdater = onFriendlyHpUpdated,
        _captureNotifications =
            captureNotifications ?? FrameNotificationCoalescer(),
        _predictionExecutor =
            predictionExecutor ?? const IsolateBattlePredictionExecutor(),
-       assert(maxRecords > 0);
+       assert(maxRecords > 0) {
+    _memberId = accountSession?.current.memberId ?? gameState().memberId;
+    accountSession?.addListener(_onAccountChanged);
+  }
 
   static const Set<String> _mapPaths = GameCapturePathCatalog.battleMap;
   static const Set<String> _battlePaths = GameCapturePathCatalog.battlePhases;
@@ -65,6 +71,44 @@ final class BattleController extends ChangeNotifier
   final int maxRecords;
   final BattleNodeLabelResolver nodeLabelResolver;
   final FormationMemoryController? formationMemory;
+  final AccountSession? accountSession;
+  int _memberId = 0;
+  int _generation = 0;
+  final Map<int, List<BattleRecord>> _recordsByMember = {};
+  final Map<int, List<BattleSession>> _sessionsByMember = {};
+
+  void _onAccountChanged() => _selectAccount(accountSession!.current.memberId);
+
+  void _selectAccount(int memberId) {
+    if (_memberId > 0) {
+      _recordsByMember[_memberId] = List.of(_records);
+      _sessionsByMember[_memberId] = List.of(_recentSessions);
+    }
+    _memberId = memberId;
+    _generation++;
+    _current = null;
+    _session = null;
+    _predictionEngine = null;
+    _lastBattleCapturedAt = null;
+    _lastError = null;
+    _sortieDamageControls.endSortie();
+    _context = const BattleContext();
+    _acceptedSequences.clear();
+    _records
+      ..clear()
+      ..addAll(_recordsByMember[memberId] ?? []);
+    _recentSessions
+      ..clear()
+      ..addAll(_sessionsByMember[memberId] ?? []);
+    if (!_disposed) {
+      if (accountSession != null) {
+        notifyListeners();
+      } else {
+        _captureNotifications.schedule(notifyListeners);
+      }
+    }
+  }
+
   final List<BattleRecord> _records = <BattleRecord>[];
   final Set<int> _acceptedSequences = <int>{};
   final List<BattleSession> _recentSessions = <BattleSession>[];
@@ -142,6 +186,21 @@ final class BattleController extends ChangeNotifier
     if (_disposed || !supportsPath(event.path)) {
       return;
     }
+    if (accountSession == null && event.apiResult == 1) {
+      if (event.path == '/kcsapi/api_start2/getData') {
+        _selectAccount(0);
+      } else if (_memberId != gameState().memberId) {
+        _selectAccount(gameState().memberId);
+      }
+    }
+    final scope = accountSession?.current;
+    final generation = _generation;
+    final stateReady = waitForGameState?.call();
+    if (scope != null &&
+        !scope.isKnown &&
+        event.path != '/kcsapi/api_start2/getData') {
+      return;
+    }
     if (event.sequence > 0 && !_acceptedSequences.add(event.sequence)) {
       return;
     }
@@ -153,14 +212,19 @@ final class BattleController extends ChangeNotifier
         return;
       }
       try {
-        await waitForGameState?.call();
-        if (_disposed) {
+        await stateReady;
+        await formationMemory?.idle;
+        if (_disposed ||
+            generation != _generation ||
+            (scope != null && !accountSession!.isCurrent(scope))) {
           return;
         }
         _lastError = null;
-        await _reduce(event);
+        await _reduce(event, generation);
+        if (generation != _generation) return;
         _captureNotifications.schedule(notifyListeners);
       } catch (error) {
+        if (generation != _generation || _disposed) return;
         if (_battlePaths.contains(event.path) &&
             _sortieDamageControls.isActive) {
           _sortieDamageControls.markUntrusted(
@@ -178,7 +242,7 @@ final class BattleController extends ChangeNotifier
   bool supportsPath(String path) =>
       GameCapturePathCatalog.battle.contains(path);
 
-  Future<void> _reduce(CapturedApiEvent event) async {
+  Future<void> _reduce(CapturedApiEvent event, int generation) async {
     final envelope =
         event.decodedEnvelope ??
         GameApiDecoder.decodeEnvelope(event.responseBody);
@@ -265,7 +329,8 @@ final class BattleController extends ChangeNotifier
         capturedAt: event.capturedAt,
         data: map,
       );
-      await _applyBattlePhase(map, event);
+      await _applyBattlePhase(map, event, generation);
+      if (generation != _generation || _disposed) return;
       final battle = _current!;
       _session!.updateFleets(
         friendMain: battle.friendMain,
@@ -414,6 +479,7 @@ final class BattleController extends ChangeNotifier
   Future<void> _applyBattlePhase(
     Map<String, Object?> data,
     CapturedApiEvent event,
+    int generation,
   ) async {
     final state = gameState();
     final practice =
@@ -462,6 +528,9 @@ final class BattleController extends ChangeNotifier
       state,
       BattleFleetRole.main,
       ids: _fleetArray(data['api_ship_ke']),
+      levels: _fleetArray(data['api_ship_lv']),
+      parameters: _fleetArray(data['api_eParam']),
+      slots: _fleetArray(data['api_eSlot']),
       nowHp: _fleetArray(data['api_e_nowhps']),
       maxHp: _fleetArray(data['api_e_maxhps']),
       previous: previousBattle?.enemyMain,
@@ -470,6 +539,9 @@ final class BattleController extends ChangeNotifier
       state,
       BattleFleetRole.escort,
       ids: _fleetArray(data['api_ship_ke_combined']),
+      levels: _fleetArray(data['api_ship_lv_combined']),
+      parameters: _fleetArray(data['api_eParam_combined']),
+      slots: _fleetArray(data['api_eSlot_combined']),
       nowHp: _fleetArray(data['api_e_nowhps_combined']),
       maxHp: _fleetArray(data['api_e_maxhps_combined']),
       previous: previousBattle?.enemyEscort,
@@ -503,6 +575,7 @@ final class BattleController extends ChangeNotifier
       path: event.path,
       data: data,
     );
+    if (_disposed || generation != _generation) return;
     _predictionEngine = appendResult.engine;
     final parsed = appendResult.prediction;
     if (!practice) {
@@ -750,9 +823,10 @@ final class BattleController extends ChangeNotifier
     }
 
     // Log to persistent database
+    if (_memberId <= 0) return;
     final isPractice =
         confirmed.context.practice || confirmed.context.mapAreaId == 0;
-    LogbookDatabase.instance
+    LogbookDatabase.forAccount(_memberId)
         .insertBattleRecord(
           record,
           mapName: isPractice
@@ -956,6 +1030,7 @@ final class BattleController extends ChangeNotifier
                 ? previous![index].damageReceived
                 : 0,
             condition: ownedShips[index].condition,
+            details: BattleShipDetails.friendly(ownedShips[index], state),
             equipmentMasterIds: <int>[
               for (final equipment in state.equipmentForShip(ownedShips[index]))
                 equipment.owned.masterSlotItemId,
@@ -978,6 +1053,9 @@ final class BattleController extends ChangeNotifier
     GameState state,
     BattleFleetRole role, {
     required List<Object?> ids,
+    required List<Object?> levels,
+    required List<Object?> parameters,
+    required List<Object?> slots,
     required List<Object?> nowHp,
     required List<Object?> maxHp,
     List<BattleShipSnapshot>? previous,
@@ -1008,6 +1086,13 @@ final class BattleController extends ChangeNotifier
           maxHp: _atPositive(maxHp, index, hp),
           currentHp: hp,
           hpUnknown: hpUnknown,
+          details: BattleShipDetails.enemy(
+            level: index < levels.length ? levels[index] : null,
+            reading: state.masterShips[masterId]?.reading,
+            parameters: index < parameters.length ? parameters[index] : null,
+            slots: index < slots.length ? slots[index] : null,
+            state: state,
+          ),
           damageReceived: index < (previous?.length ?? 0)
               ? previous![index].damageReceived
               : 0,
@@ -1224,6 +1309,7 @@ final class BattleController extends ChangeNotifier
   @override
   void dispose() {
     _disposed = true;
+    accountSession?.removeListener(_onAccountChanged);
     _captureNotifications.dispose();
     super.dispose();
   }

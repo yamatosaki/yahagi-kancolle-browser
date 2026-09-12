@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../account/account_session.dart';
 import '../battle/battle_damage_alert.dart';
 import '../battle/battle_models.dart';
 import '../game_state/game_state.dart';
@@ -79,6 +80,7 @@ class BattleResultWarningOverlay extends StatefulWidget {
     required this.safetySettingsController,
     required this.damageAlertPort,
     required this.child,
+    this.accountSession,
   });
 
   final GameCaptureController gameCaptureController;
@@ -86,6 +88,7 @@ class BattleResultWarningOverlay extends StatefulWidget {
   final SafetySettingsController safetySettingsController;
   final BattleDamageAlertPort damageAlertPort;
   final Widget child;
+  final AccountSession? accountSession;
 
   @override
   State<BattleResultWarningOverlay> createState() =>
@@ -95,11 +98,14 @@ class BattleResultWarningOverlay extends StatefulWidget {
 class _BattleResultWarningOverlayState
     extends State<BattleResultWarningOverlay> {
   int _advanceCheckGeneration = 0;
-  bool _warningDialogVisible = false;
+  late AccountSession _accountSession;
+  DialogRoute<void>? _warningDialogRoute;
 
   @override
   void initState() {
     super.initState();
+    _accountSession = widget.accountSession ?? AccountSession.shared;
+    _accountSession.addListener(_invalidateWarning);
     widget.gameCaptureController.eventActivity.addListener(
       _onGameCaptureUpdate,
     );
@@ -108,7 +114,15 @@ class _BattleResultWarningOverlayState
   @override
   void didUpdateWidget(BattleResultWarningOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final session = widget.accountSession ?? AccountSession.shared;
+    if (!identical(_accountSession, session)) {
+      _accountSession.removeListener(_invalidateWarning);
+      _accountSession = session;
+      _accountSession.addListener(_invalidateWarning);
+      _invalidateWarning();
+    }
     if (oldWidget.gameCaptureController != widget.gameCaptureController) {
+      _invalidateWarning();
       oldWidget.gameCaptureController.eventActivity.removeListener(
         _onGameCaptureUpdate,
       );
@@ -120,6 +134,8 @@ class _BattleResultWarningOverlayState
 
   @override
   void dispose() {
+    _accountSession.removeListener(_invalidateWarning);
+    _advanceCheckGeneration += 1;
     widget.gameCaptureController.eventActivity.removeListener(
       _onGameCaptureUpdate,
     );
@@ -128,7 +144,11 @@ class _BattleResultWarningOverlayState
 
   void _onGameCaptureUpdate() {
     final event = widget.gameCaptureController.latestEvent;
-    if (event == null || event.apiResult != 1) return;
+    if (event == null) {
+      _invalidateWarning();
+      return;
+    }
+    if (event.apiResult != 1) return;
 
     if (event.path == '/kcsapi/api_port/port') {
       _advanceCheckGeneration += 1;
@@ -142,14 +162,28 @@ class _BattleResultWarningOverlayState
       return;
     }
 
+    final scope = _accountSession.current;
+    if (!scope.isKnown) return;
     final generation = ++_advanceCheckGeneration;
-    unawaited(_checkAdvanceSafety(generation));
+    unawaited(_checkAdvanceSafety(generation, scope));
   }
 
-  Future<void> _checkAdvanceSafety(int generation) async {
+  void _invalidateWarning() {
+    _advanceCheckGeneration += 1;
+    final route = _warningDialogRoute;
+    _warningDialogRoute = null;
+    if (route != null && route.isActive) {
+      route.navigator?.removeRoute(route);
+    }
+  }
+
+  Future<void> _checkAdvanceSafety(int generation, AccountScope scope) async {
     try {
       final state = await widget.loadSafetyState();
-      if (!mounted || generation != _advanceCheckGeneration) {
+      if (!mounted ||
+          generation != _advanceCheckGeneration ||
+          !_accountSession.isCurrent(scope) ||
+          state.memberId != scope.memberId) {
         return;
       }
       if (shouldShowAdvanceWarning(state)) {
@@ -178,55 +212,60 @@ class _BattleResultWarningOverlayState
   }
 
   void _showWarningDialog() {
-    if (_warningDialogVisible) return;
-    _warningDialogVisible = true;
-    unawaited(
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) {
-          final l10n =
-              AppLocalizations.of(context) ??
-              lookupAppLocalizations(const Locale('zh'));
-          return AlertDialog(
-            backgroundColor: const Color(0xff122431),
-            title: Text(
-              l10n.postBattleWarningTitle,
-              style: const TextStyle(color: Color(0xffd4a85f)),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.postBattleWarningHeadline,
-                  style: const TextStyle(
-                    color: Colors.redAccent,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+    if (_warningDialogRoute != null) return;
+    final route = DialogRoute<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final l10n =
+            AppLocalizations.of(context) ??
+            lookupAppLocalizations(const Locale('zh'));
+        return AlertDialog(
+          backgroundColor: const Color(0xff122431),
+          title: Text(
+            l10n.postBattleWarningTitle,
+            style: const TextStyle(color: Color(0xffd4a85f)),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.postBattleWarningHeadline,
+                style: const TextStyle(
+                  color: Colors.redAccent,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  l10n.postBattleWarningBody,
-                  style: const TextStyle(color: Colors.white70),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xff4B9FD5),
-                ),
-                child: Text(l10n.acknowledgeAndRetreat),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                l10n.postBattleWarningBody,
+                style: const TextStyle(color: Colors.white70),
               ),
             ],
-          );
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xff4B9FD5),
+              ),
+              child: Text(l10n.acknowledgeAndRetreat),
+            ),
+          ],
+        );
+      },
+    );
+    _warningDialogRoute = route;
+    unawaited(
+      Navigator.of(context, rootNavigator: true).push<void>(route).whenComplete(
+        () {
+          if (identical(_warningDialogRoute, route)) {
+            _warningDialogRoute = null;
+          }
         },
-      ).whenComplete(() {
-        _warningDialogVisible = false;
-      }),
+      ),
     );
   }
 

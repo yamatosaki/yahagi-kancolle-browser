@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import '../account/account_session.dart';
 import '../battle/battle_models.dart';
 import '../battle/battle_detail_models.dart';
 import '../game_state/game_state.dart';
@@ -166,9 +167,34 @@ final class RetirementLogEntry {
 
 class LogbookDatabase extends ChangeNotifier {
   static const int schemaVersion = 12;
-  static final LogbookDatabase instance = LogbookDatabase._init();
+  static AccountSession _accountSession = AccountSession.shared;
+  static final Map<int, LogbookDatabase> _accountDatabases = {};
+
+  static AccountSession get accountSession => _accountSession;
+
+  static void bindAccountSession(AccountSession session) {
+    _accountSession = session;
+  }
+
+  /// An instance's file never changes. Queued writes and exports keep their
+  /// captured owner even if the foreground account changes during an await.
+  static LogbookDatabase forAccount(int memberId) {
+    final owner = memberId > 0 ? memberId : 0;
+    return _accountDatabases.putIfAbsent(
+      owner,
+      () => LogbookDatabase._init(
+        fileName: owner == 0
+            ? inMemoryDatabasePath
+            : AccountScope(memberId: owner, generation: 0).key('logbook.db'),
+      ),
+    );
+  }
+
+  static LogbookDatabase get instance =>
+      forAccount(_accountSession.current.memberId);
 
   final Future<Database> Function()? _databaseOpener;
+  final String _fileName;
   Database? _database;
   Future<Database>? _openingDatabase;
   Future<void>? _resourceWriteQueue;
@@ -179,7 +205,10 @@ class LogbookDatabase extends ChangeNotifier {
       category: ValueNotifier<int>(0),
   };
 
-  LogbookDatabase._init({this._databaseOpener});
+  LogbookDatabase._init({
+    this._databaseOpener,
+    this._fileName = inMemoryDatabasePath,
+  });
 
   @visibleForTesting
   static LogbookDatabase lazyForTesting(
@@ -239,7 +268,7 @@ class LogbookDatabase extends ChangeNotifier {
 
   Future<Database> _openAndCacheDatabase() async {
     try {
-      final opened = await (_databaseOpener?.call() ?? _initDB('logbook.db'));
+      final opened = await (_databaseOpener?.call() ?? _initDB(_fileName));
       _database = opened;
       return opened;
     } finally {
@@ -285,7 +314,8 @@ class LogbookDatabase extends ChangeNotifier {
     }
 
     final String path;
-    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+    if (filePath == inMemoryDatabasePath ||
+        Platform.environment.containsKey('FLUTTER_TEST')) {
       path = inMemoryDatabasePath;
     } else {
       final dbPath = await getApplicationSupportDirectory();
@@ -294,6 +324,7 @@ class LogbookDatabase extends ChangeNotifier {
 
     return await openDatabase(
       path,
+      singleInstance: path != inMemoryDatabasePath,
       version: schemaVersion,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../account/account_session.dart';
 import '../fleet/equipment_type_icon.dart';
 import '../game_state/game_state.dart';
 import '../widgets/top_notice.dart';
@@ -24,6 +25,7 @@ class EquipmentDevelopmentPage extends StatefulWidget {
     this.controller,
     this.mode,
     this.onModeChanged,
+    this.accountSession,
   });
 
   final GameState state;
@@ -32,6 +34,7 @@ class EquipmentDevelopmentPage extends StatefulWidget {
   final EquipmentDevelopmentController? controller;
   final DevelopmentWorkbenchMode? mode;
   final ValueChanged<DevelopmentWorkbenchMode>? onModeChanged;
+  final AccountSession? accountSession;
 
   @override
   State<EquipmentDevelopmentPage> createState() =>
@@ -49,10 +52,13 @@ class _EquipmentDevelopmentPageState extends State<EquipmentDevelopmentPage> {
     controller =
         widget.controller ??
         EquipmentDevelopmentController(
+          accountSession: widget.accountSession,
           repository: widget.repository ?? DevelopmentRepository(),
           stateStore:
               widget.stateStore ??
-              SharedPreferencesDevelopmentWorkbenchStateStore(),
+              SharedPreferencesDevelopmentWorkbenchStateStore(
+                accountSession: widget.accountSession,
+              ),
         );
     if (widget.mode != null) {
       controller.setMode(widget.mode!);

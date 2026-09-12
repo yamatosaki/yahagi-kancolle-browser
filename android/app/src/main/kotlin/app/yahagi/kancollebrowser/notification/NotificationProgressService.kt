@@ -47,8 +47,14 @@ class NotificationProgressService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun refreshAndSchedule() {
+        synchronized(AppNotificationManager) {
+            refreshCurrentAndSchedule()
+        }
+    }
+
+    private fun refreshCurrentAndSchedule() {
         val snapshot = AppNotificationManager.loadSnapshot(this)
-        val hasOngoingItems = snapshot.presentation.enabled &&
+        val hasOngoingItems = snapshot.hasKnownAccountSession && snapshot.presentation.enabled &&
             snapshot.presentation.ongoingLive &&
             snapshot.ongoingItems.isNotEmpty()
         val mode = NotificationForegroundMode.resolve(

@@ -17,6 +17,61 @@ import 'package:yahagi_kancolle_browser/src/settings/battle_status_effect_settin
 import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
+  testWidgets(
+    'changing accounts clears ship and equipment selection despite reused instance IDs',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1180, 720);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final controller = GameStateController();
+      addTearDown(controller.dispose);
+      final port =
+          (jsonDecode(portEvent.responseBody) as Map)['api_data'] as Map;
+      void selectAccount(int memberId) {
+        controller.accept(
+          kcsapiEvent('/kcsapi/api_port/port', <String, Object?>{
+            ...Map<String, Object?>.from(port),
+            'api_basic': <String, Object?>{
+              ...Map<String, Object?>.from(port['api_basic'] as Map),
+              'api_member_id': memberId,
+            },
+          }),
+        );
+        controller.accept(slotItemEvent);
+      }
+
+      controller.accept(start2Event);
+      selectAccount(1001);
+      await controller.idle;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: FleetInformationCenter(controller: controller)),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('fleet-roster-ship-9002')));
+      await tester.pump();
+      expect(find.byKey(const Key('fleet-focus-ship-9002')), findsOneWidget);
+      selectAccount(2002);
+      await controller.idle;
+      await tester.pump();
+      expect(find.byKey(const Key('fleet-focus-ship-9001')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('fleet-equipment-row-9001-0')));
+      await tester.pump();
+      expect(
+        find.byKey(const Key('fleet-detail-equipment-icon-9001-0')),
+        findsOneWidget,
+      );
+      selectAccount(1001);
+      await controller.idle;
+      await tester.pump();
+      expect(
+        find.byKey(const Key('fleet-detail-equipment-icon-9001-0')),
+        findsNothing,
+      );
+    },
+  );
+
   testWidgets('fleet center fatigue metric is clickable in countdown mode', (
     tester,
   ) async {

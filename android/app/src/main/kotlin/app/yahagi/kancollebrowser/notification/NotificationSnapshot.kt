@@ -57,7 +57,15 @@ data class NativeNotificationSnapshot(
     val alarms: List<NotificationAlarm>,
     val ongoingItems: List<OngoingNotificationItem>,
     val presentation: NotificationPresentation,
+    val memberId: Long? = null,
+    val sessionId: String? = null,
 ) {
+    fun hasSameAccountSession(other: NativeNotificationSnapshot): Boolean =
+        memberId == other.memberId && sessionId == other.sessionId
+
+    val hasKnownAccountSession: Boolean
+        get() = (memberId ?: 0L) > 0L && !sessionId.isNullOrBlank()
+
     companion object {
         val EMPTY = NativeNotificationSnapshot(
             schemaVersion = 1,
@@ -88,6 +96,12 @@ object NotificationSnapshotDiff {
         previous: NativeNotificationSnapshot,
         next: NativeNotificationSnapshot,
     ): NotificationAlarmDiff {
+        if (!previous.hasSameAccountSession(next)) {
+            return NotificationAlarmDiff(
+                cancelKeys = previous.alarms.mapTo(mutableSetOf(), NotificationAlarm::key),
+                upsert = next.alarms,
+            )
+        }
         val alarmDiff = between(previous.alarms, next.alarms)
         val presentationChanged =
             previous.presentation.sound != next.presentation.sound ||
@@ -138,7 +152,7 @@ object NotificationSnapshotReconciliation {
         desired: NativeNotificationSnapshot,
         nowEpochMs: Long,
     ): NativeNotificationSnapshot {
-        if (!desired.presentation.enabled) return desired
+        if (!desired.presentation.enabled || !previous.hasSameAccountSession(desired)) return desired
 
         val previousAlarmsByKey = previous.alarms.associateBy(NotificationAlarm::key)
         val desiredAlarms = desired.alarms.map { alarm ->
@@ -231,6 +245,24 @@ object NotificationChronometer {
 }
 
 object NotificationDelivery {
+    fun currentAlarm(
+        snapshot: NativeNotificationSnapshot,
+        memberId: Long,
+        sessionId: String?,
+        key: String,
+        taskId: String,
+        stage: String,
+        triggerTimeEpochMs: Long,
+    ): NotificationAlarm? {
+        if (!snapshot.presentation.enabled || !snapshot.hasKnownAccountSession ||
+            snapshot.memberId != memberId || snapshot.sessionId != sessionId
+        ) return null
+        return snapshot.alarms.firstOrNull {
+            it.key == key && it.taskId == taskId && it.stage == stage &&
+                it.triggerTimeEpochMs == triggerTimeEpochMs
+        }
+    }
+
     fun notificationId(key: String, triggerTimeEpochMs: Long): Int =
         ("$key:$triggerTimeEpochMs".hashCode() and 0x3FFFFFFF) + 1_000
 
@@ -310,6 +342,8 @@ object NotificationSnapshotCodec {
         return NativeNotificationSnapshot(
             schemaVersion = raw.number("schemaVersion").toInt(),
             updatedAtEpochMs = raw.long("updatedAtEpochMs"),
+            memberId = raw.optionalNumber("memberId")?.toLong(),
+            sessionId = raw.optionalString("sessionId"),
             immediateAlerts = immediateAlerts,
             alarms = alarms,
             ongoingItems = ongoingItems,
@@ -329,6 +363,8 @@ object NotificationSnapshotCodec {
     fun toJson(snapshot: NativeNotificationSnapshot): String = JSONObject().apply {
         put("schemaVersion", snapshot.schemaVersion)
         put("updatedAtEpochMs", snapshot.updatedAtEpochMs)
+        put("memberId", snapshot.memberId ?: JSONObject.NULL)
+        put("sessionId", snapshot.sessionId ?: JSONObject.NULL)
         put("immediateAlerts", JSONArray().apply {
             snapshot.immediateAlerts.forEach { alert ->
                 put(JSONObject().apply {

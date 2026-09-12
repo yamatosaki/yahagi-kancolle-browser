@@ -79,6 +79,7 @@ tool/akashi_bonus/cache/
 tool/*/reports/
 test/fixtures/*
 !test/fixtures/battle_detail_ui_sample.dart
+!test/fixtures/composition_image_fixture.dart
 !test/fixtures/battle_detail_poi_3_0_5.json
 !test/fixtures/poi_ezexped/
 test/fixtures/poi_ezexped/*

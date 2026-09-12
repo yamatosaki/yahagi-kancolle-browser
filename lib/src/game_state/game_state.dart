@@ -60,6 +60,7 @@ class MasterShip {
     required this.id,
     required this.name,
     required this.shipTypeId,
+    this.reading = '',
     this.afterShipId = 0,
     this.sortNo = 0,
     this.classTypeId = 0,
@@ -79,6 +80,9 @@ class MasterShip {
 
   final int id;
   final String name;
+
+  /// api_yomi: Japanese reading, or an enemy variant such as elite/flagship.
+  final String reading;
   final int shipTypeId;
   final int afterShipId;
   final int sortNo;
@@ -100,6 +104,7 @@ class MasterShip {
     return MasterShip(
       id: id,
       name: name,
+      reading: reading,
       shipTypeId: shipTypeId,
       afterShipId: afterShipId,
       sortNo: sortNo,
@@ -966,6 +971,7 @@ class GameState {
     this.hasMasterData = false,
     this.hasPortData = false,
     this.hasEquipmentInventory = false,
+    this.pendingExportShipIds = const <int>{},
     this.combatState = CombatState.empty,
     this.updatedAt,
   }) : // Private nullable backing fields keep pre-hot-reload instances safe.
@@ -1026,7 +1032,10 @@ class GameState {
   // Only a complete live inventory response makes equipment exportable.
   final bool hasEquipmentInventory;
 
-  bool get canExportFleet => hasPortData && hasEquipmentInventory;
+  final Set<int> pendingExportShipIds;
+
+  bool get canExportFleet =>
+      hasPortData && hasEquipmentInventory && pendingExportShipIds.isEmpty;
   final CombatState combatState;
   final DateTime? updatedAt;
 
@@ -1135,6 +1144,7 @@ class GameState {
     bool? hasMasterData,
     bool? hasPortData,
     bool? hasEquipmentInventory,
+    Set<int>? pendingExportShipIds,
     CombatState? combatState,
     DateTime? updatedAt,
   }) {
@@ -1183,6 +1193,7 @@ class GameState {
       hasPortData: hasPortData ?? this.hasPortData,
       hasEquipmentInventory:
           hasEquipmentInventory ?? this.hasEquipmentInventory,
+      pendingExportShipIds: pendingExportShipIds ?? this.pendingExportShipIds,
       combatState: combatState ?? this.combatState,
       updatedAt: updatedAt ?? this.updatedAt,
     );

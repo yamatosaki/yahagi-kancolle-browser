@@ -1,6 +1,9 @@
 import 'dart:collection';
+import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+
+import '../account/account_session.dart';
 
 import '../game_state/game_state.dart';
 import 'development_dataset.dart';
@@ -12,8 +15,15 @@ import 'development_resources.dart';
 import 'development_workbench_state_store.dart';
 
 class EquipmentDevelopmentController extends ChangeNotifier {
-  EquipmentDevelopmentController({required this.repository, this.stateStore});
+  EquipmentDevelopmentController({
+    required this.repository,
+    this.stateStore,
+    AccountSession? accountSession,
+  }) : accountSession = accountSession ?? AccountSession.shared {
+    this.accountSession.addListener(_onAccountChanged);
+  }
 
+  final AccountSession accountSession;
   final DevelopmentRepository repository;
   final DevelopmentWorkbenchStateStore? stateStore;
 
@@ -131,12 +141,15 @@ class EquipmentDevelopmentController extends ChangeNotifier {
   }
 
   Future<DevelopmentWorkbenchState?> _readStoredState() async {
+    final scope = accountSession.current;
+    if (!scope.isKnown) return null;
     DevelopmentWorkbenchState? restoredState;
     try {
       restoredState = await stateStore?.load();
     } on Object catch (error) {
       debugPrint('Failed to load development workbench state: $error');
     }
+    if (_disposed || !accountSession.isCurrent(scope)) return null;
     _pendingRestoredState = restoredState;
     return restoredState;
   }
@@ -148,6 +161,7 @@ class EquipmentDevelopmentController extends ChangeNotifier {
   }) async {
     if (_disposed || _loading) return;
     _loading = true;
+    final scope = accountSession.current;
     _error = null;
     notifyListeners();
     try {
@@ -160,7 +174,9 @@ class EquipmentDevelopmentController extends ChangeNotifier {
       _dataset = results[0]! as DevelopmentDataset;
       _selectAutomaticPool();
       _recompute();
-      final restoredState = results[1] as DevelopmentWorkbenchState?;
+      final restoredState = accountSession.isCurrent(scope)
+          ? results[1] as DevelopmentWorkbenchState?
+          : _pendingRestoredState;
       if (restoredState != null) _restoreState(restoredState);
       _pendingRestoredState = null;
     } on Object catch (error) {
@@ -177,6 +193,33 @@ class EquipmentDevelopmentController extends ChangeNotifier {
     if (!_manualPoolSelection) _selectAutomaticPool();
     _recompute();
     notifyListeners();
+  }
+
+  void _onAccountChanged() {
+    _gameState = GameState.empty;
+    _pendingRestoredState = null;
+    _manualPoolSelection = false;
+    _selectedPoolKey = null;
+    _resources = const DevelopmentResources(10, 10, 10, 10);
+    _targets.clear();
+    _lastAppliedRecipeKey = null;
+    _selectAutomaticPool();
+    _recompute();
+    notifyListeners();
+    unawaited(_restoreAccountState());
+  }
+
+  Future<void> _restoreAccountState() async {
+    final scope = accountSession.current;
+    final restored = await _readStoredState();
+    if (_disposed || !accountSession.isCurrent(scope) || restored == null) {
+      return;
+    }
+    if (_dataset != null) {
+      _restoreState(restored);
+      _pendingRestoredState = null;
+      notifyListeners();
+    }
   }
 
   void selectPool(String key) {
@@ -304,7 +347,9 @@ class EquipmentDevelopmentController extends ChangeNotifier {
 
   void _persistState() {
     final store = stateStore;
-    if (store == null || _dataset == null) return;
+    if (store == null || _dataset == null || !accountSession.current.isKnown) {
+      return;
+    }
     final snapshot = DevelopmentWorkbenchState(
       mode: _mode,
       selectedPoolKey: _selectedPoolKey,
@@ -402,6 +447,7 @@ class EquipmentDevelopmentController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    accountSession.removeListener(_onAccountChanged);
     super.dispose();
   }
 }

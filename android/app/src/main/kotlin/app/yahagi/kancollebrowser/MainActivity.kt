@@ -66,6 +66,7 @@ import app.yahagi.kancollebrowser.capture.ScreenshotCapturePolicy
 import app.yahagi.kancollebrowser.capture.ScreenshotDestination
 import app.yahagi.kancollebrowser.capture.ScreenshotOutput
 import app.yahagi.kancollebrowser.capture.ScreenshotViewCandidate
+import app.yahagi.kancollebrowser.composition.CompositionImageHandler
 import app.yahagi.kancollebrowser.diagnostics.DiagnosticExportDirectoryHost
 import app.yahagi.kancollebrowser.diagnostics.DiagnosticDirectoryPickerUi
 import app.yahagi.kancollebrowser.diagnostics.DiagnosticPickerSystemBars
@@ -228,6 +229,8 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
     private var fixedCanvasContentWidth: Int = 1200
     private var fixedCanvasContentHeight: Int = 720
     private var pendingScreenshotResult: MethodChannel.Result? = null
+    private var compositionImageHandler: CompositionImageHandler? = null
+    private var compositionImageChannel: MethodChannel? = null
     private var activeScreenshotResult: MethodChannel.Result? = null
     private var activeScreenshotOutput: ScreenshotOutput? = null
     private val nativeWebViewHandler = Handler(Looper.getMainLooper())
@@ -281,6 +284,31 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        compositionImageHandler?.dispose()
+        val imageHandler = CompositionImageHandler(
+            this,
+            hasStoragePermission = {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                ) == PackageManager.PERMISSION_GRANTED
+            },
+            requestStoragePermission = {
+                if (pendingScreenshotResult == null) {
+                    ActivityCompat.requestPermissions(
+                        this,
+                        arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                        SCREENSHOT_PERMISSION_REQUEST,
+                    )
+                }
+            },
+        )
+        compositionImageHandler = imageHandler
+        compositionImageChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            CompositionImageHandler.CHANNEL_NAME,
+        ).also { it.setMethodCallHandler(imageHandler) }
 
         val nativeChannel = NativeGameWebViewEngineChannels.acquire(flutterEngine)
         nativeGameWebViewChannel = nativeChannel
@@ -620,6 +648,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
     }
 
     override fun onDestroy() {
+        disposeCompositionImageHandler()
         val nativeChannel = nativeGameWebViewChannel
         val nativeAttachment = nativeGameWebViewAttachment
         if (nativeChannel != null && nativeAttachment != null) {
@@ -671,6 +700,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        disposeCompositionImageHandler()
         val nativeChannel = nativeGameWebViewChannel
         val nativeAttachment = nativeGameWebViewAttachment
         if (nativeChannel != null && nativeAttachment != null) {
@@ -682,6 +712,13 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
             NativeGameWebViewEngineChannels.destroy(flutterEngine)
         }
         super.cleanUpFlutterEngine(flutterEngine)
+    }
+
+    private fun disposeCompositionImageHandler() {
+        compositionImageHandler?.dispose()
+        compositionImageHandler = null
+        compositionImageChannel?.setMethodCallHandler(null)
+        compositionImageChannel = null
     }
 
     private fun enableNativeActivityWebViewIfSelected() {
@@ -821,9 +858,14 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
         }
         if (requestCode != SCREENSHOT_PERMISSION_REQUEST) return
 
+        val granted = permissions.indices.any { index ->
+            permissions[index] == Manifest.permission.WRITE_EXTERNAL_STORAGE &&
+                grantResults.getOrNull(index) == PackageManager.PERMISSION_GRANTED
+        }
+        compositionImageHandler?.onStoragePermissionResult(granted)
         val result = pendingScreenshotResult ?: return
         pendingScreenshotResult = null
-        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+        if (granted) {
             captureGameWebView(result)
         } else {
             result.error(
@@ -966,11 +1008,13 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
                 return
             }
             pendingScreenshotResult = result
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
-                SCREENSHOT_PERMISSION_REQUEST,
-            )
+            if (compositionImageHandler?.isAwaitingStoragePermission != true) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                    SCREENSHOT_PERMISSION_REQUEST,
+                )
+            }
             return
         }
 

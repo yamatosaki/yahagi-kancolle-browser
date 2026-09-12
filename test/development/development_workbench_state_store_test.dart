@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yahagi_kancolle_browser/src/development/development_resources.dart';
 import 'package:yahagi_kancolle_browser/src/development/development_workbench_state_store.dart';
 
 void main() {
   setUp(() async {
+    AccountSession.shared.selectMember(1001);
     await SharedPreferencesDevelopmentWorkbenchStateStore.resetForTesting();
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
@@ -26,7 +28,10 @@ void main() {
 
   test('shared preferences store ignores damaged state', () async {
     final preferences = await SharedPreferences.getInstance();
-    await preferences.setString('development_workbench_state_v1', '{broken');
+    await preferences.setString(
+      'account.1001.development_workbench_state_v1',
+      '{broken',
+    );
 
     expect(
       await SharedPreferencesDevelopmentWorkbenchStateStore().load(),

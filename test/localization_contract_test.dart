@@ -89,6 +89,7 @@ void main() {
       'lib/src/localization/runtime_message_text.dart',
       'lib/src/localization/ui_text.dart',
       'lib/src/senka/senka_catalog_localization.dart',
+      'lib/src/toolbox/composition_image_strings.dart',
     };
     final files = <File>[
       File('lib/main.dart'),

@@ -14,6 +14,7 @@ class MoraleRecoveryTimerController extends ChangeNotifier {
        super();
 
   Map<int, MoraleNotificationTimerAnchor> _anchors;
+  int? _memberId;
   final MoraleRecoveryAnchorsChanged? onAnchorsChanged;
 
   Map<int, MoraleNotificationTimerAnchor> get anchors =>
@@ -22,6 +23,10 @@ class MoraleRecoveryTimerController extends ChangeNotifier {
   DateTime? targetForFleet(int fleetId) => _anchors[fleetId]?.targetAt;
 
   void reconcile(GameState state, {DateTime? now}) {
+    if (_memberId != null && _memberId != state.memberId) {
+      _anchors = {};
+    }
+    _memberId = state.memberId;
     final fallbackNow = (now ?? DateTime.now()).toUtc();
     final next = <int, MoraleNotificationTimerAnchor>{};
 
@@ -61,6 +66,7 @@ class MoraleRecoveryTimerController extends ChangeNotifier {
   }
 
   void replaceAnchors(Map<int, MoraleNotificationTimerAnchor> anchors) {
+    _memberId = null;
     _setAnchors(anchors, persist: false);
   }
 

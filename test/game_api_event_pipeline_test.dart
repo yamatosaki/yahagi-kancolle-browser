@@ -7,6 +7,116 @@ import 'package:yahagi_kancolle_browser/src/game_state/game_api_decoder.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_api_event_pipeline.dart';
 
 void main() {
+  test(
+    'new game document rejects old port, unstamped events and late old start2',
+    () async {
+      final consumer = _RecordingConsumer();
+      final pipeline = GameApiEventPipeline(
+        consumers: [consumer],
+        decodeEnvelope: (body) async => GameApiDecoder.decodeEnvelope(body),
+      );
+      pipeline.add(
+        _documentEvent('/kcsapi/api_start2/getData', 'old', 1000, 1),
+      );
+      pipeline.add(_documentEvent('/kcsapi/api_port/port', 'old', 1000, 2));
+      pipeline.add(
+        _documentEvent('/kcsapi/api_start2/getData', 'new', 2000, 3),
+      );
+      pipeline.add(_documentEvent('/kcsapi/api_port/port', 'old', 1000, 4));
+      pipeline.add(
+        _documentEvent('/kcsapi/api_start2/getData', 'old', 1000, 5),
+      );
+      pipeline.add(
+        _documentEvent('/kcsapi/api_start2/getData', 'even-older', 900, 6),
+      );
+      pipeline.add(_event('/kcsapi/api_port/port', _body(1), sequence: 7));
+      pipeline.add(_documentEvent('/kcsapi/api_port/port', 'new', 2000, 8));
+      await pipeline.idle;
+      expect(consumer.events.map((e) => e.sequence), [1, 2, 3, 8]);
+      expect(
+        pipeline.isCurrentDocument(
+          _documentEvent('/kcsapi/api_req_map/next', 'old', 1000, 9),
+        ),
+        isFalse,
+      );
+      expect(
+        pipeline.isCurrentDocument(
+          _documentEvent('/kcsapi/api_req_map/next', 'new', 2000, 10),
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'failed new-document start cannot invalidate the active document',
+    () async {
+      final consumer = _RecordingConsumer();
+      final pipeline = GameApiEventPipeline(
+        consumers: [consumer],
+        decodeEnvelope: (body) async => GameApiDecoder.decodeEnvelope(body),
+      );
+      pipeline.add(
+        _documentEvent('/kcsapi/api_start2/getData', 'old', 1000, 1),
+      );
+      pipeline.add(
+        _documentEvent(
+          '/kcsapi/api_start2/getData',
+          'new',
+          2000,
+          2,
+        ).withDecodedEnvelope({'api_result': 0}),
+      );
+      pipeline.add(_documentEvent('/kcsapi/api_port/port', 'new', 2000, 3));
+      pipeline.add(_documentEvent('/kcsapi/api_port/port', 'old', 1000, 4));
+      await pipeline.idle;
+      expect(consumer.events.map((e) => e.sequence), [1, 4]);
+    },
+  );
+  test('session invalidation discards decoding and queued responses', () async {
+    final consumer = _RecordingConsumer();
+    final decode = Completer<Map<String, Object?>>();
+    final started = Completer<void>();
+    final pipeline = GameApiEventPipeline(
+      consumers: [consumer],
+      decodeEnvelope: (_) {
+        started.complete();
+        return decode.future;
+      },
+    );
+    pipeline.add(_event('/kcsapi/api_start2/getData', _body(1), sequence: 1));
+    pipeline.add(_event('/kcsapi/api_port/port', _body(1), sequence: 2));
+    await started.future;
+    pipeline.invalidatePendingEvents();
+    pipeline.add(_event('/kcsapi/api_port/port', _body(1), sequence: 3));
+    decode.complete(GameApiDecoder.decodeEnvelope(_body(1)));
+    await pipeline.idle;
+    expect(consumer.events.map((e) => e.sequence), [3]);
+    expect(pipeline.pendingEventCount, 0);
+  });
+
+  test(
+    'leaving login rejects late old responses until a successful new start',
+    () async {
+      final consumer = _RecordingConsumer();
+      final pipeline = GameApiEventPipeline(
+        consumers: [consumer],
+        decodeEnvelope: (body) async => GameApiDecoder.decodeEnvelope(body),
+      );
+      pipeline.invalidatePendingEvents(waitForLoginStart: true);
+      pipeline.add(
+        _event('/kcsapi/api_get_member/basic', _body(1), sequence: 1),
+      );
+      pipeline.add(
+        _event('/kcsapi/api_start2/getData', '{"api_result":0}', sequence: 2),
+      );
+      pipeline.add(_event('/kcsapi/api_port/port', _body(1), sequence: 3));
+      pipeline.add(_event('/kcsapi/api_start2/getData', _body(1), sequence: 4));
+      pipeline.add(_event('/kcsapi/api_port/port', _body(1), sequence: 5));
+      await pipeline.idle;
+      expect(consumer.events.map((e) => e.sequence), [4, 5]);
+    },
+  );
   test('failed API responses never reach state consumers', () async {
     final consumer = _RecordingConsumer();
     final pipeline = GameApiEventPipeline(consumers: [consumer]);
@@ -406,6 +516,21 @@ CapturedApiEvent _event(String path, String body, {int sequence = 0}) {
     sequence: sequence,
   );
 }
+
+CapturedApiEvent _documentEvent(
+  String path,
+  String id,
+  double startedAt,
+  int sequence,
+) => CapturedApiEvent(
+  path: path,
+  responseBody: _body(1),
+  source: CaptureSource.fetch,
+  capturedAt: DateTime.utc(2026, 9, 12),
+  sequence: sequence,
+  captureDocumentId: id,
+  captureDocumentStartedAtEpochMs: startedAt,
+);
 
 String _body(int paddingLength) => jsonEncode(<String, Object?>{
   'api_result': 1,

@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../bridge/captured_api_event.dart';
+import '../bridge/native_game_capture_script.dart'
+    show captureSessionIdPlaceholder;
 import 'game_capture_port.dart';
 
 final class GameCaptureController extends ChangeNotifier {
@@ -16,6 +18,13 @@ final class GameCaptureController extends ChangeNotifier {
   final int maxResponseBytes;
   final ValueChanged<CapturedApiEvent>? onAcceptedEvent;
   final Duration operationTimeout;
+  static int _sessionSequence = 0;
+  static String _newSessionId() =>
+      '${DateTime.now().microsecondsSinceEpoch}-${++_sessionSequence}';
+  String _captureSessionId = _newSessionId();
+  String get captureSessionId => _captureSessionId;
+  String get _sessionScript =>
+      _script.replaceAll(captureSessionIdPlaceholder, _captureSessionId);
   final ValueNotifier<int> _eventActivity = ValueNotifier<int>(0);
 
   GameCapturePort? _port;
@@ -49,6 +58,19 @@ final class GameCaptureController extends ChangeNotifier {
   Listenable get eventActivity => _eventActivity;
   int get responseBytes => _responseBytes;
   String? get errorMessage => _errorMessage;
+
+  /// Invalidate the old document immediately, then install the new document-start
+  /// script. Await this before navigating to the next login document.
+  Future<void> invalidateSession() {
+    if (_disposed) return Future<void>.value();
+    _captureSessionId = _newSessionId();
+    _latestEvent = null;
+    _responseBytes = 0;
+    _capturedCount = 0;
+    _eventActivity.value = 0;
+    notifyListeners();
+    return _enqueueConfiguration();
+  }
 
   Future<void> attach(
     GameCapturePort port, {
@@ -112,7 +134,7 @@ final class GameCaptureController extends ChangeNotifier {
       final revision = _configurationRevision;
       final port = _desiredPort;
       final enabled = _desiredEnabled;
-      final script = _script;
+      final script = _sessionScript;
       final invalidator = _configurationInvalidator;
       final isRepair = _repairPending;
       if (isRepair) {
@@ -297,7 +319,9 @@ final class GameCaptureController extends ChangeNotifier {
     final controller = weakController.target;
     if (controller == null || controller._disposed) return;
     if (command.revision > controller._configurationRevision) return;
-    final desiredScript = controller._desiredEnabled ? controller._script : '';
+    final desiredScript = controller._desiredEnabled
+        ? controller._sessionScript
+        : '';
     if (identical(command.port, controller._desiredPort) &&
         command.enabled == controller._desiredEnabled &&
         command.script == desiredScript) {
@@ -357,6 +381,10 @@ final class GameCaptureController extends ChangeNotifier {
         _configuredEnabled != true ||
         _state == GameCaptureState.disabled ||
         _state == GameCaptureState.unsupported) {
+      return;
+    }
+    if (_script.contains(captureSessionIdPlaceholder) &&
+        event.captureSessionId != _captureSessionId) {
       return;
     }
 

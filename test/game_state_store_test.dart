@@ -11,6 +11,7 @@ void main() {
     final store = GameStateStore(saveDelay: const Duration(hours: 1));
     store.save(
       GameState(
+        memberId: 1001,
         resources: const <GameResourceType, int>{GameResourceType.fuel: 321},
         updatedAt: DateTime.utc(2026),
       ),
@@ -18,7 +19,7 @@ void main() {
 
     await store.flush();
 
-    final restored = await GameStateStore().load();
+    final restored = await GameStateStore().loadForAccount(1001);
     expect(restored.resource(GameResourceType.fuel), 321);
   });
 }

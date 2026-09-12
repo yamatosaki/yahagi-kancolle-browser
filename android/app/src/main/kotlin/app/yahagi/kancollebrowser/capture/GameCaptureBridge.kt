@@ -25,6 +25,7 @@ class GameCaptureBridge(
     private var attachedWebView: WebView? = null
     private var scriptHandler: ScriptHandler? = null
     private var listenerInstalled = false
+    private var installedScript: String? = null
     private val eventDispatcher = OrderedCaptureEventDispatcher(
         validator = validator,
         postToMain = activity::runOnUiThread,
@@ -84,7 +85,8 @@ class GameCaptureBridge(
         val webView = webViews.single()
         if (attachedWebView === webView &&
             listenerInstalled &&
-            scriptHandler != null
+            scriptHandler != null &&
+            installedScript == script
         ) {
             result.success(null)
             return
@@ -112,6 +114,7 @@ class GameCaptureBridge(
                 originPolicy.allowedOriginRules,
             )
             attachedWebView = webView
+            installedScript = script
             result.success(null)
         } catch (error: RuntimeException) {
             disableWebView(webView)
@@ -165,6 +168,7 @@ class GameCaptureBridge(
         val webView = attachedWebView
         scriptHandler?.remove()
         scriptHandler = null
+        installedScript = null
         if (webView != null) {
             disableWebView(webView)
         }

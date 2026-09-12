@@ -146,6 +146,7 @@ class GameStateSerializer {
         (k, v) => MapEntry(k.toString(), {
           'id': v.id,
           'name': v.name,
+          'reading': v.reading,
           'shipTypeId': v.shipTypeId,
           'afterShipId': v.afterShipId,
           'buildTimeMinutes': v.buildTimeMinutes,
@@ -501,6 +502,7 @@ class GameStateSerializer {
             masterShips[id] = MasterShip(
               id: id,
               name: _string(v['name']),
+              reading: _string(v['reading']),
               shipTypeId: _int(v['shipTypeId']) ?? 0,
               afterShipId: _int(v['afterShipId']) ?? 0,
               buildTimeMinutes: _int(v['buildTimeMinutes']) ?? 0,

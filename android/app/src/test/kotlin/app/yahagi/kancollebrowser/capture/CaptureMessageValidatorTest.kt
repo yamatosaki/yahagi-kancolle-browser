@@ -10,6 +10,22 @@ import org.junit.Test
 
 class CaptureMessageValidatorTest {
     @Test
+    fun preservesDocumentCaptureSessionInStringAndBinaryMessages() {
+        val validator = CaptureMessageValidator()
+        val json = org.json.JSONObject(validMessage()).put("captureSessionId", "session-b")
+            .put("captureDocumentId", "document-b").put("captureDocumentStartedAtEpochMs", 2000.5)
+        assertEquals("session-b", validator.validate(json.toString(), "https://w01y.kancolle-server.com")?.get("captureSessionId"))
+        assertEquals("document-b", validator.validate(json.toString(), "https://w01y.kancolle-server.com")?.get("captureDocumentId"))
+        val response = json.getString("responseBody").toByteArray(Charsets.UTF_8)
+        json.remove("responseBody")
+        val metadata = json.toString().toByteArray(Charsets.UTF_8)
+        val payload = java.nio.ByteBuffer.allocate(4 + metadata.size + response.size)
+            .putInt(metadata.size).put(metadata).put(response).array()
+        assertEquals("session-b", validator.validate(payload, "https://w01y.kancolle-server.com")?.get("captureSessionId"))
+        assertEquals(2000.5, validator.validate(payload, "https://w01y.kancolle-server.com")?.get("captureDocumentStartedAtEpochMs"))
+    }
+
+    @Test
     fun validatesProtocolAndAddsTrustedNativeMetadata() {
         val validator = CaptureMessageValidator(
             clock = { "2026-07-30T10:00:00.000Z" },

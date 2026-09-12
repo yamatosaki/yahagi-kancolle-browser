@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/src/expedition/expedition_check_page.dart';
 import 'package:yahagi_kancolle_browser/src/expedition/expedition_selection_store.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
@@ -7,6 +8,7 @@ import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dar
 import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
+  setUp(() => AccountSession.shared.selectMember(1001));
   testWidgets('远征检查详情按舰队恢复上次选择的 A6', (tester) async {
     final controller = GameStateController();
     final store = _MemoryExpeditionSelectionStore(<int, int>{2: 105});

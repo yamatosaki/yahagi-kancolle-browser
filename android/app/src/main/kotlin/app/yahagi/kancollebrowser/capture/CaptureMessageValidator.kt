@@ -152,6 +152,16 @@ class CaptureMessageValidator(
         }
 
         val requestParams = json.optJSONObject("requestParams") ?: return null
+        val captureSessionId = json.opt("captureSessionId").let {
+            if (it == null || it == JSONObject.NULL) null else it
+        }
+        if (captureSessionId != null && (captureSessionId !is String || captureSessionId.isEmpty() || captureSessionId.length > 128)) return null
+        val documentId = json.opt("captureDocumentId").takeUnless { it == JSONObject.NULL }
+        val documentStartedAt = json.opt("captureDocumentStartedAtEpochMs").takeUnless { it == JSONObject.NULL }
+        if ((documentId != null || documentStartedAt != null) &&
+            (documentId !is String || documentId.isEmpty() || documentId.length > 128 ||
+                documentStartedAt !is Number || !documentStartedAt.toDouble().isFinite() || documentStartedAt.toDouble() <= 0.0)
+        ) return null
         val statusCode = json.getInt("statusCode")
         if (statusCode !in 0..599) {
             return null
@@ -170,6 +180,9 @@ class CaptureMessageValidator(
             "sourceOrigin" to sourceOrigin,
             "capturedAt" to clock(),
             "sequence" to sequence,
+            "captureSessionId" to captureSessionId,
+            "captureDocumentId" to documentId,
+            "captureDocumentStartedAtEpochMs" to (documentStartedAt as? Number)?.toDouble(),
         )
     }
 

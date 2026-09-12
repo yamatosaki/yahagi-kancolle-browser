@@ -50,7 +50,11 @@ void main() {
     expect(published, isEmpty);
 
     controller.accept(
-      kcsapiEvent('/kcsapi/api_port/port', <String, Object?>{}, sequence: 43),
+      kcsapiEvent('/kcsapi/api_port/port', <String, Object?>{
+        'api_ship': [
+          {'api_ship_id': 4, 'api_locked': 0},
+        ],
+      }, sequence: 43),
     );
     await controller.idle;
     expect(published.single.masterIds, <int>[4]);
@@ -100,6 +104,66 @@ void main() {
   });
 
   test(
+    'quest useitem reward does not masquerade as an unowned Mikazuki',
+    () async {
+      state = state.copyWith(
+        masterShips: <int, MasterShip>{
+          ...state.masterShips,
+          7: const MasterShip(id: 7, name: '三日月', shipTypeId: 2, sortNo: 37),
+        },
+      );
+      final controller = NewShipReminderController(
+        stateProvider: () => state,
+        store: store,
+        onPublish: published.add,
+      );
+      addTearDown(controller.dispose);
+
+      controller.accept(
+        kcsapiEvent('/kcsapi/api_req_quest/clearitemget', <String, Object?>{
+          'api_bounus': <Object?>[
+            <String, Object?>{
+              'api_type': 1,
+              'api_count': 1,
+              'api_item': <String, Object?>{'api_id': 7, 'api_name': '開発資材'},
+            },
+          ],
+        }, sequence: 53),
+      );
+      await controller.idle;
+
+      expect(published, isEmpty);
+      expect(controller.currentAlert, isNull);
+      expect(await store.loadPending(state.memberId), isEmpty);
+    },
+  );
+
+  test(
+    'quest ignores equipment and ship IDs outside awarded bonuses',
+    () async {
+      final controller = NewShipReminderController(
+        stateProvider: () => state,
+        store: store,
+        onPublish: published.add,
+      );
+      addTearDown(controller.dispose);
+      controller.accept(
+        kcsapiEvent('/kcsapi/api_req_quest/clearitemget', <String, Object?>{
+          'api_bounus': <Object?>[
+            <String, Object?>{
+              'api_type': 12,
+              'api_item': <String, Object?>{'api_id': 4},
+            },
+          ],
+          'api_unrelated': <String, Object?>{'api_ship_id': 4},
+        }, sequence: 54),
+      );
+      await controller.idle;
+      expect(published, isEmpty);
+    },
+  );
+
+  test(
     'multiple battle drops merge at port and duplicate events are ignored',
     () async {
       state = state.copyWith(
@@ -132,7 +196,12 @@ void main() {
         ),
       );
       controller.accept(
-        kcsapiEvent('/kcsapi/api_port/port', <String, Object?>{}, sequence: 62),
+        kcsapiEvent('/kcsapi/api_port/port', <String, Object?>{
+          'api_ship': [
+            {'api_ship_id': 4, 'api_locked': 0},
+            {'api_ship_id': 5, 'api_locked': 0},
+          ],
+        }, sequence: 62),
       );
       await controller.idle;
 
@@ -148,19 +217,12 @@ void main() {
           data: <String, Object?>{
             'api_bounus': <Object?>[
               <String, Object?>{
-                'api_type': 1,
-                'api_item': <String, Object?>{'api_id': 4},
+                'api_type': 11,
+                'api_item': <String, Object?>{'api_id': 999, 'api_ship_id': 4},
               },
             ],
           },
           source: NewShipAcquisitionSource.questReward,
-        ),
-        (
-          path: '/kcsapi/api_req_map/next',
-          data: <String, Object?>{
-            'api_event_reward': <String, Object?>{'api_ship_id': 4},
-          },
-          source: NewShipAcquisitionSource.eventReward,
         ),
       ]) {
     test('${reward.source.name} publishes immediately', () async {

@@ -6,6 +6,49 @@ import 'package:yahagi_kancolle_browser/src/browser/origin_cookie_manager_port.d
 import 'package:yahagi_kancolle_browser/src/settings/game_connector.dart';
 
 void main() {
+  test('logout invalidates account before delayed browser cleanup', () async {
+    final port = FakeGameBrowserPort()
+      ..clearSessionCompleter = Completer<void>();
+    var resets = 0;
+    final controller = GameBrowserController(
+      port: port,
+      onSessionReset: () => resets++,
+    );
+    final loggingOut = controller.logoutAndClearSession();
+    expect(resets, 1);
+    expect(port.loadedUris, isEmpty);
+    port.clearSessionCompleter!.complete();
+    await loggingOut;
+    expect(port.loadedUris, hasLength(1));
+    await controller.switchHome(GameConnector.yahagi.entryUri);
+    expect(resets, 2);
+    controller.dispose();
+  });
+
+  test(
+    'navigation waits for capture reset and ignores an obsolete switch',
+    () async {
+      final port = FakeGameBrowserPort();
+      final resets = <Completer<void>>[];
+      final controller = GameBrowserController(
+        port: port,
+        onSessionReset: () {
+          final pending = Completer<void>();
+          resets.add(pending);
+          return pending.future;
+        },
+      );
+      final first = controller.switchHome(GameConnector.ooi.entryUri);
+      final second = controller.switchHome(GameConnector.yahagi.entryUri);
+      expect(port.loadedUris, isEmpty);
+      resets[1].complete();
+      await second;
+      resets[0].complete();
+      await first;
+      expect(port.loadedUris, [GameConnector.yahagi.entryUri]);
+      controller.dispose();
+    },
+  );
   test(
     'unattached controller does not navigate before WebView is ready',
     () async {
@@ -378,6 +421,7 @@ final class FakeGameBrowserPort
   var clearSessionCalls = 0;
   var fitGameScreenCalls = 0;
   Completer<void>? reloadCompleter;
+  Completer<void>? clearSessionCompleter;
   Completer<GameFrameReloadResult>? reloadGameFrameCompleter;
 
   @override
@@ -439,5 +483,6 @@ final class FakeGameBrowserPort
   @override
   Future<void> clearSession() async {
     clearSessionCalls++;
+    await clearSessionCompleter?.future;
   }
 }

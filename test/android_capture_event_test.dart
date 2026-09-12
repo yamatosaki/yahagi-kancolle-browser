@@ -25,6 +25,9 @@ void main() {
                 'sourceOrigin': 'https://w01y.kancolle-server.com',
                 'capturedAt': '2026-07-30T10:00:00.000Z',
                 'sequence': 1,
+                'captureSessionId': 'login-b',
+                'captureDocumentId': 'document-b',
+                'captureDocumentStartedAtEpochMs': 2000.5,
               })
               as CapturedApiEvent;
 
@@ -34,6 +37,19 @@ void main() {
       expect(event.statusCode, 200);
       expect(event.sourceOrigin, 'https://w01y.kancolle-server.com');
       expect(event.sequence, 1);
+      expect(event.captureSessionId, 'login-b');
+      expect(event.captureDocumentId, 'document-b');
+      expect(event.captureDocumentStartedAtEpochMs, 2000.5);
+      expect(
+        event.withDecodedEnvelope({'api_result': 1}).captureDocumentId,
+        'document-b',
+      );
+      expect(
+        event.withDecodedEnvelope({
+          'api_result': 1,
+        }).captureDocumentStartedAtEpochMs,
+        2000.5,
+      );
       expect(event.requestParams, isNot(contains('api_token')));
       expect(event.requestParams['nested'], isNot(contains('api_starttime')));
     });

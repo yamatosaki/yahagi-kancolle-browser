@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import '../account/account_session.dart';
 import '../fleet/anchorage_repair_calculator.dart';
 import '../fleet/morale_recovery_timer_controller.dart';
+import '../fleet/global_game_timer.dart';
 import '../fleet/nosaki_sparkle_calculator.dart';
 import '../expedition/expedition_mission_picker.dart';
 import '../game_state/game_state.dart';
@@ -17,6 +19,7 @@ class GameNotificationCoordinator {
     required this.gameStateController,
     required this.settingsController,
     required this.notificationPort,
+    this.accountSession,
     String Function()? localeCodeProvider,
     this.localeListenable,
     GameState Function()? gameStateProvider,
@@ -26,7 +29,7 @@ class GameNotificationCoordinator {
     String? Function()? lastUpdatedPathProvider,
     NotificationTimerAnchors initialTimerAnchors =
         NotificationTimerAnchors.empty,
-    NotificationTimerAnchorStore? timerAnchorStore,
+    this.timerAnchorStore,
     Future<void> Function(Duration delay)? retryDelay,
     void Function(Object error, StackTrace stackTrace)? onError,
   }) : _localeCodeProvider = localeCodeProvider ?? (() => 'zh'),
@@ -43,7 +46,6 @@ class GameNotificationCoordinator {
            lastUpdatedPathProvider ??
            (() => gameStateController.lastUpdatedPath),
        _timerAnchors = initialTimerAnchors,
-       _timerAnchorStore = timerAnchorStore,
        _retryDelay = retryDelay ?? ((delay) => Future<void>.delayed(delay)),
        _onError = onError ?? _reportFlutterError {
     moraleRecoveryTimerController = MoraleRecoveryTimerController(
@@ -55,6 +57,74 @@ class GameNotificationCoordinator {
   final GameStateController gameStateController;
   final NotificationSettingsController settingsController;
   final NotificationPort notificationPort;
+  final AccountSession? accountSession;
+  final String _instanceId = DateTime.now().microsecondsSinceEpoch.toString();
+  int _memberId = 0;
+  int _generation = 0;
+  bool _loadingAccount = false;
+  bool _needsAnchorRestore = false;
+  Future<void> _accountReady = Future<void>.value();
+  Future<void> get accountReady => _accountReady;
+
+  bool get _canUseState =>
+      accountSession == null ||
+      (!_loadingAccount &&
+          accountSession!.current.isKnown &&
+          accountSession!.current.memberId == _gameStateProvider().memberId &&
+          _gameStateProvider().hasPortData);
+
+  NotificationTimerAnchorStore? _storeForMember(int memberId) {
+    final store = timerAnchorStore;
+    if (store is AccountNotificationTimerAnchorStore) {
+      return memberId > 0
+          ? (store as AccountNotificationTimerAnchorStore).forAccount(memberId)
+          : null;
+    }
+    return accountSession == null ? store : null;
+  }
+
+  void _clearAccountState(int memberId) {
+    _memberId = memberId;
+    _generation++;
+    _manualCompletionTasks = const {};
+    _completedTombstones.clear();
+    _pendingImmediateAlerts.clear();
+    _pendingSnapshot = null;
+    _timerAnchors = NotificationTimerAnchors.empty;
+    _needsAnchorRestore = true;
+    moraleRecoveryTimerController.replaceAnchors({});
+    final wake = _retryWake;
+    if (wake != null && !wake.isCompleted) wake.complete();
+  }
+
+  void _onAccountChanged() {
+    if (_disposed) return;
+    final scope = accountSession!.current;
+    _clearAccountState(scope.memberId);
+    _loadingAccount = true;
+    // Immediately replace native state while the game reducer still has the old account.
+    _syncSnapshot();
+    final store = _storeForMember(scope.memberId);
+    _accountReady =
+        () async {
+          await _timerAnchorSaveQueue;
+          final anchors = await store?.load() ?? NotificationTimerAnchors.empty;
+          if (_disposed || !accountSession!.isCurrent(scope)) return;
+          _timerAnchors = anchors;
+          moraleRecoveryTimerController.replaceAnchors(anchors.moraleByFleet);
+          _loadingAccount = false;
+          if (_canUseState) {
+            _onGameStateChanged();
+          }
+        }().catchError((Object error, StackTrace stack) {
+          if (!_disposed && accountSession!.isCurrent(scope)) {
+            _loadingAccount = false;
+            _onError(error, stack);
+            _onGameStateChanged();
+          }
+        });
+  }
+
   final String Function() _localeCodeProvider;
   final Listenable? localeListenable;
   String _activeLocaleCode = 'zh';
@@ -87,7 +157,7 @@ class GameNotificationCoordinator {
   final DateTime? Function() _anchorageStartedAt;
   final DateTime? Function() _nosakiStartedAt;
   final String? Function() _lastUpdatedPath;
-  final NotificationTimerAnchorStore? _timerAnchorStore;
+  final NotificationTimerAnchorStore? timerAnchorStore;
   final Future<void> Function(Duration delay) _retryDelay;
   final void Function(Object error, StackTrace stackTrace) _onError;
   late final MoraleRecoveryTimerController moraleRecoveryTimerController;
@@ -112,6 +182,14 @@ class GameNotificationCoordinator {
     _activeLocaleCode = _localeCodeProvider();
     localeListenable?.addListener(_onLocaleChanged);
     final state = _gameStateProvider();
+    _memberId = state.memberId;
+    accountSession?.addListener(_onAccountChanged);
+    if (accountSession != null) {
+      gameStateController.addListener(_onGameStateChanged);
+      settingsController.addListener(_syncSnapshot);
+      _onAccountChanged();
+      return;
+    }
     _restoreGlobalTimerAnchors(state);
     _recordGlobalTimerAnchors(state);
     moraleRecoveryTimerController.reconcile(state, now: _now());
@@ -123,6 +201,7 @@ class GameNotificationCoordinator {
 
   void dispose() {
     _disposed = true;
+    accountSession?.removeListener(_onAccountChanged);
     _pendingSnapshot = null;
     final retryWake = _retryWake;
     if (retryWake != null && !retryWake.isCompleted) retryWake.complete();
@@ -142,6 +221,17 @@ class GameNotificationCoordinator {
     if (_disposed) return;
     final now = _now();
     final state = _gameStateProvider();
+    if (accountSession == null && _memberId != state.memberId) {
+      _clearAccountState(state.memberId);
+    }
+    if (!_canUseState) {
+      _syncSnapshot();
+      return;
+    }
+    if (_needsAnchorRestore) {
+      _needsAnchorRestore = false;
+      _restoreGlobalTimerAnchors(state, replaceInitialization: true);
+    }
     _recordGlobalTimerAnchors(state);
     moraleRecoveryTimerController.reconcile(state, now: now);
     final alerts = _buildImmediateAlerts(state, now);
@@ -155,7 +245,8 @@ class GameNotificationCoordinator {
   }) {
     if (_disposed) return;
     final settings = settingsController.settings;
-    if (!settings.master) {
+    final usable = _canUseState;
+    if (!settings.master || !usable) {
       _pendingImmediateAlerts.clear();
     } else {
       for (final alert in immediateAlerts) {
@@ -163,15 +254,19 @@ class GameNotificationCoordinator {
       }
     }
     final snapshot = NotificationSnapshot(
+      memberId: accountSession?.current.memberId,
+      sessionId: accountSession == null
+          ? null
+          : '$_instanceId:${accountSession!.current.generation}',
       updatedAt: _now(),
       immediateAlerts: _pendingImmediateAlerts.values.toList(growable: false),
-      alarms: settings.master ? _buildScheduledAlarms() : const [],
-      ongoingItems: settings.master && settings.ongoingLive
+      alarms: settings.master && usable ? _buildScheduledAlarms() : const [],
+      ongoingItems: settings.master && usable && settings.ongoingLive
           ? _buildOngoingItems()
           : const [],
       presentation: NotificationPresentation(
         localeCode: _activeLocaleCode,
-        enabled: settings.master,
+        enabled: settings.master && usable,
         sound: settings.sound,
         vibration: settings.vibration,
         showProgress: settings.showProgress,
@@ -341,13 +436,15 @@ class GameNotificationCoordinator {
       while (!_disposed) {
         final snapshot = _pendingSnapshot;
         if (snapshot == null) break;
+        final generation = _generation;
         _pendingSnapshot = null;
         var retryIndex = 0;
-        while (!_disposed) {
+        while (!_disposed && generation == _generation) {
           Object? lastError;
           StackTrace? lastStackTrace;
           try {
             final result = await notificationPort.applySnapshot(snapshot);
+            if (_disposed || generation != _generation) break;
             if (result.failures.isNotEmpty) {
               throw StateError(
                 'Native notification failures: ${result.failures.join(', ')}',
@@ -362,6 +459,8 @@ class GameNotificationCoordinator {
             final pending = _pendingSnapshot;
             if (pending != null && deliveredKeys.isNotEmpty) {
               _pendingSnapshot = NotificationSnapshot(
+                memberId: pending.memberId,
+                sessionId: pending.sessionId,
                 schemaVersion: pending.schemaVersion,
                 updatedAt: pending.updatedAt,
                 immediateAlerts: pending.immediateAlerts
@@ -378,7 +477,7 @@ class GameNotificationCoordinator {
             lastStackTrace = stackTrace;
           }
 
-          if (_pendingSnapshot != null) break;
+          if (_pendingSnapshot != null || generation != _generation) break;
           if (retryIndex >= _snapshotRetryBackoff.length) {
             _onError(lastError, lastStackTrace);
             break;
@@ -1217,15 +1316,26 @@ class GameNotificationCoordinator {
     _replaceTimerAnchors(_timerAnchors.copyWith(moraleByFleet: anchors));
   }
 
-  void _restoreGlobalTimerAnchors(GameState state) {
+  void _restoreGlobalTimerAnchors(
+    GameState state, {
+    bool replaceInitialization = false,
+  }) {
     final akashi = _timerAnchors.akashi;
-    if (gameStateController.akashiTimer.anchorAt == null &&
+    final akashiTimer = gameStateController.akashiTimer;
+    if ((akashiTimer.anchorAt == null ||
+            (replaceInitialization &&
+                akashiTimer.lastResetReason ==
+                    AkashiResetReason.initialization.name)) &&
         akashi != null &&
         akashi.signature == NotificationTimerSignature.anchorage(state)) {
       gameStateController.akashiTimer.restore(akashi.anchorAt);
     }
     final nozaki = _timerAnchors.nozaki;
-    if (gameStateController.nozakiTimer.anchorAt == null &&
+    final nozakiTimer = gameStateController.nozakiTimer;
+    if ((nozakiTimer.anchorAt == null ||
+            (replaceInitialization &&
+                nozakiTimer.lastResetReason ==
+                    NozakiResetReason.initialization.name)) &&
         nozaki != null &&
         nozaki.signature == NotificationTimerSignature.nozaki(state)) {
       gameStateController.nozakiTimer.restore(nozaki.anchorAt);
@@ -1265,7 +1375,7 @@ class GameNotificationCoordinator {
   void _replaceTimerAnchors(NotificationTimerAnchors next) {
     if (next == _timerAnchors) return;
     _timerAnchors = next;
-    final store = _timerAnchorStore;
+    final store = _storeForMember(_memberId);
     if (store == null) return;
     _timerAnchorSaveQueue = _timerAnchorSaveQueue
         .then((_) => store.save(next))

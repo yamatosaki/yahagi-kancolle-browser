@@ -1,5 +1,6 @@
 import '../game_state/game_state.dart';
 import 'battle_detail_models.dart';
+import 'battle_ship_details.dart';
 
 enum BattleSide { friend, enemy }
 
@@ -180,6 +181,7 @@ class BattleShipSnapshot {
     this.usedDamageControlItemIds = const <int>[],
     this.isEscaped = false,
     this.hpUnknown = false,
+    this.details,
   });
 
   final int masterId;
@@ -198,6 +200,7 @@ class BattleShipSnapshot {
   final List<int> usedDamageControlItemIds;
   final bool isEscaped;
   final bool hpUnknown;
+  final BattleShipDetails? details;
 
   bool get isSunk => currentHp <= 0;
   bool get isHeavilyDamaged => !isSunk && currentHp * 4 <= maxHp;
@@ -231,6 +234,7 @@ class BattleShipSnapshot {
           usedDamageControlItemIds ?? this.usedDamageControlItemIds,
       isEscaped: isEscaped ?? this.isEscaped,
       hpUnknown: hpUnknown ?? this.hpUnknown,
+      details: details,
     );
   }
 }
