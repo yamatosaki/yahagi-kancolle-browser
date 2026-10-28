@@ -39,6 +39,41 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+      - name: Install and verify Android NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="$(realpath "${ANDROID_HOME:?}")"
+          [[ "$sdk_root" != / ]] || exit 1
+          flutter_extension="$FLUTTER_ROOT/packages/flutter_tools/gradle/src/main/kotlin/FlutterExtension.kt"
+          ndk_version="$(sed -nE 's/^[[:space:]]*val ndkVersion: String = "([0-9.]+)".*/\1/p' "$flutter_extension")"
+          [[ "$ndk_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          ndk_dir="$sdk_root/ndk/$ndk_version"
+          ndk_ready() {
+            [[ -f "$ndk_dir/source.properties" ]] &&
+              [[ "$(sed -nE 's/^Pkg.Revision[[:space:]]*=[[:space:]]*([0-9.]+)[[:space:]]*$/\1/p' "$ndk_dir/source.properties")" == "$ndk_version" ]] &&
+              [[ -x "$ndk_dir/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" ]] &&
+              "$ndk_dir/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" --version >/dev/null
+          }
+          if ndk_ready; then
+            echo "Android NDK $ndk_version is already installed and verified."
+            exit 0
+          fi
+          for attempt in 1 2 3; do
+            if "$sdk_root/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$sdk_root" --install "ndk;$ndk_version" </dev/null && ndk_ready; then
+              echo "Android NDK $ndk_version installed and verified."
+              exit 0
+            fi
+            echo "::warning::Android NDK installation attempt $attempt failed."
+            if [[ "$attempt" == 3 ]]; then
+              echo "::error::Unable to install and verify Android NDK $ndk_version."
+              exit 1
+            fi
+            # This dedicated step has no concurrent SDK installs. Remove only
+            # the failed NDK and installer downloads so the next try is fresh.
+            rm -rf -- "$ndk_dir" "$sdk_root/.temp"/PackageOperation* "$sdk_root/.downloadIntermediates"
+            sleep "$((attempt * 5))"
+          done
       - run: python -m pip install pillow
       - run: flutter pub get
       - run: python -m unittest tool.test_build_sortie_release tool.test_build_enemy_release tool.test_verify_data_release -v
