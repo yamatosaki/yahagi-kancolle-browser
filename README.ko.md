@@ -207,7 +207,7 @@ DMM 접속 외에도 실험적인 OOI 서드파티 접속 경로를 제공합니
 
 ヤハギ는 오픈 소스로 개발됩니다. Issue와 Pull Request를 통한 기능 개선, 호환성 테스트, 문서 작성 및 현지화 기여를 환영합니다.
 
-소스 코드 빌드 및 테스트 실행 방법은 [소스 코드 빌드 및 검증](BUILDING.ko.md)을 참고하세요. 개발에 참여하기 전에 [기여 안내](CONTRIBUTING.ko.md)와 [보안 정책](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/SECURITY.md)을 읽어 주세요.
+소스 코드 빌드, 테스트, Fork의 GitHub Actions를 이용한 APK 빌드 방법은 [소스 코드 빌드 및 검증](BUILDING.ko.md)을 참고하세요. UI, 리소스와 독립 앱 변경은 [커스터마이징 안내 (English)](CUSTOMIZING.en.md)를 참고하세요. 개발에 참여하기 전에 [기여 안내](CONTRIBUTING.ko.md)와 [보안 정책](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/SECURITY.md)을 읽어 주세요.
 
 프로젝트 소스 코드는 [MIT License](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/LICENSE)를 따릅니다. 서드파티 글꼴, 의존성 및 리소스에 관한 설명은 [THIRD_PARTY_NOTICES](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/THIRD_PARTY_NOTICES)를 확인하세요.
 

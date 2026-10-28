@@ -207,7 +207,7 @@ When reporting an issue, please include the app version, device model, operating
 
 Yahagi is developed as an open-source project. Issues and pull requests are welcome, including feature improvements, compatibility testing, documentation, and localization.
 
-See [Building and verification](BUILDING.en.md) to build from source or run tests. Before contributing, read the [contribution guide](CONTRIBUTING.en.md) and [security policy](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/SECURITY.md).
+See [Building and verification](BUILDING.en.md) to build from source, run tests, or build an APK with GitHub Actions in your fork. For UI, resource, and independent app changes, see [Customization and development](CUSTOMIZING.en.md). Before contributing, read the [contribution guide](CONTRIBUTING.en.md) and [security policy](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/SECURITY.md).
 
 The source code is licensed under the [MIT License](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/LICENSE). See [THIRD_PARTY_NOTICES](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/THIRD_PARTY_NOTICES) for third-party fonts, dependencies, and assets.
 

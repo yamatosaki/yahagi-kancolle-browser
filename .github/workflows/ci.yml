@@ -3,6 +3,7 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -55,3 +56,10 @@ jobs:
       - run: chmod +x android/gradlew
       - run: ./android/gradlew -p android :app:testDebugUnitTest --console=plain
       - run: flutter build apk --debug
+      - name: Upload self-built debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: yahagi-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7

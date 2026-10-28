@@ -4,6 +4,8 @@
 
 Issue와 Pull Request를 통한 Yahagi 개선을 환영합니다.
 
+개인용 APK 빌드는 [소스 코드 빌드 및 검증](BUILDING.ko.md)을, 테마·문구·리소스 변경 및 독립 배포는 [사용자화 가이드(English)](CUSTOMIZING.en.md)를 참고하세요.
+
 ## 개발 절차
 
 1. 저장소를 Fork하고 기본 브랜치에서 기능 브랜치를 만드세요.

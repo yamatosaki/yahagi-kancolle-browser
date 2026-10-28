@@ -207,7 +207,7 @@
 
 ヤハギ以開放原始碼的方式開發，歡迎提交 Issue、Pull Request，參與功能改進、相容性測試、文件與本地化。
 
-從原始碼建置或執行測試，請參閱 [原始碼建置與驗證（簡體中文）](BUILDING.md)。參與開發前請閱讀 [貢獻指南](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/CONTRIBUTING.md) 和 [安全政策](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/SECURITY.md)。
+從原始碼建置或執行測試，請參閱 [原始碼建置與驗證（簡體中文）](BUILDING.md)，也可透過 Fork 後的 GitHub Actions 自行打包。修改介面、資源或開發獨立版本，請參閱 [客製化與二次開發（簡體中文）](CUSTOMIZING.md)。參與開發前請閱讀 [貢獻指南](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/CONTRIBUTING.md) 和 [安全政策](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/SECURITY.md)。
 
 專案原始碼使用 [MIT License](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/LICENSE)。第三方字型、相依套件與資產說明見 [THIRD_PARTY_NOTICES](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/THIRD_PARTY_NOTICES)。
 

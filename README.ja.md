@@ -207,7 +207,7 @@ DMM の入口に加え、実験的な OOI のサードパーティー接続も�
 
 ヤハギはオープンソースで開発されています。Issue や Pull Request を通じた機能改善、互換性テスト、ドキュメント、翻訳へのご協力を歓迎します。
 
-ソースからのビルドやテストについては、[ビルド・検証ガイド（簡体字中国語）](BUILDING.md) をご覧ください。開発に参加する前に、[コントリビューションガイド](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/CONTRIBUTING.md) と [セキュリティポリシー](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/SECURITY.md) をご確認ください。
+ソースからのビルド、テスト、Fork 先の GitHub Actions による APK 作成については、[ビルド・検証ガイド（English）](BUILDING.en.md) をご覧ください。画面やリソースの変更、独立版の開発については、[カスタマイズガイド（English）](CUSTOMIZING.en.md) をご覧ください。開発に参加する前に、[コントリビューションガイド](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/CONTRIBUTING.md) と [セキュリティポリシー](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/SECURITY.md) をご確認ください。
 
 ソースコードには [MIT License](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/LICENSE) が適用されます。サードパーティーのフォント、依存ライブラリ、素材については [THIRD_PARTY_NOTICES](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/THIRD_PARTY_NOTICES) をご確認ください。
 

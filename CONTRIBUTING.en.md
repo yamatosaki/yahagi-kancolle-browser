@@ -4,6 +4,8 @@
 
 Issues and pull requests to improve Yahagi are welcome.
 
+To build a copy for personal use, start with [Building and Verifying from Source](BUILDING.en.md). For themes, text, assets, or an independent fork, see the [Customization Guide](CUSTOMIZING.en.md).
+
 ## Development Workflow
 
 1. Fork the repository and create a feature branch from the default branch.

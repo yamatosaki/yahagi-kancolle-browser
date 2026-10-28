@@ -103,7 +103,7 @@
 - 支持通常舰队与联合舰队的战斗信息，展示敌我耐久变化、战果等级及 MVP 预测。
 - 提供出击前状态检查、大破提醒和战前敌舰信息展示。
 - 大破进击提醒合并列出舰船，检查普通装备槽与增设中的剩余损管；未携带的优先以红色显示，携带的以金色标注种类和数量。状态不可靠时显示“损管状态未知，请核对游戏内装备”。
-- 出击设置默认“始终确认”，也可选择“智能提醒”：仅当每艘候选大破舰均有可信的剩余修理要员或女神时，顶栏显示“大破舰已携带损管” 10 秒，可点击提前关闭。损管全部耗尽、任一舰未携带或状态未知时仍弹窗；顶部提示不可见、过窄、关闭或原生全屏下无法确认显示时，也回退弹窗。
+- 出击设置默认“始终确认”，也可选择“智能提醒”：仅当每艘候选大破舰均有可信的剩余修理要员或女神时，显示“大破舰已携带损管” 10 秒。非全屏沿用顶栏小胶囊，可点击提前关闭；Android 全屏使用与任务完成相同的顶部气泡，显示期间仍可操作游戏。损管全部耗尽、任一舰未携带或状态未知时仍弹窗；通知关闭、显示失败、文字无法完整显示或显示期间变得不可见时，也回退弹窗。全屏损管提示显示期间优先展示，普通任务和削甲通知仍保留各自的剩余展示时间。
 - 开启大破提醒后，可独立勾选“结算后提醒”和“进击后提醒”，默认只勾选进击后提醒。前者在成功的普通或联合战斗结算后检查，后者沿用成功出击或进击（`api_req_map/start`、`api_req_map/next`）响应后的检查。两项都选时，结算确认后进击仍危险就再次提醒；只选结算时，不再进行进击阶段的新提醒，但不主动清除已经展示的结算提示。时机修改从下次出击生效，不改变“始终确认 / 智能提醒”的显示方式及剩余损管（应急修理要员 42、应急修理女神 43）的检测规则。
 - 大破弹窗提供手动“刷新游戏”和“框架刷新”，不自动刷新；确认与本次静音分别使用红色、黄色胶囊按钮。刷新不等于撤退，也不能撤销已发送的进击。
 - “确认了解”只关闭当前提醒；“此次出击不再提醒”关闭本次出击后续的大破提醒及对应震动，返港或新出击后恢复，不保存为永久设置。
@@ -220,7 +220,7 @@
 
 ヤハギ以开放源代码的方式开发，欢迎提交 Issue、Pull Request，参与功能改进、兼容性测试、文档与本地化。
 
-从源码构建或运行测试，请参阅 [源码构建与验证](BUILDING.md)。参与开发前请阅读 [贡献指南](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/CONTRIBUTING.md) 和 [安全政策](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/SECURITY.md)。
+从源码构建或运行测试，请参阅 [源码构建与验证](BUILDING.md)，也可通过 Fork 后的 GitHub Actions 自行打包。修改界面、资源或开发独立版本，请参阅 [定制与二次开发](CUSTOMIZING.md)。参与开发前请阅读 [贡献指南](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/CONTRIBUTING.md) 和 [安全政策](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/SECURITY.md)。
 
 项目源代码使用 [MIT License](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/LICENSE)。第三方字体、依赖与资产说明见 [THIRD_PARTY_NOTICES](https://github.com/yamatosaki/yahagi-kancolle-browser/blob/master/THIRD_PARTY_NOTICES)。
 

@@ -4,6 +4,8 @@
 
 欢迎通过 Issue 和 Pull Request 改进 Yahagi。
 
+只想自行打包使用，请先看 [源码构建与验证](BUILDING.md)；修改主题、文字、资源或制作独立版本，请看 [定制指南](CUSTOMIZING.md)。
+
 ## 开发流程
 
 1. Fork 仓库并从默认分支创建功能分支。
