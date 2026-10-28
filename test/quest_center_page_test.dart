@@ -333,7 +333,20 @@ void main() {
     expect(find.byKey(const Key('quest-filter-button')), findsNothing);
     expect(find.byKey(const Key('quest-card-201')), findsOneWidget);
     expect(find.byKey(const Key('quest-card-402')), findsOneWidget);
-    expect(find.text('0/1'), findsWidgets);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('quest-card-201')),
+        matching: find.text('50%+'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('quest-card-402')),
+        matching: find.text('100%'),
+      ),
+      findsOneWidget,
+    );
     expect(
       find.descendant(
         of: find.byKey(const Key('quest-card-status-201')),

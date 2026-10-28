@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.ColorFilter
 import android.graphics.Paint
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
@@ -21,6 +22,8 @@ import android.widget.Toast
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import kotlin.math.ceil
+import kotlin.math.floor
 
 /** An app-owned control above both Activity WebViews and Flutter PlatformViews.
  * Only its 34 x 34 logical-pixel circle takes touches; the game stays usable.
@@ -32,7 +35,14 @@ internal class GameFullscreenChannel(
     private val channel = MethodChannel(engine.dartExecutor.binaryMessenger, "app.yahagi.kancollebrowser/game_fullscreen")
     private var button: ImageView? = null
     private var questNotice: TextView? = null
-    private var pendingQuestMessage = ""
+    private val noticeState = FullscreenNoticeState()
+    private var noticeRoot: FrameLayout? = null
+    private val noticeRootLayoutListener = View.OnLayoutChangeListener { _, left, top, right, bottom,
+        oldLeft, oldTop, oldRight, oldBottom ->
+        if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) {
+            refreshNotice()
+        }
+    }
     private var scale = 1f
     private var geometryRevision = 0L
     private var minX = 0f
@@ -49,12 +59,39 @@ internal class GameFullscreenChannel(
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         if (call.method == "questNotice") {
             try {
-                pendingQuestMessage = call.argument<String>("message").orEmpty()
-                showQuestNotice(pendingQuestMessage)
+                if (noticeState.setQuestMessage(call.argument<String>("message").orEmpty())) {
+                    refreshNotice()
+                }
                 result.success(null)
             } catch (error: Exception) {
                 result.error("quest_notice_unavailable", error.message, null)
             }
+            return
+        }
+        if (call.method == "damageControlNotice") {
+            try {
+                val id = requireNotNull(call.argument<Number>("id")).toLong()
+                val message = call.argument<String>("message").orEmpty()
+                if (message.isEmpty()) {
+                    if (noticeState.clearDamageControlNotice(id)) refreshNotice()
+                    result.success(false)
+                } else {
+                    noticeState.setDamageControlNotice(id, message)
+                    result.success(refreshNotice())
+                }
+            } catch (_: Exception) {
+                rejectDamageControlNotice()
+                result.success(false)
+            }
+            return
+        }
+        if (call.method == "damageControlNoticeVisible") {
+            val visible = try {
+                call.argument<Number>("id")?.toLong()?.let(::isDamageControlNoticeVisible) ?: false
+            } catch (_: Exception) {
+                false
+            }
+            result.success(visible)
             return
         }
         if (call.method != "update") {
@@ -116,6 +153,11 @@ internal class GameFullscreenChannel(
         maxY = number("maxY") * scale
         require(maxX >= minX && maxY >= minY)
         val root = requireNotNull(activity.findViewById<FrameLayout>(android.R.id.content))
+        if (noticeRoot !== root) {
+            noticeRoot?.removeOnLayoutChangeListener(noticeRootLayoutListener)
+            noticeRoot = root
+            root.addOnLayoutChangeListener(noticeRootLayoutListener)
+        }
         val isNewButton = button == null
         val view = button ?: createButton().also {
             button = it
@@ -135,7 +177,7 @@ internal class GameFullscreenChannel(
             view.translationY = 0f
         }
         view.bringToFront()
-        showQuestNotice(pendingQuestMessage)
+        refreshNotice()
         val hint = call.argument<String>("hint").orEmpty()
         if (hint.isNotEmpty() && !hintShown) {
             hintShown = true
@@ -217,8 +259,10 @@ internal class GameFullscreenChannel(
     }
 
     private fun removeButton() {
-        pendingQuestMessage = ""
-        showQuestNotice("")
+        noticeState.clear()
+        removeNotice()
+        noticeRoot?.removeOnLayoutChangeListener(noticeRootLayoutListener)
+        noticeRoot = null
         button?.let { (it.parent as? FrameLayout)?.removeView(it) }
         button = null
         gesture.finish(cancelled = true)
@@ -226,13 +270,28 @@ internal class GameFullscreenChannel(
         hintToast = null
     }
 
-    private fun showQuestNotice(message: String) {
+    private fun removeNotice() {
+        questNotice?.let { (it.parent as? FrameLayout)?.removeView(it) }
+        questNotice = null
+    }
+
+    private fun rejectDamageControlNotice(): Boolean {
+        noticeState.rejectDamageControlPresentation()
+        removeNotice()
+        return false
+    }
+
+    /** Returns true only for a complete damage-control notice with usable native bounds. */
+    private fun refreshNotice(): Boolean {
+        val message = noticeState.displayMessage
         if (message.isEmpty() || button == null) {
-            questNotice?.let { (it.parent as? FrameLayout)?.removeView(it) }
-            questNotice = null
-            return
+            removeNotice()
+            if (noticeState.canPresentDamageControl) noticeState.rejectDamageControlPresentation()
+            return false
         }
         val root = requireNotNull(activity.findViewById<FrameLayout>(android.R.id.content))
+        val damageControl = noticeState.canPresentDamageControl
+        if (damageControl && !hasUsableFullscreenRoot(root)) return rejectDamageControlNotice()
         val density = activity.resources.displayMetrics.density
         val view = questNotice ?: TextView(activity).apply {
             setTextColor(Color.WHITE)
@@ -253,6 +312,9 @@ internal class GameFullscreenChannel(
             questNotice = this
             root.addView(this)
         }
+        // Damage-control notices are accepted only when all natural lines fit; never ellipsize.
+        view.maxLines = if (damageControl) Int.MAX_VALUE else 2
+        view.ellipsize = if (damageControl) null else TextUtils.TruncateAt.END
         view.text = message
         val metrics = activity.resources.displayMetrics
         val content = fullscreenOverlayContentBounds(
@@ -262,12 +324,18 @@ internal class GameFullscreenChannel(
         )
         val geometry = FullscreenQuestNoticeGeometry(content, density)
         view.maxWidth = geometry.maxWidth
-        view.maxHeight = geometry.maxHeight
+        view.maxHeight = if (damageControl) Int.MAX_VALUE else geometry.maxHeight
         view.measure(
             View.MeasureSpec.makeMeasureSpec(geometry.maxWidth, View.MeasureSpec.AT_MOST),
-            View.MeasureSpec.makeMeasureSpec(geometry.maxHeight, View.MeasureSpec.AT_MOST),
+            View.MeasureSpec.makeMeasureSpec(
+                if (damageControl) 0 else geometry.maxHeight,
+                if (damageControl) View.MeasureSpec.UNSPECIFIED else View.MeasureSpec.AT_MOST,
+            ),
         )
         val bounds = geometry.place(view.measuredWidth, view.measuredHeight)
+        if (damageControl && !completeDamageControlTextFits(view, bounds, content)) {
+            return rejectDamageControlNotice()
+        }
         view.layoutParams = FrameLayout.LayoutParams(
             bounds.width,
             bounds.height,
@@ -278,6 +346,71 @@ internal class GameFullscreenChannel(
         }
         view.bringToFront()
         button?.bringToFront()
+        return damageControl
+    }
+
+    private fun hasUsableFullscreenRoot(root: FrameLayout): Boolean =
+        root.width > 0 && root.height > 0 && root.isAttachedToWindow && root.isShown &&
+            root.windowVisibility == View.VISIBLE &&
+            button?.let { it.parent === root && it.isAttachedToWindow && it.isShown } == true
+
+    private fun fullscreenControlBounds(): FullscreenOverlayBounds? {
+        val view = button ?: return null
+        val params = view.layoutParams as? FrameLayout.LayoutParams ?: return null
+        // Geometry updates apply LayoutParams on the next frame; drags apply translation now.
+        val pendingLayout = view.isLayoutRequested || view.width <= 0 || view.height <= 0
+        val root = view.parent as? FrameLayout
+        val x = if (pendingLayout) {
+            params.leftMargin + (root?.paddingLeft ?: 0) + view.translationX
+        } else view.x
+        val y = if (pendingLayout) {
+            params.topMargin + (root?.paddingTop ?: 0) + view.translationY
+        } else view.y
+        val width = if (pendingLayout) params.width else view.width
+        val height = if (pendingLayout) params.height else view.height
+        return FullscreenOverlayBounds(
+            floor(x).toInt(), floor(y).toInt(), ceil(x + width).toInt(), ceil(y + height).toInt(),
+        )
+    }
+
+    private fun completeDamageControlTextFits(
+        view: TextView,
+        bounds: FullscreenOverlayBounds,
+        content: FullscreenOverlayBounds,
+    ): Boolean {
+        val textLayout = view.layout ?: return false
+        val lines = textLayout.lineCount
+        return fullscreenDamageControlNoticeFits(
+            noticeState.displayMessage,
+            lines,
+            if (lines > 0) textLayout.getLineEnd(lines - 1) else 0,
+            (0 until lines).any { textLayout.getEllipsisCount(it) != 0 },
+            ceil((0 until lines).maxOfOrNull { textLayout.getLineWidth(it) } ?: 0f).toInt() +
+                view.compoundPaddingLeft + view.compoundPaddingRight,
+            textLayout.height + view.compoundPaddingTop + view.compoundPaddingBottom,
+            bounds,
+            content,
+            fullscreenControlBounds(),
+        )
+    }
+
+    private fun isDamageControlNoticeVisible(id: Long): Boolean {
+        if (noticeState.damageControlId != id || !noticeState.canPresentDamageControl) return false
+        val root = activity.findViewById<FrameLayout>(android.R.id.content) ?: return false
+        val view = questNotice ?: return false
+        if (!hasUsableFullscreenRoot(root) || view.parent !== root || !view.isAttachedToWindow ||
+            !view.isShown || view.alpha <= 0f || view.isLayoutRequested ||
+            view.text.toString() != noticeState.displayMessage
+        ) return false
+        val visibleBounds = Rect()
+        if (!view.getGlobalVisibleRect(visibleBounds) ||
+            visibleBounds.width() != view.width || visibleBounds.height() != view.height
+        ) return false
+        return completeDamageControlTextFits(
+            view,
+            FullscreenOverlayBounds(view.left, view.top, view.right, view.bottom),
+            fullscreenOverlayContentBounds(root.width, root.height, requestedContentBounds),
+        )
     }
 
     fun dispose() {

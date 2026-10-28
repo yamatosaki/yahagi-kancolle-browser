@@ -12,8 +12,14 @@ final class PoiBattlePredictionEngine implements BattlePredictionEngine {
     required List<BattleShipSnapshot> enemyMain,
     List<BattleShipSnapshot> enemyEscort = const <BattleShipSnapshot>[],
     this.fleetType = 0,
-  }) : _friendMain = clonePoiBattleFleet(friendMain),
-       _friendEscort = clonePoiBattleFleet(friendEscort),
+  }) : _friendMain = clonePoiBattleFleet(
+         friendMain,
+         resetBattleDamageControl: true,
+       ),
+       _friendEscort = clonePoiBattleFleet(
+         friendEscort,
+         resetBattleDamageControl: true,
+       ),
        _enemyMain = clonePoiBattleFleet(enemyMain),
        _enemyEscort = clonePoiBattleFleet(enemyEscort);
 
@@ -631,16 +637,21 @@ final class _PoiBattleSimulator {
     final ship = fleet[index];
     var hp = (ship.currentHp - amount).clamp(0, ship.maxHp);
     final used = List<int>.from(ship.usedDamageControlItemIds);
+    final usedThisBattle = List<int>.from(ship.damageControlUsedThisBattle);
     if (ship.side == BattleSide.friend && hp == 0) {
       final item = _nextDamageControl(ship, used);
       if (item == 42) hp = (ship.maxHp ~/ 5).clamp(1, ship.maxHp);
       if (item == 43) hp = ship.maxHp;
-      if (item != null) used.add(item);
+      if (item != null) {
+        used.add(item);
+        usedThisBattle.add(item);
+      }
     }
     fleet[index] = ship.copyWith(
       currentHp: hp,
       damageReceived: ship.damageReceived + amount,
       usedDamageControlItemIds: used,
+      damageControlUsedThisBattle: usedThisBattle,
     );
   }
 

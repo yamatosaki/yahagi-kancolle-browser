@@ -2547,7 +2547,7 @@ void main() {
     );
     expect(
       selectedMaterial(const Key('fleet-button-2')).color,
-      const Color(0xff3a3020),
+      const Color(0xff5b4829),
     );
     expect(
       selectedMaterial(const Key('fleet-button-1')).color,
@@ -2619,7 +2619,7 @@ void main() {
           )
           .first,
     );
-    expect(selected.color, const Color(0xff3a3020));
+    expect(selected.color, const Color(0xff5b4829));
   });
 
   testWidgets('手机竖屏下舰队、入渠、建造页面无溢出', (tester) async {

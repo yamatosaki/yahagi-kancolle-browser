@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="native_game_warning_dialog" type="id" />
+    <item name="native_game_warning_input_guard" type="id" />
+    <item name="native_game_warning_acknowledge" type="id" />
+    <item name="native_game_warning_mute" type="id" />
+    <item name="native_game_warning_reload_game" type="id" />
+    <item name="native_game_warning_reload_frame" type="id" />
+    <item name="native_game_reminder_debuff" type="id" />
+    <item name="native_game_reminder_new_ship" type="id" />
+    <item name="native_game_reminder_acknowledge" type="id" />
+    <item name="native_game_resource_checklist" type="id" />
+    <item name="native_game_resource_checklist_done" type="id" />
+    <item name="native_game_resource_checklist_reset" type="id" />
+    <item name="native_game_resource_checklist_list" type="id" />
+    <item name="native_game_resource_checklist_item" type="id" />
+    <item name="native_game_surface_dialog" type="id" />
+    <item name="native_game_surface_dialog_scroll" type="id" />
+    <item name="native_game_surface_dialog_action" type="id" />
+    <item name="native_game_surface_dialog_choice" type="id" />
+    <item name="native_game_surface_dialog_checkbox" type="id" />
+</resources>

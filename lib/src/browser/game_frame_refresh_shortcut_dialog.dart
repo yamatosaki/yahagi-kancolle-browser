@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../settings/game_frame_refresh_shortcut_settings.dart';
+import 'game_surface_dialog.dart';
 
 Future<bool> confirmGameFrameRefreshShortcut({
   required BuildContext context,
@@ -13,9 +14,27 @@ Future<bool> confirmGameFrameRefreshShortcut({
       lookupAppLocalizations(const Locale('zh'));
   var skipNextTime = false;
   final confirmed =
-      await showDialog<bool>(
+      await showGameSurfaceDialog<bool>(
         context: context,
-        builder: (dialogContext) => StatefulBuilder(
+        title: l10n.frameRefreshShortcutConfirmTitle,
+        message: l10n.frameRefreshShortcutConfirmDescription,
+        checkbox: GameSurfaceDialogCheckbox(
+          label: l10n.frameRefreshShortcutSkipConfirmation,
+          onChanged: (value) => skipNextTime = value,
+        ),
+        actions: [
+          GameSurfaceDialogAction(
+            id: 'cancel',
+            label: l10n.cancel,
+            value: false,
+          ),
+          GameSurfaceDialogAction(
+            id: 'confirm',
+            label: l10n.frameRefreshShortcutConfirmAction,
+            value: true,
+          ),
+        ],
+        builder: (dialogContext, close) => StatefulBuilder(
           builder: (context, setState) => AlertDialog(
             key: const Key('frame-refresh-confirm-dialog'),
             title: Text(l10n.frameRefreshShortcutConfirmTitle),
@@ -39,12 +58,12 @@ Future<bool> confirmGameFrameRefreshShortcut({
             actions: [
               TextButton(
                 key: const Key('frame-refresh-cancel'),
-                onPressed: () => Navigator.of(dialogContext).pop(false),
+                onPressed: () => close(false),
                 child: Text(l10n.cancel),
               ),
               FilledButton(
                 key: const Key('frame-refresh-confirm'),
-                onPressed: () => Navigator.of(dialogContext).pop(true),
+                onPressed: () => close(true),
                 child: Text(l10n.frameRefreshShortcutConfirmAction),
               ),
             ],

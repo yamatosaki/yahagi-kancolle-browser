@@ -84,6 +84,7 @@ import app.yahagi.kancollebrowser.diagnostics.DiagnosticPlatformHandler
 import app.yahagi.kancollebrowser.nativewebview.ActivityNativeGameWebViewHostOperations
 import app.yahagi.kancollebrowser.nativewebview.ActivityWebViewHost
 import app.yahagi.kancollebrowser.nativewebview.NativeGameWebViewChannel
+import app.yahagi.kancollebrowser.nativewebview.NativeGameWarningDialogChannel
 import app.yahagi.kancollebrowser.nativewebview.NativeGameWebViewActivityAttachment
 import app.yahagi.kancollebrowser.nativewebview.NativeGameWebViewEngineChannels
 import app.yahagi.kancollebrowser.nativewebview.NativeGameWebViewLifecycleObserver
@@ -142,6 +143,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
 
     override fun onResume() {
         super.onResume()
+        nativeGameWarningDialogChannel?.setForeground(true)
         gameSurfacesResumed = true
         gameFrameRateManager?.setForeground(true)
         nativeWebViewStartup?.setForeground(true)
@@ -151,9 +153,19 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
             scheduleGameSurfaceRecovery(reason)
         }
         applyPreferredUiRefreshRate()
+        runCatching {
+            val result = AppNotificationManager.restoreScheduledAlarms(this)
+            check((result["failures"] as? List<*>)?.isEmpty() != false) {
+                "Some notification alarms could not be restored"
+            }
+        }
+            .onFailure {
+                Log.w("YahagiNotifications", "Unable to restore saved notification alarms", it)
+            }
     }
 
     override fun onPause() {
+        nativeGameWarningDialogChannel?.setForeground(false)
         gameSurfacesResumed = false
         gameFrameRateManager?.setForeground(false)
         nativeWebViewStartup?.setForeground(false)
@@ -292,6 +304,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
     private var nativeWebViewStartupTimeout: Runnable? = null
     private var nativeWebViewStartup: NativeWebViewActivityStartupCoordinator? = null
     private var nativeGameWebViewHost: ActivityWebViewHost? = null
+    private var nativeGameWarningDialogChannel: NativeGameWarningDialogChannel? = null
     private var activityRestartRequested = false
     private var nativeGameWebViewChannel: NativeGameWebViewChannel? = null
     private var nativeGameWebViewAttachment: NativeGameWebViewActivityAttachment? = null
@@ -389,6 +402,10 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
         gameMouseWheelChannel = GameMouseWheelChannel(flutterEngine)
         gameFullscreenChannel?.dispose()
         gameFullscreenChannel = GameFullscreenChannel(this, flutterEngine)
+        nativeGameWarningDialogChannel?.dispose()
+        nativeGameWarningDialogChannel = NativeGameWarningDialogChannel(this, flutterEngine) {
+            nativeGameWebViewHost?.currentWebView
+        }
 
         compositionImageHandler?.dispose()
         val imageHandler = CompositionImageHandler(
@@ -789,6 +806,8 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
     }
 
     override fun onDestroy() {
+        nativeGameWarningDialogChannel?.dispose()
+        nativeGameWarningDialogChannel = null
         fixedCanvasScaleApplier.cancel()
         disposeCustomFonts()
         disposeGameMods()
@@ -857,6 +876,8 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        nativeGameWarningDialogChannel?.dispose()
+        nativeGameWarningDialogChannel = null
         fixedCanvasScaleApplier.cancel()
         disposeCustomFonts()
         disposeGameMods()

@@ -53,8 +53,10 @@ class ScheduledNotificationItem {
     this.stage = NotificationAlarmStage.complete,
     this.removeTaskOnFire = false,
     required this.triggerTime,
+    this.deadline,
     required this.title,
     required this.body,
+    this.bodyTemplate,
   });
 
   final String key;
@@ -63,8 +65,16 @@ class ScheduledNotificationItem {
   final NotificationAlarmStage stage;
   final bool removeTaskOnFire;
   final DateTime triggerTime;
+
+  /// The task's actual completion time, even when this alarm fires earlier.
+  final DateTime? deadline;
   final String title;
   final String body;
+
+  /// Optional schema-1 extension for native delivery-time countdown text.
+  /// `{seconds}` is numeric; `{secondsText}` includes the English time unit.
+  /// Double braces (`{{` / `}}`) preserve literal braces in task names.
+  final String? bodyTemplate;
 
   Map<String, Object?> toMap() => {
     'key': key,
@@ -73,8 +83,10 @@ class ScheduledNotificationItem {
     'stage': stage.name,
     'removeTaskOnFire': removeTaskOnFire,
     'triggerTimeEpochMs': triggerTime.millisecondsSinceEpoch,
+    if (deadline != null) 'deadlineEpochMs': deadline!.millisecondsSinceEpoch,
     'title': title,
     'body': body,
+    if (bodyTemplate != null) 'bodyTemplate': bodyTemplate,
   };
 }
 

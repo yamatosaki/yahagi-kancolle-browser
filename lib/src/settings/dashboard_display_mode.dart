@@ -1,0 +1,1 @@
+enum DashboardDisplayMode { accordion, tabs }

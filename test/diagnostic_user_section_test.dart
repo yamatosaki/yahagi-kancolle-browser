@@ -11,9 +11,52 @@ import 'package:yahagi_kancolle_browser/src/diagnostics/diagnostic_recorder.dart
 import 'package:yahagi_kancolle_browser/src/diagnostics/diagnostic_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/diagnostics/diagnostic_storage.dart';
 import 'package:yahagi_kancolle_browser/src/settings/diagnostic_user_section.dart';
+import 'package:yahagi_kancolle_browser/src/settings/about_support_settings_page.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 
 void main() {
+  testWidgets(
+    'about entry opens diagnostic controls before the original declarations',
+    (tester) async {
+      final fixture = _Fixture.create();
+      addTearDown(() => fixture.dispose(tester));
+      await tester.pumpWidget(fixture.app(about: true));
+      final entry = find.byKey(const Key('settings-diagnostics-entry'));
+      expect(entry, findsOneWidget);
+      expect(
+        tester.getTopLeft(entry).dy,
+        lessThan(
+          tester
+              .getTopLeft(find.byKey(const Key('about-disclaimer-scroll')))
+              .dy,
+        ),
+      );
+      expect(find.byKey(const Key('diagnosticLoggingSwitch')), findsNothing);
+      await tester.ensureVisible(entry);
+      await tester.tap(entry);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('diagnosticLoggingSwitch')), findsOneWidget);
+      expect(find.byKey(const Key('saveDiagnosticFileButton')), findsOneWidget);
+      expect(
+        find.byKey(const Key('shareDiagnosticFileButton')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('clearDiagnosticDataButton')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('telemetryStatsSwitch')), findsNothing);
+      await tester.tap(find.byKey(const Key('saveDiagnosticFileButton')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('confirmSaveDiagnosticFileButton')),
+      );
+      await _waitForExport(tester, fixture, fixture.platform.saveCalled);
+      expect(find.text('已保存：Yahagi-Diagnostics-test.json'), findsOneWidget);
+      expect(find.byKey(topNoticeKey), findsOneWidget);
+    },
+  );
+
   testWidgets('offers local save sharing and clear as separate actions', (
     tester,
   ) async {
@@ -148,12 +191,19 @@ final class _Fixture {
     );
   }
 
-  Widget app() => MaterialApp(
+  Widget app({bool about = false}) => MaterialApp(
     locale: const Locale('zh'),
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     home: TopNoticeHost(
-      child: Scaffold(body: DiagnosticUserSection(controller: controller)),
+      child: Scaffold(
+        body: about
+            ? AboutSupportSettingsPage(
+                currentVersion: 'test',
+                diagnosticController: controller,
+              )
+            : DiagnosticUserSection(controller: controller),
+      ),
     ),
   );
 

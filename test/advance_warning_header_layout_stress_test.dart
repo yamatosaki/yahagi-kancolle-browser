@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
@@ -32,6 +33,17 @@ enum _HeaderAvailability { visible, hidden, narrow, native }
 enum _Presentation { quiet, gold, modal }
 
 void main() {
+  const nativeChannel = MethodChannel(
+    'app.yahagi.kancollebrowser/game_fullscreen',
+  );
+  setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(nativeChannel, (_) async => false);
+  });
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(nativeChannel, null);
+  });
   for (final uiSize in <UiDisplaySize>[
     UiDisplaySize.normal,
     UiDisplaySize.compact,
@@ -403,6 +415,9 @@ class _HeaderFixture {
         sequence: ++sequence,
       ),
     );
+    await tester.pump();
+    await tester.pumpAndSettle();
+    await tester.pump();
     await tester.pumpAndSettle();
   }
 

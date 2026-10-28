@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
@@ -26,6 +27,166 @@ const _refreshKeys = <Key>[
 const _refreshFailureMessage = '刷新未完成，请核对游戏状态与装备。';
 
 void main() {
+  for (final stage in ['advance', 'battle']) {
+    for (final scenario in [
+      'personnel',
+      'goddess',
+      'two-items',
+      'missing',
+      'mixed',
+      'unknown',
+      'inventory-missing',
+      'always',
+      'disabled',
+      'unavailable',
+      'healthy',
+      'flagship',
+      'escaped',
+    ]) {
+      testWidgets('native fullscreen $stage $scenario safety matrix', (
+        tester,
+      ) async {
+        const channel = MethodChannel(
+          'app.yahagi.kancollebrowser/game_fullscreen',
+        );
+        final shows = <MethodCall>[];
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          (call) async {
+            if (call.method == 'damageControlNotice') {
+              if (call.arguments['message'] != '') shows.add(call);
+              return scenario != 'unavailable';
+            }
+            if (call.method == 'damageControlNoticeVisible') return true;
+            return null;
+          },
+        );
+        addTearDown(
+          () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            channel,
+            null,
+          ),
+        );
+        final fixture = await _Fixture.create(
+          tester,
+          smart: scenario != 'always',
+          nativeFullscreen: true,
+          timings: AdvanceWarningTimingSettings.battleAndAdvance,
+          equipment: switch (scenario) {
+            'personnel' => [42],
+            'two-items' => [42, 43],
+            'missing' => [],
+            _ => [43],
+          },
+        );
+        if (scenario == 'mixed') fixture.state = _state([43], mixed: true);
+        if (scenario == 'unknown') fixture.trusted = false;
+        if (scenario == 'inventory-missing') {
+          fixture.state = _state([43], inventory: false);
+        }
+        if (scenario == 'disabled') {
+          await fixture.settings.setBattleWarningMode(BattleWarningMode.off);
+        }
+        if (scenario == 'healthy') {
+          fixture.state = fixture.state.copyWith(
+            ships: {
+              ...fixture.state.ships,
+              2: const OwnedShip(
+                id: 2,
+                masterId: 2,
+                level: 99,
+                currentHp: 6,
+                maxHp: 20,
+                slotIds: [100],
+              ),
+            },
+          );
+        }
+        if (scenario == 'flagship') {
+          fixture.state = fixture.state.copyWith(
+            fleets: const [
+              Fleet(id: 1, name: 'fleet', shipIds: [2, 1]),
+            ],
+          );
+        }
+        if (scenario == 'escaped') {
+          fixture.state = fixture.state.copyWith(
+            combatState: fixture.state.combatState.copyWith(
+              escapedShipIds: {2},
+            ),
+          );
+        }
+        await fixture.advance(tester, postBattle: stage == 'battle');
+        final notice = ['personnel', 'goddess', 'two-items'].contains(scenario);
+        final noWarning = [
+          'disabled',
+          'healthy',
+          'flagship',
+          'escaped',
+        ].contains(scenario);
+        expect(
+          find.byType(AlertDialog),
+          notice || noWarning ? findsNothing : findsOneWidget,
+        );
+        expect(shows.length, notice || scenario == 'unavailable' ? 1 : 0);
+        expect(find.text('大破舰已携带损管'), findsNothing);
+        if (notice) {
+          await tester.pump(const Duration(seconds: 9));
+          expect(find.byType(AlertDialog), findsNothing);
+          await tester.pump(const Duration(seconds: 1));
+          await tester.pumpAndSettle();
+          expect(find.byType(AlertDialog), findsNothing);
+        }
+      });
+    }
+  }
+
+  testWidgets(
+    'native smart keeps one damage control and warns after the last is consumed',
+    (tester) async {
+      const channel = MethodChannel(
+        'app.yahagi.kancollebrowser/game_fullscreen',
+      );
+      final messages = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        call,
+      ) async {
+        if (call.method == 'damageControlNotice') {
+          messages.add(call.arguments['message'] as String);
+        }
+        return call.method == 'questNotice' ? null : true;
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          null,
+        ),
+      );
+      final fixture = await _Fixture.create(
+        tester,
+        smart: true,
+        nativeFullscreen: true,
+        equipment: [43, 43],
+      );
+      for (var remaining = 2; remaining >= 0; remaining--) {
+        fixture.state = _state(List.filled(remaining, 43));
+        await fixture.advance(tester);
+        expect(
+          find.byType(AlertDialog),
+          remaining == 0 ? findsOneWidget : findsNothing,
+        );
+      }
+      expect(messages.where((message) => message.isNotEmpty), hasLength(2));
+      await tester.tap(find.text('此次出击不再提醒'));
+      await tester.pumpAndSettle();
+      await fixture.advance(tester);
+      expect(find.byType(AlertDialog), findsNothing);
+      fixture.session.startSortie();
+      await fixture.advance(tester);
+      expect(find.byType(AlertDialog), findsOneWidget);
+    },
+  );
+
   testWidgets(
     'default always confirms equipped ships and exposes both refresh actions',
     (tester) async {
@@ -441,9 +602,21 @@ void main() {
     expect(find.text('大破舰已携带损管'), findsNothing);
   });
 
-  testWidgets('native fullscreen cannot silently exempt an equipped ship', (
+  testWidgets('native fullscreen cannot exempt a ship without native support', (
     tester,
   ) async {
+    const channel = MethodChannel('app.yahagi.kancollebrowser/game_fullscreen');
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+      _,
+    ) async {
+      throw MissingPluginException();
+    });
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        null,
+      ),
+    );
     final fixture = await _Fixture.create(
       tester,
       smart: true,
@@ -571,6 +744,8 @@ class _Fixture {
     Future<void> Function()? onReloadGameFrame,
     bool noticeEnabled = true,
     bool nativeFullscreen = false,
+    AdvanceWarningTimingSettings timings =
+        AdvanceWarningTimingSettings.advanceOnly,
     Locale locale = const Locale('zh'),
     double textScale = 1,
   }) async {
@@ -581,6 +756,7 @@ class _Fixture {
     final settings = await SafetySettingsController.load(
       MemorySafetySettingsStore(),
     );
+    await settings.setAdvanceWarningTimings(timings);
     if (smart) {
       await settings.setAdvanceWarningDisplayMode(
         AdvanceWarningDisplayMode.smart,
@@ -631,11 +807,12 @@ class _Fixture {
                 nativeQuestOverlay: nativeFullscreen,
                 child: Column(
                   children: [
-                    const SizedBox(
-                      width: double.infinity,
-                      height: 44,
-                      child: QuestCompletionHeaderSlot(child: Text('顶栏')),
-                    ),
+                    if (!nativeFullscreen)
+                      const SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: QuestCompletionHeaderSlot(child: Text('顶栏')),
+                      ),
                     Expanded(child: overlay),
                   ],
                 ),
@@ -646,10 +823,19 @@ class _Fixture {
     return fixture;
   }
 
-  Future<void> advance(WidgetTester tester) async {
+  Future<void> advance(WidgetTester tester, {bool postBattle = false}) async {
     port.add(
-      kcsapiEvent('/kcsapi/api_req_map/next', const {}, sequence: ++sequence),
+      kcsapiEvent(
+        postBattle
+            ? '/kcsapi/api_req_sortie/battleresult'
+            : '/kcsapi/api_req_map/next',
+        const {},
+        sequence: ++sequence,
+      ),
     );
+    await tester.pump();
+    await tester.pumpAndSettle();
+    await tester.pump();
     await tester.pumpAndSettle();
   }
 }

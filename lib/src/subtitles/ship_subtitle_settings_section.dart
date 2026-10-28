@@ -39,28 +39,6 @@ class ShipSubtitleSettingsSection extends StatelessWidget
                 _runtimeStatus(context, strings, runtime),
             Divider(color: appColor(context, Color(0xff294052)), height: 1),
             _choiceRow(
-              strings.fontSize,
-              DropdownButton<ShipSubtitleFontSize>(
-                key: const Key('settings-ship-subtitle-font-size'),
-                value: controller.fontSize,
-                underline: const SizedBox(),
-                alignment: AlignmentDirectional.centerEnd,
-                items: [
-                  for (final size in ShipSubtitleFontSize.values)
-                    DropdownMenuItem(
-                      value: size,
-                      child: Text(strings.sizeLabel(size)),
-                    ),
-                ],
-                onChanged: controller.saving
-                    ? null
-                    : (value) {
-                        if (value != null) controller.setFontSize(value);
-                      },
-              ),
-            ),
-            Divider(color: appColor(context, Color(0xff294052)), height: 1),
-            _choiceRow(
               strings.language,
               DropdownButton<ShipSubtitleLanguage>(
                 key: const Key('settings-ship-subtitle-language'),
@@ -78,6 +56,28 @@ class ShipSubtitleSettingsSection extends StatelessWidget
                     ? null
                     : (value) {
                         if (value != null) controller.setLanguage(value);
+                      },
+              ),
+            ),
+            Divider(color: appColor(context, Color(0xff294052)), height: 1),
+            _choiceRow(
+              strings.fontSize,
+              DropdownButton<ShipSubtitleFontSize>(
+                key: const Key('settings-ship-subtitle-font-size'),
+                value: controller.fontSize,
+                underline: const SizedBox(),
+                alignment: AlignmentDirectional.centerEnd,
+                items: [
+                  for (final size in ShipSubtitleFontSize.values)
+                    DropdownMenuItem(
+                      value: size,
+                      child: Text(strings.sizeLabel(size)),
+                    ),
+                ],
+                onChanged: controller.saving
+                    ? null
+                    : (value) {
+                        if (value != null) controller.setFontSize(value);
                       },
               ),
             ),

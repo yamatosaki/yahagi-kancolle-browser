@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../account/account_session.dart';
 import 'senka_calculation.dart';
 import 'senka_calendar_view.dart';
 import 'senka_calculator_view.dart';
@@ -34,12 +35,14 @@ class SenkaPage extends StatefulWidget {
     this.now,
     this.mode = SenkaCenterMode.info,
     this.onOpenSortieLog,
+    this.accountSession,
   });
 
   final SenkaController controller;
   final DateTime? now;
   final SenkaCenterMode mode;
   final VoidCallback? onOpenSortieLog;
+  final AccountSession? accountSession;
 
   @override
   State<SenkaPage> createState() => _SenkaPageState();
@@ -164,6 +167,7 @@ class _SenkaPageState extends State<SenkaPage> with WidgetsBindingObserver {
                     SenkaCenterMode.info => SenkaInfoView(
                       state: state,
                       controller: widget.controller,
+                      accountSession: widget.accountSession,
                       now: instant,
                       compact: compact,
                       onOpenSortieLog: widget.onOpenSortieLog,

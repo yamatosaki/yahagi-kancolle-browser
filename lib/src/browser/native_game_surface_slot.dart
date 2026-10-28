@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../layout/camera_avoidance.dart';
+import 'game_surface_input_guard.dart';
 import 'game_workspace_visibility.dart';
 import 'native_game_surface_visibility.dart';
 import 'native_game_webview_contract.dart';
@@ -54,6 +55,7 @@ final class NativeGameSurfaceSlot extends StatefulWidget {
     required this.onBoundsChanged,
     required this.onVisibilityChanged,
     this.onBeforePopupRouteHidden,
+    this.onImmediatePopupRouteHidden,
     this.onPopupRouteRevealStarted,
     this.onAfterPopupRouteRevealed,
     this.routeObserver,
@@ -65,6 +67,7 @@ final class NativeGameSurfaceSlot extends StatefulWidget {
   final Future<void> Function(NativeGameWebViewBounds bounds) onBoundsChanged;
   final Future<void> Function(bool visible) onVisibilityChanged;
   final Future<void> Function()? onBeforePopupRouteHidden;
+  final VoidCallback? onImmediatePopupRouteHidden;
   final VoidCallback? onPopupRouteRevealStarted;
   final VoidCallback? onAfterPopupRouteRevealed;
   final RouteObserver<ModalRoute<dynamic>>? routeObserver;
@@ -219,6 +222,12 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
   @override
   void didPushNext() {
     final observer = widget.routeObserver;
+    // The observer also notifies slots under an already-open popup. Its
+    // immediate-cover notification has already hidden this slot exactly once.
+    if (observer is YahagiGameRouteObserver &&
+        observer.isPushingImmediateCoverRoute) {
+      return;
+    }
     final popupRoute =
         observer is YahagiGameRouteObserver && observer.isPushingPopupRoute;
     _routeCoverGeneration++;
@@ -235,6 +244,16 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
     }
     final generation = _routeCoverGeneration;
     unawaited(_preparePopupRouteAndHide(generation, prepare));
+  }
+
+  void _onImmediateCover() {
+    if (!mounted || _subscribedRoute?.isActive != true) return;
+    _routeCoverGeneration++;
+    _popupRouteCoverActive = true;
+    _ignoreErrors(
+      Future<void>.sync(() => widget.onImmediatePopupRouteHidden?.call()),
+    );
+    _ignoreErrors(_visibility.setRouteVisible(false));
   }
 
   @override
@@ -322,10 +341,17 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
     }
     _subscribedObserver = observer;
     _subscribedRoute = route;
+    if (observer is YahagiGameRouteObserver) {
+      observer.addImmediateCoverListener(_onImmediateCover);
+    }
     _ignoreErrors(_visibility.setRouteVisible(route.isCurrent));
   }
 
   void _unsubscribeFromRoute() {
+    final observer = _subscribedObserver;
+    if (observer is YahagiGameRouteObserver) {
+      observer.removeImmediateCoverListener(_onImmediateCover);
+    }
     _subscribedObserver?.unsubscribe(this);
     _subscribedObserver = null;
     _subscribedRoute = null;
@@ -504,6 +530,7 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
 /// Returns false for non-modal popup overlays like [PopupMenuButton] or dropdown menus.
 bool shouldRouteHideGameSurface(Route<dynamic>? route) {
   if (route == null) return false;
+  if (route is ImmediateGameSurfaceCoverRoute) return true;
   if (route is PageRoute<dynamic>) return true;
   if (route is RawDialogRoute<dynamic>) return true;
   if (route is ModalBottomSheetRoute<dynamic>) return true;
@@ -523,8 +550,34 @@ bool shouldRouteHideGameSurface(Route<dynamic>? route) {
 /// overlays (like popup menus and dropdowns) from accidentally hiding the native game surface.
 class YahagiGameRouteObserver extends RouteObserver<ModalRoute<dynamic>> {
   Route<dynamic>? _routeBeingPushed;
+  Route<dynamic>? _topRoute;
+  final Set<VoidCallback> _immediateCoverListeners = <VoidCallback>{};
 
   bool get isPushingPopupRoute => _routeBeingPushed is PopupRoute<dynamic>;
+  bool get isPushingImmediateCoverRoute =>
+      _routeBeingPushed is ImmediateGameSurfaceCoverRoute;
+
+  void addImmediateCoverListener(VoidCallback listener) =>
+      _immediateCoverListeners.add(listener);
+
+  void removeImmediateCoverListener(VoidCallback listener) =>
+      _immediateCoverListeners.remove(listener);
+
+  @override
+  void didChangeTop(Route<dynamic> topRoute, Route<dynamic>? previousTopRoute) {
+    _topRoute = topRoute;
+    super.didChangeTop(topRoute, previousTopRoute);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didRemove(route, previousRoute);
+    // RouteObserver only reports pops. Removing the top modal must also reveal
+    // the game, while removing a covered route must keep the surface hidden.
+    if (identical(route, _topRoute) && previousRoute?.isCurrent == true) {
+      didPop(route, previousRoute);
+    }
+  }
 
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
@@ -534,6 +587,11 @@ class YahagiGameRouteObserver extends RouteObserver<ModalRoute<dynamic>> {
     }
     _routeBeingPushed = route;
     try {
+      if (isPushingImmediateCoverRoute) {
+        for (final listener in _immediateCoverListeners.toList()) {
+          listener();
+        }
+      }
       super.didPush(route, previousRoute);
     } finally {
       _routeBeingPushed = null;

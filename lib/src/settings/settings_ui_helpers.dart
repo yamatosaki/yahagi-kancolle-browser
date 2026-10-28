@@ -17,18 +17,20 @@ class SettingsControlRow extends StatelessWidget {
     required this.label,
     required this.controlBuilder,
     this.hasControl = true,
+    this.minInlineWidth = 280,
   });
 
   final Widget label;
   final Widget Function(bool stacked) controlBuilder;
   final bool hasControl;
+  final double minInlineWidth;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       if (!hasControl) return label;
       final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
-      final stacked = constraints.maxWidth / textScale < 280;
+      final stacked = constraints.maxWidth / textScale < minInlineWidth;
       if (stacked) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

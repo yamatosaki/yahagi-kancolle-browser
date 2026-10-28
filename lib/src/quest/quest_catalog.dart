@@ -392,9 +392,7 @@ class QuestCatalogItem {
 
   int get gameId => entry.gameId;
   String get progressLabel =>
-      liveQuest?.exactProgressLabel ??
-      liveQuest?.progressPercentLabel ??
-      (inferredCompleted ? '100%' : '—');
+      liveQuest?.displayProgressLabel ?? (inferredCompleted ? '100%' : '—');
 }
 
 class QuestCatalogProjection {

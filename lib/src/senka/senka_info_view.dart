@@ -1,8 +1,13 @@
+import 'dart:math' as math;
+
 import '../theme/app_palette.dart';
+import '../settings/settings_ui_helpers.dart';
 import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../widgets/app_segmented_style.dart';
+import '../account/account_session.dart';
+import 'base_senka_section.dart';
 import 'senka_catalog.dart';
 import 'senka_controller.dart';
 import 'senka_state.dart';
@@ -16,7 +21,9 @@ class SenkaInfoView extends StatefulWidget {
     required this.now,
     required this.compact,
     this.onOpenSortieLog,
+    this.accountSession,
   });
+  final AccountSession? accountSession;
   final SenkaState state;
   final SenkaController controller;
   final DateTime now;
@@ -34,7 +41,15 @@ class _SenkaInfoViewState extends State<SenkaInfoView> {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final english = Localizations.localeOf(context).languageCode == 'en';
-      final horizontal = constraints.maxWidth > constraints.maxHeight * 1.15;
+      final gap = widget.compact ? 4.0 : 10.0;
+      final minimumSortieHeight =
+          (widget.compact ? 34 : 44) +
+          (widget.compact ? 26 : 34) +
+          44 +
+          (widget.compact ? 26 : 34);
+      final horizontal =
+          constraints.maxWidth > constraints.maxHeight * 1.15 &&
+          constraints.maxHeight >= minimumSortieHeight;
       final server = _ServerOverview(
         state: widget.state,
         compact: widget.compact,
@@ -58,32 +73,53 @@ class _SenkaInfoViewState extends State<SenkaInfoView> {
         scrollRows: horizontal,
         onOpenSortieLog: widget.onOpenSortieLog,
       );
-      final gap = widget.compact ? 4.0 : 10.0;
+      final baseSenka = BaseSenkaSection(
+        controller: widget.controller,
+        accountSession: widget.accountSession,
+      );
       if (horizontal) {
+        final minimumOverviewHeight = _horizontalInfoMinimumHeight(
+          context,
+          constraints,
+          widget.compact,
+          widget.controller,
+          gap,
+        );
+        final overview = Column(
+          children: [
+            Expanded(
+              flex: 3,
+              child: SizedBox(
+                key: const Key('senka-info-server'),
+                child: server,
+              ),
+            ),
+            SizedBox(height: gap),
+            Expanded(
+              flex: 7,
+              child: SizedBox(
+                key: const Key('senka-info-ranking'),
+                child: ranking,
+              ),
+            ),
+            SizedBox(height: gap),
+            baseSenka,
+          ],
+        );
         return Row(
           key: const Key('senka-info-horizontal'),
           children: [
             Expanded(
               key: const Key('senka-info-left'),
-              child: Column(
-                children: [
-                  Expanded(
-                    flex: 3,
-                    child: SizedBox(
-                      key: const Key('senka-info-server'),
-                      child: server,
-                    ),
-                  ),
-                  SizedBox(height: gap),
-                  Expanded(
-                    flex: 7,
-                    child: SizedBox(
-                      key: const Key('senka-info-ranking'),
-                      child: ranking,
-                    ),
-                  ),
-                ],
-              ),
+              child: constraints.maxHeight < minimumOverviewHeight
+                  ? SingleChildScrollView(
+                      key: const Key('senka-info-overview-scroll'),
+                      child: SizedBox(
+                        height: minimumOverviewHeight,
+                        child: overview,
+                      ),
+                    )
+                  : overview,
             ),
             SizedBox(width: gap),
             Expanded(key: const Key('senka-info-right'), child: sorties),
@@ -106,6 +142,8 @@ class _SenkaInfoViewState extends State<SenkaInfoView> {
               child: ranking,
             ),
             SizedBox(height: gap),
+            baseSenka,
+            SizedBox(height: gap),
             SizedBox(
               key: const Key('senka-info-sorties'),
               height: english
@@ -123,6 +161,93 @@ class _SenkaInfoViewState extends State<SenkaInfoView> {
       );
     },
   );
+}
+
+// The server and ranking keep their existing 3:7 flex allocation. Include the
+// relocated action tile in the scrollable column's minimum height; text
+// measurement also accounts for narrow columns and the system text scale.
+double _horizontalInfoMinimumHeight(
+  BuildContext context,
+  BoxConstraints constraints,
+  bool compact,
+  SenkaController controller,
+  double gap,
+) {
+  final l10n = AppLocalizations.of(context)!;
+  final scaler = MediaQuery.textScalerOf(context);
+  final columnWidth = (constraints.maxWidth - gap) / 2;
+  final defaultStyle = Theme.of(context).textTheme.bodyMedium!;
+  Size measure(String text, TextStyle style, {double width = double.infinity}) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: defaultStyle.merge(appTextStyle(context, style)),
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: scaler,
+    )..layout(maxWidth: math.max(1, width));
+    final size = painter.size;
+    painter.dispose();
+    return size;
+  }
+
+  double line(double fontSize) => measure(
+    '\u56fdAg',
+    TextStyle(fontSize: fontSize, fontWeight: FontWeight.w700),
+  ).height;
+
+  final serverRowHeight = math.max(
+    line(compact ? 11 : 13),
+    line(compact ? 22 : 30),
+  );
+  final serverMinimum =
+      2 * serverRowHeight + (compact ? 8 : 12) + (compact ? 12 : 20);
+  final rowHeight = line(compact ? 10 : 14);
+  final currentHeight = line(compact ? 9 : 11) + 2;
+  var rankingHeader = compact ? 28.0 : 36.0;
+  if (Localizations.localeOf(context).languageCode == 'en') {
+    final title = measure(
+      l10n.senkaRanking,
+      TextStyle(fontSize: compact ? 12 : 15, fontWeight: FontWeight.w800),
+    );
+    final updated = measure(
+      l10n.senkaUpdated(
+        senkaJstTimestamp(controller.state.latestRankingUpdatedAt),
+      ),
+      TextStyle(fontSize: compact ? 9 : 11, fontWeight: FontWeight.w600),
+    );
+    rankingHeader = math.max(
+      rankingHeader,
+      (title.width + updated.width + 12 <= columnWidth - (compact ? 14 : 22)
+              ? math.max(title.height, updated.height)
+              : title.height + updated.height + 4) +
+          8,
+    );
+  }
+  final rankingMinimum =
+      rankingHeader + (compact ? 8 : 16) + currentHeight + 6 * rowHeight;
+
+  final contentWidth = columnWidth - 32;
+  final stacked = contentWidth / (scaler.scale(14) / 14) < 280;
+  final labelWidth = stacked ? contentWidth : contentWidth - 12 - 96;
+  final labelHeight =
+      measure(
+        l10n.baseSenkaManualInputLabel,
+        SettingsTileTypography.title,
+        width: labelWidth,
+      ).height +
+      3 +
+      measure(
+        l10n.baseSenkaCurrentValue(
+          controller.monthBaseSenka.toStringAsFixed(2),
+        ),
+        SettingsTileTypography.description,
+        width: labelWidth,
+      ).height;
+  final actionMinimum =
+      24 + (stacked ? labelHeight + 8 + 48 : math.max(labelHeight, 48));
+  final panelsMinimum = math.max(serverMinimum / .3, rankingMinimum / .7);
+  return panelsMinimum + actionMinimum + 2 * gap;
 }
 
 double _sortiePanelHeight(

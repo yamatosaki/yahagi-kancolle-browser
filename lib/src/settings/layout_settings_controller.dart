@@ -10,6 +10,8 @@ import 'module_display_settings.dart';
 import 'layout_settings_store.dart';
 import 'hd_layout_settings.dart';
 import 'camera_avoidance_settings.dart';
+import 'ui_font_size.dart';
+import 'dashboard_display_mode.dart';
 
 class LayoutSettingsController extends ChangeNotifier {
   LayoutSettingsController._(
@@ -82,6 +84,17 @@ class LayoutSettingsController extends ChangeNotifier {
     controller._customFontController = customFontController;
     controller._lastCustomFontFamily = customFontController?.fontFamily;
     customFontController?.addListener(controller._handleCustomFontChanged);
+    if (store is DashboardDisplayModeSettingsStore) {
+      try {
+        controller._dashboardDisplayMode =
+            await (store as DashboardDisplayModeSettingsStore)
+                .loadDashboardDisplayMode();
+      } catch (error) {
+        debugPrint('Briefing display preference could not be loaded: $error');
+      }
+    }
+    controller._persistedDashboardDisplayMode =
+        controller._dashboardDisplayMode;
     if (store is WorkspaceMenuPositionStore) {
       final position = await (store as WorkspaceMenuPositionStore)
           .loadWorkspaceMenuPosition();
@@ -115,6 +128,7 @@ class LayoutSettingsController extends ChangeNotifier {
         headerEquipmentCapacityId,
       );
       final migratesFurnitureCoin = !savedOrder.contains(headerFurnitureCoinId);
+      final migratesGameRefresh = !savedOrder.contains(headerGameRefreshId);
       controller._headerResourceOrder = normalizeHeaderResourceOrder(
         savedOrder,
       );
@@ -173,6 +187,7 @@ class LayoutSettingsController extends ChangeNotifier {
           migratesNosakiTimer ||
           migratesShipCapacity ||
           migratesEquipmentCapacity ||
+          migratesGameRefresh ||
           migratesFurnitureCoin) {
         await headerStore.saveHeaderResourceOrder(
           controller._headerResourceOrder!,
@@ -253,6 +268,15 @@ class LayoutSettingsController extends ChangeNotifier {
           await (store as WorkspaceMenuSizeSettingsStore)
               .loadWorkspaceMenuSize();
     }
+    if (store is UiFontSizeSettingsStore) {
+      try {
+        controller._uiFontSize = await (store as UiFontSizeSettingsStore)
+            .loadUiFontSize();
+      } catch (error) {
+        debugPrint('UI font size preference could not be loaded: $error');
+      }
+    }
+    controller._persistedUiFontSize = controller._uiFontSize;
     if (store is MinimalResourcePositionSettingsStore) {
       controller._minimalResourcePosition =
           await (store as MinimalResourcePositionSettingsStore)
@@ -297,6 +321,41 @@ class LayoutSettingsController extends ChangeNotifier {
 
   bool _uiLocked = false;
   bool get uiLocked => _uiLocked;
+
+  DashboardDisplayMode _dashboardDisplayMode = DashboardDisplayMode.accordion;
+  DashboardDisplayMode _persistedDashboardDisplayMode =
+      DashboardDisplayMode.accordion;
+  Future<void> _dashboardDisplayModeSaveQueue = Future<void>.value();
+  int _dashboardDisplayModeRevision = 0;
+  bool _dashboardDisplayModeDisposed = false;
+  DashboardDisplayMode get dashboardDisplayMode => _dashboardDisplayMode;
+
+  Future<void> setDashboardDisplayMode(DashboardDisplayMode mode) async {
+    if (_dashboardDisplayModeDisposed) return;
+    if (_dashboardDisplayMode == mode) return _dashboardDisplayModeSaveQueue;
+    final revision = ++_dashboardDisplayModeRevision;
+    _dashboardDisplayMode = mode;
+    if (_store is DashboardDisplayModeSettingsStore) {
+      final save = _dashboardDisplayModeSaveQueue.then((_) async {
+        try {
+          await (_store as DashboardDisplayModeSettingsStore)
+              .saveDashboardDisplayMode(mode);
+          _persistedDashboardDisplayMode = mode;
+        } catch (error) {
+          if (revision == _dashboardDisplayModeRevision) {
+            _dashboardDisplayMode = _persistedDashboardDisplayMode;
+            if (!_dashboardDisplayModeDisposed) notifyListeners();
+          }
+          debugPrint('Briefing display preference could not be saved: $error');
+        }
+      });
+      _dashboardDisplayModeSaveQueue = save;
+      notifyListeners();
+      await save;
+    } else {
+      notifyListeners();
+    }
+  }
 
   CameraAvoidanceSettings _cameraAvoidanceSettings =
       const CameraAvoidanceSettings();
@@ -413,6 +472,40 @@ class LayoutSettingsController extends ChangeNotifier {
 
   UiDisplaySize _uiDisplaySize = UiDisplaySize.normal;
   UiDisplaySize get uiDisplaySize => _uiDisplaySize;
+
+  UiFontSize _uiFontSize = UiFontSize.system;
+  UiFontSize _persistedUiFontSize = UiFontSize.system;
+  Future<void> _uiFontSizeSaveQueue = Future<void>.value();
+  int _uiFontSizeRevision = 0;
+  bool _uiFontSizeDisposed = false;
+  UiFontSize get uiFontSize => _uiFontSize;
+
+  Future<void> setUiFontSize(UiFontSize size) async {
+    if (_uiFontSizeDisposed) return;
+    if (_uiFontSize == size) return _uiFontSizeSaveQueue;
+    final revision = ++_uiFontSizeRevision;
+    _uiFontSize = size;
+    if (_store is UiFontSizeSettingsStore) {
+      // Preview immediately while committing rapid selections in order.
+      final save = _uiFontSizeSaveQueue.then((_) async {
+        try {
+          await (_store as UiFontSizeSettingsStore).saveUiFontSize(size);
+          _persistedUiFontSize = size;
+        } catch (error) {
+          if (revision == _uiFontSizeRevision) {
+            _uiFontSize = _persistedUiFontSize;
+            if (!_uiFontSizeDisposed) notifyListeners();
+          }
+          debugPrint('UI font size preference could not be saved: $error');
+        }
+      });
+      _uiFontSizeSaveQueue = save;
+      notifyListeners();
+      await save;
+    } else {
+      notifyListeners();
+    }
+  }
 
   Future<void> setUiDisplaySize(UiDisplaySize size) async {
     if (_uiDisplaySize == size) return;
@@ -1024,6 +1117,8 @@ class LayoutSettingsController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _dashboardDisplayModeDisposed = true;
+    _uiFontSizeDisposed = true;
     _cameraAvoidanceDisposed = true;
     _appThemeDisposed = true;
     customFontController?.removeListener(_handleCustomFontChanged);

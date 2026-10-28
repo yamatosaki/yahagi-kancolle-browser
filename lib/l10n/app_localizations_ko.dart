@@ -9,6 +9,39 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get debuffReminderTitle => '장갑 파쇄 알림';
+
+  @override
+  String get debuffReminderSourcePort => '모항';
+
+  @override
+  String get debuffReminderSourceBattleResult => '전투 결과';
+
+  @override
+  String get debuffReminderSourceAirDefense => '기지 방공';
+
+  @override
+  String debuffReminderMessage(String source) {
+    return '$source: 기믹 또는 약화 알림이 감지되었습니다.';
+  }
+
+  @override
+  String get debuffReminderSectionTitle => '게임 내 알림';
+
+  @override
+  String get debuffReminderSettingTitle => '장갑 파쇄 알림';
+
+  @override
+  String get debuffReminderSettingSubtitle =>
+      '두 방식 모두 진동하며, 기믹 해제 또는 약화 신호 감지 시 알립니다.';
+
+  @override
+  String get debuffReminderStyleDialog => '확인 대화상자(기본)';
+
+  @override
+  String get debuffReminderStyleTopNotice => '상단 알림';
+
+  @override
   String get cameraAvoidanceTitle => '카메라 회피';
 
   @override
@@ -351,6 +384,24 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get themeClearSkyBlue => '스카이 블루';
+
+  @override
+  String get uiFontSizeTitle => '화면 글자 크기';
+
+  @override
+  String get uiFontSizeDescription => '기본값은 시스템 설정을 따릅니다.';
+
+  @override
+  String get uiFontSizeSystem => '기본값 (시스템 설정 따름)';
+
+  @override
+  String get uiFontSizeSmall => '작게';
+
+  @override
+  String get uiFontSizeMedium => '보통';
+
+  @override
+  String get uiFontSizeLarge => '크게';
 
   @override
   String get uiDisplaySizeTitle => 'UI 크기';
@@ -1818,7 +1869,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get nativeGameSurfaceSwitchRenderingModeHint =>
-      '현재 기기는 이 모드와 호환되지 않습니다. 왼쪽 메뉴를 스크롤하여 [설정 - 화면 및 소리]에서 렌더링 모드를 전환해 주세요.';
+      '현재 기기는 이 모드와 호환되지 않습니다. 왼쪽 메뉴를 스크롤하여 [설정 - 게임 실행]에서 렌더링 모드를 전환해 주세요.';
 
   @override
   String nativeGameSurfacePageInitializationFailed(
@@ -1877,25 +1928,25 @@ class AppLocalizationsKo extends AppLocalizations {
   String get sortUnlockAction => '현재 정렬 고정 해제';
 
   @override
-  String get settingsTabScreen => '화면 및 소리';
+  String get settingsTabScreen => '외관 및 배치';
 
   @override
   String get settingsTabSound => '소리';
 
   @override
-  String get settingsTabBattle => '전투';
+  String get settingsTabBattle => '출격 및 전투';
 
   @override
-  String get settingsTabNotification => '알림';
+  String get settingsTabNotification => '알림 및 리마인더';
 
   @override
-  String get settingsTabNetwork => '네트워크';
+  String get settingsTabNetwork => '네트워크 및 연결';
 
   @override
-  String get settingsTabData => '데이터';
+  String get settingsTabData => '데이터 관리';
 
   @override
-  String get settingsTabAboutSupport => '앱 정보';
+  String get settingsTabAboutSupport => '정보 및 지원';
 
   @override
   String get notificationSectionSystem => '시스템 알림 상태';
@@ -3778,7 +3829,7 @@ class AppLocalizationsKo extends AppLocalizations {
       '원하는 글꼴을 가져온 뒤 미리 보고 적용하세요. TTF, OTF를 지원하며 최대 32 MB입니다.';
 
   @override
-  String get customFontDefault => '기본 글꼴 (화면 언어에 따름)';
+  String get customFontDefault => '기본 글꼴 (시스템 글자 크기)';
 
   @override
   String get customFontImport => '글꼴 가져오기';
@@ -3933,4 +3984,142 @@ class AppLocalizationsKo extends AppLocalizations {
   String questQueryActive(int count) {
     return '검색 조건 $count개 적용 중';
   }
+
+  @override
+  String get settingsTabRuntime => '게임 실행';
+
+  @override
+  String get settingsGroupAppearance => '기본 외관';
+
+  @override
+  String get settingsGroupScreenAdaptation => '화면 맞춤';
+
+  @override
+  String get settingsGroupLayoutPosition => '배치 및 위치';
+
+  @override
+  String get settingsGroupContentCustomization => '표시 내용 설정';
+
+  @override
+  String get settingsGroupLayoutManagement => '배치 관리';
+
+  @override
+  String get settingsOtherModuleDisplay => '기타 모듈 표시';
+
+  @override
+  String get settingsEditInformationLayout => '정보 패널 배치 편집';
+
+  @override
+  String get settingsEditHdLayout => 'HD 배치 편집';
+
+  @override
+  String get settingsResetMenuOrder => '메뉴 순서 초기화';
+
+  @override
+  String get settingsResetCardOrder => '기능 카드 순서 초기화';
+
+  @override
+  String get settingsGroupPerformanceRendering => '성능 및 화면';
+
+  @override
+  String get settingsGroupSubtitles => '자막';
+
+  @override
+  String get settingsGroupScreenBackground => '화면 및 백그라운드 실행';
+
+  @override
+  String get settingsGroupInformationCapture => '게임 정보 읽기';
+
+  @override
+  String get settingsFrameRefreshConfirm => '프레임 새로고침 전 확인';
+
+  @override
+  String get settingsFrameRefreshConfirmDescription =>
+      '상단에서 게임 프레임을 새로고침하기 전에 확인합니다.';
+
+  @override
+  String get settingsFrameRefreshConfirmSaveFailed =>
+      '프레임 새로고침 확인 설정을 저장하지 못했습니다. 다시 시도하세요.';
+
+  @override
+  String get settingsGroupDebuff => '기믹 및 장갑 파쇄';
+
+  @override
+  String get settingsGroupShipStatusFeedback => '함선 상태 효과';
+
+  @override
+  String get settingsGroupSystemNotifications => '시스템 알림';
+
+  @override
+  String get settingsEnableSystemNotifications => '시스템 알림 사용';
+
+  @override
+  String get settingsSystemNotificationSound => '시스템 알림 소리';
+
+  @override
+  String get settingsSystemNotificationVibration => '시스템 알림 진동';
+
+  @override
+  String get settingsGroupDataUpdates => '자료 업데이트';
+
+  @override
+  String get settingsGroupDataSharingPrivacy => '데이터 공유 및 개인정보';
+
+  @override
+  String get settingsGroupClearLocalData => '로컬 데이터 정리';
+
+  @override
+  String get settingsGroupAccount => '계정 작업';
+
+  @override
+  String get settingsGroupDiagnosticsSupport => '진단 및 지원';
+
+  @override
+  String get settingsStatusEnabled => '켜짐';
+
+  @override
+  String get settingsStatusDisabled => '꺼짐';
+
+  @override
+  String get settingsFleetDisplayStandard => '일반 함대 카드';
+
+  @override
+  String get settingsFleetDisplayHd => 'HD 2열 함대 카드';
+
+  @override
+  String get briefingDisplayTitle => '브리핑 표시 방식';
+
+  @override
+  String get briefingDisplayDescription =>
+      '접기 방식은 여러 모듈을 동시에 펼치고, 탭 방식은 상단 탭으로 모듈을 전환합니다. HD 모드에서는 적용되지 않습니다.';
+
+  @override
+  String get briefingDisplayAccordion => '접기 방식';
+
+  @override
+  String get briefingDisplayTabs => '탭 방식';
+
+  @override
+  String get briefingTabForecast => '예측';
+
+  @override
+  String get briefingTabFleet => '편성';
+
+  @override
+  String get briefingTabLandBase => '기지';
+
+  @override
+  String get briefingTabExpedition => '원정';
+
+  @override
+  String get briefingTabRepair => '입거';
+
+  @override
+  String get briefingTabConstruction => '건조';
+
+  @override
+  String get briefingTabQuests => '임무';
+
+  @override
+  String get briefingTabPreSortie => '점검';
 }

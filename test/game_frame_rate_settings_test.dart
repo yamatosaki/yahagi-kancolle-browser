@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yahagi_kancolle_browser/src/settings/game_frame_rate_settings.dart';
@@ -119,6 +120,278 @@ void main() {
   });
 
   test(
+    'strict startup uses native configure without the version support probe',
+    () async {
+      final store = MemoryGameFrameRateSettingsStore(
+        GameFrameRateMode.highRefresh,
+      );
+      final controller = await GameFrameRateSettingsController.load(store);
+      addTearDown(controller.dispose);
+      final port = _StartupFrameRatePort();
+
+      expect(await controller.attachPortForStartup(port), isTrue);
+
+      expect(port.supportCalls, 0);
+      expect(port.modes, <GameFrameRateMode>[GameFrameRateMode.highRefresh]);
+      expect(controller.supported, isTrue);
+      expect(controller.mode, GameFrameRateMode.highRefresh);
+      expect(await store.loadMode(), GameFrameRateMode.highRefresh);
+    },
+  );
+
+  test(
+    'strict startup waits for the native configuration acknowledgement',
+    () async {
+      final controller = await GameFrameRateSettingsController.load(
+        MemoryGameFrameRateSettingsStore(),
+      );
+      addTearDown(controller.dispose);
+      final reply = Completer<void>();
+      final port = _StartupFrameRatePort(reply: reply);
+      var completed = false;
+      final operation = controller.attachPortForStartup(port).then((value) {
+        completed = true;
+        return value;
+      });
+      await Future<void>.delayed(Duration.zero);
+      expect(completed, isFalse);
+      expect(controller.supported, isNot(isTrue));
+      reply.complete();
+      expect(await operation, isTrue);
+      expect(controller.supported, isTrue);
+    },
+  );
+
+  for (final code in <String>[
+    'webview_not_found',
+    'multiple_webviews',
+    'frame_rate_configuration_failed',
+  ]) {
+    test('strict startup propagates $code and preserves user mode', () async {
+      final store = MemoryGameFrameRateSettingsStore(
+        GameFrameRateMode.stable30,
+      );
+      final controller = await GameFrameRateSettingsController.load(store);
+      addTearDown(controller.dispose);
+      final error = PlatformException(code: code);
+
+      await expectLater(
+        controller.attachPortForStartup(_StartupFrameRatePort(error: error)),
+        throwsA(same(error)),
+      );
+
+      expect(controller.supported, isFalse);
+      expect(controller.mode, GameFrameRateMode.stable30);
+      expect(await store.loadMode(), GameFrameRateMode.stable30);
+    });
+  }
+
+  test(
+    'strict startup permits an explicitly unsupported native bridge',
+    () async {
+      final controller = await GameFrameRateSettingsController.load(
+        MemoryGameFrameRateSettingsStore(),
+      );
+      addTearDown(controller.dispose);
+
+      expect(
+        await controller.attachPortForStartup(
+          _StartupFrameRatePort(
+            error: PlatformException(code: 'frame_rate_unsupported'),
+          ),
+        ),
+        isFalse,
+      );
+      expect(controller.supported, isFalse);
+    },
+  );
+
+  for (final error in <Object>[
+    MissingPluginException('bridge absent'),
+    StateError('installation failed'),
+  ]) {
+    test(
+      'strict startup does not turn ${error.runtimeType} into unsupported',
+      () async {
+        final controller = await GameFrameRateSettingsController.load(
+          MemoryGameFrameRateSettingsStore(),
+        );
+        addTearDown(controller.dispose);
+
+        await expectLater(
+          controller.attachPortForStartup(_StartupFrameRatePort(error: error)),
+          throwsA(same(error)),
+        );
+        expect(controller.supported, isFalse);
+      },
+    );
+  }
+
+  test(
+    'strict startup reads the current mode when its queued operation runs',
+    () async {
+      final store = _DelayedFrameRateSettingsStore();
+      final controller = await GameFrameRateSettingsController.load(store);
+      addTearDown(controller.dispose);
+      final port = _StartupFrameRatePort();
+
+      final change = controller.setMode(GameFrameRateMode.stable30);
+      final attach = controller.attachPortForStartup(port);
+      await Future<void>.delayed(Duration.zero);
+      expect(port.modes, isEmpty);
+      store.completeNext();
+      await change;
+
+      expect(await attach, isTrue);
+      expect(port.modes, <GameFrameRateMode>[GameFrameRateMode.stable30]);
+    },
+  );
+
+  test(
+    'strict startup failure leaves its queue available for a replacement',
+    () async {
+      final controller = await GameFrameRateSettingsController.load(
+        MemoryGameFrameRateSettingsStore(),
+      );
+      addTearDown(controller.dispose);
+      final broken = _StartupFrameRatePort(
+        error: StateError('old surface retired'),
+      );
+      final replacement = _StartupFrameRatePort();
+
+      final failed = expectLater(
+        controller.attachPortForStartup(broken),
+        throwsStateError,
+      );
+      final attached = controller.attachPortForStartup(replacement);
+      await failed;
+      expect(await attached, isTrue);
+      await controller.setMode(GameFrameRateMode.stable60);
+
+      expect(broken.modes, <GameFrameRateMode>[GameFrameRateMode.automatic]);
+      expect(replacement.modes, <GameFrameRateMode>[
+        GameFrameRateMode.automatic,
+        GameFrameRateMode.stable60,
+      ]);
+      expect(controller.supported, isTrue);
+    },
+  );
+
+  test(
+    'cancellation releases a hung strict startup and ignores its late success',
+    () async {
+      final controller = await GameFrameRateSettingsController.load(
+        MemoryGameFrameRateSettingsStore(GameFrameRateMode.stable30),
+      );
+      addTearDown(controller.dispose);
+      final staleReply = Completer<void>();
+      final cancelled = Completer<void>();
+      final oldPort = _StartupFrameRatePort(reply: staleReply);
+      final pending = controller.attachPortForStartup(
+        oldPort,
+        cancelled: cancelled.future,
+      );
+      final rejected = expectLater(
+        pending,
+        throwsA(isA<GameFrameRateConfigurationCancelledException>()),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(oldPort.modes, <GameFrameRateMode>[GameFrameRateMode.stable30]);
+
+      cancelled.complete();
+      await rejected;
+      final newPort = _StartupFrameRatePort();
+      expect(await controller.attachPortForStartup(newPort), isTrue);
+      expect(controller.supported, isTrue);
+
+      staleReply.complete();
+      await Future<void>.delayed(Duration.zero);
+      expect(controller.supported, isTrue);
+      expect(newPort.modes, <GameFrameRateMode>[GameFrameRateMode.stable30]);
+    },
+  );
+
+  test(
+    'a cancelled queued strict startup never configures its old port',
+    () async {
+      final controller = await GameFrameRateSettingsController.load(
+        MemoryGameFrameRateSettingsStore(),
+      );
+      addTearDown(controller.dispose);
+      final firstReply = Completer<void>();
+      final first = controller.attachPortForStartup(
+        _StartupFrameRatePort(reply: firstReply),
+      );
+      final cancelled = Completer<void>();
+      final oldPort = _StartupFrameRatePort();
+      final pending = controller.attachPortForStartup(
+        oldPort,
+        cancelled: cancelled.future,
+      );
+      final rejected = expectLater(
+        pending,
+        throwsA(isA<GameFrameRateConfigurationCancelledException>()),
+      );
+      cancelled.complete();
+      firstReply.complete();
+      await first;
+      await rejected;
+
+      expect(oldPort.modes, isEmpty);
+      expect(controller.supported, isTrue);
+    },
+  );
+
+  test(
+    'inactive queued strict startup never configures its old port',
+    () async {
+      final controller = await GameFrameRateSettingsController.load(
+        MemoryGameFrameRateSettingsStore(),
+      );
+      addTearDown(controller.dispose);
+      final port = _StartupFrameRatePort();
+
+      await expectLater(
+        controller.attachPortForStartup(port, isActive: () => false),
+        throwsA(isA<GameFrameRateConfigurationCancelledException>()),
+      );
+
+      expect(port.modes, isEmpty);
+    },
+  );
+
+  test(
+    'strict startup rejects a late acknowledgement after controller disposal',
+    () async {
+      final controller = await GameFrameRateSettingsController.load(
+        MemoryGameFrameRateSettingsStore(),
+      );
+      final reply = Completer<void>();
+      final port = _StartupFrameRatePort(reply: reply);
+      final pending = controller.attachPortForStartup(port);
+      final rejected = expectLater(pending, throwsStateError);
+      await Future<void>.delayed(Duration.zero);
+
+      controller.dispose();
+      reply.complete();
+      await rejected;
+      expect(controller.supported, isFalse);
+    },
+  );
+
+  test('strict startup never configures a disposed controller', () async {
+    final controller = await GameFrameRateSettingsController.load(
+      MemoryGameFrameRateSettingsStore(),
+    );
+    controller.dispose();
+    final port = _StartupFrameRatePort();
+
+    await expectLater(controller.attachPortForStartup(port), throwsStateError);
+
+    expect(port.modes, isEmpty);
+  });
+
+  test(
     'attach and live mode changes run on the same serialized queue',
     () async {
       final controller = await GameFrameRateSettingsController.load(
@@ -174,6 +447,28 @@ void main() {
       expect(await store.loadMode(), GameFrameRateMode.automatic);
     },
   );
+}
+
+final class _StartupFrameRatePort implements GameFrameRatePort {
+  _StartupFrameRatePort({this.error, this.reply});
+
+  final Object? error;
+  final Completer<void>? reply;
+  var supportCalls = 0;
+  final modes = <GameFrameRateMode>[];
+
+  @override
+  Future<bool> isSupported() async {
+    supportCalls += 1;
+    return false;
+  }
+
+  @override
+  Future<void> configure(GameFrameRateMode mode) async {
+    modes.add(mode);
+    await reply?.future;
+    if (error case final error?) throw error;
+  }
 }
 
 final class _RecordingFrameRatePort implements GameFrameRatePort {

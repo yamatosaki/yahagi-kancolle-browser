@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
+import 'package:yahagi_kancolle_browser/src/senka/senka_page.dart';
+import 'package:yahagi_kancolle_browser/src/senka/senka_info_view.dart';
 import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
-import 'package:yahagi_kancolle_browser/src/browser/game_browser_controller.dart';
-import 'package:yahagi_kancolle_browser/src/capture/capture_mode.dart';
-import 'package:yahagi_kancolle_browser/src/capture/capture_mode_controller.dart';
-import 'package:yahagi_kancolle_browser/src/capture/capture_mode_store.dart';
-import 'package:yahagi_kancolle_browser/src/capture/game_capture_controller.dart';
-import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
-import 'package:yahagi_kancolle_browser/src/prototype_status_controller.dart';
 import 'package:yahagi_kancolle_browser/src/senka/senka_controller.dart';
 import 'package:yahagi_kancolle_browser/src/senka/senka_state.dart';
 import 'package:yahagi_kancolle_browser/src/senka/senka_store.dart';
-import 'package:yahagi_kancolle_browser/src/settings/data_settings_page.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 
 void main() {
@@ -103,7 +98,115 @@ void main() {
     expect(tester.getRect(save).bottom, lessThanOrEqualTo(160));
   });
 
-  testWidgets('数据设置可归零并手动填写本月累计素战果', (tester) async {
+  for (final size in const [Size(844, 350), Size(844, 320), Size(320, 640)]) {
+    testWidgets(
+      'senka base actions stay reachable without overflow at ${size.width.toInt()}x${size.height.toInt()}',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = size;
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        final senka = SenkaController(
+          store: _MemorySenkaStore(),
+          now: () => DateTime.utc(2026, 8, 20, 3),
+        );
+        await senka.initialize();
+        addTearDown(senka.dispose);
+        final dependencies = await _Dependencies.create();
+        await dependencies.pump(tester, senkaController: senka);
+        expect(tester.takeException(), isNull);
+        expect(
+          find.byKey(
+            Key(
+              size.width > size.height
+                  ? 'senka-info-horizontal'
+                  : 'senka-info-vertical',
+            ),
+          ),
+          findsOneWidget,
+        );
+        if (size.width > size.height) {
+          final scroll = find.descendant(
+            of: find.byKey(const Key('senka-info-overview-scroll')),
+            matching: find.byType(Scrollable),
+          );
+          expect(scroll, findsOneWidget);
+          expect(
+            tester.state<ScrollableState>(scroll).position.maxScrollExtent,
+            greaterThan(0),
+          );
+        }
+        final set = find.byKey(const Key('settings-set-base-senka'));
+        await tester.ensureVisible(set);
+        await tester.tap(set);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        await tester.enterText(
+          find.byKey(const Key('settings-base-senka-input')),
+          '123.45',
+        );
+        await tester.tap(find.byKey(const Key('settings-base-senka-save')));
+        await tester.pumpAndSettle();
+        expect(senka.monthBaseSenka, 123.45);
+        expect(
+          find.byKey(const Key('settings-base-senka-dialog')),
+          findsNothing,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'senka info at 800x300 scrolls its overview instead of compressing panels',
+    (tester) async {
+      final senka = SenkaController(
+        store: _MemorySenkaStore(),
+        now: () => DateTime.utc(2026, 8, 20, 3),
+      );
+      await senka.initialize();
+      addTearDown(senka.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 800,
+                height: 300,
+                child: SenkaInfoView(
+                  state: senka.state,
+                  controller: senka,
+                  now: DateTime.utc(2026, 8, 20, 3),
+                  compact: true,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.byKey(const Key('senka-info-horizontal')), findsOneWidget);
+      final scroll = find.descendant(
+        of: find.byKey(const Key('senka-info-overview-scroll')),
+        matching: find.byType(Scrollable),
+      );
+      expect(scroll, findsOneWidget);
+      expect(
+        tester.state<ScrollableState>(scroll).position.maxScrollExtent,
+        greaterThan(0),
+      );
+      expect(tester.takeException(), isNull);
+      final reset = find.byKey(const Key('settings-reset-base-senka'));
+      await tester.ensureVisible(reset);
+      expect(reset.hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('战果信息可归零并手动填写本月累计素战果', (tester) async {
     final dependencies = await _Dependencies.create();
     addTearDown(dependencies.dispose);
     final store = _MemorySenkaStore(
@@ -230,61 +333,27 @@ final class _MemorySenkaStore implements SenkaStore {
 }
 
 final class _Dependencies {
-  _Dependencies({
-    required this.capture,
-    required this.browser,
-    required this.gameCapture,
-    required this.prototype,
-    required this.gameState,
-  });
-
-  final CaptureModeController capture;
-  final GameBrowserController browser;
-  final GameCaptureController gameCapture;
-  final PrototypeStatusController prototype;
-  final GameStateController gameState;
-
-  static Future<_Dependencies> create() async => _Dependencies(
-    capture: await CaptureModeController.load(_MemoryCaptureModeStore()),
-    browser: GameBrowserController(),
-    gameCapture: GameCaptureController(),
-    prototype: PrototypeStatusController(),
-    gameState: GameStateController(),
-  );
+  static Future<_Dependencies> create() async => _Dependencies();
 
   Future<void> pump(
     WidgetTester tester, {
     required SenkaController senkaController,
   }) => tester.pumpWidget(
     MaterialApp(
+      locale: const Locale('zh'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: TopNoticeHost(
         child: Scaffold(
-          body: DataSettingsPage(
-            captureModeController: capture,
-            browserController: browser,
-            gameCaptureController: gameCapture,
-            prototypeStatusController: prototype,
-            gameStateController: gameState,
-            senkaController: senkaController,
+          body: SenkaPage(
+            controller: senkaController,
+            now: DateTime.utc(2026, 8, 20, 3),
+            accountSession: AccountSession.shared,
           ),
         ),
       ),
     ),
   );
 
-  void dispose() {
-    capture.dispose();
-    browser.dispose();
-    gameCapture.dispose();
-    prototype.dispose();
-    gameState.dispose();
-  }
-}
-
-final class _MemoryCaptureModeStore implements CaptureModeStore {
-  @override
-  Future<CaptureMode?> read() async => CaptureMode.game;
-
-  @override
-  Future<void> write(CaptureMode mode) async {}
+  void dispose() {}
 }

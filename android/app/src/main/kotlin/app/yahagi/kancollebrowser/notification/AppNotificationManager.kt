@@ -30,6 +30,7 @@ object AppNotificationManager {
     private const val CHANNEL_SCHEMA_VERSION = 1
     private val channelRegistrar = NotificationChannelRegistrar()
     private val channelTypes = setOf("expedition", "repair", "anchorage", "construction", "morale", "newShip")
+    private val deliveryBlockedPackages = mutableSetOf<String>()
 
     fun initChannels(
         context: Context,
@@ -88,13 +89,26 @@ object AppNotificationManager {
             "Enabled notification snapshot requires an account session"
         }
         val previous = loadSnapshot(context)
-        val next = NotificationSnapshotReconciliation.beforeApply(
+        val reconciled = NotificationSnapshotReconciliation.beforeApply(
             previous = previous,
             desired = desired,
             nowEpochMs = System.currentTimeMillis(),
         )
-        val diff = NotificationSnapshotDiff.between(previous, next)
+        val obsolete = NotificationDelivery.obsoleteDeliveredAlerts(previous, reconciled)
+        val next = reconciled.copy(
+            deliveredAlerts = reconciled.deliveredAlerts - obsolete.toSet(),
+            scheduledWithExactAlarms = canScheduleExactAlarms(context),
+        )
+        val diff = NotificationSnapshotDiff.between(previous, next).let {
+            if (!alarmDeliveryAllowed(context) || previous.scheduledWithExactAlarms != next.scheduledWithExactAlarms) {
+                it.copy(upsert = next.alarms)
+            } else it
+        }
+        // Commit the new validation state before touching system registrations. A
+        // captured old Intent must never become eligible while applying a change.
+        saveSnapshot(context, next)
         if (!previous.hasSameAccountSession(next)) clearPreviousAccountAlerts(context, previous)
+        cancelDeliveredAlerts(context, obsolete)
         val failures = mutableListOf<String>()
         val failedScheduleKeys = mutableSetOf<String>()
         val failedImmediateKeys = mutableSetOf<String>()
@@ -113,19 +127,34 @@ object AppNotificationManager {
                 failedScheduleKeys += alarm.key
             }
         }
+        val deliveredImmediate = mutableListOf<DeliveredNotificationAlert>()
         if (next.presentation.enabled) {
             next.immediateAlerts.forEach { alert ->
                 runCatching { showImmediateAlert(context, alert, next.presentation) }
+                    .onSuccess {
+                        deliveredImmediate += DeliveredNotificationAlert(alert.taskId, alert.deadlineEpochMs,
+                            "complete", NotificationDelivery.notificationIdForImmediate(alert))
+                        next.alarms.filter { it.taskId == alert.taskId &&
+                            NotificationDelivery.roundDeadline(next, it) == alert.deadlineEpochMs
+                        }.forEach { cancelAlarm(context, it.key) }
+                    }
                     .onFailure {
                         failures += "${alert.key}:notify"
                         failedImmediateKeys += alert.key
                     }
             }
         }
-        val persisted = NotificationSnapshotRecovery.afterDeliveryResults(
+        val recovered = NotificationSnapshotRecovery.afterDeliveryResults(
             desired = next,
             failedScheduleKeys = failedScheduleKeys,
             failedImmediateKeys = failedImmediateKeys,
+        )
+        val deliveredIds = deliveredImmediate.map { it.notificationId }.toSet()
+        val persisted = recovered.copy(
+            alarms = recovered.alarms.filterNot { alarm -> deliveredImmediate.any {
+                it.taskId == alarm.taskId && it.deadlineEpochMs == NotificationDelivery.roundDeadline(recovered, alarm)
+            } },
+            deliveredAlerts = recovered.deliveredAlerts.filterNot { it.notificationId in deliveredIds } + deliveredImmediate,
         )
         saveSnapshot(context, persisted)
         runCatching { updateOngoingProgress(context, persisted) }
@@ -148,14 +177,32 @@ object AppNotificationManager {
     }
 
     private fun saveSnapshot(context: Context, snapshot: NativeNotificationSnapshot) {
-        context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(SNAPSHOT_KEY, NotificationSnapshotCodec.toJson(snapshot))
-            .commit()
+        val previous = loadSnapshot(context)
+        val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+        val json = NotificationSnapshotCodec.toJson(snapshot)
+        repeat(3) {
+            if (preferences.edit().putString(SNAPSHOT_KEY, json).commit()) {
+                deliveryBlockedPackages.remove(context.packageName)
+                return
+            }
+        }
+        deliveryBlockedPackages.add(context.packageName)
+        (previous.alarms + snapshot.alarms).map { it.key }.distinct().forEach {
+            runCatching { cancelAlarm(context, it) }
+        }
+        throw IllegalStateException("Notification snapshot persistence failed")
+    }
+
+    internal fun alarmDeliveryAllowed(context: Context): Boolean = context.packageName !in deliveryBlockedPackages
+
+    private fun cancelDeliveredAlerts(context: Context, alerts: List<DeliveredNotificationAlert>) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        alerts.forEach { manager.cancel(GAME_ALERT_TAG, it.notificationId) }
     }
 
     private fun clearPreviousAccountAlerts(context: Context, previous: NativeNotificationSnapshot) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        cancelDeliveredAlerts(context, previous.deliveredAlerts)
         previous.alarms.forEach { manager.cancel(NotificationDelivery.notificationIdForAlarm(previous, it)) }
         previous.immediateAlerts.forEach { manager.cancel(NotificationDelivery.notificationIdForImmediate(it)) }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -174,13 +221,20 @@ object AppNotificationManager {
         stage: String,
     ) {
         val previous = loadSnapshot(context)
+        val alarm = previous.alarms.firstOrNull { it.key == key } ?: return
+        val delivered = DeliveredNotificationAlert(taskId,
+            NotificationDelivery.roundDeadline(previous, alarm) ?: alarm.triggerTimeEpochMs,
+            stage, NotificationDelivery.notificationIdForAlarm(previous, alarm))
         val next = NotificationSnapshotTransitions.onAlarmFired(
             previous = previous,
             key = key,
             taskId = taskId,
             stage = stage,
-        )
+        ).let { it.copy(deliveredAlerts = it.deliveredAlerts.filterNot { entry ->
+            entry.notificationId == delivered.notificationId
+        } + delivered) }
         saveSnapshot(context, next)
+        (previous.alarms.map { it.key }.toSet() - next.alarms.map { it.key }.toSet()).forEach { cancelAlarm(context, it) }
         updateOngoingProgress(context, next)
         runCatching { NotificationProgressService.sync(context, next) }
     }
@@ -195,6 +249,7 @@ object AppNotificationManager {
         saveSnapshot(context, next)
         val delayMs = NotificationDeliveryRetry.delayAfterFailure(failed.deliveryAttempts) ?: return
         val nowEpochMs = System.currentTimeMillis()
+        if (failed.stage == "preempt" && !NotificationDelivery.isCurrentPreempt(next, failed, nowEpochMs + delayMs)) return
         if (nowEpochMs - failed.triggerTimeEpochMs > NotificationDeliveryRetry.RETENTION_MS) return
         runCatching {
             scheduleAlarm(
@@ -204,6 +259,60 @@ object AppNotificationManager {
                 scheduledAtEpochMs = nowEpochMs + delayMs,
             )
         }
+    }
+
+    /** Explicit recovery signal for resume, reboot, package replacement and permission changes. */
+    @Synchronized
+    fun restoreScheduledAlarms(context: Context): Map<String, Any> {
+        if (!alarmDeliveryAllowed(context)) {
+            // A failed update made the disk snapshot stale. Only a fresh
+            // successfully committed apply may make that state eligible again.
+            return mapOf("scheduledExact" to 0, "scheduledInexact" to 0,
+                "failures" to listOf("snapshot:uncommitted-state"))
+        }
+        val previous = loadSnapshot(context)
+        val now = System.currentTimeMillis()
+        val restorable = previous.alarms.filter { NotificationDelivery.shouldRestore(previous, it, now) }
+        val obsolete = NotificationDelivery.obsoleteDeliveredAlerts(previous, previous, now)
+        val next = previous.copy(alarms = restorable, scheduledWithExactAlarms = canScheduleExactAlarms(context),
+            deliveredAlerts = previous.deliveredAlerts - obsolete.toSet())
+        saveSnapshot(context, next)
+        initChannels(context, next.presentation.localeCode)
+        cancelDeliveredAlerts(context, obsolete)
+        (previous.alarms.map { it.key }.toSet() - restorable.map { it.key }.toSet()).forEach { cancelAlarm(context, it) }
+        val failures = mutableListOf<String>()
+        val failedKeys = mutableSetOf<String>()
+        var exact = 0
+        var inexact = 0
+        restorable.forEach { alarm ->
+            runCatching {
+                if (scheduleAlarm(context, alarm, next, alarm.triggerTimeEpochMs.coerceAtLeast(now))) exact++ else inexact++
+            }.onFailure {
+                failures += "${alarm.key}:restore"
+                failedKeys += alarm.key
+            }
+        }
+        val persisted = NotificationSnapshotRecovery.afterScheduleFailures(next, failedKeys)
+        if (failedKeys.isNotEmpty()) saveSnapshot(context, persisted)
+        runCatching { updateOngoingProgress(context, persisted) }.onFailure { failures += "ongoing" }
+        return mapOf("scheduledExact" to exact, "scheduledInexact" to inexact, "failures" to failures)
+    }
+
+    @Synchronized
+    internal fun deferEarlyAlarm(context: Context, alarm: NotificationAlarm, snapshot: NativeNotificationSnapshot) {
+        runCatching { scheduleAlarm(context, alarm, snapshot) }
+    }
+
+    @Synchronized
+    internal fun discardPreempt(context: Context, alarm: NotificationAlarm) {
+        val previous = loadSnapshot(context)
+        val id = NotificationDelivery.notificationIdForAlarm(previous, alarm)
+        val obsolete = previous.deliveredAlerts.filter { it.notificationId == id && it.stage == "preempt" }
+        val next = previous.copy(alarms = previous.alarms.filterNot { it.key == alarm.key },
+            deliveredAlerts = previous.deliveredAlerts - obsolete.toSet())
+        saveSnapshot(context, next)
+        cancelAlarm(context, alarm.key)
+        cancelDeliveredAlerts(context, obsolete)
     }
 
     fun canScheduleExactAlarms(context: Context): Boolean {
@@ -226,7 +335,7 @@ object AppNotificationManager {
                 channelId(type, snapshot.presentation.sound, snapshot.presentation.vibration),
             )?.importance?.let { it != NotificationManager.IMPORTANCE_NONE } == true
         }
-        val ongoingEnabled = snapshot.ongoingItems.isEmpty() ||
+        val ongoingEnabled = !snapshot.presentation.ongoingLive || snapshot.ongoingItems.isEmpty() ||
             manager.getNotificationChannel(ONGOING_CHANNEL_ID)
                 ?.importance
                 ?.let { it != NotificationManager.IMPORTANCE_NONE } == true
@@ -502,6 +611,6 @@ object AppNotificationManager {
         if (presentation.showProgress) views.setProgressBar(progressId, 100, percent, false)
     }
 
-    private fun channelId(type: String, sound: Boolean, vibration: Boolean): String =
+    internal fun channelId(type: String, sound: Boolean, vibration: Boolean): String =
         "channel_${type}_${if (sound) "sound" else "silent"}_${if (vibration) "vibrate" else "quiet"}"
 }

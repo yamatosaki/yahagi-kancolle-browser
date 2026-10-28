@@ -212,6 +212,22 @@ void main() {
     // Each entry is intentionally shared: product/game terminology, numerals,
     // protocol names, or a language self-name. Adding a key requires review.
     const reviewedZhHant = <String>{
+      // These short briefing labels use the same characters in both scripts.
+      'briefingTabForecast',
+      'briefingTabConstruction',
+      'briefingTabRepair',
+      // Standard labels shared by both Chinese scripts.
+      'settingsGroupLayoutManagement',
+      'settingsGroupSubtitles',
+      // Small, medium and large are the same single-character size labels.
+      'uiFontSizeSmall',
+      'uiFontSizeMedium',
+      'uiFontSizeLarge',
+      // These established game terms use the same characters in both scripts.
+      'debuffReminderTitle',
+      'debuffReminderSettingTitle',
+      'debuffReminderSourcePort',
+      'debuffReminderSourceAirDefense',
       // 提醒方式 has identical standard spelling in both Chinese scripts.
       'advanceWarningDisplayModeTitle',
       // These battle section labels share standard Chinese spelling.
@@ -319,7 +335,6 @@ void main() {
       'mapHpGauges',
       'allMapsCleared',
       'gameRenderingModeCompatibility',
-      'settingsTabNotification',
       'notificationSound',
       'notificationPercent',
       'notificationPreempt30s',
@@ -412,13 +427,24 @@ void main() {
       'themeClassicDark',
     };
     const reviewedJa = <String>{
+      // 建造 and 入渠 are the original Japanese dock terms as well.
+      'briefingTabConstruction',
+      'briefingTabRepair',
+      // 字幕 is the same standard term in Chinese and Japanese.
+      'settingsGroupSubtitles',
+      // 小, 中 and 大 are standard Japanese size labels as well.
+      'uiFontSizeSmall',
+      'uiFontSizeMedium',
+      'uiFontSizeLarge',
+      // 母港 and 基地防空 are also the game's original Japanese terms.
+      'debuffReminderSourcePort',
+      'debuffReminderSourceAirDefense',
       // The warning title uses shared game terminology.
       'postBattleWarningTitle',
       // The in-game instant construction material has the same Chinese spelling.
       'resourceTrendBuildMaterial',
       'appTitle',
       'construction',
-      'settingsTabNotification',
       'notificationAnchorage',
       'notificationRepair',
       'notificationConstruction',

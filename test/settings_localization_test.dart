@@ -14,11 +14,13 @@ void main() {
       ),
     );
 
-    expect(find.text('画面と音声'), findsOneWidget);
-    expect(find.text('戦闘'), findsOneWidget);
-    expect(find.text('ネットワーク'), findsOneWidget);
-    expect(find.text('データ'), findsOneWidget);
-    expect(find.text('情報'), findsOneWidget);
+    expect(find.text('外観とレイアウト'), findsOneWidget);
+    expect(find.text('ゲーム動作'), findsOneWidget);
+    expect(find.text('出撃と戦闘'), findsOneWidget);
+    expect(find.text('ネットワークと接続'), findsOneWidget);
+    expect(find.text('データ管理'), findsOneWidget);
+    expect(find.text('情報とサポート'), findsOneWidget);
+    expect(find.byKey(const Key('settings-tab-6')), findsOneWidget);
     expect(find.text('サウンド'), findsNothing);
   });
 
@@ -30,11 +32,13 @@ void main() {
       ),
     );
 
-    expect(find.text('畫面與聲音'), findsOneWidget);
-    expect(find.text('戰鬥'), findsOneWidget);
-    expect(find.text('網路'), findsOneWidget);
-    expect(find.text('資料'), findsOneWidget);
-    expect(find.text('關於'), findsOneWidget);
+    expect(find.text('外觀與布局'), findsOneWidget);
+    expect(find.text('遊戲運行'), findsOneWidget);
+    expect(find.text('出擊與戰鬥'), findsOneWidget);
+    expect(find.text('網路與連線'), findsOneWidget);
+    expect(find.text('資料管理'), findsOneWidget);
+    expect(find.text('關於與支援'), findsOneWidget);
+    expect(find.byKey(const Key('settings-tab-6')), findsOneWidget);
     expect(find.text('聲音'), findsNothing);
   });
 

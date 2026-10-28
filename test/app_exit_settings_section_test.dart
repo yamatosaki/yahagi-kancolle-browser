@@ -27,7 +27,7 @@ import 'package:yahagi_kancolle_browser/src/settings/network_settings_controller
 import 'package:yahagi_kancolle_browser/src/settings/network_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_store.dart';
-import 'package:yahagi_kancolle_browser/src/settings/screen_settings_page.dart';
+import 'package:yahagi_kancolle_browser/src/settings/game_runtime_settings_page.dart';
 import 'package:yahagi_kancolle_browser/src/settings/settings_page.dart';
 
 const _toggleKey = Key('settings-confirm-before-exit');
@@ -49,7 +49,7 @@ void main() {
     const Locale('ja'),
   ]) {
     testWidgets(
-      'screen settings expose a separate localized protection card: $locale',
+      'runtime settings expose localized operation protection: $locale',
       (tester) async {
         final exit = await AppExitSettingsController.load();
         final layout = await LayoutSettingsController.load(
@@ -63,9 +63,8 @@ void main() {
         addTearDown(display.dispose);
         await tester.pumpWidget(
           _localized(
-            ScreenSettingsPage(
+            GameRuntimeSettingsPage(
               layoutSettingsController: layout,
-              displayModeController: display,
               appExitSettingsController: exit,
             ),
             locale,
@@ -83,15 +82,8 @@ void main() {
         final protectionCard = tester.widget<Material>(
           find.ancestor(of: toggle, matching: find.byType(Material)).first,
         );
-        final layoutCard = tester.widget<Material>(
-          find
-              .ancestor(
-                of: find.byKey(const Key('settings-ui-lock-switch')),
-                matching: find.byType(Material),
-              )
-              .first,
-        );
-        expect(identical(protectionCard, layoutCard), isFalse);
+        expect(protectionCard.borderRadius, BorderRadius.circular(12));
+        expect(find.byKey(const Key('settings-ui-lock-switch')), findsNothing);
 
         await tester.tap(toggle);
         await tester.pumpAndSettle();
@@ -137,7 +129,7 @@ void main() {
     },
   );
 
-  testWidgets('SettingsPage forwards its exit controller to the screen page', (
+  testWidgets('SettingsPage forwards its exit controller to the runtime page', (
     tester,
   ) async {
     final exit = await AppExitSettingsController.load();
@@ -184,6 +176,7 @@ void main() {
     await tester.pumpWidget(
       _localized(
         SettingsPage(
+          selectedIndex: 1,
           layoutSettingsController: layout,
           networkSettingsController: network,
           gadgetBypassController: gadget,
@@ -201,8 +194,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    final screen = tester.widget<ScreenSettingsPage>(
-      find.byType(ScreenSettingsPage),
+    final screen = tester.widget<GameRuntimeSettingsPage>(
+      find.byType(GameRuntimeSettingsPage),
     );
     expect(identical(screen.appExitSettingsController, exit), isTrue);
     expect(find.byKey(_toggleKey), findsOneWidget);

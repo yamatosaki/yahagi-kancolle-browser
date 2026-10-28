@@ -971,16 +971,18 @@ class _QuestDetail extends StatelessWidget {
                         key: Key('quest-detail-status-${entry.id}'),
                         entry: entry,
                       ),
-                      if (entry.exactProgress case final progress?)
+                      if (entry.progressLabel != '—')
                         _SmallTag(
-                          key: Key('quest-detail-exact-progress-${entry.id}'),
-                          label: progress,
-                          color: appColor(context, const Color(0xff8ec6e8)),
-                        )
-                      else if (entry.progressLabel != '—')
-                        _SmallTag(
+                          key: entry.progressLabel == entry.exactProgress
+                              ? Key('quest-detail-exact-progress-${entry.id}')
+                              : null,
                           label: entry.progressLabel,
-                          color: appColor(context, entry.progressColor),
+                          color: appColor(
+                            context,
+                            entry.progressLabel == entry.exactProgress
+                                ? const Color(0xff8ec6e8)
+                                : entry.progressColor,
+                          ),
                         ),
                     ],
                   ),
@@ -1706,7 +1708,7 @@ class _QuestViewEntry {
       // API type 5 covers both seasonal and yearly quests. Only catalog
       // recurrence metadata can distinguish them; retain the API fallback.
       period: quest.type == 5 && doc?.period == 6 ? 6 : quest.type,
-      progressLabel: quest.exactProgressLabel ?? quest.progressPercentLabel,
+      progressLabel: quest.displayProgressLabel,
       completed: quest.isCompleted,
       locked: false,
       unlockState: QuestUnlockState.unlocked,

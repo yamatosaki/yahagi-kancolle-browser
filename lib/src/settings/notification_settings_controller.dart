@@ -76,6 +76,9 @@ class NotificationSettingsController extends ChangeNotifier {
   Future<void> setMoralePreemptSeconds(int seconds) =>
       _saveAndNotify(_settings.copyWith(moralePreemptSeconds: seconds));
 
+  Future<void> setDebuffReminderStyle(DebuffReminderStyle style) =>
+      _saveAndNotify(_settings.copyWith(debuffReminderStyle: style));
+
   Future<void> resetToDefaults() =>
       _saveAndNotify(const NotificationSettings());
 }

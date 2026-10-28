@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/main.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_controller.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_store.dart';
@@ -21,6 +22,10 @@ import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dar
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_store.dart';
 import 'package:yahagi_kancolle_browser/src/new_ship/new_ship_reminder_controller.dart';
 import 'package:yahagi_kancolle_browser/src/new_ship/new_ship_reminder_store.dart';
+import 'package:yahagi_kancolle_browser/src/notice/debuff_reminder_controller.dart';
+import 'package:yahagi_kancolle_browser/src/settings/notification_settings_controller.dart';
+import 'package:yahagi_kancolle_browser/src/settings/notification_settings_store.dart';
+import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 import 'package:yahagi_kancolle_browser/src/prototype_status_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/display_mode_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/display_mode_store.dart';
@@ -35,6 +40,96 @@ import '../fixtures/kcsapi_fixtures.dart';
 
 void main() {
   final dialog = find.byKey(const Key('new-ship-alert-dialog'));
+
+  testWidgets('real app presents a server debuff cue in the default dialog', (
+    tester,
+  ) async {
+    final harness = await _mountApp(tester);
+    await harness.send(
+      kcsapiEvent('/kcsapi/api_req_map/next', <String, Object?>{
+        'api_destruction_battle': <String, Object?>{'api_m2': 1},
+      }),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('debuff-reminder-dialog')), findsOneWidget);
+    expect(find.text('削甲提醒'), findsOneWidget);
+    expect(find.textContaining('基地防空'), findsOneWidget);
+    expect(dialog, findsNothing);
+    expect(harness.vibrations.length, 1);
+    await tester.tap(find.text('知道了'));
+    await tester.pumpAndSettle();
+    expect(harness.debuff.currentAlert, isNull);
+  });
+
+  testWidgets('real app switches to top notices without losing ship alerts', (
+    tester,
+  ) async {
+    final harness = await _mountApp(tester);
+    await harness.notifications.setDebuffReminderStyle(
+      DebuffReminderStyle.topNotice,
+    );
+    await harness.send(
+      kcsapiEvent('/kcsapi/api_req_sortie/battleresult', <String, Object?>{
+        'api_m2': 1,
+      }),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('debuff-reminder-dialog')), findsNothing);
+    expect(find.textContaining('战斗结算'), findsOneWidget);
+    expect(harness.vibrations.length, 1);
+    await harness.send(_reward(sequence: 2));
+    await tester.pumpAndSettle();
+    expect(dialog, findsOneWidget);
+    expect(find.byKey(const Key('debuff-reminder-dialog')), findsNothing);
+    await tester.tap(
+      find.descendant(of: dialog, matching: find.byType(FilledButton)),
+    );
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  for (final changeAccount in [false, true]) {
+    testWidgets(
+      'simultaneous ship and debuff dialogs ${changeAccount ? 'clear on account change' : 'can both be acknowledged'}',
+      (tester) async {
+        final harness = await _mountApp(tester);
+        await harness.send(_reward(sequence: 1));
+        await harness.send(
+          kcsapiEvent('/kcsapi/api_req_map/next', <String, Object?>{
+            'api_destruction_battle': <String, Object?>{'api_m2': 1},
+          }, sequence: 2),
+        );
+        await tester.pumpAndSettle();
+        final debuffDialog = find.byKey(const Key('debuff-reminder-dialog'));
+        expect(debuffDialog, findsOneWidget);
+        expect(dialog, findsOneWidget);
+        expect(harness.vibrations, hasLength(1));
+        if (changeAccount) {
+          await harness.send(_accountTransition('basic', sequence: 3));
+          await tester.pumpAndSettle();
+          expect(debuffDialog, findsNothing);
+          expect(dialog, findsNothing);
+          expect(harness.debuff.alerts, isEmpty);
+        } else {
+          await tester.tap(
+            find.descendant(
+              of: debuffDialog,
+              matching: find.byType(FilledButton),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(debuffDialog, findsNothing);
+          expect(dialog, findsOneWidget);
+          await tester.tap(
+            find.descendant(of: dialog, matching: find.byType(FilledButton)),
+          );
+          await tester.pumpAndSettle();
+          expect(dialog, findsNothing);
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('English dashboard headers fit before and during a ship dialog', (
     tester,
@@ -176,10 +271,23 @@ Future<_Harness> _mountApp(
   final browser = GameBrowserController(port: _NoopBrowserPort());
   final toolbar = GameToolbarController();
   final capture = GameCaptureController();
+  final accountSession = AccountSession(initialMemberId: 1001);
+  final vibrations = <int>[];
+  final debuff = DebuffReminderController(
+    accountSession: accountSession,
+    vibrate: () async => vibrations.add(1),
+  );
+  final notifications = NotificationSettingsController();
+  await notifications.initialize();
+  final headerNotices = TopNoticeController();
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox.shrink());
     for (final controller in <ChangeNotifier>[
       reminder,
+      debuff,
+      accountSession,
+      notifications,
+      headerNotices,
       battle,
       layout,
       safety,
@@ -213,6 +321,9 @@ Future<_Harness> _mountApp(
       gameStateController: game,
       battleController: battle,
       newShipReminderController: reminder,
+      debuffReminderController: debuff,
+      notificationSettingsController: notifications,
+      headerNoticeController: headerNotices,
       gameSurface: const ColoredBox(color: Colors.black),
     ),
   );
@@ -220,17 +331,29 @@ Future<_Harness> _mountApp(
   return _Harness(
     reminder,
     GameApiEventPipeline(
-      consumers: <GameApiEventConsumer>[game, reminder],
+      consumers: <GameApiEventConsumer>[accountSession, game, reminder, debuff],
       decodeEnvelope: (body) async => GameApiDecoder.decodeEnvelope(body),
       settleGameState: () => game.idle,
     ),
+    debuff,
+    notifications,
+    vibrations,
   );
 }
 
 class _Harness {
-  _Harness(this.reminder, this.pipeline);
+  _Harness(
+    this.reminder,
+    this.pipeline,
+    this.debuff,
+    this.notifications,
+    this.vibrations,
+  );
   final NewShipReminderController reminder;
   final GameApiEventPipeline pipeline;
+  final DebuffReminderController debuff;
+  final NotificationSettingsController notifications;
+  final List<int> vibrations;
 
   Future<void> send(CapturedApiEvent event) async {
     pipeline.add(event);

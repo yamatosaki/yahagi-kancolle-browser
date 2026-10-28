@@ -6,6 +6,7 @@ import 'battle_ui_text.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import '../fleet/ship_status_style.dart';
+import '../fleet/equipment_type_icon.dart';
 import '../fleet/ship_status_visuals.dart';
 import '../fleet/status_density.dart';
 import '../game_state/game_state.dart';
@@ -353,6 +354,7 @@ class NavigationFriendlyFleets extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = battle.friendEscort.isEmpty
         ? _FleetGroup(
+            showDamageControlUsed: false,
             title: '我方舰队',
             ships: battle.friendMain,
             mvpPositions: battle.mvpPositions,
@@ -364,6 +366,7 @@ class NavigationFriendlyFleets extends StatelessWidget {
             children: <Widget>[
               Expanded(
                 child: _FleetGroup(
+                  showDamageControlUsed: false,
                   title: '我方主力',
                   ships: battle.friendMain,
                   mvpPositions: battle.mvpPositions,
@@ -373,6 +376,7 @@ class NavigationFriendlyFleets extends StatelessWidget {
               const SizedBox(width: 7),
               Expanded(
                 child: _FleetGroup(
+                  showDamageControlUsed: false,
                   title: '我方随伴',
                   ships: battle.friendEscort,
                   mvpPositions: battle.mvpPositions,
@@ -396,6 +400,7 @@ class _FleetGroup extends StatelessWidget {
     required this.mvpPositions,
     required this.damagePulseMode,
     this.positionOffset = 0,
+    this.showDamageControlUsed = true,
   });
 
   final String title;
@@ -403,6 +408,7 @@ class _FleetGroup extends StatelessWidget {
   final List<int> mvpPositions;
   final DamagePulseFilter damagePulseMode;
   final int positionOffset;
+  final bool showDamageControlUsed;
 
   @override
   Widget build(BuildContext context) {
@@ -420,6 +426,7 @@ class _FleetGroup extends StatelessWidget {
           BattleShipDetailsTap(
             ship: ships[index],
             child: _BattleShipRow(
+              showDamageControlUsed: showDamageControlUsed,
               ship: ships[index],
               absolutePosition: index + positionOffset,
               isMvp: mvpPositions.contains(index + positionOffset),
@@ -433,12 +440,14 @@ class _FleetGroup extends StatelessWidget {
 
 class _BattleShipRow extends StatelessWidget {
   const _BattleShipRow({
+    required this.showDamageControlUsed,
     required this.ship,
     required this.absolutePosition,
     required this.isMvp,
     required this.damagePulseMode,
   });
 
+  final bool showDamageControlUsed;
   final BattleShipSnapshot ship;
   final int absolutePosition;
   final bool isMvp;
@@ -530,40 +539,11 @@ class _BattleShipRow extends StatelessWidget {
             children: [
               Expanded(
                 flex: 3,
-                child: Row(
-                  children: <Widget>[
-                    Flexible(
-                      child: Tooltip(
-                        message: gameNames(
-                          context,
-                        ).shipName(ship.name, shipId: ship.masterId),
-                        child: Text(
-                          gameNames(
-                            context,
-                          ).shipName(ship.name, shipId: ship.masterId),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: appTextStyle(
-                            context,
-                            TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: isEscaped ? const Color(0xff8197a5) : null,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (isMvp) ...<Widget>[
-                      const SizedBox(width: 2),
-                      Icon(
-                        Icons.emoji_events_rounded,
-                        key: Key('battle-mvp-$side-$absolutePosition'),
-                        size: 13,
-                        color: appColor(context, const Color(0xffffd65c)),
-                      ),
-                    ],
-                  ],
+                child: _BattleShipName(
+                  ship: ship,
+                  showDamageControlUsed: showDamageControlUsed,
+                  isMvp: isMvp,
+                  absolutePosition: absolutePosition,
                 ),
               ),
               const SizedBox(width: 5),
@@ -605,6 +585,89 @@ class _BattleShipRow extends StatelessWidget {
             opacity: rowOpacity,
             child: ColoredBox(color: appColor(context, spec.color)),
           ),
+        );
+      },
+    );
+  }
+}
+
+class _BattleShipName extends StatelessWidget {
+  const _BattleShipName({
+    required this.ship,
+    required this.showDamageControlUsed,
+    required this.isMvp,
+    required this.absolutePosition,
+  });
+
+  final BattleShipSnapshot ship;
+  final bool showDamageControlUsed;
+  final bool isMvp;
+  final int absolutePosition;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = gameNames(context).shipName(ship.name, shipId: ship.masterId);
+    final damageControls =
+        showDamageControlUsed && ship.side == BattleSide.friend
+        ? ship.damageControlUsedThisBattle
+              .where((id) => id == 42 || id == 43)
+              .toList()
+        : const <int>[];
+    final side = ship.side == BattleSide.friend ? 'friend' : 'enemy';
+    final markers = <Widget>[
+      for (var index = 0; index < damageControls.length; index++)
+        EquipmentTypeIconImage(
+          key: ValueKey('battle-damage-control-$side-$absolutePosition-$index'),
+          iconId: 14,
+          width: 16,
+          height: 16,
+        ),
+      if (isMvp)
+        Icon(
+          Icons.emoji_events_rounded,
+          key: Key('battle-mvp-$side-$absolutePosition'),
+          size: 13,
+          color: appColor(context, const Color(0xffffd65c)),
+        ),
+    ];
+    final label = Tooltip(
+      message: name,
+      child: Text(
+        name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: appTextStyle(
+          context,
+          TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: ship.isEscaped ? const Color(0xff8197a5) : null,
+          ),
+        ),
+      ),
+    );
+    if (markers.isEmpty) return label;
+    final gap = damageControls.isEmpty ? 2.0 : 4.0;
+    final markerWidth =
+        damageControls.length * 16 +
+        (isMvp ? 13 : 0) +
+        (markers.length - 1) * 4;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final icons = Wrap(spacing: 4, runSpacing: 2, children: markers);
+        if (markerWidth + gap > constraints.maxWidth) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [label, const SizedBox(height: 2), icons],
+          );
+        }
+        return Row(
+          children: [
+            Flexible(child: label),
+            SizedBox(width: gap),
+            icons,
+          ],
         );
       },
     );

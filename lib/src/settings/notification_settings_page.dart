@@ -6,16 +6,21 @@ import '../notification/notification_models.dart';
 import '../notification/notification_port.dart';
 import 'notification_settings_controller.dart';
 import 'notification_settings_store.dart';
+import 'layout_settings_controller.dart';
+import 'settings_organization_strings.dart';
+import 'top_notice_settings_section.dart';
 import 'settings_ui_helpers.dart';
 
 class NotificationSettingsPage extends StatefulWidget {
   const NotificationSettingsPage({
     super.key,
     required this.controller,
+    this.layoutSettingsController,
     this.notificationPort = const MethodChannelNotificationPort(),
   });
 
   final NotificationSettingsController controller;
+  final LayoutSettingsController? layoutSettingsController;
   final NotificationPort notificationPort;
 
   @override
@@ -80,6 +85,285 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                buildSectionTitle(
+                  settingsOrganizationText(
+                    context,
+                    'settingsGroupSystemNotifications',
+                  ),
+                ),
+                buildCard(
+                  child: Column(
+                    children: [
+                      buildSwitchTile(
+                        title: settingsOrganizationText(
+                          context,
+                          'settingsEnableSystemNotifications',
+                        ),
+                        switchKey: const Key('notification-master-switch'),
+                        value: settings.master,
+                        onChanged: (v) => controller.setMaster(v),
+                      ),
+                      Divider(
+                        color: appColor(context, Color(0xff294052)),
+                        height: 1,
+                      ),
+                      buildSwitchTile(
+                        title: settingsOrganizationText(
+                          context,
+                          'settingsSystemNotificationSound',
+                        ),
+                        value: settings.sound,
+                        onChanged: settings.master
+                            ? (v) => controller.setSound(v)
+                            : null,
+                      ),
+                      Divider(
+                        color: appColor(context, Color(0xff294052)),
+                        height: 1,
+                      ),
+                      buildSwitchTile(
+                        title: settingsOrganizationText(
+                          context,
+                          'settingsSystemNotificationVibration',
+                        ),
+                        value: settings.vibration,
+                        onChanged: settings.master
+                            ? (v) => controller.setVibration(v)
+                            : null,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                buildSectionTitle(l10n.notificationSectionTypes),
+                buildCard(
+                  child: Column(
+                    children: [
+                      _buildNotificationTypeRow<int>(
+                        rowKey: const Key('notification-expedition-row'),
+                        menuKey: const Key('notification-expedition-menu'),
+                        switchKey: const Key('notification-expedition-switch'),
+                        title: _notificationTypeTitle(
+                          l10n.notificationExpedition,
+                        ),
+                        selected: settings.expeditionPreemptSeconds,
+                        items: [
+                          DropdownMenuItem<int>(
+                            value: 0,
+                            child: Text(l10n.notificationPunctual),
+                          ),
+                          DropdownMenuItem<int>(
+                            value: 30,
+                            child: Text(l10n.notificationPreempt30s),
+                          ),
+                          DropdownMenuItem<int>(
+                            value: 60,
+                            child: Text(l10n.notificationPreempt60s),
+                          ),
+                        ],
+                        menuEnabled: settings.master && settings.expedition,
+                        onSelected: controller.setExpeditionPreemptSeconds,
+                        switchedOn: settings.expedition,
+                        onSwitchChanged: settings.master
+                            ? controller.setExpedition
+                            : null,
+                      ),
+                      Divider(
+                        color: appColor(context, Color(0xff294052)),
+                        height: 1,
+                      ),
+
+                      _buildNotificationTypeRow<int>(
+                        rowKey: const Key('notification-repair-row'),
+                        menuKey: const Key('notification-repair-menu'),
+                        switchKey: const Key('notification-repair-switch'),
+                        title: _notificationTypeTitle(l10n.notificationRepair),
+                        selected: settings.repairPreemptSeconds,
+                        items: [
+                          DropdownMenuItem<int>(
+                            value: 0,
+                            child: Text(l10n.notificationRepairPunctual),
+                          ),
+                          DropdownMenuItem<int>(
+                            value: 30,
+                            child: Text(l10n.notificationPreempt30s),
+                          ),
+                          DropdownMenuItem<int>(
+                            value: 60,
+                            child: Text(l10n.notificationPreempt60s),
+                          ),
+                        ],
+                        menuEnabled: settings.master && settings.repair,
+                        onSelected: controller.setRepairPreemptSeconds,
+                        switchedOn: settings.repair,
+                        onSwitchChanged: settings.master
+                            ? controller.setRepair
+                            : null,
+                      ),
+                      Divider(
+                        color: appColor(context, Color(0xff294052)),
+                        height: 1,
+                      ),
+
+                      _buildNotificationTypeRow<int>(
+                        rowKey: const Key('notification-construction-row'),
+                        menuKey: const Key('notification-construction-menu'),
+                        switchKey: const Key(
+                          'notification-construction-switch',
+                        ),
+                        title: _notificationTypeTitle(
+                          l10n.notificationConstruction,
+                        ),
+                        selected: settings.constructionPreemptSeconds,
+                        items: [
+                          DropdownMenuItem<int>(
+                            value: 0,
+                            child: Text(l10n.notificationPunctual),
+                          ),
+                          DropdownMenuItem<int>(
+                            value: 30,
+                            child: Text(l10n.notificationPreempt30s),
+                          ),
+                          DropdownMenuItem<int>(
+                            value: 60,
+                            child: Text(l10n.notificationPreempt60s),
+                          ),
+                        ],
+                        menuEnabled: settings.master && settings.construction,
+                        onSelected: controller.setConstructionPreemptSeconds,
+                        switchedOn: settings.construction,
+                        onSwitchChanged: settings.master
+                            ? controller.setConstruction
+                            : null,
+                      ),
+                      Divider(
+                        color: appColor(context, Color(0xff294052)),
+                        height: 1,
+                      ),
+
+                      _buildNotificationTypeRow<AnchorageNotificationMode>(
+                        rowKey: const Key('notification-anchorage-row'),
+                        menuKey: const Key('notification-anchorage-menu'),
+                        switchKey: const Key('notification-anchorage-switch'),
+                        title: _notificationTypeTitle(
+                          l10n.notificationAnchorage,
+                        ),
+                        selected: settings.anchorageMode,
+                        items: [
+                          DropdownMenuItem<AnchorageNotificationMode>(
+                            value: AnchorageNotificationMode.twentyMinutes,
+                            child: Text(l10n.notificationAnchorage20m),
+                          ),
+                          DropdownMenuItem<AnchorageNotificationMode>(
+                            value: AnchorageNotificationMode.allRepaired,
+                            child: Text(l10n.notificationAnchorageFull),
+                          ),
+                          DropdownMenuItem<AnchorageNotificationMode>(
+                            value: AnchorageNotificationMode.both,
+                            child: Text(l10n.notificationAnchorageBoth),
+                          ),
+                        ],
+                        menuEnabled: settings.master && settings.anchorage,
+                        onSelected: controller.setAnchorageMode,
+                        switchedOn: settings.anchorage,
+                        onSwitchChanged: settings.master
+                            ? controller.setAnchorage
+                            : null,
+                      ),
+                      Divider(
+                        color: appColor(context, Color(0xff294052)),
+                        height: 1,
+                      ),
+
+                      _buildNotificationTypeRow<int>(
+                        rowKey: const Key('notification-morale-row'),
+                        menuKey: const Key('notification-morale-menu'),
+                        switchKey: const Key('notification-morale-switch'),
+                        title: _notificationTypeTitle(l10n.notificationMorale),
+                        selected: settings.moralePreemptSeconds,
+                        items: [
+                          DropdownMenuItem<int>(
+                            value: 0,
+                            child: Text(l10n.notificationPunctual),
+                          ),
+                          DropdownMenuItem<int>(
+                            value: 30,
+                            child: Text(l10n.notificationPreempt30s),
+                          ),
+                          DropdownMenuItem<int>(
+                            value: 60,
+                            child: Text(l10n.notificationPreempt60s),
+                          ),
+                        ],
+                        menuEnabled: settings.master && settings.morale,
+                        onSelected: controller.setMoralePreemptSeconds,
+                        switchedOn: settings.morale,
+                        onSwitchChanged: settings.master
+                            ? controller.setMorale
+                            : null,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                buildSectionTitle(l10n.notificationSectionOngoing),
+                buildCard(
+                  child: Column(
+                    children: [
+                      buildSwitchTile(
+                        title: l10n.notificationOngoingLive,
+                        value: settings.ongoingLive,
+                        onChanged: settings.master
+                            ? (v) => controller.setOngoingLive(v)
+                            : null,
+                      ),
+                      Divider(
+                        color: appColor(context, Color(0xff294052)),
+                        height: 1,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        child: Wrap(
+                          alignment: WrapAlignment.spaceBetween,
+                          spacing: 8,
+                          children: [
+                            _buildCheckItem(
+                              label: l10n.notificationProgress,
+                              value: settings.showProgress,
+                              enabled: settings.master && settings.ongoingLive,
+                              onChanged: (v) =>
+                                  controller.setShowProgress(v ?? true),
+                            ),
+                            _buildCheckItem(
+                              label: l10n.notificationPercent,
+                              value: settings.showPercent,
+                              enabled: settings.master && settings.ongoingLive,
+                              onChanged: (v) =>
+                                  controller.setShowPercent(v ?? true),
+                            ),
+                            _buildCheckItem(
+                              label: l10n.notificationCountdown,
+                              value: settings.showCountdown,
+                              enabled: settings.master && settings.ongoingLive,
+                              onChanged: (v) =>
+                                  controller.setShowCountdown(v ?? true),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                if (widget.layoutSettingsController case final layout?) ...[
+                  TopNoticeSettingsSection(controller: layout),
+                  const SizedBox(height: 24),
+                ],
                 buildSectionTitle(l10n.notificationSectionSystem),
                 FutureBuilder<NotificationPlatformCapabilities>(
                   future: _capabilities,
@@ -161,274 +445,6 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage>
                       ],
                     );
                   },
-                ),
-                const SizedBox(height: 24),
-
-                // 1. 全局通知服务
-                buildSectionTitle(l10n.notificationSectionGeneral),
-                buildCard(
-                  child: Column(
-                    children: [
-                      buildSwitchTile(
-                        title: l10n.notificationEnableMaster,
-                        value: settings.master,
-                        onChanged: (v) => controller.setMaster(v),
-                      ),
-                      Divider(
-                        color: appColor(context, Color(0xff294052)),
-                        height: 1,
-                      ),
-                      buildSwitchTile(
-                        title: l10n.notificationSound,
-                        value: settings.sound,
-                        onChanged: settings.master
-                            ? (v) => controller.setSound(v)
-                            : null,
-                      ),
-                      Divider(
-                        color: appColor(context, Color(0xff294052)),
-                        height: 1,
-                      ),
-                      buildSwitchTile(
-                        title: l10n.notificationVibration,
-                        value: settings.vibration,
-                        onChanged: settings.master
-                            ? (v) => controller.setVibration(v)
-                            : null,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // 2. 后台进行中常驻进度 (Ongoing)
-                buildSectionTitle(l10n.notificationSectionOngoing),
-                buildCard(
-                  child: Column(
-                    children: [
-                      buildSwitchTile(
-                        title: l10n.notificationOngoingLive,
-                        value: settings.ongoingLive,
-                        onChanged: settings.master
-                            ? (v) => controller.setOngoingLive(v)
-                            : null,
-                      ),
-                      Divider(
-                        color: appColor(context, Color(0xff294052)),
-                        height: 1,
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildCheckItem(
-                              label: l10n.notificationProgress,
-                              value: settings.showProgress,
-                              enabled: settings.master && settings.ongoingLive,
-                              onChanged: (v) =>
-                                  controller.setShowProgress(v ?? true),
-                            ),
-                            _buildCheckItem(
-                              label: l10n.notificationPercent,
-                              value: settings.showPercent,
-                              enabled: settings.master && settings.ongoingLive,
-                              onChanged: (v) =>
-                                  controller.setShowPercent(v ?? true),
-                            ),
-                            _buildCheckItem(
-                              label: l10n.notificationCountdown,
-                              value: settings.showCountdown,
-                              enabled: settings.master && settings.ongoingLive,
-                              onChanged: (v) =>
-                                  controller.setShowCountdown(v ?? true),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // 3. 业务通知分类与提醒时机 (Type)
-                buildSectionTitle(l10n.notificationSectionTypes),
-                buildCard(
-                  child: Column(
-                    children: [
-                      // 3.1 远征归还
-                      _buildNotificationTypeRow<int>(
-                        rowKey: const Key('notification-expedition-row'),
-                        menuKey: const Key('notification-expedition-menu'),
-                        switchKey: const Key('notification-expedition-switch'),
-                        title: _notificationTypeTitle(
-                          l10n.notificationExpedition,
-                        ),
-                        selected: settings.expeditionPreemptSeconds,
-                        items: [
-                          DropdownMenuItem<int>(
-                            value: 0,
-                            child: Text(l10n.notificationPunctual),
-                          ),
-                          DropdownMenuItem<int>(
-                            value: 30,
-                            child: Text(l10n.notificationPreempt30s),
-                          ),
-                          DropdownMenuItem<int>(
-                            value: 60,
-                            child: Text(l10n.notificationPreempt60s),
-                          ),
-                        ],
-                        menuEnabled: settings.master && settings.expedition,
-                        onSelected: controller.setExpeditionPreemptSeconds,
-                        switchedOn: settings.expedition,
-                        onSwitchChanged: settings.master
-                            ? controller.setExpedition
-                            : null,
-                      ),
-                      Divider(
-                        color: appColor(context, Color(0xff294052)),
-                        height: 1,
-                      ),
-
-                      // 3.2 入渠修复
-                      _buildNotificationTypeRow<int>(
-                        rowKey: const Key('notification-repair-row'),
-                        menuKey: const Key('notification-repair-menu'),
-                        switchKey: const Key('notification-repair-switch'),
-                        title: _notificationTypeTitle(l10n.notificationRepair),
-                        selected: settings.repairPreemptSeconds,
-                        items: [
-                          DropdownMenuItem<int>(
-                            value: 0,
-                            child: Text(l10n.notificationRepairPunctual),
-                          ),
-                          DropdownMenuItem<int>(
-                            value: 30,
-                            child: Text(l10n.notificationPreempt30s),
-                          ),
-                          DropdownMenuItem<int>(
-                            value: 60,
-                            child: Text(l10n.notificationPreempt60s),
-                          ),
-                        ],
-                        menuEnabled: settings.master && settings.repair,
-                        onSelected: controller.setRepairPreemptSeconds,
-                        switchedOn: settings.repair,
-                        onSwitchChanged: settings.master
-                            ? controller.setRepair
-                            : null,
-                      ),
-                      Divider(
-                        color: appColor(context, Color(0xff294052)),
-                        height: 1,
-                      ),
-
-                      // 3.3 泊地
-                      _buildNotificationTypeRow<AnchorageNotificationMode>(
-                        rowKey: const Key('notification-anchorage-row'),
-                        menuKey: const Key('notification-anchorage-menu'),
-                        switchKey: const Key('notification-anchorage-switch'),
-                        title: _notificationTypeTitle(
-                          l10n.notificationAnchorage,
-                        ),
-                        selected: settings.anchorageMode,
-                        items: [
-                          DropdownMenuItem<AnchorageNotificationMode>(
-                            value: AnchorageNotificationMode.twentyMinutes,
-                            child: Text(l10n.notificationAnchorage20m),
-                          ),
-                          DropdownMenuItem<AnchorageNotificationMode>(
-                            value: AnchorageNotificationMode.allRepaired,
-                            child: Text(l10n.notificationAnchorageFull),
-                          ),
-                          DropdownMenuItem<AnchorageNotificationMode>(
-                            value: AnchorageNotificationMode.both,
-                            child: Text(l10n.notificationAnchorageBoth),
-                          ),
-                        ],
-                        menuEnabled: settings.master && settings.anchorage,
-                        onSelected: controller.setAnchorageMode,
-                        switchedOn: settings.anchorage,
-                        onSwitchChanged: settings.master
-                            ? controller.setAnchorage
-                            : null,
-                      ),
-                      Divider(
-                        color: appColor(context, Color(0xff294052)),
-                        height: 1,
-                      ),
-
-                      // 3.4 建造
-                      _buildNotificationTypeRow<int>(
-                        rowKey: const Key('notification-construction-row'),
-                        menuKey: const Key('notification-construction-menu'),
-                        switchKey: const Key(
-                          'notification-construction-switch',
-                        ),
-                        title: _notificationTypeTitle(
-                          l10n.notificationConstruction,
-                        ),
-                        selected: settings.constructionPreemptSeconds,
-                        items: [
-                          DropdownMenuItem<int>(
-                            value: 0,
-                            child: Text(l10n.notificationPunctual),
-                          ),
-                          DropdownMenuItem<int>(
-                            value: 30,
-                            child: Text(l10n.notificationPreempt30s),
-                          ),
-                          DropdownMenuItem<int>(
-                            value: 60,
-                            child: Text(l10n.notificationPreempt60s),
-                          ),
-                        ],
-                        menuEnabled: settings.master && settings.construction,
-                        onSelected: controller.setConstructionPreemptSeconds,
-                        switchedOn: settings.construction,
-                        onSwitchChanged: settings.master
-                            ? controller.setConstruction
-                            : null,
-                      ),
-                      Divider(
-                        color: appColor(context, Color(0xff294052)),
-                        height: 1,
-                      ),
-
-                      // 3.5 疲劳 / 刷闪
-                      _buildNotificationTypeRow<int>(
-                        rowKey: const Key('notification-morale-row'),
-                        menuKey: const Key('notification-morale-menu'),
-                        switchKey: const Key('notification-morale-switch'),
-                        title: _notificationTypeTitle(l10n.notificationMorale),
-                        selected: settings.moralePreemptSeconds,
-                        items: [
-                          DropdownMenuItem<int>(
-                            value: 0,
-                            child: Text(l10n.notificationPunctual),
-                          ),
-                          DropdownMenuItem<int>(
-                            value: 30,
-                            child: Text(l10n.notificationPreempt30s),
-                          ),
-                          DropdownMenuItem<int>(
-                            value: 60,
-                            child: Text(l10n.notificationPreempt60s),
-                          ),
-                        ],
-                        menuEnabled: settings.master && settings.morale,
-                        onSelected: controller.setMoralePreemptSeconds,
-                        switchedOn: settings.morale,
-                        onSwitchChanged: settings.master
-                            ? controller.setMorale
-                            : null,
-                      ),
-                    ],
-                  ),
                 ),
                 const SizedBox(height: 40),
               ],

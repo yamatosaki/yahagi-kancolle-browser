@@ -28,8 +28,9 @@ Object? _clonePoiBattleValue(Object? value) {
 }
 
 List<BattleShipSnapshot> clonePoiBattleFleet(
-  List<BattleShipSnapshot> source,
-) => <BattleShipSnapshot>[
+  List<BattleShipSnapshot> source, {
+  bool resetBattleDamageControl = false,
+}) => <BattleShipSnapshot>[
   for (final ship in source)
     BattleShipSnapshot(
       masterId: ship.masterId,
@@ -46,6 +47,9 @@ List<BattleShipSnapshot> clonePoiBattleFleet(
       condition: ship.condition,
       equipmentMasterIds: List<int>.from(ship.equipmentMasterIds),
       usedDamageControlItemIds: List<int>.from(ship.usedDamageControlItemIds),
+      damageControlUsedThisBattle: resetBattleDamageControl
+          ? <int>[]
+          : List<int>.from(ship.damageControlUsedThisBattle),
       isEscaped: ship.isEscaped,
       hpUnknown: ship.hpUnknown,
       details: ship.details,

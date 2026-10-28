@@ -10,6 +10,7 @@ import 'package:yahagi_kancolle_browser/src/settings/header_resource_settings.da
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/screen_settings_page.dart';
+import 'package:yahagi_kancolle_browser/src/settings/game_runtime_settings_page.dart';
 
 void main() {
   testWidgets('setting titles and descriptions share the function-area sizes', (
@@ -79,6 +80,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(controller.informationPanelOnLeft, isTrue);
     expect(controller.workspaceMenuOnRight, isFalse);
+    await tester.ensureVisible(
+      find.byKey(const Key('settings-reset-dashboard-card-order')),
+    );
     await tester.tap(
       find.byKey(const Key('settings-reset-dashboard-card-order')),
     );
@@ -114,15 +118,12 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('screen settings expose background audio playback switch', (
+  testWidgets('runtime settings expose background audio playback switch', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     final layoutController = await LayoutSettingsController.load(
       SharedPreferencesLayoutSettingsStore(),
-    );
-    final displayController = await DisplayModeController.load(
-      MemoryDisplayModeStore(),
     );
     final audioController = await GameAudioController.load(
       SharedPreferencesGameAudioStore(),
@@ -133,9 +134,8 @@ void main() {
         locale: const Locale('zh'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: ScreenSettingsPage(
+        home: GameRuntimeSettingsPage(
           layoutSettingsController: layoutController,
-          displayModeController: displayController,
           audioController: audioController,
         ),
       ),
@@ -266,7 +266,7 @@ void main() {
         of: menuRow,
         matching: find.byType(DropdownButton<String>),
       );
-      expect(find.descendant(of: menuRow, matching: reset), findsOneWidget);
+      expect(find.descendant(of: menuRow, matching: reset), findsNothing);
       expect(menuSwitch, findsOneWidget);
       final belowReset = find.byKey(
         const Key('settings-reset-dashboard-card-order'),
@@ -283,14 +283,17 @@ void main() {
       expect(dropdown.underline, isA<SizedBox>());
       expect(dropdown.padding, const EdgeInsets.only(left: 14));
 
+      final lock = find.byKey(const Key('settings-ui-lock-switch'));
       expect(
         tester.getCenter(reset).dy,
-        closeTo(tester.getCenter(menuSwitch).dy, 0.1),
+        greaterThan(tester.getCenter(lock).dy),
       );
       expect(
-        tester.getCenter(reset).dx,
-        lessThan(tester.getCenter(menuSwitch).dx),
+        tester.getCenter(belowReset).dy,
+        greaterThan(tester.getCenter(reset).dy),
       );
+      await tester.ensureVisible(reset);
+      await tester.pump();
       await tester.tap(reset);
       await tester.pump();
 

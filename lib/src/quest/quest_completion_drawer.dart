@@ -92,6 +92,8 @@ class _QuestCompletionDrawerHostState extends State<QuestCompletionDrawerHost> {
     'app.yahagi.kancollebrowser/game_fullscreen',
   );
   static const _damageControlNoticeKey = 'damage-control';
+  static const _nativeDamageControlTimeout = Duration(seconds: 2);
+  static int _nextNativeDamageControlId = 0;
   late TopNoticeController _controller;
   final _damageControlController = TopNoticeController();
   late Listenable _noticeListenable;
@@ -101,6 +103,11 @@ class _QuestCompletionDrawerHostState extends State<QuestCompletionDrawerHost> {
   VoidCallback? _damageControlUnavailable;
   VoidCallback? _damageControlDismissed;
   bool _damageControlMonitorScheduled = false;
+  int _damageControlPresentationRevision = 0;
+  int? _nativeDamageControlId;
+  int? _nativeDamageControlConfirmedId;
+  Timer? _nativeDamageControlMonitor;
+  bool _nativeDamageControlCheckPending = false;
   bool _ownsController = false;
   Future<void> _nativeNoticeQueue = Future<void>.value();
   String? _lastNativeMessage;
@@ -137,26 +144,169 @@ class _QuestCompletionDrawerHostState extends State<QuestCompletionDrawerHost> {
     if (oldWidget.fullscreen != widget.fullscreen ||
         oldWidget.nativeQuestOverlay != widget.nativeQuestOverlay) {
       _syncNativeNotice();
+      _reconcileDamageControlPresentation();
     }
   }
 
+  bool get _usesNativeDamageControl =>
+      widget.fullscreen && widget.nativeQuestOverlay;
+
   bool _damageControlDisplayAvailable(String message) =>
       mounted &&
-      !(widget.fullscreen && widget.nativeQuestOverlay) &&
-      _headerSlots.any((slot) => slot._canDisplayMessage(message));
+      (_usesNativeDamageControl
+          ? _nativeDamageControlId != null &&
+                _nativeDamageControlId == _nativeDamageControlConfirmedId
+          : _headerSlots.any((slot) => slot._canDisplayMessage(message)));
+
+  void _clearNativeDamageControlNotice([int? noticeId]) {
+    final id = noticeId ?? _nativeDamageControlId;
+    if (id == null) return;
+    if (id == _nativeDamageControlId) {
+      _nativeDamageControlId = null;
+      _nativeDamageControlConfirmedId = null;
+      _nativeDamageControlMonitor?.cancel();
+      _nativeDamageControlMonitor = null;
+    }
+    // Native clears match the id, so a late response from a removed host can
+    // never dismiss a newer warning on the shared Activity bubble.
+    unawaited(
+      _nativeChannel
+          .invokeMethod<bool>('damageControlNotice', {'message': '', 'id': id})
+          .timeout(_nativeDamageControlTimeout)
+          .then<void>((_) {}, onError: (Object _, StackTrace _) {}),
+    );
+  }
+
+  Future<bool> _presentNativeDamageControlNotice(
+    String message,
+    int generation,
+  ) async {
+    _clearNativeDamageControlNotice();
+    final id = ++_nextNativeDamageControlId;
+    _nativeDamageControlId = id;
+    var shown = false;
+    try {
+      final request = _nativeChannel.invokeMethod<bool>('damageControlNotice', {
+        'message': message,
+        'id': id,
+      });
+      unawaited(
+        request.then<void>((_) {
+          if (!mounted ||
+              generation != _damageControlGeneration ||
+              _nativeDamageControlId != id ||
+              !_usesNativeDamageControl) {
+            _clearNativeDamageControlNotice(id);
+          }
+        }, onError: (Object _, StackTrace _) {}),
+      );
+      shown = await request.timeout(_nativeDamageControlTimeout) == true;
+    } catch (_) {
+      // A missing/failed native overlay must retain the confirmation fallback.
+    }
+    if (!mounted ||
+        generation != _damageControlGeneration ||
+        _nativeDamageControlId != id ||
+        !_usesNativeDamageControl ||
+        _damageControlController.current == null) {
+      _clearNativeDamageControlNotice(id);
+      return false;
+    }
+    if (!shown) {
+      _clearNativeDamageControlNotice(id);
+      return false;
+    }
+    _nativeDamageControlConfirmedId = id;
+    return true;
+  }
+
+  void _failDamageControlPresentation() {
+    final onUnavailable = _damageControlUnavailable;
+    _removeDamageControlNotice();
+    onUnavailable?.call();
+  }
+
+  void _reconcileDamageControlPresentation() {
+    if (_damageControlConfirmedGeneration != _damageControlGeneration ||
+        _damageControlController.current == null) {
+      return;
+    }
+    final generation = _damageControlGeneration;
+    final revision = ++_damageControlPresentationRevision;
+    _nativeDamageControlMonitor?.cancel();
+    _nativeDamageControlMonitor = null;
+    if (!_usesNativeDamageControl) _clearNativeDamageControlNotice();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted ||
+          revision != _damageControlPresentationRevision ||
+          generation != _damageControlGeneration ||
+          _damageControlController.current == null) {
+        return;
+      }
+      final message = _damageControlController.current!.message;
+      final available = _usesNativeDamageControl
+          ? await _presentNativeDamageControlNotice(message, generation)
+          : _damageControlDisplayAvailable(message);
+      if (!mounted ||
+          revision != _damageControlPresentationRevision ||
+          generation != _damageControlGeneration ||
+          _damageControlController.current == null) {
+        return;
+      }
+      if (!available) {
+        _failDamageControlPresentation();
+        return;
+      }
+      _monitorDamageControlDisplay();
+    });
+    // A header's existing monitor may request this handoff after the frame.
+    // Explicitly schedule the next frame so its callback cannot be stranded.
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  Future<void> _checkNativeDamageControlPresentation() async {
+    if (_nativeDamageControlCheckPending || !_usesNativeDamageControl) return;
+    final id = _nativeDamageControlId;
+    final generation = _damageControlGeneration;
+    if (id == null || _damageControlController.current == null) return;
+    _nativeDamageControlCheckPending = true;
+    var visible = false;
+    try {
+      visible =
+          await _nativeChannel
+              .invokeMethod<bool>('damageControlNoticeVisible', {'id': id})
+              .timeout(_nativeDamageControlTimeout) ==
+          true;
+    } catch (_) {
+      // Losing the Activity bubble is as unsafe as an unavailable header slot.
+    } finally {
+      _nativeDamageControlCheckPending = false;
+    }
+    if (!mounted ||
+        !_usesNativeDamageControl ||
+        id != _nativeDamageControlId ||
+        generation != _damageControlGeneration ||
+        _damageControlController.current == null) {
+      return;
+    }
+    if (!visible) _failDamageControlPresentation();
+  }
 
   Future<bool> _showDamageControlNotice(
     String message, {
     VoidCallback? onUnavailable,
     VoidCallback? onDismissed,
   }) async {
-    if (message.isEmpty || !_damageControlDisplayAvailable(message)) {
+    if (message.isEmpty ||
+        (!_usesNativeDamageControl &&
+            !_damageControlDisplayAvailable(message))) {
       return false;
     }
     final generation = ++_damageControlGeneration;
     _damageControlConfirmedGeneration = null;
     _damageControlUnavailable = null;
     _damageControlDismissed = null;
+    _clearNativeDamageControlNotice();
     _damageControlController.show(
       message: message,
       tone: TopNoticeTone.damageControl,
@@ -166,7 +316,15 @@ class _QuestCompletionDrawerHostState extends State<QuestCompletionDrawerHost> {
     );
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted || generation != _damageControlGeneration) return false;
-    if (!_damageControlDisplayAvailable(message)) {
+    var available = _usesNativeDamageControl
+        ? await _presentNativeDamageControlNotice(message, generation)
+        : _damageControlDisplayAvailable(message);
+    if (!mounted || generation != _damageControlGeneration) return false;
+    // Fullscreen can be exited while the native acknowledgement is pending.
+    if (!_usesNativeDamageControl) {
+      available = _damageControlDisplayAvailable(message);
+    }
+    if (!available) {
       _removeDamageControlNotice();
       return false;
     }
@@ -183,6 +341,7 @@ class _QuestCompletionDrawerHostState extends State<QuestCompletionDrawerHost> {
 
   void _onDamageControlNoticeChanged() {
     if (_damageControlController.current != null) return;
+    _clearNativeDamageControlNotice();
     final onDismissed = _damageControlDismissed;
     _damageControlConfirmedGeneration = null;
     _damageControlUnavailable = null;
@@ -197,6 +356,13 @@ class _QuestCompletionDrawerHostState extends State<QuestCompletionDrawerHost> {
         _damageControlController.current == null) {
       return;
     }
+    if (_usesNativeDamageControl) {
+      _nativeDamageControlMonitor ??= Timer.periodic(
+        const Duration(milliseconds: 500),
+        (_) => unawaited(_checkNativeDamageControlPresentation()),
+      );
+      return;
+    }
     _damageControlMonitorScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _damageControlMonitorScheduled = false;
@@ -205,12 +371,14 @@ class _QuestCompletionDrawerHostState extends State<QuestCompletionDrawerHost> {
           _damageControlController.current == null) {
         return;
       }
+      if (_usesNativeDamageControl) {
+        _reconcileDamageControlPresentation();
+        return;
+      }
       if (!_damageControlDisplayAvailable(
         _damageControlController.current!.message,
       )) {
-        final onUnavailable = _damageControlUnavailable;
-        _removeDamageControlNotice();
-        onUnavailable?.call();
+        _failDamageControlPresentation();
         return;
       }
       _monitorDamageControlDisplay();
@@ -220,6 +388,8 @@ class _QuestCompletionDrawerHostState extends State<QuestCompletionDrawerHost> {
   void _removeDamageControlNotice() {
     if (!mounted) return;
     final generation = ++_damageControlGeneration;
+    _damageControlPresentationRevision++;
+    _clearNativeDamageControlNotice();
     _damageControlConfirmedGeneration = null;
     _damageControlUnavailable = null;
     _damageControlDismissed = null;
@@ -244,11 +414,18 @@ class _QuestCompletionDrawerHostState extends State<QuestCompletionDrawerHost> {
 
   void _syncNativeNotice() {
     if (!widget.nativeQuestOverlay) return;
+    final notices = _controller.notices;
     final message = widget.fullscreen
-        ? _controller.notices
-              .where((notice) => notice.tone == TopNoticeTone.quest)
-              .map((notice) => notice.message)
-              .join('\n')
+        ? [
+            // The native bubble has two lines: put the latest debuff first so
+            // queued task messages cannot hide a newly detected game cue.
+            ...notices.reversed
+                .where((notice) => notice.tone == TopNoticeTone.debuff)
+                .map((notice) => notice.message),
+            ...notices
+                .where((notice) => notice.tone == TopNoticeTone.quest)
+                .map((notice) => notice.message),
+          ].join('\n')
         : '';
     if (message == _lastNativeMessage) return;
     _lastNativeMessage = message;
@@ -266,6 +443,8 @@ class _QuestCompletionDrawerHostState extends State<QuestCompletionDrawerHost> {
   @override
   void dispose() {
     _damageControlGeneration++;
+    _damageControlPresentationRevision++;
+    _clearNativeDamageControlNotice();
     _damageControlDismissed = null;
     _damageControlController.dispose();
     _controller.removeListener(_syncNativeNotice);
@@ -331,6 +510,7 @@ class QuestCompletionHeaderSlot extends StatefulWidget {
       TopNoticeTone.quest => Icons.assignment_turned_in_outlined,
       TopNoticeTone.marriage => Icons.favorite_rounded,
       TopNoticeTone.damageControl => Icons.shield_outlined,
+      TopNoticeTone.debuff => Icons.shield_outlined,
     };
   }
 
@@ -345,6 +525,7 @@ class QuestCompletionHeaderSlot extends StatefulWidget {
       TopNoticeTone.quest => const Color(0xffd4a85f),
       TopNoticeTone.marriage => const Color(0xfff472b6),
       TopNoticeTone.damageControl => const Color(0xffd4a85f),
+      TopNoticeTone.debuff => const Color(0xff34d399),
     };
   }
 
@@ -440,6 +621,7 @@ class _QuestCompletionHeaderSlotState extends State<QuestCompletionHeaderSlot> {
             notices.any(
               (notice) =>
                   notice.tone == TopNoticeTone.quest ||
+                  notice.tone == TopNoticeTone.debuff ||
                   notice.tone == TopNoticeTone.damageControl,
             ));
 

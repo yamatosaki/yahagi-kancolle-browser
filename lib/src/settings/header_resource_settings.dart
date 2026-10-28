@@ -8,6 +8,7 @@ const headerSenkaId = 'senka';
 const headerAnchorageTimerId = 'anchorage-timer';
 const headerNosakiTimerId = 'nosaki-timer';
 const headerFrameRefreshId = 'frame-refresh';
+const headerGameRefreshId = 'game-refresh';
 const headerShipCapacityId = 'ship-capacity';
 const headerEquipmentCapacityId = 'equipment-capacity';
 const headerFurnitureCoinId = 'furniture-coin';
@@ -17,6 +18,7 @@ const allHeaderResourceIds = <String>[
   headerAnchorageTimerId,
   headerNosakiTimerId,
   headerFrameRefreshId,
+  headerGameRefreshId,
   headerShipCapacityId,
   headerEquipmentCapacityId,
   'material-1',
@@ -95,8 +97,13 @@ List<String> normalizeHeaderResourceOrder(Iterable<String>? saved) {
       result.insert(nosakiIndex < 0 ? 0 : nosakiIndex + 1, id);
       continue;
     }
+    if (id == headerGameRefreshId) {
+      final frameRefreshIndex = result.indexOf(headerFrameRefreshId);
+      result.insert(frameRefreshIndex < 0 ? 0 : frameRefreshIndex + 1, id);
+      continue;
+    }
     if (id == headerShipCapacityId) {
-      final refreshIndex = result.indexOf(headerFrameRefreshId);
+      final refreshIndex = result.indexOf(headerGameRefreshId);
       final nosakiIndex = result.indexOf(headerNosakiTimerId);
       final insertIndex = refreshIndex >= 0
           ? refreshIndex + 1

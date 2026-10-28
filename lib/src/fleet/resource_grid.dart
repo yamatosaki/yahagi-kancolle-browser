@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'dart:math' as math;
 
 import '../theme/app_palette.dart';
@@ -7,6 +9,9 @@ import 'fleet_ui_strings.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../game_state/game_state.dart';
+import '../browser/game_dialog_presentation_scope.dart';
+import '../browser/game_reminder_dialog.dart';
+import '../browser/native_game_resource_checklist.dart';
 import '../layout/display_corners.dart';
 import '../layout/flat_collapse_chevron.dart';
 import '../layout/ui_scale.dart';
@@ -126,11 +131,13 @@ class CompactResourceBar extends StatefulWidget {
     this.onAnchorageTimerTap,
     this.onNosakiTimerTap,
     this.onFrameRefreshTap,
+    this.onGameRefreshTap,
     this.layout = ResourceBarLayout.strip,
     this.gridPadding = EdgeInsets.zero,
     this.gridCornerRadii = (left: 0, right: 0),
     this.uiSize,
     this.flatStyle = false,
+    this.initiallyEditing = false,
   });
 
   final GameState state;
@@ -143,6 +150,7 @@ class CompactResourceBar extends StatefulWidget {
   final VoidCallback? onAnchorageTimerTap;
   final VoidCallback? onNosakiTimerTap;
   final VoidCallback? onFrameRefreshTap;
+  final VoidCallback? onGameRefreshTap;
 
   /// grid 用于游戏页没有顶栏时把资源放进信息栏；strip 是顶栏里的横向滚动条；
   /// staticStrip 是只展示的单行，放不下时整行缩小而不滚动。
@@ -158,11 +166,14 @@ class CompactResourceBar extends StatefulWidget {
   /// Flat strip styling is independent of compact sizing; grids ignore it.
   final bool flatStyle;
 
+  /// Allows the settings entry to open the same editor used by a long press.
+  final bool initiallyEditing;
+
   @override
-  State<CompactResourceBar> createState() => _CompactResourceBarState();
+  State<CompactResourceBar> createState() => CompactResourceBarState();
 }
 
-class _CompactResourceBarState extends State<CompactResourceBar> {
+class CompactResourceBarState extends State<CompactResourceBar> {
   static const Map<String, ({int useItemId, int rate})> _furnitureBoxCoinRates =
       <String, ({int useItemId, int rate})>{
         'useitem-10': (useItemId: 10, rate: 200),
@@ -174,11 +185,58 @@ class _CompactResourceBarState extends State<CompactResourceBar> {
   final Set<String> _furnitureBoxCoinModeIds = <String>{};
   bool _showTheoreticalFurnitureCoins = false;
   bool _editing = false;
+  final _checklistValueChanges = ValueNotifier(0);
+  GameReminderDialogPresentation? _resourceChecklist;
+  GameDialogPresentationScope? _dialogPresentation;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final next = GameDialogPresentationScope.maybeOf(context);
+    final previous = _dialogPresentation;
+    if (previous?.nativeActivity != next?.nativeActivity ||
+        previous?.presentationEnabled != next?.presentationEnabled ||
+        previous?.nativeChecklistPort != next?.nativeChecklistPort) {
+      _cancelResourceChecklist();
+    }
+    _dialogPresentation = next;
+  }
+
+  /// Opens the same choices as the header filter without entering edit mode.
+  Future<void> openHeaderChecklist() async {
+    final controller = widget.settingsController;
+    if (!mounted || controller == null || controller.uiLocked) return;
+    await _showResourceFilter(controller);
+  }
+
+  Future<void> openCollapsedChecklist() async {
+    final controller = widget.settingsController;
+    if (!mounted || controller == null || controller.uiLocked) return;
+    await _showCollapsedItemsPicker(controller);
+  }
+
+  void _cancelResourceChecklist() {
+    final presentation = _resourceChecklist;
+    _resourceChecklist = null;
+    presentation?.cancel();
+  }
+
+  Future<void> _trackResourceChecklist(
+    GameReminderDialogPresentation? presentation,
+  ) async {
+    if (presentation == null) return;
+    _resourceChecklist = presentation;
+    await presentation.completed;
+    if (identical(_resourceChecklist, presentation)) _resourceChecklist = null;
+  }
+
   DateTime _now = DateTime.now().toUtc();
 
   @override
   void initState() {
     super.initState();
+    _editing =
+        widget.initiallyEditing && widget.settingsController?.uiLocked != true;
     widget.settingsController?.addListener(_handleSettingsChanged);
   }
 
@@ -186,23 +244,31 @@ class _CompactResourceBarState extends State<CompactResourceBar> {
   void didUpdateWidget(covariant CompactResourceBar oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.settingsController != widget.settingsController) {
+      _cancelResourceChecklist();
       oldWidget.settingsController?.removeListener(_handleSettingsChanged);
       widget.settingsController?.addListener(_handleSettingsChanged);
     }
     if (widget.settingsController?.uiLocked == true) {
+      _cancelResourceChecklist();
       _editing = false;
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _checklistValueChanges.value++;
+    });
   }
 
   @override
   void dispose() {
+    _cancelResourceChecklist();
     widget.settingsController?.removeListener(_handleSettingsChanged);
+    _checklistValueChanges.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
   void _handleSettingsChanged() {
     if (!mounted) return;
+    if (widget.settingsController?.uiLocked == true) _cancelResourceChecklist();
     if (widget.settingsController?.uiLocked == true && _editing) {
       setState(() => _editing = false);
     }
@@ -500,6 +566,7 @@ class _CompactResourceBarState extends State<CompactResourceBar> {
       id == headerAnchorageTimerId ||
       id == headerNosakiTimerId ||
       id == headerFrameRefreshId ||
+      id == headerGameRefreshId ||
       id == headerShipCapacityId ||
       id == headerEquipmentCapacityId;
 
@@ -603,8 +670,11 @@ class _CompactResourceBarState extends State<CompactResourceBar> {
     String id, {
     required HeaderUiSize uiSize,
   }) {
-    if (id == headerFrameRefreshId) {
-      return _HeaderFrameRefreshPill(uiSize: uiSize).gridNaturalWidth(context);
+    if (id == headerFrameRefreshId || id == headerGameRefreshId) {
+      return _HeaderRefreshPill(
+        id: id,
+        uiSize: uiSize,
+      ).gridNaturalWidth(context);
     }
     final wide = _buildGridWideItem(id);
     assert(wide != null, 'no grid natural width for $id');
@@ -847,7 +917,7 @@ class _CompactResourceBarState extends State<CompactResourceBar> {
     headerSenkaId => isCompact ? 132 : 142,
     headerAnchorageTimerId => isCompact ? 118 : 128,
     headerNosakiTimerId => isCompact ? 118 : 128,
-    headerFrameRefreshId => isCompact ? 88 : 98,
+    headerFrameRefreshId || headerGameRefreshId => isCompact ? 88 : 98,
     headerShipCapacityId => isCompact ? 108 : 118,
     headerEquipmentCapacityId => isCompact ? 126 : 138,
     _ => isCompact ? 74 : 82,
@@ -872,6 +942,7 @@ class _CompactResourceBarState extends State<CompactResourceBar> {
               headerAnchorageTimerId => widget.onAnchorageTimerTap,
               headerNosakiTimerId => widget.onNosakiTimerTap,
               headerFrameRefreshId => widget.onFrameRefreshTap,
+              headerGameRefreshId => widget.onGameRefreshTap,
               _ => null,
             },
       onLongPress: () {
@@ -889,6 +960,7 @@ class _CompactResourceBarState extends State<CompactResourceBar> {
           headerAnchorageTimerId => fleetText(context, '泊地修理计时'),
           headerNosakiTimerId => fleetText(context, '野埼刷闪计时'),
           headerFrameRefreshId => l10n.frameRefreshShortcutLabel,
+          headerGameRefreshId => l10n.advanceWarningReloadGame,
           headerShipCapacityId => l10n.shipGirl,
           headerEquipmentCapacityId => l10n.equipment,
           _ => fleetText(context, headerResourceById[id]!.label),
@@ -898,6 +970,7 @@ class _CompactResourceBarState extends State<CompactResourceBar> {
                 id == headerAnchorageTimerId ||
                 id == headerNosakiTimerId ||
                 id == headerFrameRefreshId ||
+                id == headerGameRefreshId ||
                 id == headerFurnitureCoinId ||
                 _furnitureBoxCoinRates.containsKey(id)
             ? TooltipTriggerMode.manual
@@ -986,8 +1059,8 @@ class _CompactResourceBarState extends State<CompactResourceBar> {
     if (id == headerNosakiTimerId) {
       return _HeaderNosakiTimerSummary(elapsed: _nosakiElapsed, uiSize: uiSize);
     }
-    if (id == headerFrameRefreshId) {
-      return _HeaderFrameRefreshPill(uiSize: uiSize);
+    if (id == headerFrameRefreshId || id == headerGameRefreshId) {
+      return _HeaderRefreshPill(id: id, uiSize: uiSize);
     }
     if (id == headerShipCapacityId || id == headerEquipmentCapacityId) {
       return _buildCapacityPill(id, uiSize: uiSize);
@@ -1032,11 +1105,11 @@ class _CompactResourceBarState extends State<CompactResourceBar> {
         uiSize: uiSize,
       );
     }
-    if (id == headerFrameRefreshId) {
+    if (id == headerFrameRefreshId || id == headerGameRefreshId) {
       return _EditableHeaderCapacityItem(
         width: isCompact ? 88 : 98,
         visible: visible,
-        child: _HeaderFrameRefreshPill(uiSize: uiSize),
+        child: _HeaderRefreshPill(id: id, uiSize: uiSize),
       );
     }
     if (id == headerShipCapacityId || id == headerEquipmentCapacityId) {
@@ -1097,20 +1170,36 @@ class _CompactResourceBarState extends State<CompactResourceBar> {
     );
   }
 
+  _ResourceChecklistData _checklistData() => _ResourceChecklistData(
+    state: widget.state,
+    senka: widget.senka,
+    rank: widget.rank,
+    anchorageRepairStartedAt: widget.anchorageRepairStartedAt,
+    nosakiSparkleStartedAt: widget.nosakiSparkleStartedAt,
+  );
+
   Future<void> _showResourceFilter(LayoutSettingsController controller) {
+    if (_resourceChecklist?.isActive == true) return Future<void>.value();
     final l10n =
         AppLocalizations.of(context) ??
         lookupAppLocalizations(const Locale('zh'));
-    return _showResourceChecklist(
-      controller,
-      title: l10n.selectHeaderVisibleItems,
-      ids: () => controller.headerResourceOrder,
-      checked: () => controller.visibleHeaderResourceIds.toSet(),
-      onToggle: controller.toggleHeaderResourceVisible,
+    return _trackResourceChecklist(
+      _presentResourceChecklist(
+        context: context,
+        controller: controller,
+        title: l10n.selectHeaderVisibleItems,
+        kind: 'headerResources',
+        ids: () => controller.headerResourceOrder,
+        checked: () => controller.visibleHeaderResourceIds.toSet(),
+        onToggle: controller.toggleHeaderResourceVisible,
+        data: _checklistData,
+        valueChanges: _checklistValueChanges,
+      ),
     );
   }
 
   Future<void> _showCollapsedItemsPicker(LayoutSettingsController controller) {
+    if (_resourceChecklist?.isActive == true) return Future<void>.value();
     final l10n =
         AppLocalizations.of(context) ??
         lookupAppLocalizations(const Locale('zh'));
@@ -1122,182 +1211,386 @@ class _CompactResourceBarState extends State<CompactResourceBar> {
       ];
     }
 
-    return _showResourceChecklist(
-      controller,
-      key: const Key('panel-resource-collapsed-dialog'),
-      title: l10n.panelResourcesCollapsedItems,
-      ids: visibleIds,
-      checked: () => _collapsedGridIds(visibleIds(), controller).toSet(),
-      onToggle: (id) {
-        // 从已存的选择出发而不是从可见项出发，隐藏项上的勾才不会被冲掉。
-        final next = {
-          ...controller.collapsedPanelResourceIds ??
-              _defaultCollapsedGridIds(visibleIds()),
-        };
-        if (!next.remove(id)) next.add(id);
-        controller.setCollapsedPanelResourceIds(next.toList());
-      },
-      action: IconButton(
-        key: const Key('panel-resource-collapsed-reset'),
-        tooltip: l10n.panelResourcesCollapsedItemsReset,
-        onPressed: () => controller.setCollapsedPanelResourceIds(null),
-        icon: Icon(
-          Icons.restart_alt_rounded,
-          color: appColor(context, const Color(0xffe0b25c)),
-        ),
+    Future<void> reset() => controller.setCollapsedPanelResourceIds(null);
+    return _trackResourceChecklist(
+      _presentResourceChecklist(
+        context: context,
+        controller: controller,
+        key: const Key('panel-resource-collapsed-dialog'),
+        title: l10n.panelResourcesCollapsedItems,
+        kind: 'collapsedResources',
+        ids: visibleIds,
+        checked: () => _collapsedGridIds(visibleIds(), controller).toSet(),
+        onToggle: (id) {
+          final next = {
+            ...controller.collapsedPanelResourceIds ??
+                _defaultCollapsedGridIds(visibleIds()),
+          };
+          if (!next.remove(id)) next.add(id);
+          return controller.setCollapsedPanelResourceIds(next.toList());
+        },
+        onReset: reset,
+        resetLabel: l10n.panelResourcesCollapsedItemsReset,
+        data: _checklistData,
+        valueChanges: _checklistValueChanges,
+      ),
+    );
+  }
+}
+
+/// The settings entry can open the same editor even when the header is hidden.
+/// The owner cancels the returned presentation when its own lifetime ends.
+GameReminderDialogPresentation? showHeaderResourceChecklist({
+  required BuildContext context,
+  required LayoutSettingsController controller,
+  required GameState Function() stateProvider,
+  double? senka,
+  int? rank,
+  DateTime? anchorageRepairStartedAt,
+  DateTime? nosakiSparkleStartedAt,
+  double? Function()? senkaProvider,
+  int? Function()? rankProvider,
+  DateTime? Function()? anchorageRepairStartedAtProvider,
+  DateTime? Function()? nosakiSparkleStartedAtProvider,
+  Listenable? valueChanges,
+  bool? nativeActivity,
+  bool? presentationEnabled,
+  NativeGameResourceChecklistPort? nativeChecklistPort,
+}) {
+  if (!context.mounted) return null;
+  final l10n =
+      AppLocalizations.of(context) ??
+      lookupAppLocalizations(const Locale('zh'));
+  return _presentResourceChecklist(
+    context: context,
+    controller: controller,
+    title: l10n.selectHeaderVisibleItems,
+    kind: 'headerResources',
+    ids: () => controller.headerResourceOrder,
+    checked: () => controller.visibleHeaderResourceIds.toSet(),
+    onToggle: controller.toggleHeaderResourceVisible,
+    data: () => _ResourceChecklistData(
+      state: stateProvider(),
+      senka: senkaProvider != null ? senkaProvider() : senka,
+      rank: rankProvider != null ? rankProvider() : rank,
+      anchorageRepairStartedAt: anchorageRepairStartedAtProvider != null
+          ? anchorageRepairStartedAtProvider()
+          : anchorageRepairStartedAt,
+      nosakiSparkleStartedAt: nosakiSparkleStartedAtProvider != null
+          ? nosakiSparkleStartedAtProvider()
+          : nosakiSparkleStartedAt,
+    ),
+    valueChanges: valueChanges,
+    nativeActivity: nativeActivity,
+    presentationEnabled: presentationEnabled,
+    nativeChecklistPort: nativeChecklistPort,
+  );
+}
+
+GameReminderDialogPresentation? _presentResourceChecklist({
+  required BuildContext context,
+  required LayoutSettingsController controller,
+  required String title,
+  required String kind,
+  required List<String> Function() ids,
+  required Set<String> Function() checked,
+  required FutureOr<void> Function(String) onToggle,
+  required _ResourceChecklistData Function() data,
+  Key? key,
+  FutureOr<void> Function()? onReset,
+  String? resetLabel,
+  Listenable? valueChanges,
+  bool? nativeActivity,
+  bool? presentationEnabled,
+  NativeGameResourceChecklistPort? nativeChecklistPort,
+}) {
+  if (!context.mounted) return null;
+  final scope = GameDialogPresentationScope.maybeOf(context);
+  if (controller.uiLocked ||
+      !(presentationEnabled ?? scope?.presentationEnabled ?? true)) {
+    return null;
+  }
+  final l10n =
+      AppLocalizations.of(context) ??
+      lookupAppLocalizations(const Locale('zh'));
+  final revision = ValueNotifier(0);
+  GameReminderDialogPresentation? presentation;
+  bool canEdit() =>
+      context.mounted && !controller.uiLocked && presentation?.isActive == true;
+  void applyChange(FutureOr<void> Function() change) {
+    unawaited(
+      Future<void>.sync(change).catchError(
+        (Object error) => debugPrint('Resource checklist save failed: $error'),
       ),
     );
   }
 
-  Future<void> _showResourceChecklist(
-    LayoutSettingsController controller, {
-    Key? key,
-    required String title,
-    required List<String> Function() ids,
-    required Set<String> Function() checked,
-    required void Function(String id) onToggle,
-    Widget? action,
-  }) async {
+  final native = (nativeActivity ?? scope?.nativeActivity ?? false)
+      ? NativeGameResourceChecklistAdapter(
+          kind: kind,
+          port:
+              nativeChecklistPort ??
+              scope?.nativeChecklistPort ??
+              const MethodChannelNativeGameResourceChecklistPort(),
+          items: () {
+            final values = data();
+            final selected = checked();
+            return [
+              for (final id in ids())
+                values.item(context, id, checked: selected.contains(id)),
+            ];
+          },
+          isCurrent: canEdit,
+          onToggle: onToggle,
+          onReset: onReset,
+          doneLabel: l10n.editDone,
+          resetLabel: resetLabel,
+        )
+      : null;
+  var disposed = false;
+  void refresh() {
+    if (disposed) return;
+    if (!context.mounted || controller.uiLocked) {
+      presentation?.cancel();
+      return;
+    }
+    revision.value++;
+    native?.updateCurrent();
+  }
+
+  controller.addListener(refresh);
+  if (!identical(valueChanges, controller)) valueChanges?.addListener(refresh);
+  // A timer can start while the editor is already open. Keep this short-lived
+  // presentation subscribed until its owner or input protection completes.
+  final timer = Timer.periodic(const Duration(seconds: 1), (_) => refresh());
+  presentation = showGameReminderDialog(
+    context: context,
+    kind: kind,
+    title: title,
+    message: '',
+    nativePort: native,
+    builder: (dialogContext, acknowledge) => Dialog(
+      key: key ?? const Key('header-resource-filter-dialog'),
+      backgroundColor: appColor(dialogContext, const Color(0xff102532)),
+      shape: RoundedRectangleBorder(
+        side: BorderSide(
+          color: appColor(dialogContext, const Color(0xff315064)),
+        ),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360, maxHeight: 440),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        color: appColor(dialogContext, const Color(0xffe0b25c)),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  if (onReset != null)
+                    IconButton(
+                      key: const Key('panel-resource-collapsed-reset'),
+                      visualDensity: VisualDensity.compact,
+                      iconSize: 20,
+                      tooltip: resetLabel,
+                      onPressed: () {
+                        if (canEdit()) applyChange(onReset);
+                      },
+                      icon: Icon(
+                        Icons.restart_alt_rounded,
+                        color: appColor(dialogContext, const Color(0xffe0b25c)),
+                      ),
+                    ),
+                  IconButton(
+                    key: const Key('header-resource-filter-done'),
+                    visualDensity: VisualDensity.compact,
+                    iconSize: 20,
+                    tooltip: l10n.editDone,
+                    onPressed: acknowledge,
+                    icon: Icon(
+                      Icons.check_rounded,
+                      color: appColor(dialogContext, const Color(0xffe0b25c)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Divider(
+              height: 1,
+              color: appColor(dialogContext, const Color(0xff294052)),
+            ),
+            Flexible(
+              child: AnimatedBuilder(
+                animation: revision,
+                builder: (context, _) {
+                  final values = data();
+                  final visible = ids();
+                  final selected = checked();
+                  return ListView.builder(
+                    key: const Key('header-resource-filter-list'),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    itemCount: visible.length,
+                    itemBuilder: (context, index) {
+                      final id = visible[index];
+                      return values.row(
+                        context,
+                        id,
+                        checked: selected.contains(id),
+                        onChanged: () {
+                          if (canEdit()) applyChange(() => onToggle(id));
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+  unawaited(
+    presentation.completed.then((_) {
+      disposed = true;
+      timer.cancel();
+      controller.removeListener(refresh);
+      if (!identical(valueChanges, controller)) {
+        valueChanges?.removeListener(refresh);
+      }
+      native?.dispose();
+      revision.dispose();
+    }),
+  );
+  return presentation;
+}
+
+final class _ResourceChecklistData {
+  const _ResourceChecklistData({
+    required this.state,
+    this.senka,
+    this.rank,
+    this.anchorageRepairStartedAt,
+    this.nosakiSparkleStartedAt,
+  });
+  final GameState state;
+  final double? senka;
+  final int? rank;
+  final DateTime? anchorageRepairStartedAt;
+  final DateTime? nosakiSparkleStartedAt;
+
+  IconData? _icon(String id) => switch (id) {
+    headerSenkaId => Icons.emoji_events_rounded,
+    headerAnchorageTimerId => Icons.anchor_rounded,
+    headerNosakiTimerId => Icons.restaurant_rounded,
+    headerFrameRefreshId || headerGameRefreshId => Icons.refresh_rounded,
+    headerShipCapacityId => Icons.directions_boat_filled_rounded,
+    headerEquipmentCapacityId => Icons.build_rounded,
+    _ => null,
+  };
+
+  Color _iconColor(BuildContext context, String id) => appColor(
+    context,
+    id == headerSenkaId ? const Color(0xffe0b25c) : const Color(0xff9fb3bf),
+  );
+
+  String get anchorageElapsed => !AnchorageRepairCalculator.hasReadyFleet(state)
+      ? '--:--:--'
+      : formatAnchorageRepairElapsed(
+          anchorageRepairStartedAt,
+          DateTime.now().toUtc(),
+        );
+  String get nosakiElapsed => formatNosakiSparkleElapsed(
+    nosakiSparkleStartedAt,
+    DateTime.now().toUtc(),
+  );
+
+  Map<String, Object?> item(
+    BuildContext context,
+    String id, {
+    required bool checked,
+  }) {
     final l10n =
         AppLocalizations.of(context) ??
         lookupAppLocalizations(const Locale('zh'));
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => Dialog(
-        key: key,
-        backgroundColor: appColor(context, const Color(0xff102532)),
-        shape: RoundedRectangleBorder(
-          side: BorderSide(color: appColor(context, Color(0xff315064))),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 390, maxHeight: 560),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 6, 6),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: TextStyle(
-                          color: appColor(context, const Color(0xffe0b25c)),
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    ?action,
-                    IconButton(
-                      key: const Key('header-resource-filter-done'),
-                      tooltip: l10n.editDone,
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      icon: Icon(
-                        Icons.check_rounded,
-                        color: appColor(context, Color(0xffe0b25c)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Divider(height: 1, color: appColor(context, Color(0xff294052))),
-              Flexible(
-                child: AnimatedBuilder(
-                  animation: controller,
-                  builder: (context, _) {
-                    if (controller.uiLocked) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (dialogContext.mounted) {
-                          Navigator.of(dialogContext).pop();
-                        }
-                      });
-                    }
-                    final items = ids();
-                    final checkedIds = checked();
-                    return ListView.builder(
-                      key: const Key('header-resource-filter-list'),
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      itemCount: items.length,
-                      itemBuilder: (context, index) {
-                        final id = items[index];
-                        return _buildChecklistRow(
-                          id,
-                          l10n: l10n,
-                          checked: checkedIds.contains(id),
-                          onChanged: controller.uiLocked
-                              ? null
-                              : () => onToggle(id),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
+    final (label, value) = switch (id) {
+      headerSenkaId => (
+        fleetText(context, '战果'),
+        '${_formatSenka(senka)}（#${rank ?? '--'}）',
       ),
-    );
+      headerAnchorageTimerId => (fleetText(context, '泊地计时'), anchorageElapsed),
+      headerNosakiTimerId => (fleetText(context, '野埼计时'), nosakiElapsed),
+      headerFrameRefreshId => (l10n.frameRefreshShortcutLabel, ''),
+      headerGameRefreshId => (l10n.advanceWarningReloadGame, ''),
+      headerShipCapacityId => (
+        l10n.shipGirl,
+        '${state.hasPortData ? state.ships.length : '—'} / ${state.maxShipCount ?? '—'}',
+      ),
+      headerEquipmentCapacityId => (
+        l10n.equipment,
+        '${state.hasPortData ? state.equipmentCapacityUsed : '—'} / ${state.maxEquipmentCount ?? '—'}',
+      ),
+      _ => (
+        fleetText(context, headerResourceById[id]!.label),
+        headerResourceById[id]!.value(state)?.toString() ?? '—',
+      ),
+    };
+    final icon = _icon(id);
+    return {
+      'id': id,
+      'label': label,
+      'value': value,
+      'checked': checked,
+      if (icon == null)
+        'iconAsset': headerResourceById[id]!.assetPath
+      else ...{
+        'iconCodePoint': icon.codePoint,
+        'iconColor': _iconColor(context, id).toARGB32(),
+      },
+    };
   }
 
-  Widget _buildChecklistRow(
+  Widget row(
+    BuildContext context,
     String id, {
-    required AppLocalizations l10n,
     required bool checked,
-    required VoidCallback? onChanged,
+    required VoidCallback onChanged,
   }) {
-    if (id == headerSenkaId) {
-      return _HeaderSenkaFilterRow(
-        senka: widget.senka,
-        rank: widget.rank,
-        checked: checked,
-        onChanged: onChanged,
-      );
-    }
-    if (id == headerAnchorageTimerId) {
-      return _HeaderAnchorageTimerFilterRow(
-        elapsed: _anchorageElapsed,
-        checked: checked,
-        onChanged: onChanged,
-      );
-    }
-    if (id == headerNosakiTimerId) {
-      return _HeaderNosakiTimerFilterRow(
-        elapsed: _nosakiElapsed,
-        checked: checked,
-        onChanged: onChanged,
-      );
-    }
-    if (id == headerFrameRefreshId) {
-      return _HeaderCapacityFilterRow(
-        id: id,
-        label: l10n.frameRefreshShortcutLabel,
-        value: '',
-        icon: Icons.refresh_rounded,
-        checked: checked,
-        onChanged: onChanged,
-      );
-    }
-    if (id == headerShipCapacityId || id == headerEquipmentCapacityId) {
-      final ships = id == headerShipCapacityId;
-      return _HeaderCapacityFilterRow(
-        id: id,
-        label: ships ? l10n.shipGirl : l10n.equipment,
-        value:
-            '${widget.state.hasPortData ? (ships ? widget.state.ships.length : widget.state.equipmentCapacityUsed) : '—'} / ${ships ? widget.state.maxShipCount ?? '—' : widget.state.maxEquipmentCount ?? '—'}',
-        icon: ships
-            ? Icons.directions_boat_filled_rounded
-            : Icons.build_rounded,
-        checked: checked,
-        onChanged: onChanged,
-      );
-    }
-    final spec = headerResourceById[id]!;
+    final values = item(context, id, checked: checked);
+    final icon = _icon(id);
     return _HeaderResourceFilterRow(
-      spec: spec,
-      value: spec.value(widget.state),
+      id: id,
+      label: values['label']! as String,
+      value: values['value']! as String,
+      icon: icon == null
+          ? Image.asset(
+              headerResourceById[id]!.assetPath,
+              width: 20,
+              height: 20,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.medium,
+            )
+          : Icon(icon, size: 20, color: _iconColor(context, id)),
+      valueColor: id == headerSenkaId
+          ? const Color(0xffe0b25c)
+          : [
+              headerFrameRefreshId,
+              headerGameRefreshId,
+              headerShipCapacityId,
+              headerEquipmentCapacityId,
+            ].contains(id)
+          ? const Color(0xffdce6eb)
+          : const Color(0xff9fb3bf),
       checked: checked,
       onChanged: onChanged,
     );
@@ -1447,10 +1740,13 @@ BoxDecoration? _headerPillDecoration(
   );
 }
 
-class _HeaderFrameRefreshPill extends StatelessWidget
-    implements _NaturallySized {
-  const _HeaderFrameRefreshPill({this.uiSize = HeaderUiSize.normal});
+class _HeaderRefreshPill extends StatelessWidget implements _NaturallySized {
+  const _HeaderRefreshPill({
+    required this.id,
+    this.uiSize = HeaderUiSize.normal,
+  });
 
+  final String id;
   final HeaderUiSize uiSize;
 
   bool get _isCompact => uiSize.isCompactOrSmaller;
@@ -1458,10 +1754,14 @@ class _HeaderFrameRefreshPill extends StatelessWidget
   double get _iconSize => _isCompact ? 15 : 17;
   double get _iconGap => _isCompact ? 3 : 4;
 
-  static String _label(BuildContext context) =>
-      (AppLocalizations.of(context) ??
-              lookupAppLocalizations(const Locale('zh')))
-          .frameRefreshShortcutLabel;
+  String _label(BuildContext context) {
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
+    return id == headerFrameRefreshId
+        ? l10n.frameRefreshShortcutLabel
+        : l10n.advanceWarningReloadGame;
+  }
 
   static TextStyle _style(double fontSize) => TextStyle(
     color: const Color(0xffdce6eb),
@@ -1489,7 +1789,7 @@ class _HeaderFrameRefreshPill extends StatelessWidget
   @override
   Widget build(BuildContext context) {
     return Container(
-      key: const Key('header-frame-refresh'),
+      key: Key('header-$id'),
       height: _headerItemHeight(context, _isCompact),
       padding: EdgeInsets.symmetric(horizontal: _horizontalPadding),
       decoration: _headerPillDecoration(
@@ -1891,12 +2191,13 @@ class _EditableHeaderCapacityItem extends StatelessWidget {
   );
 }
 
-class _HeaderCapacityFilterRow extends StatelessWidget {
-  const _HeaderCapacityFilterRow({
+class _HeaderResourceFilterRow extends StatelessWidget {
+  const _HeaderResourceFilterRow({
     required this.id,
     required this.label,
     required this.value,
     required this.icon,
+    required this.valueColor,
     required this.checked,
     required this.onChanged,
   });
@@ -1904,331 +2205,102 @@ class _HeaderCapacityFilterRow extends StatelessWidget {
   final String id;
   final String label;
   final String value;
-  final IconData icon;
+  final Widget icon;
+  final Color valueColor;
   final bool checked;
-  final VoidCallback? onChanged;
+  final VoidCallback onChanged;
 
   @override
-  Widget build(BuildContext context) => Material(
-    key: Key('header-resource-filter-row-$id'),
-    color: appColor(context, Colors.transparent),
-    child: InkWell(
-      onTap: onChanged,
-      child: SizedBox(
-        height: 42,
-        child: Row(
-          children: [
-            Checkbox(
-              key: Key('header-resource-visible-$id'),
-              value: checked,
-              onChanged: onChanged == null ? null : (_) => onChanged!(),
-              visualDensity: VisualDensity.compact,
-            ),
-            Icon(icon, size: 24, color: appColor(context, Color(0xff9fb3bf))),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                label,
-                style: appTextStyle(
-                  context,
-                  TextStyle(
-                    color: appColor(context, Color(0xffdce6eb)),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+  Widget build(BuildContext context) {
+    final labelStyle = appTextStyle(
+      context,
+      TextStyle(
+        color: appColor(context, const Color(0xffdce6eb)),
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+    final valueStyle = appTextStyle(
+      context,
+      TextStyle(
+        color: appColor(context, valueColor),
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+      ),
+    );
+    return Material(
+      key: Key('header-resource-filter-row-$id'),
+      color: appColor(context, Colors.transparent),
+      child: InkWell(
+        onTap: onChanged,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 38),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 32,
+                child: Center(
+                  child: Transform.scale(
+                    scale: 0.84,
+                    child: Checkbox(
+                      key: Key('header-resource-visible-$id'),
+                      value: checked,
+                      onChanged: (_) => onChanged(),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
                 ),
               ),
-            ),
-            Text(
-              value,
-              style: appTextStyle(
-                context,
-                TextStyle(
-                  color: appColor(context, Color(0xffdce6eb)),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-class _HeaderSenkaFilterRow extends StatelessWidget {
-  const _HeaderSenkaFilterRow({
-    required this.senka,
-    required this.rank,
-    required this.checked,
-    required this.onChanged,
-  });
-
-  final double? senka;
-  final int? rank;
-  final bool checked;
-  final VoidCallback? onChanged;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    key: const Key('header-resource-filter-row-senka'),
-    color: appColor(context, Colors.transparent),
-    child: InkWell(
-      onTap: onChanged,
-      child: SizedBox(
-        height: 42,
-        child: Row(
-          children: [
-            Checkbox(
-              key: const Key('header-resource-visible-senka'),
-              value: checked,
-              onChanged: onChanged == null ? null : (_) => onChanged!(),
-              visualDensity: VisualDensity.compact,
-            ),
-            Icon(
-              Icons.emoji_events_rounded,
-              size: 24,
-              color: appColor(context, Color(0xffe0b25c)),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                fleetText(context, '战果'),
-                style: appTextStyle(
-                  context,
-                  TextStyle(
-                    color: Color(0xffdce6eb),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+              icon,
+              const SizedBox(width: 6),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final labelText = Text(label, style: labelStyle);
+                      final valueText = Text(value, style: valueStyle);
+                      // Keep full-size text readable on narrow screens: long
+                      // labels and values flow onto separate lines as needed.
+                      final fitsInline =
+                          value.isEmpty ||
+                          _headerTextWidth(context, label, labelStyle) +
+                                  6 +
+                                  _headerTextWidth(
+                                    context,
+                                    value,
+                                    valueStyle,
+                                  ) <=
+                              constraints.maxWidth;
+                      if (!fitsInline) {
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [labelText, valueText],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: labelText),
+                          if (value.isNotEmpty) ...[
+                            const SizedBox(width: 6),
+                            valueText,
+                          ],
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
-            ),
-            Text(
-              '${_formatSenka(senka)}（#${rank ?? '--'}）',
-              style: appTextStyle(
-                context,
-                TextStyle(
-                  color: appColor(context, Color(0xffe0b25c)),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-          ],
+              const SizedBox(width: 12),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
-
-class _HeaderAnchorageTimerFilterRow extends StatelessWidget {
-  const _HeaderAnchorageTimerFilterRow({
-    required this.elapsed,
-    required this.checked,
-    required this.onChanged,
-  });
-
-  final String elapsed;
-  final bool checked;
-  final VoidCallback? onChanged;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    key: const Key('header-resource-filter-row-anchorage-timer'),
-    color: appColor(context, Colors.transparent),
-    child: InkWell(
-      onTap: onChanged,
-      child: SizedBox(
-        height: 42,
-        child: Row(
-          children: [
-            Checkbox(
-              key: const Key('header-resource-visible-anchorage-timer'),
-              value: checked,
-              onChanged: onChanged == null ? null : (_) => onChanged!(),
-              visualDensity: VisualDensity.compact,
-            ),
-            Icon(
-              Icons.anchor_rounded,
-              size: 24,
-              color: appColor(context, Color(0xff9fb3bf)),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                fleetText(context, '泊地计时'),
-                style: appTextStyle(
-                  context,
-                  TextStyle(
-                    color: Color(0xffdce6eb),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-            Text(
-              elapsed,
-              style: appTextStyle(
-                context,
-                TextStyle(
-                  color: appColor(context, Color(0xff9fb3bf)),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-class _HeaderNosakiTimerFilterRow extends StatelessWidget {
-  const _HeaderNosakiTimerFilterRow({
-    required this.elapsed,
-    required this.checked,
-    required this.onChanged,
-  });
-
-  final String elapsed;
-  final bool checked;
-  final VoidCallback? onChanged;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    key: const Key('header-resource-filter-row-nosaki-timer'),
-    color: appColor(context, Colors.transparent),
-    child: InkWell(
-      onTap: onChanged,
-      child: SizedBox(
-        height: 42,
-        child: Row(
-          children: [
-            Checkbox(
-              key: const Key('header-resource-visible-nosaki-timer'),
-              value: checked,
-              onChanged: onChanged == null ? null : (_) => onChanged!(),
-              visualDensity: VisualDensity.compact,
-            ),
-            Icon(
-              Icons.restaurant_rounded,
-              size: 24,
-              color: appColor(context, Color(0xff9fb3bf)),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                fleetText(context, '野埼计时'),
-                style: appTextStyle(
-                  context,
-                  TextStyle(
-                    color: Color(0xffdce6eb),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-            Text(
-              elapsed,
-              style: appTextStyle(
-                context,
-                TextStyle(
-                  color: appColor(context, Color(0xff9fb3bf)),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-class _HeaderResourceFilterRow extends StatelessWidget {
-  const _HeaderResourceFilterRow({
-    required this.spec,
-    required this.value,
-    required this.checked,
-    required this.onChanged,
-  });
-
-  final HeaderResourceSpec spec;
-  final int? value;
-  final bool checked;
-  final VoidCallback? onChanged;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    key: Key('header-resource-filter-row-${spec.id}'),
-    color: appColor(context, Colors.transparent),
-    child: InkWell(
-      onTap: onChanged,
-      child: SizedBox(
-        height: 42,
-        child: Row(
-          children: [
-            Checkbox(
-              key: Key('header-resource-visible-${spec.id}'),
-              value: checked,
-              onChanged: onChanged == null ? null : (_) => onChanged!(),
-              visualDensity: VisualDensity.compact,
-            ),
-            Image.asset(
-              spec.assetPath,
-              width: 24,
-              height: 24,
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.medium,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                fleetText(context, spec.label),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: appTextStyle(
-                  context,
-                  TextStyle(
-                    color: appColor(context, Color(0xffdce6eb)),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ),
-            Text(
-              value?.toString() ?? '—',
-              style: appTextStyle(
-                context,
-                TextStyle(
-                  color: appColor(context, Color(0xff9fb3bf)),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                ),
-              ),
-            ),
-            const SizedBox(width: 16),
-          ],
-        ),
-      ),
-    ),
-  );
+    );
+  }
 }
 
 class _EditButton extends StatelessWidget {

@@ -236,6 +236,7 @@ final class NativeActivityGameSurface extends StatefulWidget {
     this.previewDecoder,
     this.portFactory,
     this.startupOrchestrator,
+    this.createTimeout = const Duration(seconds: 30),
     this.cleanupTimeout,
     this.pageInitializationTimeout,
     this.navigationTimeout = const Duration(seconds: 45),
@@ -269,6 +270,10 @@ final class NativeActivityGameSurface extends StatefulWidget {
   final NativeGameSurfacePreviewDecoder? previewDecoder;
   final NativeActivityGameWebViewPortFactory? portFactory;
   final GameSurfaceStartupOrchestrator? startupOrchestrator;
+
+  /// Loading the Android WebView provider has its own startup budget.
+  /// It must not inherit the short deadline used to release native resources.
+  final Duration createTimeout;
   final Duration? cleanupTimeout;
   final Duration? pageInitializationTimeout;
   final Duration navigationTimeout;
@@ -338,6 +343,7 @@ final class _NativeActivityGameSurfaceState
   _PendingPageFinish? _pendingPageFinish;
   AppLifecycleState? _appLifecycleState;
   bool _visibilityFatalCleanupStarted = false;
+  bool _createTimeoutCleanupStarted = false;
   int _processedCaptureRevision = 0;
   CaptureMode? _activeCaptureMode;
   GameStartupState _startupState = GameStartupState.loadingSettings;
@@ -646,9 +652,11 @@ final class _NativeActivityGameSurfaceState
 
   Future<void> _start(NativeActivityGameWebViewPort port) async {
     final operationEpoch = _operationEpoch;
+    var creating = true;
     _startupState = GameStartupState.applyingNetwork;
     try {
-      final generationId = await port.create().timeout(_cleanupTimeout);
+      final generationId = await port.create().timeout(widget.createTimeout);
+      creating = false;
       if (!_matchesAttempt(port, operationEpoch)) return;
       _generationId = generationId;
       widget.onGenerationChanged?.call(generationId);
@@ -660,9 +668,56 @@ final class _NativeActivityGameSurfaceState
     } catch (error, stackTrace) {
       debugPrint('Native game surface startup failed: $error\n$stackTrace');
       if (_matchesAttempt(port, operationEpoch)) {
-        _setFatalError(nativeWebViewStartupErrorMessage(error));
+        if (creating && error is TimeoutException) {
+          _retireTimedOutCreate(port);
+        }
+        if (_active && mounted) {
+          _setFatalError(nativeWebViewStartupErrorMessage(error));
+        }
       }
     }
+  }
+
+  void _retireTimedOutCreate(NativeActivityGameWebViewPort port) {
+    if (_createTimeoutCleanupStarted || !identical(_port, port)) {
+      return;
+    }
+    _createTimeoutCleanupStarted = true;
+    _port = null;
+    _generationId = null;
+    _desiredVisible = false;
+    _pendingEvents.clear();
+    final subscription = _eventSubscription;
+    _eventSubscription = null;
+    try {
+      widget.browserController.detachPort(port);
+    } catch (error, stackTrace) {
+      debugPrint(
+        'Native game surface controller detach failed: $error\n$stackTrace',
+      );
+    }
+    // Mark the underlying port disposed while create may still be pending.
+    // Its late generation is then destroyed instead of becoming attachable.
+    final nativeCleanup = _runBoundedCleanup(
+      port.dispose,
+      'destroy',
+      timeout: _cleanupTimeout,
+    );
+    unawaited(
+      Future.wait(<Future<void>>[
+        nativeCleanup,
+        if (subscription != null)
+          _runBoundedCleanup(
+            subscription.cancel,
+            'event cancellation',
+            timeout: _cleanupTimeout,
+          ),
+        _disposeStartupOrchestrator(
+          _startupOrchestrator,
+          timeout: _cleanupTimeout,
+        ),
+      ]),
+    );
   }
 
   Future<void> _schedulePostCreateBootstrap(
@@ -1419,6 +1474,11 @@ final class _NativeActivityGameSurfaceState
     _popupPreviewGeneration++;
   }
 
+  void _discardPopupPreview() {
+    _cancelPopupPreviewPreparation();
+    _clearPopupPreview();
+  }
+
   void _clearPopupPreview() {
     if (!mounted || _popupPreview == null) return;
     setState(() => _popupPreview = null);
@@ -1715,6 +1775,7 @@ final class _NativeActivityGameSurfaceState
           routeObserver: widget.routeObserver,
           boundsSinkIdentity: _port ?? this,
           onBeforePopupRouteHidden: _preparePopupPreview,
+          onImmediatePopupRouteHidden: _discardPopupPreview,
           onPopupRouteRevealStarted: _cancelPopupPreviewPreparation,
           onAfterPopupRouteRevealed: _clearPopupPreview,
         ),
@@ -1856,7 +1917,7 @@ final class _NativeActivityGameSurfaceState
     _pendingEvents.clear();
     final port = _port;
     if (port == null) {
-      if (!_visibilityFatalCleanupStarted) {
+      if (!_visibilityFatalCleanupStarted && !_createTimeoutCleanupStarted) {
         unawaited(
           _disposeStartupOrchestrator(
             _startupOrchestrator,

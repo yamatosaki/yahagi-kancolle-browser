@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 enum GameFrameRateMode {
@@ -23,6 +24,10 @@ abstract interface class GameFrameRatePort {
   Future<bool> isSupported();
 
   Future<void> configure(GameFrameRateMode mode);
+}
+
+final class GameFrameRateConfigurationCancelledException implements Exception {
+  const GameFrameRateConfigurationCancelledException();
 }
 
 abstract interface class GameFrameRateSettingsStore {
@@ -102,6 +107,7 @@ final class GameFrameRateSettingsController extends ChangeNotifier {
   GameFrameRatePort? _port;
   GameFrameRateMode _mode;
   bool? _supported;
+  bool _disposed = false;
   Future<void> _modeChangeQueue = Future<void>.value();
 
   GameFrameRateMode get mode => _mode;
@@ -136,6 +142,81 @@ final class GameFrameRateSettingsController extends ChangeNotifier {
     final operation = _modeChangeQueue.then((_) => _attachPort(port));
     _modeChangeQueue = operation.catchError((_) {});
     return operation;
+  }
+
+  /// Waits for native bridge installation before the first real navigation.
+  ///
+  /// The feature probe also applies Android version policy, so it cannot
+  /// establish whether this WebView supports the document-start bridge.
+  Future<bool> attachPortForStartup(
+    GameFrameRatePort port, {
+    Future<void>? cancelled,
+    bool Function()? isActive,
+  }) {
+    var cancellationRequested = false;
+    final cancellation = cancelled?.then<void>((_) {
+      cancellationRequested = true;
+    });
+    final operation = _modeChangeQueue.then(
+      (_) => _attachPortForStartup(
+        port,
+        cancelled: cancellation,
+        isActive: () => !cancellationRequested && isActive?.call() != false,
+      ),
+    );
+    _modeChangeQueue = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
+  }
+
+  Future<bool> _attachPortForStartup(
+    GameFrameRatePort port, {
+    Future<void>? cancelled,
+    required bool Function() isActive,
+  }) async {
+    _ensureStartupActive(isActive);
+    _port = port;
+    _supported = null;
+    try {
+      await Future.any<void>(<Future<void>>[
+        port.configure(_mode),
+        if (cancelled != null)
+          cancelled.then<void>((_) {
+            throw const GameFrameRateConfigurationCancelledException();
+          }),
+      ]);
+      _ensureStartupActive(isActive);
+      _supported = true;
+      return true;
+    } on PlatformException catch (error) {
+      _supported = false;
+      _ensureStartupActive(isActive);
+      if (error.code == 'frame_rate_unsupported') return false;
+      rethrow;
+    } catch (_) {
+      _supported = false;
+      _ensureStartupActive(isActive);
+      rethrow;
+    } finally {
+      if (!_disposed) notifyListeners();
+    }
+  }
+
+  void _ensureStartupActive(bool Function() isActive) {
+    if (_disposed) {
+      throw StateError('Game frame-rate startup controller has been disposed');
+    }
+    if (!isActive()) {
+      throw const GameFrameRateConfigurationCancelledException();
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 
   Future<void> _attachPort(GameFrameRatePort port) async {

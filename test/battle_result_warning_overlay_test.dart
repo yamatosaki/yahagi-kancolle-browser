@@ -1504,9 +1504,16 @@ void main() {
     (tester) async {
       const queueTimeout = Duration(seconds: 1);
       final accountSession = AccountSession();
-      final gameStateController = GameStateController(
-        accountSession: accountSession,
-      );
+      final expirationTimerDisabled = GameStateController.disableTimerForTest;
+      late final GameStateController gameStateController;
+      try {
+        GameStateController.disableTimerForTest = true;
+        gameStateController = GameStateController(
+          accountSession: accountSession,
+        );
+      } finally {
+        GameStateController.disableTimerForTest = expirationTimerDisabled;
+      }
       await gameStateController.initialize().timeout(queueTimeout);
       final battleController = BattleController(
         accountSession: accountSession,

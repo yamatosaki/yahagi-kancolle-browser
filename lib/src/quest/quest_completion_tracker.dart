@@ -19,6 +19,9 @@ class QuestCompletionTracker {
   List<GameQuest> get latestCompletedQuests =>
       List.unmodifiable(_latestCompletedQuests);
 
+  /// A prediction rejected before its alert was displayed may complete later.
+  void cancelPendingAlert(int questId) => _announced.remove(questId);
+
   Iterable<GameQuest> _completed(GameState state, DateTime now) =>
       state.quests.values.where(
         (quest) =>

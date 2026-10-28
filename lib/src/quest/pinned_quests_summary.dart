@@ -317,11 +317,12 @@ class PinnedQuestsSummary extends StatelessWidget {
           q.progressCurrent! >= q.progressRequired!) {
         return '$progress · ${l10n.questAwaitingConfirmation}';
       }
-      return progress;
     }
+    if (q.exactProgressLabel != null) return q.displayProgressLabel;
     if (q.state == 2) {
-      if (q.progressFlag == 1) return '50%';
-      if (q.progressFlag == 2) return '80%';
+      if (q.progressFlag == 1 || q.progressFlag == 2) {
+        return q.displayProgressLabel;
+      }
       return l10n.inProgress;
     }
     return '';

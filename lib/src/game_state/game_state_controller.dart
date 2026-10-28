@@ -50,6 +50,7 @@ final class GameStateController extends ChangeNotifier
   final GameStateReducer _reducer;
   final LogbookEventRecorder _logbookRecorder;
   final FrameNotificationCoalescer _captureNotifications;
+  final ChangeNotifier _notificationChanges = ChangeNotifier();
   final TimerMechanicsService _timerService;
   final QuestStore? questStore;
   final QuestProgressEngine? questProgress;
@@ -109,7 +110,10 @@ final class GameStateController extends ChangeNotifier
         _state,
         DateTime.now().toUtc(),
       );
-      if (_isCurrent(scope)) _state = restored;
+      if (_isCurrent(scope) && !identical(restored, _state)) {
+        _state = restored;
+        notifyListeners();
+      }
     }
   }
 
@@ -236,6 +240,10 @@ final class GameStateController extends ChangeNotifier
   bool _hasAcceptedLiveEvent;
 
   GameState get state => _state;
+
+  /// State changes for notification scheduling, independent of UI frames.
+  Listenable get notificationChanges => _notificationChanges;
+
   String? get lastError => _lastError;
   String? get lastUpdatedPath => _lastUpdatedPath;
   TimerMechanicsService get timerService => _timerService;
@@ -249,6 +257,24 @@ final class GameStateController extends ChangeNotifier
   /// Persistence is ordered but must not delay live game state or safety checks.
   Future<void> get logbookIdle => _logbookQueue;
   String? get lastLogbookError => _lastLogbookError;
+
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    _notificationChanges.notifyListeners();
+    _notifyUiListeners();
+  }
+
+  // A rendered frame must not rebroadcast a state already sent to scheduling.
+  void _notifyUiListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  void _notifyCapturedStateChange() {
+    if (_disposed) return;
+    _notificationChanges.notifyListeners();
+    _captureNotifications.schedule(_notifyUiListeners);
+  }
 
   @override
   void interruptCaptureContinuity() {
@@ -463,7 +489,13 @@ final class GameStateController extends ChangeNotifier
           _state = next;
           _lastUpdatedPath = event.path;
           _lastError = null;
-          _captureNotifications.schedule(notifyListeners);
+          // Goal transitions must be observed before a following response can
+          // claim/remove the task. Ordinary UI updates still coalesce by frame.
+          if (_reachedQuestGoal(previous, next, event.capturedAt)) {
+            notifyListeners();
+          } else {
+            _notifyCapturedStateChange();
+          }
 
           if ((event.path.contains('/api_get_member/questlist') ||
                   event.path.contains('/api_req_quest/clearitemget') ||
@@ -487,10 +519,38 @@ final class GameStateController extends ChangeNotifier
       } catch (error) {
         if (!_isCurrent(scope)) return;
         _lastError = '游戏数据解析失败（${error.runtimeType}）';
-        _captureNotifications.schedule(notifyListeners);
+        _captureNotifications.schedule(_notifyUiListeners);
       }
     });
   }
+
+  bool _reachedQuestGoal(GameState previous, GameState next, DateTime now) {
+    if (previous.memberId != next.memberId) return false;
+    for (final quest in next.quests.values) {
+      if (!quest.isAccepted || !_isCurrentQuestPeriod(quest, now)) continue;
+      var before = previous.quests[quest.id];
+      if (before != null && !_isCurrentQuestPeriod(before, now)) before = null;
+      if (quest.isCompleted &&
+          (before == null || !before.isAccepted || !before.isCompleted)) {
+        return true;
+      }
+      if (_hasFullQuestCount(quest) && !_hasFullQuestCount(before)) return true;
+    }
+    return false;
+  }
+
+  bool _isCurrentQuestPeriod(GameQuest quest, DateTime now) =>
+      !quest.isExpired(now) &&
+      (questProgress == null ||
+          quest.updatedAt == null ||
+          questProgress!.periodFor(quest, quest.updatedAt!) ==
+              questProgress!.periodFor(quest, now));
+
+  bool _hasFullQuestCount(GameQuest? quest) =>
+      quest != null &&
+      quest.isAccepted &&
+      (quest.progressRequired ?? 0) > 0 &&
+      (quest.progressCurrent ?? 0) >= quest.progressRequired!;
 
   void applyFriendlyBattleHp(Map<int, int> hpByShipId, DateTime capturedAt) {
     if (_disposed || hpByShipId.isEmpty) return;
@@ -519,7 +579,7 @@ final class GameStateController extends ChangeNotifier
       );
       if (identical(next, previous)) return;
       _state = next;
-      _captureNotifications.schedule(notifyListeners);
+      _notifyCapturedStateChange();
       gameStateStore?.save(next);
     });
   }
@@ -546,7 +606,7 @@ final class GameStateController extends ChangeNotifier
       );
       if (identical(next, previous)) return;
       _state = next;
-      _captureNotifications.schedule(notifyListeners);
+      _notifyCapturedStateChange();
       gameStateStore?.save(next);
     });
   }
@@ -558,6 +618,7 @@ final class GameStateController extends ChangeNotifier
     _expirationTimer?.cancel();
     _disposed = true;
     _captureNotifications.dispose();
+    _notificationChanges.dispose();
     if (gameStateStore != null) {
       unawaited(gameStateStore!.flush());
     }

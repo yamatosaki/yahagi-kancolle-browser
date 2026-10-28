@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
+import 'package:yahagi_kancolle_browser/src/battle/fcd_map_controller.dart';
+import 'package:yahagi_kancolle_browser/src/battle/fcd_map_dataset.dart';
+import 'package:yahagi_kancolle_browser/src/battle/fcd_map_update_service.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_browser_controller.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode_controller.dart';
@@ -15,6 +18,9 @@ import 'package:yahagi_kancolle_browser/src/kcwiki_report/kcwiki_report_settings
 import 'package:yahagi_kancolle_browser/src/logbook/logbook_database.dart';
 import 'package:yahagi_kancolle_browser/src/prototype_status_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/data_settings_page.dart';
+import 'package:yahagi_kancolle_browser/src/telemetry/telemetry_controller.dart';
+import 'package:yahagi_kancolle_browser/src/telemetry/telemetry_service.dart';
+import 'package:yahagi_kancolle_browser/src/telemetry/telemetry_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 
 Widget withTopNotice(Widget child) => MaterialApp(
@@ -83,7 +89,66 @@ void main() {
     },
   );
 
-  testWidgets('data settings contain capture mode and local data actions', (
+  testWidgets(
+    'data settings retain ordered cleanup and relocate runtime and account actions',
+    (tester) async {
+      final capture = await CaptureModeController.load(
+        _MemoryCaptureModeStore(),
+      );
+      final browser = GameBrowserController();
+      final gameCapture = GameCaptureController();
+      final prototype = PrototypeStatusController();
+      final gameState = GameStateController();
+      addTearDown(capture.dispose);
+      addTearDown(browser.dispose);
+      addTearDown(gameCapture.dispose);
+      addTearDown(prototype.dispose);
+      addTearDown(gameState.dispose);
+
+      await tester.pumpWidget(
+        withTopNotice(
+          DataSettingsPage(
+            captureModeController: capture,
+            browserController: browser,
+            gameCaptureController: gameCapture,
+            prototypeStatusController: prototype,
+            gameStateController: gameState,
+            showDeveloperDiagnostics: true,
+          ),
+        ),
+      );
+
+      expect(find.byKey(const Key('settings-logout-label')), findsNothing);
+      expect(find.byKey(const Key('capture-mode-selector')), findsNothing);
+      final quest = find.byKey(const Key('settings-clear-quest-cache'));
+      final web = find.byKey(const Key('settings-clear-web-cache'));
+      final logbook = find.byKey(const Key('settings-clear-logbook'));
+      final composition = find.byKey(
+        const Key('settings-clear-composition-records'),
+      );
+      expect(tester.getTopLeft(quest).dy, lessThan(tester.getTopLeft(web).dy));
+      expect(
+        tester.getTopLeft(web).dy,
+        lessThan(tester.getTopLeft(logbook).dy),
+      );
+      expect(
+        tester.getTopLeft(logbook).dy,
+        lessThan(tester.getTopLeft(composition).dy),
+      );
+      expect(
+        find.byKey(const Key('settings-clear-quest-cache')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('settings-clear-logbook')), findsOneWidget);
+      expect(find.byKey(const Key('settings-clear-web-cache')), findsOneWidget);
+      expect(find.byKey(const Key('settings-reset-base-senka')), findsNothing);
+      expect(find.byKey(const Key('settings-set-base-senka')), findsNothing);
+      expect(find.text('安全边界'), findsNothing);
+      expect(find.byKey(const Key('diagnosticLoggingSwitch')), findsNothing);
+    },
+  );
+
+  testWidgets('data update entry opens the complete existing update action', (
     tester,
   ) async {
     final capture = await CaptureModeController.load(_MemoryCaptureModeStore());
@@ -91,12 +156,20 @@ void main() {
     final gameCapture = GameCaptureController();
     final prototype = PrototypeStatusController();
     final gameState = GameStateController();
+    final updater = _FakeFcdUpdater();
+    final fcd = FcdMapController(
+      dataset: FcdMapDataset.parse(
+        '{"meta":{"name":"map","version":"2026/07/01/01"},"data":{"5-6":{"route":{"42":["X","Y"]}}}}',
+        minimumMapCount: 1,
+      ),
+      updater: updater,
+    );
     addTearDown(capture.dispose);
     addTearDown(browser.dispose);
     addTearDown(gameCapture.dispose);
     addTearDown(prototype.dispose);
     addTearDown(gameState.dispose);
-
+    addTearDown(fcd.dispose);
     await tester.pumpWidget(
       withTopNotice(
         DataSettingsPage(
@@ -105,26 +178,86 @@ void main() {
           gameCaptureController: gameCapture,
           prototypeStatusController: prototype,
           gameStateController: gameState,
-          showDeveloperDiagnostics: true,
+          fcdMapController: fcd,
         ),
       ),
     );
-
-    final logout = find.byKey(const Key('settings-logout-label'));
-    final captureMode = find.byKey(const Key('capture-mode-selector'));
-    expect(logout, findsOneWidget);
-    expect(captureMode, findsOneWidget);
-    expect(
-      tester.getTopLeft(logout).dy,
-      lessThan(tester.getTopLeft(captureMode).dy),
-    );
-    expect(find.byKey(const Key('settings-clear-quest-cache')), findsOneWidget);
-    expect(find.byKey(const Key('settings-clear-logbook')), findsOneWidget);
-    expect(find.byKey(const Key('settings-clear-web-cache')), findsOneWidget);
-    expect(find.byKey(const Key('settings-reset-base-senka')), findsNothing);
-    expect(find.byKey(const Key('settings-set-base-senka')), findsNothing);
-    expect(find.text('安全边界'), findsOneWidget);
+    expect(find.text('资料更新'), findsOneWidget);
+    expect(find.textContaining('数据版本：2026-07-01'), findsOneWidget);
+    expect(find.byKey(const Key('fcd-map-check-button')), findsNothing);
+    await tester.tap(find.byKey(const Key('settings-data-update-fcd')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('fcd-map-check-button')), findsOneWidget);
+    expect(find.textContaining('上次检查：'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('fcd-map-check-button')));
+    await tester.pumpAndSettle();
+    expect(updater.calls, 1);
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.textContaining('已经是最新'), findsOneWidget);
   });
+
+  testWidgets(
+    'anonymous telemetry is independent of diagnostics and KCWiki opt-in',
+    (tester) async {
+      final capture = await CaptureModeController.load(
+        _MemoryCaptureModeStore(),
+      );
+      final browser = GameBrowserController();
+      final gameCapture = GameCaptureController();
+      final prototype = PrototypeStatusController();
+      final gameState = GameStateController();
+      final store = MemoryTelemetrySettingsStore();
+      final service = _FakeTelemetryService();
+      final telemetry = TelemetryController(store: store, service: service);
+      final kcwikiStore = MemoryKcwikiReportSettingsStore();
+      final kcwiki = await KcwikiReportController.load(kcwikiStore);
+      addTearDown(capture.dispose);
+      addTearDown(browser.dispose);
+      addTearDown(gameCapture.dispose);
+      addTearDown(prototype.dispose);
+      addTearDown(gameState.dispose);
+      addTearDown(telemetry.dispose);
+      addTearDown(kcwiki.dispose);
+      await tester.pumpWidget(
+        withTopNotice(
+          DataSettingsPage(
+            captureModeController: capture,
+            browserController: browser,
+            gameCaptureController: gameCapture,
+            prototypeStatusController: prototype,
+            gameStateController: gameState,
+            telemetryController: telemetry,
+            kcwikiReportController: kcwiki,
+            kcwikiEndpointAvailable: true,
+          ),
+        ),
+      );
+      final stats = find.byKey(const Key('telemetryStatsSwitch'));
+      final contribution = find.byKey(const Key('kcwiki-report-switch'));
+      expect(stats, findsOneWidget);
+      expect(find.byKey(const Key('diagnosticLoggingSwitch')), findsNothing);
+      expect(
+        tester.getTopLeft(contribution).dy,
+        lessThan(tester.getTopLeft(stats).dy),
+      );
+      expect(telemetry.enabled, isTrue);
+      expect(kcwiki.enabled, isFalse);
+      await tester.ensureVisible(stats);
+      await tester.tap(stats);
+      await tester.pumpAndSettle();
+      expect(telemetry.enabled, isFalse);
+      expect(store.value, isFalse);
+      expect(service.stops, 1);
+      expect(kcwiki.enabled, isFalse);
+      expect(kcwikiStore.enabled, isFalse);
+      await tester.tap(stats);
+      await tester.pumpAndSettle();
+      expect(telemetry.enabled, isTrue);
+      expect(store.value, isTrue);
+      expect(service.starts, 1);
+      expect(kcwiki.enabled, isFalse);
+    },
+  );
 
   testWidgets('KCWiki reporting defaults off and opt-in is confirmed', (
     tester,
@@ -317,23 +450,29 @@ void main() {
         ),
       );
 
-      final titleDx = tester.getTopLeft(find.text('游戏资源本地缓存')).dx;
+      final entry = find.byKey(const Key('settings-resource-cache-entry'));
+      expect(entry, findsOneWidget);
+      expect(find.textContaining('已缓存'), findsOneWidget);
+      expect(find.byKey(const Key('cache-completeness-line')), findsNothing);
+      final questDx = tester.getTopLeft(find.text('清理任务数据缓存')).dx;
+      final logbookDx = tester.getTopLeft(find.text('清理航海日志主数据')).dx;
+      final webDx = tester.getTopLeft(find.text('清理浏览器网页缓存')).dx;
+      expect(questDx, 32.0);
+      expect(logbookDx, 32.0);
+      expect(webDx, 32.0);
+      await tester.tap(entry);
+      await tester.pumpAndSettle();
+      expect(find.text('游戏资源本地缓存'), findsOneWidget);
       final noneDx = tester.getTopLeft(find.text('临时缓存')).dx;
       final fullDx = tester.getTopLeft(find.text('本地缓存')).dx;
       final completenessDx = tester
           .getTopLeft(find.byKey(const Key('cache-completeness-line')))
           .dx;
-      final questDx = tester.getTopLeft(find.text('清理任务数据缓存')).dx;
-      final logbookDx = tester.getTopLeft(find.text('清理航海日志主数据')).dx;
-      final webDx = tester.getTopLeft(find.text('清理浏览器网页缓存')).dx;
-
-      expect(titleDx, 20.0);
       expect(noneDx, 32.0);
       expect(fullDx, 32.0);
       expect(completenessDx, 32.0);
-      expect(questDx, 32.0);
-      expect(logbookDx, 32.0);
-      expect(webDx, 32.0);
+      expect(find.text('检查完整性'), findsOneWidget);
+      expect(find.text('清除本地缓存'), findsOneWidget);
     },
   );
 
@@ -445,4 +584,34 @@ final class _MemoryCaptureModeStore implements CaptureModeStore {
 
   @override
   Future<void> write(CaptureMode mode) async {}
+}
+
+final class _FakeTelemetryService implements TelemetryService {
+  int starts = 0;
+  int stops = 0;
+  @override
+  Future<void> start() async {
+    starts++;
+  }
+
+  @override
+  void stop() {
+    stops++;
+  }
+
+  @override
+  void onLifecycleChanged(AppLifecycleState state) {}
+  @override
+  void dispose() {}
+}
+
+final class _FakeFcdUpdater implements FcdMapUpdateClient {
+  int calls = 0;
+  @override
+  Future<FcdMapUpdateResult> checkAndUpdate({
+    required FcdMapDataset current,
+  }) async {
+    calls++;
+    return FcdMapUpToDate(current.version);
+  }
 }

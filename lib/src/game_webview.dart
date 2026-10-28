@@ -737,6 +737,7 @@ class GameWebView extends StatefulWidget {
     this.renderingMode = GameRenderingMode.compatibility,
     this.startupTimeout,
     this.startupOrchestratorFactory,
+    this.frameRatePortFactory,
     this.navigationTimeout = const Duration(seconds: 45),
     this.onLoadEvent,
   });
@@ -754,6 +755,7 @@ class GameWebView extends StatefulWidget {
   final GameRenderingMode renderingMode;
   final Duration? startupTimeout;
   final GameSurfaceStartupOrchestrator Function()? startupOrchestratorFactory;
+  final GameFrameRatePort Function()? frameRatePortFactory;
   final Duration navigationTimeout;
   final ValueChanged<GameLoadEvent>? onLoadEvent;
 
@@ -782,6 +784,9 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
   int _navigationEpoch = 0;
   int _startupEpoch = 0;
   int _bindingEpoch = 0;
+  int _frameRateBindingGeneration = 0;
+  Completer<void>? _frameRatePreparationCancelled;
+  bool _frameRatePreparationPending = false;
   bool _disposed = false;
   bool _hasNavigated = false;
   bool _retryInProgress = false;
@@ -860,6 +865,8 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
       gameLocalHomeHtml,
       gameFrameReloadPort: MethodChannelGameFrameReloadPort(),
       compatibilityReady: _compatibilityReady,
+      waitForSurfaceReady: () => _frameRateReady,
+      isActive: () => mounted && !_disposed,
       prepareForRealNavigation: _prepareCapture,
       synchronizeGamePresentation: () =>
           _synchronizeGamePresentation(forceNativeFit: true),
@@ -874,7 +881,7 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
       onNetworkSettingsChanged: _onNetworkSettingsChanged,
       onCaptureModeChanged: _handleCaptureModeChanged,
     );
-    _frameRateReady = _configureFrameRate();
+    _frameRateReady = _startFrameRatePreparation();
 
     _webViewController
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -1011,6 +1018,10 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
 
     final startupDependenciesChanged =
         !identical(
+          oldWidget.frameRatePortFactory,
+          widget.frameRatePortFactory,
+        ) ||
+        !identical(
           oldWidget.networkSettingsController,
           widget.networkSettingsController,
         ) ||
@@ -1060,13 +1071,10 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
           : _bindings.startupOrchestrator,
     );
 
-    if (!identical(
-      oldWidget.frameRateSettingsController,
-      widget.frameRateSettingsController,
-    )) {
+    if (startupDependenciesChanged) {
       _frameRateRuntimeController?.dispose();
       _frameRateRuntimeController = null;
-      _frameRateReady = _configureFrameRate();
+      _frameRateReady = _startFrameRatePreparation();
     }
     if (oldWidget.renderingMode != widget.renderingMode) {
       _compatibilityReady = _configureCompatibility();
@@ -1215,6 +1223,10 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
 
   void _reportRecoverableError(String message) {
     if (!mounted || _disposed) return;
+    _startupEpoch += 1;
+    // A completed binding also serves later settings changes and toolbar reloads.
+    // Only an unfinished installation should be cancelled by a page error.
+    if (_frameRatePreparationPending) _cancelFrameRatePreparation();
     if (_failedNavigationEpoch != _navigationEpoch) {
       _emitLoadEvent(GameLoadPhase.failed);
     }
@@ -1542,28 +1554,89 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _configureFrameRate() async {
+  Future<void> _startFrameRatePreparation() {
+    _cancelFrameRatePreparation();
+    final cancelled = Completer<void>();
+    _frameRatePreparationCancelled = cancelled;
+    _frameRatePreparationPending = true;
+    final preparation =
+        Future.any<void>([
+          _configureFrameRate(cancelled.future),
+          cancelled.future.then<void>(
+            (_) => throw const GameFrameRateConfigurationCancelledException(),
+          ),
+        ]).whenComplete(() {
+          if (identical(_frameRatePreparationCancelled, cancelled)) {
+            _frameRatePreparationPending = false;
+          }
+        });
+    // Startup may still be awaiting compatibility/network settings. Observe an
+    // early native failure now; awaiting the original future still propagates it.
+    unawaited(preparation.catchError((Object _, StackTrace _) {}));
+    return preparation;
+  }
+
+  void _cancelFrameRatePreparation() {
+    _frameRateBindingGeneration++;
+    _frameRatePreparationPending = false;
+    final cancelled = _frameRatePreparationCancelled;
+    _frameRatePreparationCancelled = null;
+    if (cancelled != null && !cancelled.isCompleted) cancelled.complete();
+  }
+
+  Future<void> _configureFrameRate(Future<void> cancelled) async {
     final controller = widget.frameRateSettingsController;
-    if (controller == null) return;
     final bindingEpoch = _bindingEpoch;
+    final generation = ++_frameRateBindingGeneration;
     final orchestrator = _bindings.startupOrchestrator;
+    bool isActive() =>
+        generation == _frameRateBindingGeneration &&
+        _isCurrentBinding(bindingEpoch, orchestrator);
     await WidgetsBinding.instance.endOfFrame;
-    if (!_isCurrentBinding(bindingEpoch, orchestrator)) return;
-    try {
-      final supported = await orchestrator.attachFrameRatePlatformPort();
-      if (!_isCurrentBinding(bindingEpoch, orchestrator)) return;
-      if (!supported) return;
-      final runtimeController = GameFrameRateRuntimeController(
-        settings: controller,
-        port: createGameFrameRateRuntimePort(_webViewController),
+    if (!isActive()) throw const GameFrameRateConfigurationCancelledException();
+    final port =
+        widget.frameRatePortFactory?.call() ??
+        (_webViewController.platform is AndroidWebViewController
+            ? MethodChannelGameFrameRatePort(
+                isActive: isActive,
+                cancelled: cancelled,
+              )
+            : const UnsupportedGameFrameRatePort());
+    var supported = false;
+    if (port is UnsupportedGameFrameRatePort) {
+      // Keep non-Android implementations on their existing platform path.
+      if (controller == null) return;
+      supported = await orchestrator.attachFrameRatePlatformPort();
+    } else if (controller != null) {
+      supported = await controller.attachPortForStartup(
+        port,
+        cancelled: cancelled,
+        isActive: isActive,
       );
-      _frameRateRuntimeController = runtimeController;
-      final lifecycleState = WidgetsBinding.instance.lifecycleState;
-      if (lifecycleState != null) {
-        runtimeController.onLifecycleChanged(lifecycleState);
+    } else {
+      try {
+        // Both Android bridges inspect the same native view tree. This real
+        // frame-rate installation acknowledges that the one WebView is mounted;
+        // a Flutter frame ending alone does not. Keep this once per binding,
+        // before the frame-reload bridge and first navigation, even when no
+        // settings controller was supplied by an embedder.
+        await port.configure(GameFrameRateMode.automatic);
+        supported = true;
+      } on PlatformException catch (error) {
+        if (error.code != 'frame_rate_unsupported') rethrow;
+        supported = false;
       }
-    } catch (error, stackTrace) {
-      debugPrint('Frame-rate runtime unavailable: $error\n$stackTrace');
+    }
+    if (!isActive()) throw const GameFrameRateConfigurationCancelledException();
+    if (!supported || controller == null) return;
+    final runtimeController = GameFrameRateRuntimeController(
+      settings: controller,
+      port: createGameFrameRateRuntimePort(_webViewController),
+    );
+    _frameRateRuntimeController = runtimeController;
+    final lifecycleState = WidgetsBinding.instance.lifecycleState;
+    if (lifecycleState != null) {
+      runtimeController.onLifecycleChanged(lifecycleState);
     }
   }
 
@@ -1744,6 +1817,7 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
       );
       if (!mounted || _disposed) return;
       _emitLoadEvent(GameLoadPhase.retry);
+      _renewFrameRatePreparation();
       await _executeStartupSequence(retryNavigation: true);
     } catch (error, stackTrace) {
       debugPrint('Game WebView network retry failed: $error\n$stackTrace');
@@ -1760,10 +1834,17 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
     setState(() => _retryInProgress = true);
     _emitLoadEvent(GameLoadPhase.retry);
     try {
+      _renewFrameRatePreparation();
       await _executeStartupSequence(retryNavigation: true);
     } finally {
       if (mounted && !_disposed) setState(() => _retryInProgress = false);
     }
+  }
+
+  void _renewFrameRatePreparation() {
+    _frameRateRuntimeController?.dispose();
+    _frameRateRuntimeController = null;
+    _frameRateReady = _startFrameRatePreparation();
   }
 
   String _getStartupStatusText() {
@@ -1787,6 +1868,7 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
   @override
   void dispose() {
     _disposed = true;
+    _cancelFrameRatePreparation();
     widget.toolbarController.onStageChanged(GameSurfaceStage.login);
     _startupEpoch += 1;
     _bindingEpoch += 1;
@@ -1828,6 +1910,8 @@ final class WebViewGameBrowserPort implements GameBrowserPort {
     this.localHomeHtml, {
     required this.gameFrameReloadPort,
     Future<void>? compatibilityReady,
+    this.waitForSurfaceReady,
+    this.isActive,
     this.prepareForRealNavigation,
     required this.synchronizeGamePresentation,
     this.beforeNavigation,
@@ -1837,44 +1921,63 @@ final class WebViewGameBrowserPort implements GameBrowserPort {
   final String localHomeHtml;
   final GameFrameReloadPort gameFrameReloadPort;
   final Future<void> compatibilityReady;
+  final Future<void> Function()? waitForSurfaceReady;
+  final bool Function()? isActive;
   final Future<void> Function()? prepareForRealNavigation;
   final Future<void> Function() synchronizeGamePresentation;
   final void Function(Uri? uri)? beforeNavigation;
 
-  Future<void> configureFrameReload() => gameFrameReloadPort.configure();
+  Future<void> configureFrameReload() async {
+    await waitForSurfaceReady?.call();
+    _ensureActive();
+    await gameFrameReloadPort.configure();
+    _ensureActive();
+  }
+
+  void _ensureActive() {
+    if (isActive?.call() == false) {
+      throw const GameFrameRateConfigurationCancelledException();
+    }
+  }
 
   @override
   Future<bool> canGoBack() => controller.canGoBack();
 
   @override
-  Future<void> goBack() {
+  Future<void> goBack() async {
+    await configureFrameReload();
     beforeNavigation?.call(null);
-    return controller.goBack();
+    await controller.goBack();
   }
 
   @override
   Future<void> loadUri(Uri uri) async {
     await compatibilityReady;
-    await gameFrameReloadPort.configure();
+    await configureFrameReload();
     await prepareForRealNavigation?.call();
+    _ensureActive();
     beforeNavigation?.call(uri);
     await controller.loadRequest(uri);
   }
 
   @override
-  Future<void> reload() {
+  Future<void> reload() async {
+    await configureFrameReload();
     beforeNavigation?.call(null);
-    return controller.reload();
+    await controller.reload();
   }
 
   @override
-  Future<GameFrameReloadResult> reloadGameFrame() =>
-      gameFrameReloadPort.reload();
+  Future<GameFrameReloadResult> reloadGameFrame() async {
+    await configureFrameReload();
+    return gameFrameReloadPort.reload();
+  }
 
   @override
-  Future<void> showLocalHome() {
+  Future<void> showLocalHome() async {
+    await configureFrameReload();
     beforeNavigation?.call(null);
-    return controller.loadHtmlString(localHomeHtml);
+    await controller.loadHtmlString(localHomeHtml);
   }
 
   @override

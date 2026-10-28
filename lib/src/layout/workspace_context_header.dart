@@ -20,6 +20,7 @@ import '../improvement/improvement_planner_controller.dart';
 import '../logbook/logbook_page.dart';
 import '../quest/quest_center_page.dart';
 import '../settings/layout_settings_controller.dart';
+import '../settings/settings_organization_strings.dart';
 import '../settings/ui_display_size.dart';
 import '../senka/senka_page.dart' show SenkaCenterMode, senkaCenterModeLabel;
 import '../senka/senka_state.dart';
@@ -39,6 +40,7 @@ class WorkspaceContextHeader extends StatelessWidget {
     this.nosakiSparkleStartedAt,
     this.onNosakiTimerTap,
     this.onFrameRefreshTap,
+    this.onGameRefreshTap,
     required this.selectedFleetId,
     this.onFleetSelected,
     this.inventoryShowShips = true,
@@ -80,6 +82,7 @@ class WorkspaceContextHeader extends StatelessWidget {
   final DateTime? nosakiSparkleStartedAt;
   final VoidCallback? onNosakiTimerTap;
   final VoidCallback? onFrameRefreshTap;
+  final VoidCallback? onGameRefreshTap;
   final int selectedFleetId;
   final ValueChanged<int>? onFleetSelected;
   final bool inventoryShowShips;
@@ -128,6 +131,7 @@ class WorkspaceContextHeader extends StatelessWidget {
         nosakiSparkleStartedAt: nosakiSparkleStartedAt,
         onNosakiTimerTap: onNosakiTimerTap,
         onFrameRefreshTap: onFrameRefreshTap,
+        onGameRefreshTap: onGameRefreshTap,
         settingsController: layoutSettingsController,
         uiSize: uiSize,
         flatStyle: flatStyle,
@@ -670,6 +674,7 @@ class SettingsSegmented extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final labels = <String>[
       l10n.settingsTabScreen,
+      settingsOrganizationText(context, 'settingsTabRuntime'),
       l10n.settingsTabBattle,
       l10n.settingsTabNotification,
       l10n.settingsTabNetwork,

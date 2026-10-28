@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import '../settings/app_exit_settings.dart';
 import '../widgets/top_notice.dart';
+import 'game_surface_dialog.dart';
 
 /// Protects root-route Back navigation while leaving Home navigation to Android.
 class AppExitGuard extends StatefulWidget {
@@ -53,21 +54,35 @@ class _AppExitGuardState extends State<AppExitGuard> {
     _handlingExit = true;
     try {
       final l10n = AppLocalizations.of(context)!;
-      final confirmed = await showDialog<bool>(
+      final confirmed = await showGameSurfaceDialog<bool>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
+        title: l10n.appExitConfirmTitle,
+        message: l10n.appExitConfirmDescription,
+        actions: [
+          GameSurfaceDialogAction(
+            id: 'stay',
+            label: l10n.appExitStay,
+            value: false,
+          ),
+          GameSurfaceDialogAction(
+            id: 'leave',
+            label: l10n.appExitToDesktop,
+            value: true,
+          ),
+        ],
+        builder: (dialogContext, close) => AlertDialog(
           key: const Key('app-exit-confirm-dialog'),
           title: Text(l10n.appExitConfirmTitle),
           content: Text(l10n.appExitConfirmDescription),
           actions: [
             FilledButton(
               key: const Key('app-exit-stay'),
-              onPressed: () => Navigator.of(dialogContext).pop(false),
+              onPressed: () => close(false),
               child: Text(l10n.appExitStay),
             ),
             TextButton(
               key: const Key('app-exit-to-desktop'),
-              onPressed: () => Navigator.of(dialogContext).pop(true),
+              onPressed: () => close(true),
               child: Text(l10n.appExitToDesktop),
             ),
           ],

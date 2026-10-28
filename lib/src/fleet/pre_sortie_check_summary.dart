@@ -1,7 +1,7 @@
 import '../widgets/app_segmented_style.dart';
 import '../theme/app_palette.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import '../localization/game_name_localizations.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import '../game_state/game_state.dart';
@@ -15,7 +15,7 @@ import '../layout/hd_dashboard_content.dart';
 import '../layout/module_summaries.dart';
 import '../layout/panel_style.dart';
 import 'fleet_ui_strings.dart';
-import 'ship_status_style.dart';
+import 'pre_sortie_warnings.dart';
 import '../settings/layout_settings_controller.dart';
 import '../settings/module_display_settings.dart';
 
@@ -32,6 +32,7 @@ class PreSortieCheckSummary extends StatefulWidget {
     this.showLogo = true,
     this.showTitle = true,
     this.onOpenDisplaySettings,
+    this.warningFocusRequest,
   });
 
   final GameStateController controller;
@@ -42,6 +43,7 @@ class PreSortieCheckSummary extends StatefulWidget {
   final bool showLogo;
   final bool showTitle;
   final VoidCallback? onOpenDisplaySettings;
+  final ValueListenable<int>? warningFocusRequest;
 
   @override
   State<PreSortieCheckSummary> createState() => _PreSortieCheckSummaryState();
@@ -51,6 +53,29 @@ class _PreSortieCheckSummaryState extends State<PreSortieCheckSummary> {
   SortieCheckMode _mode = SortieCheckMode.ships;
   bool _showClearedMaps = false;
   bool _modeRestored = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.warningFocusRequest?.addListener(_focusWarnings);
+  }
+
+  @override
+  void didUpdateWidget(covariant PreSortieCheckSummary oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.warningFocusRequest != widget.warningFocusRequest) {
+      oldWidget.warningFocusRequest?.removeListener(_focusWarnings);
+      widget.warningFocusRequest?.addListener(_focusWarnings);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.warningFocusRequest?.removeListener(_focusWarnings);
+    super.dispose();
+  }
+
+  void _focusWarnings() => _setMode(SortieCheckMode.ships);
 
   @override
   void didChangeDependencies() {
@@ -98,7 +123,10 @@ class _PreSortieCheckSummaryState extends State<PreSortieCheckSummary> {
 
         return DashboardCard(
           collapsedSummary: widget.collapsed
-              ? preSortieSummary(l10n, _generateWarnings(state, l10n).length)
+              ? preSortieSummary(
+                  l10n,
+                  generatePreSortieWarnings(context, state, l10n).length,
+                )
               : null,
           headerAction: moduleDisplayGear(
             context,
@@ -136,7 +164,7 @@ class _PreSortieCheckSummaryState extends State<PreSortieCheckSummary> {
   }
 
   Widget _buildShipsCheckView(GameState state, AppLocalizations l10n) {
-    final warnings = _generateWarnings(state, l10n);
+    final warnings = generatePreSortieWarnings(context, state, l10n);
     final flat = PanelStyleScope.isFlat(context);
     if (warnings.isEmpty) {
       if (flat) return FlatEmptyText(l10n.noSortieWarnings);
@@ -155,7 +183,7 @@ class _PreSortieCheckSummaryState extends State<PreSortieCheckSummary> {
       );
     }
 
-    Widget buildFlatWarning(_PreSortieWarning warning) => Padding(
+    Widget buildFlatWarning(PreSortieWarning warning) => Padding(
       key: Key(
         'pre-sortie-warning-surface-${warning.fleetId}-${warning.kind.keyName}',
       ),
@@ -177,7 +205,7 @@ class _PreSortieCheckSummaryState extends State<PreSortieCheckSummary> {
       ),
     );
 
-    Widget buildWarning(_PreSortieWarning warning) => Padding(
+    Widget buildWarning(PreSortieWarning warning) => Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Material(
         key: Key(
@@ -423,14 +451,16 @@ class _PreSortieCheckSummaryState extends State<PreSortieCheckSummary> {
             color: appColor(context, Colors.white),
           ),
           const SizedBox(width: 4),
-          Text(
-            l10n.showClearedMaps,
-            style: appTextStyle(
-              context,
-              TextStyle(
-                fontSize: 11,
-                color: appColor(context, Colors.white),
-                fontWeight: FontWeight.w700,
+          Flexible(
+            child: Text(
+              l10n.showClearedMaps,
+              style: appTextStyle(
+                context,
+                TextStyle(
+                  fontSize: 11,
+                  color: appColor(context, Colors.white),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -438,158 +468,6 @@ class _PreSortieCheckSummaryState extends State<PreSortieCheckSummary> {
       ),
     ),
   );
-
-  List<_PreSortieWarning> _generateWarnings(
-    GameState state,
-    AppLocalizations l10n,
-  ) {
-    final warnings = <_PreSortieWarning>[];
-    if (state.fleets.isEmpty || !state.hasMasterData) return warnings;
-
-    // Check non-expedition fleets (usually fleets at port)
-    for (final fleet in state.fleets) {
-      if (fleet.mission.isActive || fleet.shipIds.isEmpty) continue;
-
-      bool hasTaiha = false;
-      bool hasUnresupplied = false;
-      bool hasFatigue = false;
-      final mainEquipmentNames = <String>[];
-      final extraEquipmentNames = <String>[];
-
-      for (final shipId in fleet.shipIds) {
-        final ship = state.ships[shipId];
-        if (ship == null) continue;
-
-        if (isShipHeavilyDamaged(
-          currentHp: ship.currentHp,
-          maxHp: ship.maxHp,
-        )) {
-          hasTaiha = true;
-        }
-
-        final masterShip = state.masterShips[ship.masterId];
-        if (masterShip != null) {
-          if (ship.currentFuel < masterShip.maxFuel ||
-              ship.currentAmmo < masterShip.maxAmmo) {
-            hasUnresupplied = true;
-          }
-          if (ship.condition < 40) {
-            hasFatigue = true;
-          }
-          final filledMainSlots = ship.slotIds.where((id) => id > 0).length;
-          if (filledMainSlots < masterShip.slotCount) {
-            mainEquipmentNames.add(
-              gameNames(
-                context,
-              ).shipName(masterShip.name, shipId: masterShip.id),
-            );
-          }
-          if (ship.extraSlotId == -1) {
-            extraEquipmentNames.add(
-              gameNames(
-                context,
-              ).shipName(masterShip.name, shipId: masterShip.id),
-            );
-          }
-        }
-      }
-
-      if (hasTaiha) {
-        warnings.add(
-          _PreSortieWarning(
-            fleetId: fleet.id,
-            message: l10n.preSortieCriticalWarning(fleet.name),
-            kind: _PreSortieWarningKind.critical,
-          ),
-        );
-      }
-
-      if (hasUnresupplied) {
-        warnings.add(
-          _PreSortieWarning(
-            fleetId: fleet.id,
-            message: l10n.preSortieSupplyWarning(fleet.name),
-            kind: _PreSortieWarningKind.supply,
-          ),
-        );
-      }
-
-      if (hasFatigue) {
-        warnings.add(
-          _PreSortieWarning(
-            fleetId: fleet.id,
-            message: l10n.preSortieFatigueWarning(fleet.name),
-            kind: _PreSortieWarningKind.fatigue,
-          ),
-        );
-      }
-
-      if (mainEquipmentNames.isNotEmpty) {
-        warnings.add(
-          _PreSortieWarning(
-            fleetId: fleet.id,
-            message: l10n.preSortieMainEquipmentWarning(
-              fleet.name,
-              mainEquipmentNames.join('、'),
-            ),
-            kind: _PreSortieWarningKind.mainEquipment,
-          ),
-        );
-      }
-
-      if (extraEquipmentNames.isNotEmpty) {
-        warnings.add(
-          _PreSortieWarning(
-            fleetId: fleet.id,
-            message: l10n.preSortieExtraEquipmentWarning(
-              fleet.name,
-              extraEquipmentNames.join('、'),
-            ),
-            kind: _PreSortieWarningKind.extraEquipment,
-          ),
-        );
-      }
-    }
-
-    return warnings;
-  }
-}
-
-class _PreSortieWarning {
-  const _PreSortieWarning({
-    required this.fleetId,
-    required this.message,
-    required this.kind,
-  });
-  final int fleetId;
-  final String message;
-  final _PreSortieWarningKind kind;
-}
-
-enum _PreSortieWarningKind {
-  critical,
-  supply,
-  fatigue,
-  mainEquipment,
-  extraEquipment;
-
-  String get keyName => switch (this) {
-    critical => 'critical',
-    supply => 'supply',
-    fatigue => 'fatigue',
-    mainEquipment => 'main-equipment',
-    extraEquipment => 'extra-equipment',
-  };
-
-  Color get foreground => switch (this) {
-    critical => const Color(0xfff44336),
-    _ => const Color(0xffff9800),
-  };
-
-  IconData get icon => switch (this) {
-    critical => Icons.warning_rounded,
-    _ => Icons.info_outline_rounded,
-  };
 }
 
 class _SortieSummaryModeSelector extends StatelessWidget {
@@ -765,6 +643,49 @@ class _MapGaugeRow extends StatelessWidget {
       );
     }
 
+    final tagStyle = appTextStyle(
+      context,
+      TextStyle(
+        fontSize: 9.5,
+        fontWeight: FontWeight.bold,
+        color:
+            AppPalette.of(context).isDark ||
+                appColor(context, tagBg).computeLuminance() < .179
+            ? appOnAccentColor(context, Colors.white)
+            : appColor(context, Colors.white),
+      ),
+    );
+    final nameStyle = appTextStyle(
+      context,
+      TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: nameColor),
+    );
+    final valueStyle = appTextStyle(
+      context,
+      TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        color: valueColor,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
+    final categoryLabel = fleetText(context, gauge.categoryTag);
+    final gaugeValue = '${gauge.currentGaugeValue} / ${gauge.maxGaugeValue}';
+    final category = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+      decoration: BoxDecoration(
+        color: appColor(context, tagBg),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(categoryLabel, style: tagStyle),
+    );
+    final mapName = Text(
+      '${gauge.code} $displayName$rankText$gaugeNumText',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: nameStyle,
+    );
+    final value = Text(gaugeValue, style: valueStyle);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Container(
@@ -782,68 +703,57 @@ class _MapGaugeRow extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 1.5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: appColor(context, tagBg),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  child: Text(
-                    fleetText(context, gauge.categoryTag),
-                    style: appTextStyle(
-                      context,
-                      TextStyle(
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.bold,
-                        color:
-                            AppPalette.of(context).isDark ||
-                                appColor(context, tagBg).computeLuminance() <
-                                    .179
-                            ? appOnAccentColor(context, Colors.white)
-                            : appColor(context, Colors.white),
-                      ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                double textWidth(String text, TextStyle style) {
+                  final painter = TextPainter(
+                    text: TextSpan(
+                      text: text,
+                      style: DefaultTextStyle.of(context).style.merge(style),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    '${gauge.code} $displayName$rankText$gaugeNumText',
+                    textDirection: Directionality.of(context),
+                    textScaler: MediaQuery.textScalerOf(context),
+                    locale: Localizations.maybeLocaleOf(context),
                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: appTextStyle(
-                      context,
-                      TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: isCleared
-                            ? const Color(0xff607786)
-                            : const Color(0xffdce6eb),
-                      ),
+                  )..layout();
+                  final width = painter.width;
+                  painter.dispose();
+                  return width;
+                }
+
+                // Preserve the usual row while the category, value and some
+                // map name fit. Narrow cards keep the same readable font size.
+                final rowMinimumWidth =
+                    textWidth(categoryLabel, tagStyle) +
+                    10 +
+                    textWidth(gaugeValue, valueStyle) +
+                    14 +
+                    textWidth(gauge.code, nameStyle);
+                if (constraints.maxWidth >= rowMinimumWidth) {
+                  return Row(
+                    children: [
+                      category,
+                      const SizedBox(width: 6),
+                      Expanded(child: mapName),
+                      const SizedBox(width: 8),
+                      value,
+                    ],
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    mapName,
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [category, value],
                     ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${gauge.currentGaugeValue} / ${gauge.maxGaugeValue}',
-                  style: appTextStyle(
-                    context,
-                    TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: isCleared
-                          ? const Color(0xff607786)
-                          : const Color(0xff70c7bc),
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ),
-              ],
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 5),
             _gaugeBar(context, percentage, 5),

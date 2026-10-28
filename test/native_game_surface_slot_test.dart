@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_workspace_visibility.dart';
+import 'package:yahagi_kancolle_browser/src/browser/game_surface_input_guard.dart';
 import 'package:yahagi_kancolle_browser/src/browser/native_game_surface_slot.dart';
 import 'package:yahagi_kancolle_browser/src/browser/native_game_surface_visibility.dart';
 import 'package:yahagi_kancolle_browser/src/browser/native_game_webview_contract.dart';
@@ -1039,6 +1040,112 @@ void main() {
       expect(visibility, <bool>[true]);
     });
 
+    for (final nested in [false, true]) {
+      testWidgets(
+        'immediate safety route hides without waiting for preview nested=$nested',
+        (tester) async {
+          final observer = YahagiGameRouteObserver();
+          final navigatorKey = GlobalKey<NavigatorState>();
+          final visibility = <bool>[];
+          final prepared = Completer<void>();
+          var preparations = 0;
+          addTearDown(() async {
+            if (!prepared.isCompleted) prepared.complete();
+            await tester.pumpWidget(const SizedBox.shrink());
+            await tester.pumpAndSettle();
+          });
+          await tester.pumpWidget(
+            _slotApp(
+              navigatorKey: navigatorKey,
+              observer: observer,
+              onVisibilityChanged: (value) async => visibility.add(value),
+              onBeforePopupRouteHidden: () {
+                preparations++;
+                return prepared.future;
+              },
+            ),
+          );
+          await tester.pump();
+          if (nested) {
+            unawaited(
+              navigatorKey.currentState!.push<void>(
+                RawDialogRoute<void>(
+                  pageBuilder: (_, _, _) => const Text('ordinary popup'),
+                  barrierLabel: 'ordinary',
+                  barrierColor: Colors.black54,
+                ),
+              ),
+            );
+            await tester.pumpAndSettle();
+            expect(visibility, [true]);
+          }
+          unawaited(
+            navigatorKey.currentState!.push<void>(_ImmediateSafetyRoute()),
+          );
+          await tester.pumpAndSettle();
+
+          expect(visibility, [true, false]);
+          expect(preparations, nested ? 1 : 0);
+          prepared.complete();
+          await tester.pumpAndSettle();
+          expect(visibility, [true, false]);
+
+          navigatorKey.currentState!.pop();
+          await tester.pumpAndSettle();
+          if (nested) {
+            expect(visibility, [true, false]);
+            navigatorKey.currentState!.pop();
+            await tester.pumpAndSettle();
+          }
+          expect(visibility, [true, false, true]);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
+    testWidgets('immediate safety listener follows observer replacement once', (
+      tester,
+    ) async {
+      final first = YahagiGameRouteObserver();
+      final second = YahagiGameRouteObserver();
+      final navigatorKey = GlobalKey<NavigatorState>();
+      final visibility = <bool>[];
+      var immediateCovers = 0;
+      var preparations = 0;
+      Widget app(YahagiGameRouteObserver observer) => _slotApp(
+        navigatorKey: navigatorKey,
+        observer: observer,
+        onVisibilityChanged: (visible) async => visibility.add(visible),
+        onImmediatePopupRouteHidden: () => immediateCovers++,
+        onBeforePopupRouteHidden: () async => preparations++,
+      );
+      await tester.pumpWidget(app(first));
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(app(second));
+      await tester.pumpAndSettle();
+
+      first.didPush(_ImmediateSafetyRoute(), null);
+      await tester.pumpAndSettle();
+      expect(immediateCovers, 0);
+      expect(visibility, [true]);
+      unawaited(navigatorKey.currentState!.push<void>(_ImmediateSafetyRoute()));
+      await tester.pumpAndSettle();
+      expect(
+        immediateCovers,
+        1,
+        reason: 'dedicated notification and didPushNext must not duplicate',
+      );
+      expect(preparations, 0);
+      expect(visibility, [true, false]);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+      second.didPush(_ImmediateSafetyRoute(), null);
+      await tester.pumpAndSettle();
+      expect(immediateCovers, 1);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('calibrates route visibility when its observer changes', (
       tester,
     ) async {
@@ -1204,6 +1311,7 @@ Widget _slotApp({
   Object? boundsSinkIdentity,
   bool workspaceActive = true,
   Future<void> Function()? onBeforePopupRouteHidden,
+  VoidCallback? onImmediatePopupRouteHidden,
   VoidCallback? onPopupRouteRevealStarted,
   VoidCallback? onAfterPopupRouteRevealed,
 }) {
@@ -1233,6 +1341,7 @@ Widget _slotApp({
               boundsSinkIdentity:
                   boundsSinkIdentity ?? _defaultBoundsSinkIdentity,
               onBeforePopupRouteHidden: onBeforePopupRouteHidden,
+              onImmediatePopupRouteHidden: onImmediatePopupRouteHidden,
               onPopupRouteRevealStarted: onPopupRouteRevealStarted,
               onAfterPopupRouteRevealed: onAfterPopupRouteRevealed,
             ),
@@ -1268,4 +1377,14 @@ final class _TestNonModalPopupRoute extends PopupRoute<void> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) => const Text('menu');
+}
+
+final class _ImmediateSafetyRoute extends RawDialogRoute<void>
+    implements ImmediateGameSurfaceCoverRoute {
+  _ImmediateSafetyRoute()
+    : super(
+        pageBuilder: (_, _, _) => const Text('immediate safety popup'),
+        barrierLabel: 'safety',
+        barrierColor: Colors.black54,
+      );
 }

@@ -793,6 +793,16 @@ class GameQuest {
           _ => '＜50%',
         };
 
+  /// Prefer server milestones over potentially incomplete local observations.
+  /// Keep verified local completion visible until the server confirms it.
+  String get displayProgressLabel {
+    if (isServerCompleted) return serverProgressPercentLabel;
+    if (!isLocallyCompleted && (progressFlag == 1 || progressFlag == 2)) {
+      return serverProgressPercentLabel;
+    }
+    return exactProgressLabel ?? progressPercentLabel;
+  }
+
   String get progressPercentLabel {
     if (isCompleted) {
       return '100%';

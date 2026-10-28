@@ -25,6 +25,7 @@ import 'src/battle/fcd_map_store.dart';
 import 'src/battle/fcd_map_update_service.dart';
 import 'src/battle/formation_memory.dart';
 import 'src/logbook/logbook_database.dart';
+import 'src/fleet/resource_grid.dart';
 import 'src/logbook/logbook_page.dart';
 import 'src/battle/live_battle_card.dart';
 import 'src/audio/game_audio_controller.dart';
@@ -57,11 +58,16 @@ import 'src/subtitles/ship_subtitle_settings.dart';
 import 'src/subtitles/ship_subtitle_catalog_controller.dart';
 import 'src/subtitles/ship_subtitle_runtime_controller.dart';
 import 'src/browser/native_game_surface_slot.dart';
+import 'src/browser/native_game_warning_dialog.dart';
+import 'src/browser/game_dialog_presentation_scope.dart';
+import 'src/browser/game_reminder_dialog.dart';
 import 'src/capture/battle_result_warning_overlay.dart';
 import 'src/capture/capture_mode_controller.dart';
 import 'src/capture/capture_mode_store.dart';
 import 'src/capture/game_capture_controller.dart';
 import 'src/notice/game_info_notice_controller.dart';
+import 'src/notice/debuff_reminder_controller.dart';
+import 'src/notice/debuff_reminder_feedback.dart';
 import 'src/capture/game_capture_port.dart';
 import 'src/diagnostics/diagnostic_controller.dart';
 import 'src/diagnostics/diagnostic_event.dart';
@@ -107,6 +113,8 @@ import 'src/layout/hd_workspace_geometry.dart';
 import 'src/layout/minimal_layout.dart';
 import 'src/layout/ui_scale.dart';
 import 'src/layout/module_summaries.dart';
+import 'src/layout/dashboard_tabs.dart';
+import 'src/settings/dashboard_display_mode.dart';
 import 'src/layout/game_edge_tap_guard.dart';
 import 'src/layout/panel_style.dart';
 import 'src/layout/hd_bottom_strip.dart';
@@ -126,6 +134,7 @@ import 'src/kcwiki_report/kcwiki_report_transport.dart';
 import 'src/performance/second_tick_scope.dart';
 import 'src/inventory/owned_inventory_page.dart';
 import 'src/new_ship/new_ship_reminder_controller.dart';
+import 'src/new_ship/new_ship_reminder_feedback.dart';
 import 'src/new_ship/new_ship_reminder_store.dart';
 import 'src/notification/game_notification_coordinator.dart';
 import 'src/notification/new_ship_notification.dart';
@@ -532,6 +541,9 @@ Future<void> main() async {
     layoutSettingsController: layoutSettingsController,
     topNoticeController: headerNoticeController,
   );
+  final debuffReminderController = DebuffReminderController(
+    accountSession: accountSession,
+  );
   gameApiEventPipeline = GameApiEventPipeline(
     settleGameState: () async {
       await gameStateController.idle;
@@ -547,6 +559,7 @@ Future<void> main() async {
       battleController,
       newShipReminderController,
       gameInfoNoticeController,
+      debuffReminderController,
     ],
     onBackgroundDecodeFallback: (path) {
       if (!kcwikiReportController.enabled) return;
@@ -756,6 +769,7 @@ Future<void> main() async {
     kcwikiReportConsumer: kcwikiReportConsumer,
     gameStateController: gameStateController,
     newShipReminderController: newShipReminderController,
+    debuffReminderController: debuffReminderController,
     moraleRecoveryTimerController:
         notificationCoordinator.moraleRecoveryTimerController,
     gameResourceCacheController: gameResourceCacheController,
@@ -1046,6 +1060,7 @@ class YahagiApp extends StatelessWidget {
     required this.gameCaptureController,
     this.gameApiEventPipeline,
     this.newShipReminderController,
+    this.debuffReminderController,
     this.kcwikiReportController,
     this.kcwikiReportConsumer,
     required this.gameStateController,
@@ -1099,6 +1114,7 @@ class YahagiApp extends StatelessWidget {
   final GameCaptureController gameCaptureController;
   final GameApiEventPipeline? gameApiEventPipeline;
   final NewShipReminderController? newShipReminderController;
+  final DebuffReminderController? debuffReminderController;
   final KcwikiReportController? kcwikiReportController;
   final KcwikiReportConsumer? kcwikiReportConsumer;
   final GameStateController gameStateController;
@@ -1155,7 +1171,11 @@ class YahagiApp extends StatelessWidget {
             child: GameNameLocalizationScope(
               controller: shipSubtitleCatalogController,
               child: MediaQuery(
-                data: MediaQuery.of(context).copyWith(boldText: true),
+                data: MediaQuery.of(context).copyWith(
+                  boldText: true,
+                  textScaler: layoutSettingsController.uiFontSize
+                      .resolveTextScaler(MediaQuery.textScalerOf(context)),
+                ),
                 child: CameraAvoidanceViewport(
                   enabled: layoutSettingsController.cameraAvoidanceEnabled,
                   distance: layoutSettingsController.cameraAvoidanceDistance,
@@ -1195,71 +1215,76 @@ class YahagiApp extends StatelessWidget {
             fontFamilyFallback: layoutSettingsController.fontFamilyFallback,
           ),
           home: TopNoticeHost(
-            child: StartupUpdateNotice(
-              checker: releaseChecker ?? GitHubReleaseChecker(),
-              currentVersion: currentVersion,
-              enabled: releaseChecker != null,
-              child: SecondTickScope(
-                child: YahagiShell(
-                  layoutSettingsController: layoutSettingsController,
-                  networkSettingsController: networkSettingsController,
-                  gadgetBypassController: gadgetBypassController,
-                  safetySettingsController: safetySettingsController,
-                  notificationSettingsController:
-                      notificationSettingsController,
-                  battlePredictionSettingsController:
-                      battlePredictionSettingsController,
-                  gameFrameRateSettingsController:
-                      gameFrameRateSettingsController,
-                  gameRenderingModeController: gameRenderingModeController,
-                  gameConnectorController: gameConnectorController,
-                  backgroundGameRetentionController:
-                      backgroundGameRetentionController,
-                  appExitSettingsController: appExitSettingsController,
-                  displayModeController: displayModeController,
-                  controller: controller,
-                  browserController: browserController,
-                  captureModeController: captureModeController,
-                  audioController: audioController,
-                  toolbarController: toolbarController,
-                  gameCaptureController: gameCaptureController,
-                  kcwikiReportController: kcwikiReportController,
-                  kcwikiReportConsumer: kcwikiReportConsumer,
-                  gameStateController: gameStateController,
-                  newShipReminderController: newShipReminderController,
-                  moraleRecoveryTimerController: moraleRecoveryTimerController,
-                  gameResourceCacheController: gameResourceCacheController,
-                  senkaController: senkaController,
-                  battleController: battleController,
-                  fcdMapController: fcdMapController,
-                  questCatalogController: questCatalogController,
-                  sortieMapCatalogController: sortieMapCatalogController,
-                  enemyCatalogController: enemyCatalogController,
-                  improvementPlannerController: improvementPlannerController,
-                  currentVersion: currentVersion,
-                  releaseChecker: releaseChecker,
-                  screenAwakeController: screenAwakeController,
-                  gameMouseWheelSettingsController:
-                      gameMouseWheelSettingsController,
-                  gameFrameRefreshShortcutSettings:
-                      gameFrameRefreshShortcutSettings,
-                  shipSubtitleSettingsController:
-                      shipSubtitleSettingsController,
-                  shipSubtitleCatalogController: shipSubtitleCatalogController,
-                  shipSubtitleRuntimeController: shipSubtitleRuntimeController,
-                  toolbarDisplayController: toolbarDisplayController,
-                  gameScreenshotController: gameScreenshotController,
-                  headerNoticeController: headerNoticeController,
-                  gameInfoNoticeController: gameInfoNoticeController,
-                  showDeveloperDiagnostics: showDeveloperDiagnostics,
-                  diagnosticController: diagnosticController,
-                  telemetryController: telemetryController,
-                  gameSurface: Builder(
-                    builder: (context) => GameWorkspaceActive(
-                      active:
-                          GameWorkspaceActive.of(context) &&
-                          backupMaintenanceOverlay?.value == null,
-                      child: _buildGameSurface(),
+            child: _withDebuffReminders(
+              StartupUpdateNotice(
+                checker: releaseChecker ?? GitHubReleaseChecker(),
+                currentVersion: currentVersion,
+                enabled: releaseChecker != null,
+                child: SecondTickScope(
+                  child: YahagiShell(
+                    layoutSettingsController: layoutSettingsController,
+                    networkSettingsController: networkSettingsController,
+                    gadgetBypassController: gadgetBypassController,
+                    safetySettingsController: safetySettingsController,
+                    notificationSettingsController:
+                        notificationSettingsController,
+                    battlePredictionSettingsController:
+                        battlePredictionSettingsController,
+                    gameFrameRateSettingsController:
+                        gameFrameRateSettingsController,
+                    gameRenderingModeController: gameRenderingModeController,
+                    gameConnectorController: gameConnectorController,
+                    backgroundGameRetentionController:
+                        backgroundGameRetentionController,
+                    appExitSettingsController: appExitSettingsController,
+                    displayModeController: displayModeController,
+                    controller: controller,
+                    browserController: browserController,
+                    captureModeController: captureModeController,
+                    audioController: audioController,
+                    toolbarController: toolbarController,
+                    gameCaptureController: gameCaptureController,
+                    kcwikiReportController: kcwikiReportController,
+                    kcwikiReportConsumer: kcwikiReportConsumer,
+                    gameStateController: gameStateController,
+                    newShipReminderController: newShipReminderController,
+                    moraleRecoveryTimerController:
+                        moraleRecoveryTimerController,
+                    gameResourceCacheController: gameResourceCacheController,
+                    senkaController: senkaController,
+                    battleController: battleController,
+                    fcdMapController: fcdMapController,
+                    questCatalogController: questCatalogController,
+                    sortieMapCatalogController: sortieMapCatalogController,
+                    enemyCatalogController: enemyCatalogController,
+                    improvementPlannerController: improvementPlannerController,
+                    currentVersion: currentVersion,
+                    releaseChecker: releaseChecker,
+                    screenAwakeController: screenAwakeController,
+                    gameMouseWheelSettingsController:
+                        gameMouseWheelSettingsController,
+                    gameFrameRefreshShortcutSettings:
+                        gameFrameRefreshShortcutSettings,
+                    shipSubtitleSettingsController:
+                        shipSubtitleSettingsController,
+                    shipSubtitleCatalogController:
+                        shipSubtitleCatalogController,
+                    shipSubtitleRuntimeController:
+                        shipSubtitleRuntimeController,
+                    toolbarDisplayController: toolbarDisplayController,
+                    gameScreenshotController: gameScreenshotController,
+                    headerNoticeController: headerNoticeController,
+                    gameInfoNoticeController: gameInfoNoticeController,
+                    showDeveloperDiagnostics: showDeveloperDiagnostics,
+                    diagnosticController: diagnosticController,
+                    telemetryController: telemetryController,
+                    gameSurface: Builder(
+                      builder: (context) => GameWorkspaceActive(
+                        active:
+                            GameWorkspaceActive.of(context) &&
+                            backupMaintenanceOverlay?.value == null,
+                        child: _buildGameSurface(),
+                      ),
                     ),
                   ),
                 ),
@@ -1271,52 +1296,87 @@ class YahagiApp extends StatelessWidget {
     );
   }
 
-  Widget _buildGameSurface() {
-    Widget withBattleWarning(Widget child) => BattleResultWarningOverlay(
-      accountSession: gameStateController.accountSession,
-      gameCaptureController: gameCaptureController,
-      loadSafetyState: () async {
-        await gameApiEventPipeline?.dispatchIdle;
-        await battleController.idle;
-        await gameStateController.idle;
-        return gameStateController.state;
-      },
-      safetyEventAccepted: (event, state) {
-        if (gameApiEventPipeline?.wasEventAccepted(event) != true) return false;
-        if (!isPostBattleSafetyEvent(event)) return true;
-        final battle = battleController.current;
-        final combat = state.combatState;
-        return battle != null &&
-            battleController.lastError == null &&
-            battle.displayStage == BattleDisplayStage.result &&
-            !battle.context.practice &&
-            combat.isActive &&
-            battle.context.deckId == combat.sortieFleetId &&
-            battle.context.mapAreaId == combat.mapArea &&
-            battle.context.mapInfoNo == combat.mapInfo &&
-            battle.context.node == combat.currentNode;
-      },
-      safetySettingsController: safetySettingsController,
-      damageControlStateTrusted: () =>
-          battleController.isDamageControlStateTrusted,
-      warningSession: battleController.warningSession,
-      damageControlNoticeEnabled: () =>
-          layoutSettingsController.topNoticeEnabled,
-      onReloadGame: () async {
-        if (!browserController.hasAttachedPort) {
-          throw StateError('Game browser unavailable');
-        }
-        await browserController.reload();
-      },
-      onReloadGameFrame: () async {
-        final result = await browserController.reloadGameFrame();
-        if (result != GameFrameReloadResult.reloaded) {
-          throw StateError('Game frame refresh unavailable');
-        }
-      },
-      damageAlertPort: const MethodChannelBattleDamageAlertPort(),
+  Widget _withDebuffReminders(Widget child) {
+    final scopedChild = GameDialogPresentationScope(
+      nativeActivity:
+          gameRenderingModeController?.mode.usesActivityWebView == true,
+      presentationEnabled: !(gameRenderingModeController?.isBusy ?? false),
       child: child,
     );
+    final reminder = debuffReminderController;
+    final settings = notificationSettingsController;
+    final notices = headerNoticeController;
+    if (reminder == null || settings == null || notices == null) {
+      return scopedChild;
+    }
+    return DebuffReminderFeedback(
+      controller: reminder,
+      nativeWarningDialogPort:
+          gameRenderingModeController?.mode.usesActivityWebView == true &&
+              !(gameRenderingModeController?.isBusy ?? false)
+          ? const MethodChannelNativeGameWarningDialogPort.forReminder('debuff')
+          : null,
+      presentationEnabled: !(gameRenderingModeController?.isBusy ?? false),
+      settingsController: settings,
+      headerNoticeController: notices,
+      topNoticeDuration: () =>
+          Duration(seconds: layoutSettingsController.topNoticeDurationSeconds),
+      child: scopedChild,
+    );
+  }
+
+  Widget _buildGameSurface() {
+    Widget withBattleWarning(Widget child, {GameRenderingMode? mode}) =>
+        BattleResultWarningOverlay(
+          nativeWarningDialogPort: mode?.usesActivityWebView == true
+              ? const MethodChannelNativeGameWarningDialogPort()
+              : null,
+          accountSession: gameStateController.accountSession,
+          gameCaptureController: gameCaptureController,
+          loadSafetyState: () async {
+            await gameApiEventPipeline?.dispatchIdle;
+            await battleController.idle;
+            await gameStateController.idle;
+            return gameStateController.state;
+          },
+          safetyEventAccepted: (event, state) {
+            if (gameApiEventPipeline?.wasEventAccepted(event) != true) {
+              return false;
+            }
+            if (!isPostBattleSafetyEvent(event)) return true;
+            final battle = battleController.current;
+            final combat = state.combatState;
+            return battle != null &&
+                battleController.lastError == null &&
+                battle.displayStage == BattleDisplayStage.result &&
+                !battle.context.practice &&
+                combat.isActive &&
+                battle.context.deckId == combat.sortieFleetId &&
+                battle.context.mapAreaId == combat.mapArea &&
+                battle.context.mapInfoNo == combat.mapInfo &&
+                battle.context.node == combat.currentNode;
+          },
+          safetySettingsController: safetySettingsController,
+          damageControlStateTrusted: () =>
+              battleController.isDamageControlStateTrusted,
+          warningSession: battleController.warningSession,
+          damageControlNoticeEnabled: () =>
+              layoutSettingsController.topNoticeEnabled,
+          onReloadGame: () async {
+            if (!browserController.hasAttachedPort) {
+              throw StateError('Game browser unavailable');
+            }
+            await browserController.reload();
+          },
+          onReloadGameFrame: () async {
+            final result = await browserController.reloadGameFrame();
+            if (result != GameFrameReloadResult.reloaded) {
+              throw StateError('Game frame refresh unavailable');
+            }
+          },
+          damageAlertPort: const MethodChannelBattleDamageAlertPort(),
+          child: child,
+        );
 
     if (gameSurface case final injected?) {
       return withBattleWarning(injected);
@@ -1342,7 +1402,7 @@ class YahagiApp extends StatelessWidget {
         buildNativeActivityGameSurface: _buildNativeActivityGameSurface,
         buildGameWebView: (key, mode) =>
             _buildGameWebView(key, renderingMode: mode),
-        withBattleWarning: withBattleWarning,
+        withBattleWarning: (child) => withBattleWarning(child, mode: mode),
       ),
     );
   }
@@ -1547,6 +1607,7 @@ class YahagiShell extends StatefulWidget {
 
 class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   bool _hdEditing = false;
+  final _settingsInformationPanelKey = GlobalKey<_InformationPanelState>();
   static const _gameFrameReloadChannel = MethodChannel(
     gameFrameReloadMethodChannelName,
   );
@@ -1564,8 +1625,6 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   int? _questCenterInitialQuestId;
   bool _inventoryShowShips = true;
   bool _inventoryShowOwned = true;
-  bool _newShipDialogScheduled = false;
-  DialogRoute<void>? _newShipDialogRoute;
   int _logbookTabIndex = 0;
   int _settingsTabIndex = 0;
   RepairCenterMode _repairCenterMode = RepairCenterMode.dock;
@@ -1583,6 +1642,8 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   final GameModsController _gameModsController = GameModsController();
   final DevelopmentRepository _developmentRepository = DevelopmentRepository();
   BackgroundGameRetentionCoordinator? _backgroundGameRetentionCoordinator;
+  GameReminderDialogPresentation? _headerResourceSettingsPresentation;
+  bool? _headerResourceSettingsNative;
 
   @override
   void initState() {
@@ -1591,7 +1652,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
     unawaited(_gameModsController.initialize());
     widget.displayModeController.addListener(_onDisplayModeChanged);
     widget.layoutSettingsController.addListener(_onLayoutSettingsChanged);
-    widget.newShipReminderController?.addListener(_handleNewShipAlert);
+    widget.gameRenderingModeController?.addListener(_onHeaderDialogModeChanged);
     _gameFrameReloadChannel.setMethodCallHandler(
       _handleNativeGameFrameReloadMessage,
     );
@@ -1617,10 +1678,13 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _headerResourceSettingsPresentation?.cancel();
+    widget.gameRenderingModeController?.removeListener(
+      _onHeaderDialogModeChanged,
+    );
     _gameFrameReloadChannel.setMethodCallHandler(null);
     widget.displayModeController.removeListener(_onDisplayModeChanged);
     widget.layoutSettingsController.removeListener(_onLayoutSettingsChanged);
-    widget.newShipReminderController?.removeListener(_handleNewShipAlert);
     widget.kcwikiReportConsumer?.dispose();
     widget.gameInfoNoticeController?.dispose();
     _questFilters.dispose();
@@ -1630,6 +1694,38 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
     widget.telemetryController?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant YahagiShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.layoutSettingsController != widget.layoutSettingsController) {
+      _headerResourceSettingsPresentation?.cancel();
+      oldWidget.layoutSettingsController.removeListener(
+        _onLayoutSettingsChanged,
+      );
+      widget.layoutSettingsController.addListener(_onLayoutSettingsChanged);
+    }
+    if (oldWidget.gameRenderingModeController !=
+        widget.gameRenderingModeController) {
+      oldWidget.gameRenderingModeController?.removeListener(
+        _onHeaderDialogModeChanged,
+      );
+      widget.gameRenderingModeController?.addListener(
+        _onHeaderDialogModeChanged,
+      );
+      _headerResourceSettingsPresentation?.cancel();
+    }
+  }
+
+  void _onHeaderDialogModeChanged() {
+    final mode = widget.gameRenderingModeController;
+    if (mode?.isBusy == true ||
+        (_headerResourceSettingsNative != null &&
+            _headerResourceSettingsNative !=
+                (mode?.mode.usesActivityWebView == true))) {
+      _headerResourceSettingsPresentation?.cancel();
+    }
   }
 
   Future<void> _handleNativeGameFrameReloadMessage(MethodCall call) async {
@@ -1650,65 +1746,6 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
     }
   }
 
-  void _handleNewShipAlert() {
-    final controller = widget.newShipReminderController;
-    final alert = controller?.currentAlert;
-    if (!mounted) return;
-    if (alert == null) {
-      final route = _newShipDialogRoute;
-      if (route != null && route.isActive) {
-        route.navigator?.removeRoute(route);
-      }
-      return;
-    }
-    if (_newShipDialogScheduled) return;
-    _newShipDialogScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      if (!identical(controller?.currentAlert, alert)) {
-        _newShipDialogScheduled = false;
-        _handleNewShipAlert();
-        return;
-      }
-      final state = widget.gameStateController.state;
-      final l10n = AppLocalizations.of(context)!;
-      final route = DialogRoute<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          key: const Key('new-ship-alert-dialog'),
-          title: Text(l10n.newShipAlertTitle),
-          content: Text(
-            l10n.newShipAlertBody(
-              alert.masterIds
-                  .map(
-                    (id) => gameNames(context).shipName(
-                      state.masterShips[id]?.name ??
-                          l10n.newShipFallbackName(id),
-                      shipId: id,
-                    ),
-                  )
-                  .join('、'),
-            ),
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(l10n.acknowledge),
-            ),
-          ],
-        ),
-      );
-      _newShipDialogRoute = route;
-      await Navigator.of(context, rootNavigator: true).push<void>(route);
-      _newShipDialogRoute = null;
-      if (!mounted) return;
-      controller?.acknowledge(alert.key);
-      _newShipDialogScheduled = false;
-      _handleNewShipAlert();
-    });
-    WidgetsBinding.instance.ensureVisualUpdate();
-  }
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -1719,6 +1756,9 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
 
   void _onLayoutSettingsChanged() {
     if (!mounted) return;
+    if (widget.layoutSettingsController.uiLocked) {
+      _headerResourceSettingsPresentation?.cancel();
+    }
     // The route may keep the shell's parent unchanged. Rebuild the workspace
     // explicitly so manual panel ratios apply without navigating or resizing.
     setState(() {
@@ -1816,6 +1856,101 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
     }
     if (_workspaceIndex != index) {
       setState(() => _workspaceIndex = index);
+    }
+  }
+
+  void _openDashboardLayoutSettings() {
+    if (widget.layoutSettingsController.uiLocked) return;
+    _selectWorkspace(0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !widget.layoutSettingsController.uiLocked) {
+        _settingsInformationPanelKey.currentState?.beginEditing();
+      }
+    });
+  }
+
+  Future<void> _openHeaderResourceSettings() async {
+    if (widget.layoutSettingsController.uiLocked ||
+        widget.gameRenderingModeController?.isBusy == true ||
+        _headerResourceSettingsPresentation?.isActive == true) {
+      return;
+    }
+    final l10n = AppLocalizations.of(context)!;
+    final native =
+        widget.gameRenderingModeController?.mode.usesActivityWebView == true;
+    _headerResourceSettingsNative = native;
+    final presentation = native
+        ? showHeaderResourceChecklist(
+            context: context,
+            controller: widget.layoutSettingsController,
+            stateProvider: () => widget.gameStateController.state,
+            senkaProvider: () =>
+                widget.senkaController?.state.playerRankingRow.senka,
+            rankProvider: () =>
+                widget.senkaController?.state.playerRankingRow.rank,
+            anchorageRepairStartedAtProvider: () =>
+                widget.gameStateController.anchorageRepairStartedAt,
+            nosakiSparkleStartedAtProvider: () =>
+                widget.gameStateController.nosakiSparkleStartedAt,
+            valueChanges: Listenable.merge([
+              widget.gameStateController,
+              ?widget.senkaController,
+            ]),
+            nativeActivity: true,
+            presentationEnabled: true,
+          )
+        : showGameReminderDialog(
+            context: context,
+            kind: 'headerEditor',
+            title: l10n.selectHeaderVisibleItems,
+            message: '',
+            builder: (dialogContext, acknowledge) => Dialog(
+              backgroundColor: appColor(dialogContext, const Color(0xff142735)),
+              insetPadding: const EdgeInsets.all(16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: Text(l10n.selectHeaderVisibleItems)),
+                          IconButton(
+                            key: const Key('settings-header-editor-close'),
+                            tooltip: MaterialLocalizations.of(
+                              dialogContext,
+                            ).closeButtonTooltip,
+                            onPressed: acknowledge,
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      CompactResourceBar(
+                        state: widget.gameStateController.state,
+                        settingsController: widget.layoutSettingsController,
+                        initiallyEditing: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+    if (presentation == null) {
+      _headerResourceSettingsNative = null;
+      return;
+    }
+    _headerResourceSettingsPresentation = presentation;
+    try {
+      await presentation.completed;
+    } finally {
+      if (identical(_headerResourceSettingsPresentation, presentation)) {
+        _headerResourceSettingsPresentation = null;
+        _headerResourceSettingsNative = null;
+      }
     }
   }
 
@@ -1934,6 +2069,11 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
     _fitGameScreenAfterFrame();
   }
 
+  Future<void> _refreshGameFromHeader() async {
+    if (widget.gameRenderingModeController?.isBusy ?? false) return;
+    await widget.browserController.reload();
+  }
+
   Future<void> _refreshGameFrameFromHeader() async {
     final settings = widget.gameFrameRefreshShortcutSettings;
     if (settings == null ||
@@ -1952,6 +2092,29 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final reminder = widget.newShipReminderController;
+    if (reminder == null) return _buildShell(context);
+    return AnimatedBuilder(
+      animation: Listenable.merge([?widget.gameRenderingModeController]),
+      builder: (context, _) => NewShipReminderFeedback(
+        controller: reminder,
+        stateProvider: () => widget.gameStateController.state,
+        nativeWarningDialogPort:
+            widget.gameRenderingModeController?.mode.usesActivityWebView ==
+                    true &&
+                !(widget.gameRenderingModeController?.isBusy ?? false)
+            ? const MethodChannelNativeGameWarningDialogPort.forReminder(
+                'newShip',
+              )
+            : null,
+        presentationEnabled:
+            !(widget.gameRenderingModeController?.isBusy ?? false),
+        child: _buildShell(context),
+      ),
+    );
+  }
+
+  Widget _buildShell(BuildContext context) {
     final screenDisplayMode = widget.displayModeController.displayMode;
     final windowSize = MediaQuery.sizeOf(context);
     final menuHorizontal =
@@ -2352,6 +2515,8 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                                                 null
                                                             ? null
                                                             : _refreshGameFrameFromHeader,
+                                                        onGameRefreshTap:
+                                                            _refreshGameFromHeader,
                                                         anchorageRepairStartedAt: widget
                                                             .gameStateController
                                                             .anchorageRepairStartedAt,
@@ -2703,6 +2868,9 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                           Widget buildInfo({
                                             String? module,
                                           }) => _InformationPanel(
+                                            key: module == null
+                                                ? _settingsInformationPanelKey
+                                                : null,
                                             questCatalogController:
                                                 widget.questCatalogController,
                                             hdEditing: _hdEditing,
@@ -3367,11 +3535,27 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                           telemetryController:
                                               widget.telemetryController,
                                           selectedIndex: _settingsTabIndex,
+                                          onEditHeaderResources:
+                                              _openHeaderResourceSettings,
+                                          onEditDashboardLayout:
+                                              _openDashboardLayoutSettings,
+                                          onEditHdLayout:
+                                              widget
+                                                  .layoutSettingsController
+                                                  .hdSettings
+                                                  .enabled
+                                              ? _openDashboardLayoutSettings
+                                              : null,
                                         ),
                                       if (_workspaceIndex == 9 &&
                                           widget.senkaController != null)
                                         SenkaPage(
                                           controller: widget.senkaController!,
+                                          accountSession:
+                                              widget
+                                                  .gameStateController
+                                                  .accountSession ??
+                                              LogbookDatabase.accountSession,
                                           mode: _senkaCenterMode,
                                           onOpenSortieLog: () {
                                             setState(
@@ -3853,6 +4037,7 @@ class _NavigationButton extends StatelessWidget {
 
 class _InformationPanel extends StatefulWidget {
   const _InformationPanel({
+    super.key,
     this.questCatalogController,
     required this.layoutSettingsController,
     required this.safetySettingsController,
@@ -3911,6 +4096,39 @@ class _InformationPanel extends StatefulWidget {
 class _InformationPanelState extends State<_InformationPanel> {
   bool _isEditing = false;
   final Set<String> _hdCollapsed = {};
+  String? _selectedTabId;
+
+  bool _canCustomizeTabs() {
+    if (!widget.layoutSettingsController.uiLocked) return true;
+    final l10n = AppLocalizations.of(context)!;
+    TopNotice.show(context, message: l10n.uiLockedToast);
+    return false;
+  }
+
+  void _editTabOrder() {
+    if (_canCustomizeTabs()) beginEditing();
+  }
+
+  IconData _tabIcon(String id) => switch (id) {
+    'battle' => Icons.remove_red_eye_outlined,
+    'fleet' => Icons.directions_boat_filled_outlined,
+    'land_base' => Icons.flight_rounded,
+    'expedition' => Icons.explore_outlined,
+    'repair' => Icons.build_circle_outlined,
+    'construction' => Icons.handyman_outlined,
+    'quests' => Icons.assignment_outlined,
+    'pre_sortie' => Icons.security_outlined,
+    _ => Icons.dashboard_outlined,
+  };
+
+  void beginEditing() {
+    if (!mounted || widget.layoutSettingsController.uiLocked) return;
+    if (widget.hd) {
+      widget.onHdEditingChanged?.call(true);
+    } else {
+      setState(() => _isEditing = true);
+    }
+  }
 
   @override
   void initState() {
@@ -3996,6 +4214,14 @@ class _InformationPanelState extends State<_InformationPanel> {
             final editing =
                 (widget.hd ? widget.hdEditing : _isEditing) &&
                 !widget.layoutSettingsController.uiLocked;
+            final tabbed =
+                widget.layoutSettingsController.dashboardDisplayMode ==
+                    DashboardDisplayMode.tabs &&
+                !widget.hd &&
+                !widget.layoutSettingsController.hdSettings.enabled &&
+                !editing &&
+                widget.singleModule == null &&
+                !widget.hdPortrait;
             final collapsedIds =
                 widget.layoutSettingsController.dashboardCardCollapsed;
             final hiddenIds = widget.hd
@@ -4020,7 +4246,9 @@ class _InformationPanelState extends State<_InformationPanel> {
                 )
                 .toList();
             Widget buildCard(String id) {
-              final isCollapsed = widget.hd
+              final isCollapsed = tabbed
+                  ? false
+                  : widget.hd
                   ? editing || _hdCollapsed.contains(id)
                   : editing || collapsedIds.contains(id);
               void toggle() {
@@ -4366,37 +4594,129 @@ class _InformationPanelState extends State<_InformationPanel> {
                         setState(() => _isEditing = true);
                       }
                     },
-              child: ListView(
-                primary: widget.hd ? false : null,
-                key: widget.singleModule == null
-                    ? null
-                    : ValueKey('hd-scroll-${widget.singleModule}'),
-                padding: widget.singleModule != null
-                    ? EdgeInsets.zero
-                    : widget.hd
-                    ? const EdgeInsets.all(8)
-                    : flat
-                    ? EdgeInsets.only(bottom: localBottomSafeArea)
-                    : EdgeInsets.fromLTRB(8, 8, 8, localBottomSafeArea),
-                children: [
-                  for (final id in visibleOrder) buildCard(id),
-                  if (hasError && widget.singleModule == null)
-                    Padding(
-                      key: const ValueKey('error_card'),
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: _InfoCard(
-                        title: AppLocalizations.of(context)!.gameStatusError,
-                        subtitle: runtimeMessageText(
-                          context,
-                          widget.gameCaptureController.errorMessage ??
-                              widget.browserController.errorMessage ??
-                              AppLocalizations.of(context)!.gameStatusErrorDesc,
-                        ),
-                        warning: true,
-                      ),
+              child: tabbed
+                  ? Builder(
+                      builder: (context) {
+                        final l10n = AppLocalizations.of(context)!;
+                        final selectedId = visibleOrder.contains(_selectedTabId)
+                            ? _selectedTabId!
+                            : visibleOrder.firstOrNull;
+                        // A hidden selection falls back permanently; restoring
+                        // that module later must not unexpectedly switch tabs.
+                        _selectedTabId = selectedId;
+                        return DashboardTabs(
+                          tabs: [
+                            for (final id in visibleOrder)
+                              DashboardTab(
+                                id: id,
+                                label:
+                                    !widget.layoutSettingsController
+                                        .moduleShowName(id)
+                                    ? ''
+                                    : switch (id) {
+                                        'battle' => l10n.briefingTabForecast,
+                                        'fleet' => l10n.briefingTabFleet,
+                                        'land_base' => l10n.briefingTabLandBase,
+                                        'expedition' =>
+                                          l10n.briefingTabExpedition,
+                                        'repair' => l10n.briefingTabRepair,
+                                        'construction' =>
+                                          l10n.briefingTabConstruction,
+                                        'quests' => l10n.briefingTabQuests,
+                                        'pre_sortie' =>
+                                          l10n.briefingTabPreSortie,
+                                        _ => id,
+                                      },
+                                icon:
+                                    widget.layoutSettingsController
+                                            .moduleShowLogo(id) ||
+                                        !widget.layoutSettingsController
+                                            .moduleShowName(id)
+                                    ? _tabIcon(id)
+                                    : null,
+                                title: switch (id) {
+                                  'battle' => l10n.forecast,
+                                  'fleet' => l10n.fleetBrief,
+                                  'land_base' => l10n.landBaseBrief,
+                                  'expedition' => l10n.expeditionBrief,
+                                  'repair' => l10n.repairBrief,
+                                  'construction' => l10n.constructionBrief,
+                                  'quests' => l10n.questBrief,
+                                  'pre_sortie' => l10n.preSortieCheck,
+                                  _ => id,
+                                },
+                              ),
+                          ],
+                          selectedId: selectedId ?? '',
+                          onSelected: (id) =>
+                              setState(() => _selectedTabId = id),
+                          onLongPressTab: (_) => _editTabOrder(),
+                          cardBuilder: buildCard,
+                          contentPadding: flat
+                              ? EdgeInsets.only(bottom: localBottomSafeArea)
+                              : EdgeInsets.fromLTRB(
+                                  8,
+                                  8,
+                                  8,
+                                  localBottomSafeArea,
+                                ),
+                          footer: hasError
+                              ? Padding(
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: _InfoCard(
+                                    title: l10n.gameStatusError,
+                                    subtitle: runtimeMessageText(
+                                      context,
+                                      widget
+                                              .gameCaptureController
+                                              .errorMessage ??
+                                          widget
+                                              .browserController
+                                              .errorMessage ??
+                                          l10n.gameStatusErrorDesc,
+                                    ),
+                                    warning: true,
+                                  ),
+                                )
+                              : null,
+                        );
+                      },
+                    )
+                  : ListView(
+                      primary: widget.hd ? false : null,
+                      key: widget.singleModule == null
+                          ? null
+                          : ValueKey('hd-scroll-${widget.singleModule}'),
+                      padding: widget.singleModule != null
+                          ? EdgeInsets.zero
+                          : widget.hd
+                          ? const EdgeInsets.all(8)
+                          : flat
+                          ? EdgeInsets.only(bottom: localBottomSafeArea)
+                          : EdgeInsets.fromLTRB(8, 8, 8, localBottomSafeArea),
+                      children: [
+                        for (final id in visibleOrder) buildCard(id),
+                        if (hasError && widget.singleModule == null)
+                          Padding(
+                            key: const ValueKey('error_card'),
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: _InfoCard(
+                              title: AppLocalizations.of(
+                                context,
+                              )!.gameStatusError,
+                              subtitle: runtimeMessageText(
+                                context,
+                                widget.gameCaptureController.errorMessage ??
+                                    widget.browserController.errorMessage ??
+                                    AppLocalizations.of(
+                                      context,
+                                    )!.gameStatusErrorDesc,
+                              ),
+                              warning: true,
+                            ),
+                          ),
+                      ],
                     ),
-                ],
-              ),
             );
           },
         ),

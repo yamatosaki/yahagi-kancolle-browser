@@ -7,12 +7,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
+import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_controller.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_port.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_store.dart';
+import 'package:yahagi_kancolle_browser/src/battle/battle_damage_alert.dart';
 import 'package:yahagi_kancolle_browser/src/bridge/captured_api_event.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_browser_controller.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_frame_reload_port.dart';
+import 'package:yahagi_kancolle_browser/src/browser/game_surface_input_guard.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_launch_config.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_load_event.dart';
 import 'package:yahagi_kancolle_browser/src/browser/network_proxy_channel.dart';
@@ -25,9 +29,12 @@ import 'package:yahagi_kancolle_browser/src/capture/capture_mode.dart';
 import 'package:yahagi_kancolle_browser/src/capture/android_game_capture_port.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode_controller.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode_store.dart';
+import 'package:yahagi_kancolle_browser/src/capture/battle_result_warning_overlay.dart';
 import 'package:yahagi_kancolle_browser/src/capture/game_capture_controller.dart';
 import 'package:yahagi_kancolle_browser/src/capture/game_capture_port.dart';
 import 'package:yahagi_kancolle_browser/src/game_webview.dart';
+import 'package:yahagi_kancolle_browser/src/game_state/combat_state.dart';
+import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/native_activity_game_surface.dart';
 import 'package:yahagi_kancolle_browser/src/prototype_status_controller.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_toolbar_controller.dart';
@@ -35,6 +42,10 @@ import 'package:yahagi_kancolle_browser/src/browser/game_frame_rate_runtime_cont
 import 'package:yahagi_kancolle_browser/src/settings/game_frame_rate_settings.dart';
 import 'package:yahagi_kancolle_browser/src/settings/network_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/network_settings_store.dart';
+import 'package:yahagi_kancolle_browser/src/settings/safety_settings_controller.dart';
+import 'package:yahagi_kancolle_browser/src/settings/safety_settings_store.dart';
+
+import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
   for (final mode in GameFrameRateMode.values) {
@@ -751,6 +762,282 @@ void main() {
     },
   );
 
+  for (final previousPreview in ['none', 'pending', 'ready']) {
+    testWidgets(
+      'immediate safety route discards native preview with previous=$previousPreview',
+      (tester) async {
+        final fixture = _SurfaceFixture();
+        final pending = Completer<Uint8List>();
+        addTearDown(() async {
+          if (!pending.isCompleted) pending.complete(_previewBytes());
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pumpAndSettle();
+          await fixture.dispose();
+        });
+        await fixture.pump(tester);
+        await _pumpUntil(
+          tester,
+          () => fixture.port.calls.any((call) => call.startsWith('load:')),
+        );
+        fixture.port.addEvent(
+          _event('pageStarted', generationId: 7, url: 'https://game.example/'),
+        );
+        fixture.port.addEvent(
+          _event('pageFinished', generationId: 7, url: 'https://game.example/'),
+        );
+        await _pumpUntil(
+          tester,
+          () => fixture.port.calls.contains('visible:true'),
+        );
+        fixture.port.calls.clear();
+        if (previousPreview == 'pending') {
+          fixture.previewPort.pendingResponse = pending;
+        }
+        if (previousPreview != 'none') {
+          unawaited(
+            fixture.navigatorKey.currentState!.push<void>(
+              RawDialogRoute<void>(
+                pageBuilder: (_, _, _) => const Text('ordinary popup'),
+                barrierLabel: 'ordinary',
+                barrierColor: Colors.black54,
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(fixture.previewPort.calls, 1);
+        }
+        final preview = find.byKey(
+          const Key('native-game-surface-popup-preview'),
+        );
+        if (previousPreview == 'ready') expect(preview, findsOneWidget);
+
+        unawaited(
+          fixture.navigatorKey.currentState!.push<void>(
+            _ImmediateNativeSafetyRoute(),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(fixture.port.calls, contains('visible:false'));
+        expect(
+          fixture.port.calls.lastWhere((call) => call.startsWith('visible:')),
+          'visible:false',
+        );
+        expect(fixture.previewPort.calls, previousPreview == 'none' ? 0 : 1);
+        expect(preview, findsNothing);
+
+        if (previousPreview == 'pending') {
+          pending.complete(_previewBytes());
+          await tester.pumpAndSettle();
+          expect(
+            preview,
+            findsNothing,
+            reason: 'old preview completion must remain discarded',
+          );
+        }
+        fixture.navigatorKey.currentState!.pop();
+        await tester.pumpAndSettle();
+        if (previousPreview != 'none') {
+          expect(
+            fixture.port.calls.lastWhere((call) => call.startsWith('visible:')),
+            'visible:false',
+          );
+          fixture.navigatorKey.currentState!.pop();
+          await tester.pumpAndSettle();
+        }
+        expect(
+          fixture.port.calls.lastWhere((call) => call.startsWith('visible:')),
+          'visible:true',
+        );
+        expect(preview, findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  for (final scenario in [
+    (button: 'acknowledgeAdvanceWarning', method: 'acknowledge', fails: false),
+    (button: 'muteCurrentSortieWarning', method: 'mute', fails: false),
+    (button: 'advanceWarningReloadGame', method: 'reload', fails: false),
+    (
+      button: 'advanceWarningReloadFrame',
+      method: 'reloadGameFrame',
+      fails: false,
+    ),
+    (button: 'advanceWarningReloadGame', method: 'reload', fails: true),
+  ]) {
+    testWidgets(
+      'warning refresh restores the native surface via ${scenario.method} failure=${scenario.fails}',
+      (tester) async {
+        final fixture = _SurfaceFixture();
+        final account = AccountSession(initialMemberId: 1001);
+        final capture = GameCaptureController();
+        final capturePort = _ScriptRecordingCapturePort();
+        await capture.attach(capturePort, enabled: true);
+        final settings = await SafetySettingsController.load(
+          MemorySafetySettingsStore(),
+        );
+        await settings.setBattleWarningMode(BattleWarningMode.confirm);
+        addTearDown(() async {
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pumpAndSettle();
+          settings.dispose();
+          capture.dispose();
+          capturePort.dispose();
+          account.dispose();
+          await fixture.dispose();
+        });
+        await fixture.pump(
+          tester,
+          wrapSurface: (child) => BattleResultWarningOverlay(
+            accountSession: account,
+            gameCaptureController: capture,
+            loadSafetyState: () async => const GameState(
+              memberId: 1001,
+              hasEquipmentInventory: true,
+              ships: {
+                101: OwnedShip(
+                  id: 101,
+                  masterId: 1,
+                  level: 99,
+                  currentHp: 20,
+                  maxHp: 20,
+                ),
+                102: OwnedShip(
+                  id: 102,
+                  masterId: 2,
+                  level: 99,
+                  currentHp: 2,
+                  maxHp: 20,
+                ),
+              },
+              fleets: [
+                Fleet(id: 1, name: '第一舰队', shipIds: [101, 102]),
+              ],
+              combatState: CombatState(sortieFleetId: 1, isActive: true),
+            ),
+            safetySettingsController: settings,
+            damageAlertPort: const _NoopWarningDamageAlerts(),
+            onReloadGame: fixture.browserController.reload,
+            onReloadGameFrame: () async {
+              final result = await fixture.browserController.reloadGameFrame();
+              if (result != GameFrameReloadResult.reloaded) {
+                throw StateError('Game frame refresh unavailable');
+              }
+            },
+            child: child,
+          ),
+        );
+        await _pumpUntil(
+          tester,
+          () => fixture.port.calls.any((call) => call.startsWith('load:')),
+        );
+        fixture.port.addEvent(
+          _event('pageStarted', generationId: 7, url: 'https://game.example/'),
+        );
+        fixture.port.addEvent(
+          _event('pageFinished', generationId: 7, url: 'https://game.example/'),
+        );
+        await _pumpUntil(
+          tester,
+          () => fixture.port.calls.last == 'visible:true',
+        );
+
+        capturePort._events.add(
+          kcsapiEvent('/kcsapi/api_req_map/next', const {}),
+        );
+        await tester.pumpAndSettle();
+        final preview = find.byKey(
+          const Key('native-game-surface-popup-preview'),
+        );
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(preview, findsNothing);
+        expect(fixture.previewPort.calls, 0);
+        expect(fixture.port.calls.last, 'visible:false');
+        fixture.port.calls.clear();
+
+        if (scenario.method == 'acknowledge' || scenario.method == 'mute') {
+          await tester.tap(find.byKey(Key(scenario.button)));
+          await tester.pumpAndSettle();
+          expect(fixture.port.calls, isNot(contains('reload')));
+          expect(fixture.port.calls, isNot(contains('reloadGameFrame')));
+        } else if (scenario.fails) {
+          fixture.port.reloadFailure = StateError('refresh unavailable');
+          await tester.tap(find.byKey(Key(scenario.button)));
+          await tester.pumpAndSettle();
+          expect(
+            fixture.port.calls.where((call) => call == 'reload'),
+            hasLength(1),
+          );
+          expect(find.byType(AlertDialog), findsOneWidget);
+          expect(preview, findsNothing);
+          expect(fixture.port.calls, isNot(contains('visible:true')));
+          await tester.tap(find.byKey(const Key('acknowledgeAdvanceWarning')));
+          await tester.pumpAndSettle();
+        } else {
+          final reveal = Completer<void>();
+          fixture.port.visibilityCompleters.add(reveal);
+          await tester.tap(find.byKey(Key(scenario.button)));
+          await tester.pump();
+          expect(
+            fixture.port.calls.where((call) => call == scenario.method),
+            hasLength(1),
+          );
+          expect(fixture.port.calls, isNot(contains('visible:true')));
+          expect(
+            find.byKey(const Key('game-safety-input-guard')),
+            findsOneWidget,
+          );
+          expect(preview, findsNothing);
+          await tester.pump(
+            GameSurfaceInputGuardRoute.protectionDuration +
+                const Duration(milliseconds: 1),
+          );
+          await _pumpUntil(
+            tester,
+            () => fixture.port.calls.contains('visible:true'),
+          );
+          expect(fixture.port.calls, contains('visible:true'));
+          expect(preview, findsNothing);
+
+          // Navigation may start while popup restoration still awaits native visibility.
+          fixture.port.addEvent(
+            _event(
+              'pageStarted',
+              generationId: 7,
+              url: 'https://game.example/',
+            ),
+          );
+          await tester.pump();
+          reveal.complete();
+          await _pumpUntil(
+            tester,
+            () => fixture.port.calls.last == 'visible:false',
+          );
+          fixture.port.addEvent(
+            _event(
+              'pageFinished',
+              generationId: 7,
+              url: 'https://game.example/',
+            ),
+          );
+          await _pumpUntil(
+            tester,
+            () => fixture.port.calls.last == 'visible:true',
+          );
+          await tester.pumpAndSettle();
+        }
+
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(preview, findsNothing);
+        expect(
+          fixture.port.calls.where((call) => call.startsWith('visible:')).last,
+          'visible:true',
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   test(
     'method-channel native port configures frame bridge before navigation',
     () async {
@@ -815,6 +1102,215 @@ void main() {
     );
   });
 
+  testWidgets(
+    'native create can take three seconds without using cleanup deadline',
+    (tester) async {
+      final fixture = _SurfaceFixture();
+      final creation = Completer<int>();
+      fixture.port.createCompleter = creation;
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        if (!creation.isCompleted) {
+          creation.complete(7);
+        }
+        await tester.pump();
+        await fixture.dispose();
+      });
+      await fixture.pump(tester);
+      await tester.pump(const Duration(seconds: 3));
+      expect(find.byKey(const Key('native-game-surface-error')), findsNothing);
+      expect(fixture.orchestrator.applyNetworkCalls, 0);
+      creation.complete(7);
+      for (var index = 0; index < 5; index++) {
+        await tester.pump();
+      }
+      expect(fixture.orchestrator.applyNetworkCalls, 1);
+      expect(fixture.browserController.hasAttachedPort, isTrue);
+      expect(
+        fixture.port.calls.where((call) => call.startsWith('load:')),
+        hasLength(1),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'native create has its own thirty second deadline and retires once',
+    (tester) async {
+      final fixture = _SurfaceFixture();
+      final creation = Completer<int>();
+      fixture.port.createCompleter = creation;
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        if (!creation.isCompleted) {
+          creation.complete(7);
+        }
+        await tester.pump();
+        await fixture.dispose();
+      });
+      await fixture.pump(tester);
+      await tester.pump(const Duration(seconds: 29));
+      expect(find.byKey(const Key('native-game-surface-error')), findsNothing);
+      expect(fixture.port.calls, isNot(contains('destroy')));
+      await tester.pump(const Duration(seconds: 1, milliseconds: 1));
+      await tester.pump();
+      expect(
+        find.byKey(const Key('native-game-surface-error')),
+        findsOneWidget,
+      );
+      expect(fixture.browserController.hasAttachedPort, isFalse);
+      expect(fixture.orchestrator.applyNetworkCalls, 0);
+      expect(
+        fixture.port.calls.where((call) => call == 'destroy'),
+        hasLength(1),
+      );
+      expect(fixture.orchestrator.disposeCalls, 1);
+      creation.complete(7);
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      expect(
+        fixture.port.calls.where((call) => call == 'destroy'),
+        hasLength(1),
+      );
+      expect(fixture.orchestrator.disposeCalls, 1);
+      expect(
+        fixture.port.calls.where((call) => call.startsWith('load:')),
+        isEmpty,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'timed out native create retires before blocked cancellation and ignores late result',
+    (tester) async {
+      final fixture = _SurfaceFixture();
+      final creation = Completer<int>();
+      final cancellation = Completer<void>();
+      fixture.port.createCompleter = creation;
+      fixture.port.cancelCompleter = cancellation;
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        if (!creation.isCompleted) {
+          creation.complete(7);
+        }
+        if (!cancellation.isCompleted) {
+          cancellation.complete();
+        }
+        await tester.pump();
+        await fixture.dispose();
+      });
+      await fixture.pump(tester);
+      await tester.pump(const Duration(seconds: 30, milliseconds: 1));
+      await tester.pump();
+      expect(
+        find.byKey(const Key('native-game-surface-error')),
+        findsOneWidget,
+      );
+      expect(fixture.port.calls, contains('cancel'));
+      expect(cancellation.isCompleted, isFalse);
+      expect(
+        fixture.port.calls.where((call) => call == 'destroy'),
+        hasLength(1),
+      );
+      await tester.pump(const Duration(milliseconds: 430));
+      creation.complete(7);
+      await tester.pump();
+      expect(fixture.browserController.hasAttachedPort, isFalse);
+      expect(fixture.orchestrator.applyNetworkCalls, 0);
+      expect(
+        fixture.port.calls.where((call) => call.startsWith('load:')),
+        isEmpty,
+      );
+      expect(fixture.port.calls, isNot(contains('visible:true')));
+      await tester.pump(const Duration(seconds: 2, milliseconds: 1));
+      fixture.port.cancelFailure = StateError('late cancellation failure');
+      cancellation.complete();
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      expect(
+        fixture.port.calls.where((call) => call == 'destroy'),
+        hasLength(1),
+      );
+      expect(fixture.orchestrator.disposeCalls, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'disposing a pending native create keeps two second cleanup and ignores late result',
+    (tester) async {
+      final fixture = _SurfaceFixture();
+      final creation = Completer<int>();
+      final destruction = Completer<void>();
+      fixture.port.createCompleter = creation;
+      fixture.port.disposeCompleter = destruction;
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        if (!creation.isCompleted) {
+          creation.complete(7);
+        }
+        if (!destruction.isCompleted) {
+          destruction.complete();
+        }
+        await tester.pump();
+        await fixture.dispose();
+      });
+      final logs = <String>[];
+      final previousDebugPrint = debugPrint;
+      debugPrint = (message, {wrapWidth}) {
+        if (message != null) logs.add(message);
+      };
+      try {
+        await fixture.pump(tester);
+        await tester.pumpWidget(
+          const SizedBox(key: Key('replacement-after-pending-create')),
+        );
+        await tester.pump();
+        expect(
+          find.byKey(const Key('replacement-after-pending-create')),
+          findsOneWidget,
+        );
+        expect(creation.isCompleted, isFalse);
+        expect(
+          fixture.port.calls.where((call) => call == 'destroy'),
+          hasLength(1),
+        );
+        expect(fixture.orchestrator.disposeCalls, 1);
+        await tester.pump(const Duration(milliseconds: 1999));
+        expect(logs.where((line) => line.contains('destroy failed:')), isEmpty);
+        await tester.pump(const Duration(milliseconds: 2));
+        expect(
+          logs.any(
+            (line) =>
+                line.contains('destroy failed:') &&
+                line.contains('0:00:02.000000'),
+          ),
+          isTrue,
+        );
+        creation.complete(7);
+        destruction.complete();
+        await tester.pump();
+        expect(
+          fixture.port.calls.where((call) => call == 'destroy'),
+          hasLength(1),
+        );
+        expect(fixture.orchestrator.applyNetworkCalls, 0);
+        expect(fixture.browserController.hasAttachedPort, isFalse);
+        expect(
+          fixture.port.calls.where((call) => call.startsWith('load:')),
+          isEmpty,
+        );
+        expect(fixture.port.calls, isNot(contains('visible:true')));
+        expect(tester.takeException(), isNull);
+      } finally {
+        debugPrint = previousDebugPrint;
+      }
+    },
+  );
+
   testWidgets('displays switch rendering mode hint on startup failure', (
     tester,
   ) async {
@@ -829,7 +1325,11 @@ void main() {
 
     expect(find.byKey(const Key('native-game-surface-error')), findsOneWidget);
     expect(
-      find.text('当前设备暂不兼容此模式。请滚动左侧菜单，前往【设置 - 画面与声音】切换渲染模式。'),
+      find.text(
+        lookupAppLocalizations(
+          const Locale('zh'),
+        ).nativeGameSurfaceSwitchRenderingModeHint,
+      ),
       findsOneWidget,
     );
   });
@@ -4109,36 +4609,40 @@ final class _SurfaceFixture {
     GameFrameRateRuntimePort Function()? frameRateRuntimePortFactory,
     void Function(bool didCrash)? onRenderProcessGone,
     void Function(GameLoadEvent event)? onLoadEvent,
+    Widget Function(Widget child)? wrapSurface,
     Duration navigationTimeout = const Duration(seconds: 45),
   }) {
     if (tester.binding.lifecycleState != AppLifecycleState.resumed) {
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     }
+    Widget wrap(Widget child) => wrapSurface?.call(child) ?? child;
     return tester.pumpWidget(
       MaterialApp(
         navigatorKey: navigatorKey,
         navigatorObservers: <NavigatorObserver>[observer],
-        home: SizedBox(
-          width: 800,
-          height: 480,
-          child: NativeActivityGameSurface(
-            statusController: statusController,
-            browserController: browserController ?? this.browserController,
-            toolbarController: toolbarController,
-            routeObserver: observer,
-            networkSettingsController: networkSettingsController,
-            captureModeController: captureModeController,
-            portFactory: injectPort ? () => port : null,
-            startupOrchestrator: startupOrchestrator ?? orchestrator,
-            frameRateSettingsController: frameRateSettingsController,
-            frameRateRuntimePortFactory: frameRateRuntimePortFactory,
-            onRenderProcessGone: onRenderProcessGone,
-            onLoadEvent: onLoadEvent,
-            navigationTimeout: navigationTimeout,
-            previewPort: previewPort,
-            previewDecoder: (bytes, _) async => MemoryImage(bytes),
-            cleanupTimeout: cleanupTimeout,
-            pageInitializationTimeout: pageInitializationTimeout,
+        home: wrap(
+          SizedBox(
+            width: 800,
+            height: 480,
+            child: NativeActivityGameSurface(
+              statusController: statusController,
+              browserController: browserController ?? this.browserController,
+              toolbarController: toolbarController,
+              routeObserver: observer,
+              networkSettingsController: networkSettingsController,
+              captureModeController: captureModeController,
+              portFactory: injectPort ? () => port : null,
+              startupOrchestrator: startupOrchestrator ?? orchestrator,
+              frameRateSettingsController: frameRateSettingsController,
+              frameRateRuntimePortFactory: frameRateRuntimePortFactory,
+              onRenderProcessGone: onRenderProcessGone,
+              onLoadEvent: onLoadEvent,
+              navigationTimeout: navigationTimeout,
+              previewPort: previewPort,
+              previewDecoder: (bytes, _) async => MemoryImage(bytes),
+              cleanupTimeout: cleanupTimeout,
+              pageInitializationTimeout: pageInitializationTimeout,
+            ),
           ),
         ),
       ),
@@ -4153,17 +4657,38 @@ final class _SurfaceFixture {
   }
 }
 
+final class _NoopWarningDamageAlerts implements BattleDamageAlertPort {
+  const _NoopWarningDamageAlerts();
+
+  @override
+  Future<void> alert(BattleDamageAlertSeverity severity) async {}
+}
+
 final class _FakePreviewPort implements NativeGameSurfacePreviewPort {
   int calls = 0;
+  Completer<Uint8List>? pendingResponse;
 
   @override
   Future<Uint8List> capturePreview() async {
     calls += 1;
-    return base64Decode(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC'
-      'AAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
-    );
+    if (pendingResponse case final pending?) return pending.future;
+    return _previewBytes();
   }
+}
+
+Uint8List _previewBytes() => base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC'
+  'AAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+);
+
+final class _ImmediateNativeSafetyRoute extends RawDialogRoute<void>
+    implements ImmediateGameSurfaceCoverRoute {
+  _ImmediateNativeSafetyRoute()
+    : super(
+        pageBuilder: (_, _, _) => const Text('immediate safety popup'),
+        barrierLabel: 'safety',
+        barrierColor: Colors.black54,
+      );
 }
 
 final class _FakeNativePort implements NativeActivityGameWebViewPort {
@@ -4187,6 +4712,7 @@ final class _FakeNativePort implements NativeActivityGameWebViewPort {
   VoidCallback? beforeCancel;
   Completer<void>? cancelCompleter;
   Object? createFailure;
+  Completer<int>? createCompleter;
   Object? cancelFailure;
   Object? disposeFailure;
   Completer<void>? disposeCompleter;
@@ -4216,10 +4742,13 @@ final class _FakeNativePort implements NativeActivityGameWebViewPort {
   Future<int> create() async {
     calls.add('create');
     if (createFailure case final failure?) throw failure;
+    final createdGeneration = createCompleter == null
+        ? generation
+        : await createCompleter!.future;
     for (final event in eventsDuringCreate) {
       _events.add(event);
     }
-    return generation;
+    return createdGeneration;
   }
 
   @override

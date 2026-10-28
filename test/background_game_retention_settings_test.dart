@@ -6,11 +6,9 @@ import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_controller.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/background_game_retention_controller.dart';
-import 'package:yahagi_kancolle_browser/src/settings/display_mode_controller.dart';
-import 'package:yahagi_kancolle_browser/src/settings/display_mode_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
-import 'package:yahagi_kancolle_browser/src/settings/screen_settings_page.dart';
+import 'package:yahagi_kancolle_browser/src/settings/game_runtime_settings_page.dart';
 
 void main() {
   testWidgets(
@@ -19,9 +17,6 @@ void main() {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final layoutController = await LayoutSettingsController.load(
         SharedPreferencesLayoutSettingsStore(),
-      );
-      final displayController = await DisplayModeController.load(
-        MemoryDisplayModeStore(),
       );
       final audioController = await GameAudioController.load(
         SharedPreferencesGameAudioStore(),
@@ -40,9 +35,8 @@ void main() {
             GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: AppLocalizations.supportedLocales,
-          home: ScreenSettingsPage(
+          home: GameRuntimeSettingsPage(
             layoutSettingsController: layoutController,
-            displayModeController: displayController,
             audioController: audioController,
             backgroundGameRetentionController: retentionController,
           ),

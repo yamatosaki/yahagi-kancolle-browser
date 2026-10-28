@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../l10n/app_localizations.dart';
+import 'game_surface_dialog.dart';
 
 const exitFullscreenSkipConfirmationKey =
     'game_fullscreen_exit_skip_confirmation';
@@ -42,9 +43,27 @@ Future<bool> confirmGameFullscreenExit({
       lookupAppLocalizations(const Locale('zh'));
   var skipNextTime = false;
   final confirmed =
-      await showDialog<bool>(
+      await showGameSurfaceDialog<bool>(
         context: context,
-        builder: (dialogContext) => StatefulBuilder(
+        title: l10n.exitFullscreenConfirmTitle,
+        message: l10n.exitFullscreenConfirmDescription,
+        checkbox: GameSurfaceDialogCheckbox(
+          label: l10n.exitFullscreenSkipConfirmation,
+          onChanged: (value) => skipNextTime = value,
+        ),
+        actions: [
+          GameSurfaceDialogAction(
+            id: 'cancel',
+            label: l10n.cancel,
+            value: false,
+          ),
+          GameSurfaceDialogAction(
+            id: 'confirm',
+            label: l10n.exitFullscreenConfirmAction,
+            value: true,
+          ),
+        ],
+        builder: (dialogContext, close) => StatefulBuilder(
           builder: (context, setState) => AlertDialog(
             key: const Key('fullscreen-exit-confirm-dialog'),
             title: Text(l10n.exitFullscreenConfirmTitle),
@@ -68,12 +87,12 @@ Future<bool> confirmGameFullscreenExit({
             actions: [
               TextButton(
                 key: const Key('fullscreen-exit-cancel'),
-                onPressed: () => Navigator.of(dialogContext).pop(false),
+                onPressed: () => close(false),
                 child: Text(l10n.cancel),
               ),
               FilledButton(
                 key: const Key('fullscreen-exit-confirm'),
-                onPressed: () => Navigator.of(dialogContext).pop(true),
+                onPressed: () => close(true),
                 child: Text(l10n.exitFullscreenConfirmAction),
               ),
             ],

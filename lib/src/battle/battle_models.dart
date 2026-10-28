@@ -196,6 +196,7 @@ class BattleShipSnapshot {
     this.condition = 49,
     this.equipmentMasterIds = const <int>[],
     this.usedDamageControlItemIds = const <int>[],
+    this.damageControlUsedThisBattle = const <int>[],
     this.isEscaped = false,
     this.hpUnknown = false,
     this.details,
@@ -215,6 +216,9 @@ class BattleShipSnapshot {
   final int condition;
   final List<int> equipmentMasterIds;
   final List<int> usedDamageControlItemIds;
+
+  /// Damage controls activated at this node, excluding earlier sortie nodes.
+  final List<int> damageControlUsedThisBattle;
   final bool isEscaped;
   final bool hpUnknown;
   final BattleShipDetails? details;
@@ -252,6 +256,7 @@ class BattleShipSnapshot {
     int? damageReceived,
     int? condition,
     List<int>? usedDamageControlItemIds,
+    List<int>? damageControlUsedThisBattle,
     bool? isEscaped,
     bool? hpUnknown,
     BattleShipDetails? details,
@@ -272,6 +277,8 @@ class BattleShipSnapshot {
       equipmentMasterIds: equipmentMasterIds,
       usedDamageControlItemIds:
           usedDamageControlItemIds ?? this.usedDamageControlItemIds,
+      damageControlUsedThisBattle:
+          damageControlUsedThisBattle ?? this.damageControlUsedThisBattle,
       isEscaped: isEscaped ?? this.isEscaped,
       hpUnknown: hpUnknown ?? this.hpUnknown,
       details: details ?? this.details,

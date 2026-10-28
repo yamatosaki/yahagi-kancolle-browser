@@ -13,6 +13,15 @@ data class NotificationAlarm(
     val title: String,
     val body: String,
     val deliveryAttempts: Int = 0,
+    val deadlineEpochMs: Long? = null,
+    val bodyTemplate: String? = null,
+)
+
+data class DeliveredNotificationAlert(
+    val taskId: String,
+    val deadlineEpochMs: Long,
+    val stage: String,
+    val notificationId: Int,
 )
 
 data class ImmediateNotificationAlert(
@@ -59,6 +68,8 @@ data class NativeNotificationSnapshot(
     val presentation: NotificationPresentation,
     val memberId: Long? = null,
     val sessionId: String? = null,
+    val deliveredAlerts: List<DeliveredNotificationAlert> = emptyList(),
+    val scheduledWithExactAlarms: Boolean? = null,
 ) {
     fun hasSameAccountSession(other: NativeNotificationSnapshot): Boolean =
         memberId == other.memberId && sessionId == other.sessionId
@@ -186,6 +197,7 @@ object NotificationSnapshotReconciliation {
         return desired.copy(
             immediateAlerts = desired.immediateAlerts + pendingImmediateAlerts,
             alarms = desiredAlarms + dueCompletionAlarms,
+            deliveredAlerts = previous.deliveredAlerts,
         )
     }
 }
@@ -200,10 +212,19 @@ object NotificationSnapshotTransitions {
         taskId: String,
         stage: String,
     ): NativeNotificationSnapshot {
+        val fired = previous.alarms.firstOrNull { it.key == key }
+        val roundDeadline = fired?.let { NotificationDelivery.roundDeadline(previous, it) }
         return previous.copy(
-            alarms = previous.alarms.filterNot { it.key == key },
+            alarms = previous.alarms.filterNot { candidate ->
+                candidate.key == key || (stage == "complete" && candidate.stage == "preempt" &&
+                    candidate.taskId == taskId && roundDeadline != null &&
+                    NotificationDelivery.roundDeadline(previous, candidate) == roundDeadline)
+            },
             ongoingItems = previous.ongoingItems.map { item ->
                 if (item.id != taskId) return@map item
+                if (roundDeadline != null && item.targetEpochMs != null &&
+                    item.targetEpochMs != roundDeadline && item.clockMode != "elapsed"
+                ) return@map item
                 when {
                     stage == "complete" -> item.copy(
                         state = "completed",
@@ -253,15 +274,51 @@ object NotificationDelivery {
         taskId: String,
         stage: String,
         triggerTimeEpochMs: Long,
+        nowEpochMs: Long = System.currentTimeMillis(),
     ): NotificationAlarm? {
         if (!snapshot.presentation.enabled || !snapshot.hasKnownAccountSession ||
             snapshot.memberId != memberId || snapshot.sessionId != sessionId
         ) return null
-        return snapshot.alarms.firstOrNull {
+        val alarm = snapshot.alarms.firstOrNull {
             it.key == key && it.taskId == taskId && it.stage == stage &&
                 it.triggerTimeEpochMs == triggerTimeEpochMs
-        }
+        } ?: return null
+        if (alarm.deliveryAttempts > 3) return null
+        if (alarm.stage == "preempt" && !isCurrentPreempt(snapshot, alarm, nowEpochMs)) return null
+        return alarm
     }
+
+    /** A round stays identifiable after its completion registration has been consumed. */
+    fun roundDeadline(snapshot: NativeNotificationSnapshot, alarm: NotificationAlarm): Long? {
+        alarm.deadlineEpochMs?.let { return it }
+        if (alarm.stage != "preempt") return alarm.triggerTimeEpochMs
+        return snapshot.alarms.filter {
+            it.taskId == alarm.taskId && it.type == alarm.type && it.stage == "complete" &&
+                it.triggerTimeEpochMs >= alarm.triggerTimeEpochMs
+        }.minOfOrNull { it.deadlineEpochMs ?: it.triggerTimeEpochMs }
+            ?: snapshot.ongoingItems.firstOrNull { it.id == alarm.taskId }?.targetEpochMs
+            ?: snapshot.deliveredAlerts.lastOrNull { it.taskId == alarm.taskId }?.deadlineEpochMs
+    }
+
+    fun isCurrentPreempt(snapshot: NativeNotificationSnapshot, alarm: NotificationAlarm, nowEpochMs: Long): Boolean {
+        val deadline = roundDeadline(snapshot, alarm) ?: return false
+        if (deadline <= nowEpochMs) return false
+        val task = snapshot.ongoingItems.firstOrNull { it.id == alarm.taskId }
+        if (task != null) return task.state == "running" && task.targetEpochMs == deadline
+        // Older clients omitted task metadata when the ongoing display was off.
+        // Its pending completion is the remaining authoritative round marker.
+        return snapshot.alarms.any { it.taskId == alarm.taskId && it.type == alarm.type &&
+            it.stage == "complete" && it.triggerTimeEpochMs == deadline &&
+            roundDeadline(snapshot, it) == deadline }
+    }
+
+    fun shouldRestore(snapshot: NativeNotificationSnapshot, alarm: NotificationAlarm, nowEpochMs: Long): Boolean =
+        snapshot.presentation.enabled && snapshot.hasKnownAccountSession &&
+            (alarm.deliveryAttempts == 0 || NotificationDeliveryRetry.delayAfterFailure(alarm.deliveryAttempts) != null) && when (alarm.stage) {
+            "preempt" -> isCurrentPreempt(snapshot, alarm, nowEpochMs)
+            else -> nowEpochMs - alarm.triggerTimeEpochMs <= NotificationDeliveryRetry.RETENTION_MS &&
+                alarm.deliveryAttempts <= 3
+        }
 
     fun notificationId(key: String, triggerTimeEpochMs: Long): Int =
         ("$key:$triggerTimeEpochMs".hashCode() and 0x3FFFFFFF) + 1_000
@@ -270,15 +327,37 @@ object NotificationDelivery {
         snapshot: NativeNotificationSnapshot,
         alarm: NotificationAlarm,
     ): Int {
-        val deliveryAlarm = if (alarm.stage == "preempt") {
-            snapshot.alarms.firstOrNull { candidate ->
-                candidate.taskId == alarm.taskId && candidate.stage == "complete"
-            } ?: alarm
-        } else {
-            alarm
+        val stableKey = alarm.taskId.ifBlank { alarm.key }
+        return notificationId(stableKey, roundDeadline(snapshot, alarm) ?: alarm.triggerTimeEpochMs)
+    }
+
+    fun obsoleteDeliveredAlerts(previous: NativeNotificationSnapshot, next: NativeNotificationSnapshot,
+        nowEpochMs: Long = System.currentTimeMillis(),
+    ): List<DeliveredNotificationAlert> {
+        // Before delivered metadata existed, a fired preempt was removed while
+        // its running task and pending completion still identified the round.
+        val legacyPreempts = previous.alarms.filter { it.stage == "complete" }.mapNotNull { alarm ->
+            val deadline = roundDeadline(previous, alarm) ?: return@mapNotNull null
+            val task = previous.ongoingItems.firstOrNull { it.id == alarm.taskId }
+            if ((task != null && (task.state != "running" || task.targetEpochMs != deadline)) ||
+                previous.deliveredAlerts.any { it.taskId == alarm.taskId && it.deadlineEpochMs == deadline }
+            ) return@mapNotNull null
+            DeliveredNotificationAlert(alarm.taskId, deadline, "preempt", notificationId(alarm.taskId, deadline))
         }
-        val stableKey = deliveryAlarm.taskId.ifBlank { deliveryAlarm.key }
-        return notificationId(stableKey, deliveryAlarm.triggerTimeEpochMs)
+        return (previous.deliveredAlerts + legacyPreempts).filter { delivered ->
+            if (!next.presentation.enabled || !previous.hasSameAccountSession(next)) return@filter true
+            val task = next.ongoingItems.firstOrNull { it.id == delivered.taskId }
+            val nextRounds = next.alarms.filter { it.taskId == delivered.taskId }
+                .mapNotNull { roundDeadline(next, it) }
+            val replacedRound = (task?.state == "running" && task.targetEpochMs != null &&
+                task.targetEpochMs != delivered.deadlineEpochMs) ||
+                nextRounds.any { it != delivered.deadlineEpochMs }
+            val pendingCompletion = next.alarms.any { it.taskId == delivered.taskId &&
+                it.stage == "complete" && roundDeadline(next, it) == delivered.deadlineEpochMs }
+            if (delivered.stage != "preempt") replacedRound
+            else replacedRound || (task == null && !pendingCompletion) ||
+                (task != null && task.state != "running") || delivered.deadlineEpochMs <= nowEpochMs
+        }
     }
 
     fun notificationIdForImmediate(alert: ImmediateNotificationAlert): Int =
@@ -321,6 +400,8 @@ object NotificationSnapshotCodec {
                 title = alarm.string("title"),
                 body = alarm.string("body"),
                 deliveryAttempts = alarm.optionalNumber("deliveryAttempts")?.toInt() ?: 0,
+                deadlineEpochMs = alarm.optionalNumber("deadlineEpochMs")?.toLong(),
+                bodyTemplate = alarm.optionalString("bodyTemplate"),
             )
         }
         val ongoingItems = raw.list("ongoingItems").map { itemRaw ->
@@ -346,6 +427,12 @@ object NotificationSnapshotCodec {
             sessionId = raw.optionalString("sessionId"),
             immediateAlerts = immediateAlerts,
             alarms = alarms,
+            deliveredAlerts = raw.optionalList("deliveredAlerts").map { entry ->
+                val delivered = entry.asMap()
+                DeliveredNotificationAlert(delivered.string("taskId"), delivered.long("deadlineEpochMs"),
+                    delivered.string("stage"), delivered.number("notificationId").toInt())
+            },
+            scheduledWithExactAlarms = raw["scheduledWithExactAlarms"] as? Boolean,
             ongoingItems = ongoingItems,
             presentation = NotificationPresentation(
                 enabled = presentation.boolean("enabled"),
@@ -365,6 +452,17 @@ object NotificationSnapshotCodec {
         put("updatedAtEpochMs", snapshot.updatedAtEpochMs)
         put("memberId", snapshot.memberId ?: JSONObject.NULL)
         put("sessionId", snapshot.sessionId ?: JSONObject.NULL)
+        snapshot.scheduledWithExactAlarms?.let { put("scheduledWithExactAlarms", it) }
+        put("deliveredAlerts", JSONArray().apply {
+            snapshot.deliveredAlerts.forEach { delivered ->
+                put(JSONObject().apply {
+                    put("taskId", delivered.taskId)
+                    put("deadlineEpochMs", delivered.deadlineEpochMs)
+                    put("stage", delivered.stage)
+                    put("notificationId", delivered.notificationId)
+                })
+            }
+        })
         put("immediateAlerts", JSONArray().apply {
             snapshot.immediateAlerts.forEach { alert ->
                 put(JSONObject().apply {
@@ -391,6 +489,8 @@ object NotificationSnapshotCodec {
                     put("title", alarm.title)
                     put("body", alarm.body)
                     put("deliveryAttempts", alarm.deliveryAttempts)
+                    alarm.deadlineEpochMs?.let { put("deadlineEpochMs", it) }
+                    alarm.bodyTemplate?.takeIf { it.isNotEmpty() }?.let { put("bodyTemplate", it) }
                 })
             }
         })

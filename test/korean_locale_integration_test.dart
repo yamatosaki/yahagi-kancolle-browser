@@ -177,11 +177,11 @@ void main() {
         SettingsSegmented(selectedIndex: 0, onChanged: (_) {}),
       ),
     );
-    expect(find.text('화면 및 소리'), findsOneWidget);
-    expect(find.text('전투'), findsOneWidget);
-    expect(find.text('네트워크'), findsOneWidget);
-    expect(find.text('데이터'), findsOneWidget);
-    expect(find.text('앱 정보'), findsOneWidget);
+    expect(find.text('외관 및 배치'), findsOneWidget);
+    expect(find.text('출격 및 전투'), findsOneWidget);
+    expect(find.text('네트워크 및 연결'), findsOneWidget);
+    expect(find.text('데이터 관리'), findsOneWidget);
+    expect(find.text('정보 및 지원'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

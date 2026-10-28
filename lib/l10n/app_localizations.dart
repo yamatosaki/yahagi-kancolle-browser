@@ -103,6 +103,66 @@ abstract class AppLocalizations {
     Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
   ];
 
+  /// No description provided for @debuffReminderTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'削甲提醒'**
+  String get debuffReminderTitle;
+
+  /// No description provided for @debuffReminderSourcePort.
+  ///
+  /// In zh, this message translates to:
+  /// **'母港'**
+  String get debuffReminderSourcePort;
+
+  /// No description provided for @debuffReminderSourceBattleResult.
+  ///
+  /// In zh, this message translates to:
+  /// **'战斗结算'**
+  String get debuffReminderSourceBattleResult;
+
+  /// No description provided for @debuffReminderSourceAirDefense.
+  ///
+  /// In zh, this message translates to:
+  /// **'基地防空'**
+  String get debuffReminderSourceAirDefense;
+
+  /// No description provided for @debuffReminderMessage.
+  ///
+  /// In zh, this message translates to:
+  /// **'{source}：检测到解谜／削弱提示。'**
+  String debuffReminderMessage(String source);
+
+  /// No description provided for @debuffReminderSectionTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏内提醒'**
+  String get debuffReminderSectionTitle;
+
+  /// No description provided for @debuffReminderSettingTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'削甲提醒'**
+  String get debuffReminderSettingTitle;
+
+  /// No description provided for @debuffReminderSettingSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'两种方式均附带震动；检测到解谜／削弱提示时提醒'**
+  String get debuffReminderSettingSubtitle;
+
+  /// No description provided for @debuffReminderStyleDialog.
+  ///
+  /// In zh, this message translates to:
+  /// **'确认弹窗（默认）'**
+  String get debuffReminderStyleDialog;
+
+  /// No description provided for @debuffReminderStyleTopNotice.
+  ///
+  /// In zh, this message translates to:
+  /// **'顶部提醒'**
+  String get debuffReminderStyleTopNotice;
+
   /// No description provided for @cameraAvoidanceTitle.
   ///
   /// In zh, this message translates to:
@@ -732,6 +792,42 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'晴空蓝'**
   String get themeClearSkyBlue;
+
+  /// No description provided for @uiFontSizeTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'界面字号'**
+  String get uiFontSizeTitle;
+
+  /// No description provided for @uiFontSizeDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'默认跟随系统。'**
+  String get uiFontSizeDescription;
+
+  /// No description provided for @uiFontSizeSystem.
+  ///
+  /// In zh, this message translates to:
+  /// **'默认（跟随系统）'**
+  String get uiFontSizeSystem;
+
+  /// No description provided for @uiFontSizeSmall.
+  ///
+  /// In zh, this message translates to:
+  /// **'小'**
+  String get uiFontSizeSmall;
+
+  /// No description provided for @uiFontSizeMedium.
+  ///
+  /// In zh, this message translates to:
+  /// **'中'**
+  String get uiFontSizeMedium;
+
+  /// No description provided for @uiFontSizeLarge.
+  ///
+  /// In zh, this message translates to:
+  /// **'大'**
+  String get uiFontSizeLarge;
 
   /// No description provided for @uiDisplaySizeTitle.
   ///
@@ -3447,7 +3543,7 @@ abstract class AppLocalizations {
   /// No description provided for @nativeGameSurfaceSwitchRenderingModeHint.
   ///
   /// In zh, this message translates to:
-  /// **'当前设备暂不兼容此模式。请滚动左侧菜单，前往【设置 - 画面与声音】切换渲染模式。'**
+  /// **'当前设备暂不兼容此模式。请滚动左侧菜单，前往【设置 - 游戏运行】切换渲染模式。'**
   String get nativeGameSurfaceSwitchRenderingModeHint;
 
   /// No description provided for @nativeGameSurfacePageInitializationFailed.
@@ -3552,7 +3648,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsTabScreen.
   ///
   /// In zh, this message translates to:
-  /// **'画面与声音'**
+  /// **'外观与布局'**
   String get settingsTabScreen;
 
   /// No description provided for @settingsTabSound.
@@ -3564,31 +3660,31 @@ abstract class AppLocalizations {
   /// No description provided for @settingsTabBattle.
   ///
   /// In zh, this message translates to:
-  /// **'战斗'**
+  /// **'出击与战斗'**
   String get settingsTabBattle;
 
   /// No description provided for @settingsTabNotification.
   ///
   /// In zh, this message translates to:
-  /// **'通知'**
+  /// **'通知与提醒'**
   String get settingsTabNotification;
 
   /// No description provided for @settingsTabNetwork.
   ///
   /// In zh, this message translates to:
-  /// **'网络'**
+  /// **'网络与连接'**
   String get settingsTabNetwork;
 
   /// No description provided for @settingsTabData.
   ///
   /// In zh, this message translates to:
-  /// **'数据'**
+  /// **'数据管理'**
   String get settingsTabData;
 
   /// No description provided for @settingsTabAboutSupport.
   ///
   /// In zh, this message translates to:
-  /// **'关于'**
+  /// **'关于与支持'**
   String get settingsTabAboutSupport;
 
   /// No description provided for @notificationSectionSystem.
@@ -6977,7 +7073,7 @@ abstract class AppLocalizations {
   /// No description provided for @customFontDefault.
   ///
   /// In zh, this message translates to:
-  /// **'默认字体（跟随界面语言）'**
+  /// **'默认字体（系统字体大小）'**
   String get customFontDefault;
 
   /// No description provided for @customFontImport.
@@ -7231,6 +7327,276 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'{count} 项查询条件已生效'**
   String questQueryActive(int count);
+
+  /// No description provided for @settingsTabRuntime.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏运行'**
+  String get settingsTabRuntime;
+
+  /// No description provided for @settingsGroupAppearance.
+  ///
+  /// In zh, this message translates to:
+  /// **'基础外观'**
+  String get settingsGroupAppearance;
+
+  /// No description provided for @settingsGroupScreenAdaptation.
+  ///
+  /// In zh, this message translates to:
+  /// **'屏幕适配'**
+  String get settingsGroupScreenAdaptation;
+
+  /// No description provided for @settingsGroupLayoutPosition.
+  ///
+  /// In zh, this message translates to:
+  /// **'布局与位置'**
+  String get settingsGroupLayoutPosition;
+
+  /// No description provided for @settingsGroupContentCustomization.
+  ///
+  /// In zh, this message translates to:
+  /// **'内容自定义'**
+  String get settingsGroupContentCustomization;
+
+  /// No description provided for @settingsGroupLayoutManagement.
+  ///
+  /// In zh, this message translates to:
+  /// **'布局管理'**
+  String get settingsGroupLayoutManagement;
+
+  /// No description provided for @settingsOtherModuleDisplay.
+  ///
+  /// In zh, this message translates to:
+  /// **'其他模块显示'**
+  String get settingsOtherModuleDisplay;
+
+  /// No description provided for @settingsEditInformationLayout.
+  ///
+  /// In zh, this message translates to:
+  /// **'信息面板布局编辑'**
+  String get settingsEditInformationLayout;
+
+  /// No description provided for @settingsEditHdLayout.
+  ///
+  /// In zh, this message translates to:
+  /// **'HD布局编辑'**
+  String get settingsEditHdLayout;
+
+  /// No description provided for @settingsResetMenuOrder.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复菜单栏顺序'**
+  String get settingsResetMenuOrder;
+
+  /// No description provided for @settingsResetCardOrder.
+  ///
+  /// In zh, this message translates to:
+  /// **'恢复功能区卡片顺序'**
+  String get settingsResetCardOrder;
+
+  /// No description provided for @settingsGroupPerformanceRendering.
+  ///
+  /// In zh, this message translates to:
+  /// **'性能与画面'**
+  String get settingsGroupPerformanceRendering;
+
+  /// No description provided for @settingsGroupSubtitles.
+  ///
+  /// In zh, this message translates to:
+  /// **'字幕'**
+  String get settingsGroupSubtitles;
+
+  /// No description provided for @settingsGroupScreenBackground.
+  ///
+  /// In zh, this message translates to:
+  /// **'保持运行'**
+  String get settingsGroupScreenBackground;
+
+  /// No description provided for @settingsGroupInformationCapture.
+  ///
+  /// In zh, this message translates to:
+  /// **'信息读取'**
+  String get settingsGroupInformationCapture;
+
+  /// No description provided for @settingsFrameRefreshConfirm.
+  ///
+  /// In zh, this message translates to:
+  /// **'框架刷新前确认'**
+  String get settingsFrameRefreshConfirm;
+
+  /// No description provided for @settingsFrameRefreshConfirmDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'从顶栏刷新游戏框架前显示确认对话框。'**
+  String get settingsFrameRefreshConfirmDescription;
+
+  /// No description provided for @settingsFrameRefreshConfirmSaveFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'框架刷新确认设置保存失败，请重试。'**
+  String get settingsFrameRefreshConfirmSaveFailed;
+
+  /// No description provided for @settingsGroupDebuff.
+  ///
+  /// In zh, this message translates to:
+  /// **'解谜与削甲'**
+  String get settingsGroupDebuff;
+
+  /// No description provided for @settingsGroupShipStatusFeedback.
+  ///
+  /// In zh, this message translates to:
+  /// **'舰娘状态反馈'**
+  String get settingsGroupShipStatusFeedback;
+
+  /// No description provided for @settingsGroupSystemNotifications.
+  ///
+  /// In zh, this message translates to:
+  /// **'系统通知'**
+  String get settingsGroupSystemNotifications;
+
+  /// No description provided for @settingsEnableSystemNotifications.
+  ///
+  /// In zh, this message translates to:
+  /// **'启用系统通知'**
+  String get settingsEnableSystemNotifications;
+
+  /// No description provided for @settingsSystemNotificationSound.
+  ///
+  /// In zh, this message translates to:
+  /// **'系统通知提示音'**
+  String get settingsSystemNotificationSound;
+
+  /// No description provided for @settingsSystemNotificationVibration.
+  ///
+  /// In zh, this message translates to:
+  /// **'系统通知振动'**
+  String get settingsSystemNotificationVibration;
+
+  /// No description provided for @settingsGroupDataUpdates.
+  ///
+  /// In zh, this message translates to:
+  /// **'资料更新'**
+  String get settingsGroupDataUpdates;
+
+  /// No description provided for @settingsGroupDataSharingPrivacy.
+  ///
+  /// In zh, this message translates to:
+  /// **'数据共享与隐私'**
+  String get settingsGroupDataSharingPrivacy;
+
+  /// No description provided for @settingsGroupClearLocalData.
+  ///
+  /// In zh, this message translates to:
+  /// **'清理本地数据'**
+  String get settingsGroupClearLocalData;
+
+  /// No description provided for @settingsGroupAccount.
+  ///
+  /// In zh, this message translates to:
+  /// **'账号操作'**
+  String get settingsGroupAccount;
+
+  /// No description provided for @settingsGroupDiagnosticsSupport.
+  ///
+  /// In zh, this message translates to:
+  /// **'诊断与支持'**
+  String get settingsGroupDiagnosticsSupport;
+
+  /// No description provided for @settingsStatusEnabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'已开启'**
+  String get settingsStatusEnabled;
+
+  /// No description provided for @settingsStatusDisabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'已关闭'**
+  String get settingsStatusDisabled;
+
+  /// No description provided for @settingsFleetDisplayStandard.
+  ///
+  /// In zh, this message translates to:
+  /// **'普通舰队卡片'**
+  String get settingsFleetDisplayStandard;
+
+  /// No description provided for @settingsFleetDisplayHd.
+  ///
+  /// In zh, this message translates to:
+  /// **'HD 双列舰队卡片'**
+  String get settingsFleetDisplayHd;
+
+  /// No description provided for @briefingDisplayTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'简报展示方式'**
+  String get briefingDisplayTitle;
+
+  /// No description provided for @briefingDisplayDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'折叠式可同时展开多个模块；标签式通过顶部标签切换模块。HD 模式下无效。'**
+  String get briefingDisplayDescription;
+
+  /// No description provided for @briefingDisplayAccordion.
+  ///
+  /// In zh, this message translates to:
+  /// **'折叠式'**
+  String get briefingDisplayAccordion;
+
+  /// No description provided for @briefingDisplayTabs.
+  ///
+  /// In zh, this message translates to:
+  /// **'标签式'**
+  String get briefingDisplayTabs;
+
+  /// No description provided for @briefingTabForecast.
+  ///
+  /// In zh, this message translates to:
+  /// **'先知'**
+  String get briefingTabForecast;
+
+  /// No description provided for @briefingTabFleet.
+  ///
+  /// In zh, this message translates to:
+  /// **'编队'**
+  String get briefingTabFleet;
+
+  /// No description provided for @briefingTabLandBase.
+  ///
+  /// In zh, this message translates to:
+  /// **'陆基'**
+  String get briefingTabLandBase;
+
+  /// No description provided for @briefingTabExpedition.
+  ///
+  /// In zh, this message translates to:
+  /// **'远征'**
+  String get briefingTabExpedition;
+
+  /// No description provided for @briefingTabRepair.
+  ///
+  /// In zh, this message translates to:
+  /// **'入渠'**
+  String get briefingTabRepair;
+
+  /// No description provided for @briefingTabConstruction.
+  ///
+  /// In zh, this message translates to:
+  /// **'建造'**
+  String get briefingTabConstruction;
+
+  /// No description provided for @briefingTabQuests.
+  ///
+  /// In zh, this message translates to:
+  /// **'任务'**
+  String get briefingTabQuests;
+
+  /// No description provided for @briefingTabPreSortie.
+  ///
+  /// In zh, this message translates to:
+  /// **'检查'**
+  String get briefingTabPreSortie;
 }
 
 class _AppLocalizationsDelegate

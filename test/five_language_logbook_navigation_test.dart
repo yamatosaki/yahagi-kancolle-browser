@@ -171,7 +171,7 @@ void main() {
                       .first,
                 )
                 .color,
-            const Color(0xff8a6628),
+            const Color(0xff5b4829),
           );
           final visiblePage = index == 5
               ? find.byType(ResourceTrendPage)

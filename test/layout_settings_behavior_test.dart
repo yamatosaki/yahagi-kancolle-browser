@@ -486,11 +486,12 @@ void main() {
         SharedPreferencesLayoutSettingsStore(),
       );
 
-      expect(controller.headerResourceOrder.take(7), <String>[
+      expect(controller.headerResourceOrder.take(8), <String>[
         headerSenkaId,
         'anchorage-timer',
         'nosaki-timer',
         headerFrameRefreshId,
+        headerGameRefreshId,
         headerShipCapacityId,
         headerEquipmentCapacityId,
         'material-2',
@@ -533,10 +534,11 @@ void main() {
       expect(
         controller.headerResourceOrder.sublist(
           nosakiIndex + 1,
-          nosakiIndex + 4,
+          nosakiIndex + 5,
         ),
         <String>[
           headerFrameRefreshId,
+          headerGameRefreshId,
           headerShipCapacityId,
           headerEquipmentCapacityId,
         ],

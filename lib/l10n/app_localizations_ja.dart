@@ -9,6 +9,39 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get debuffReminderTitle => '装甲破砕通知';
+
+  @override
+  String get debuffReminderSourcePort => '母港';
+
+  @override
+  String get debuffReminderSourceBattleResult => '戦闘結果';
+
+  @override
+  String get debuffReminderSourceAirDefense => '基地防空';
+
+  @override
+  String debuffReminderMessage(String source) {
+    return '$source：ギミック・弱体化の通知を検出しました。';
+  }
+
+  @override
+  String get debuffReminderSectionTitle => 'ゲーム内リマインダー';
+
+  @override
+  String get debuffReminderSettingTitle => '装甲破砕リマインダー';
+
+  @override
+  String get debuffReminderSettingSubtitle =>
+      'どちらも振動付き。ギミック解除・弱体化の合図を検出するとお知らせします。';
+
+  @override
+  String get debuffReminderStyleDialog => '確認ダイアログ（初期設定）';
+
+  @override
+  String get debuffReminderStyleTopNotice => '上部のお知らせ';
+
+  @override
   String get cameraAvoidanceTitle => 'カメラ回避';
 
   @override
@@ -347,6 +380,24 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get themeClearSkyBlue => 'スカイブルー';
+
+  @override
+  String get uiFontSizeTitle => '画面の文字サイズ';
+
+  @override
+  String get uiFontSizeDescription => '標準はシステム設定に従います。';
+
+  @override
+  String get uiFontSizeSystem => '標準（システムに従う）';
+
+  @override
+  String get uiFontSizeSmall => '小';
+
+  @override
+  String get uiFontSizeMedium => '中';
+
+  @override
+  String get uiFontSizeLarge => '大';
 
   @override
   String get uiDisplaySizeTitle => 'UIの表示サイズ';
@@ -1799,7 +1850,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get nativeGameSurfaceSwitchRenderingModeHint =>
-      '現在の端末はこのモードに対応していません。左側のメニューをスクロールし、【設定 - 画面と音声】で描画モードを切り替えてください。';
+      '現在の端末はこのモードに対応していません。左側のメニューをスクロールし、【設定 - ゲーム動作】で描画モードを切り替えてください。';
 
   @override
   String nativeGameSurfacePageInitializationFailed(
@@ -1857,25 +1908,25 @@ class AppLocalizationsJa extends AppLocalizations {
   String get sortUnlockAction => '現在のソートロックを解除';
 
   @override
-  String get settingsTabScreen => '画面と音声';
+  String get settingsTabScreen => '外観とレイアウト';
 
   @override
   String get settingsTabSound => 'サウンド';
 
   @override
-  String get settingsTabBattle => '戦闘';
+  String get settingsTabBattle => '出撃と戦闘';
 
   @override
-  String get settingsTabNotification => '通知';
+  String get settingsTabNotification => '通知とリマインダー';
 
   @override
-  String get settingsTabNetwork => 'ネットワーク';
+  String get settingsTabNetwork => 'ネットワークと接続';
 
   @override
-  String get settingsTabData => 'データ';
+  String get settingsTabData => 'データ管理';
 
   @override
-  String get settingsTabAboutSupport => '情報';
+  String get settingsTabAboutSupport => '情報とサポート';
 
   @override
   String get notificationSectionSystem => 'システム通知の状態';
@@ -3751,7 +3802,7 @@ class AppLocalizationsJa extends AppLocalizations {
       '好きなフォントを読み込み、プレビューして適用できます。TTF・OTF、最大32 MB。';
 
   @override
-  String get customFontDefault => '標準フォント（表示言語に合わせる）';
+  String get customFontDefault => '標準フォント（システムの文字サイズ）';
 
   @override
   String get customFontImport => 'フォントを読み込む';
@@ -3905,4 +3956,142 @@ class AppLocalizationsJa extends AppLocalizations {
   String questQueryActive(int count) {
     return '$count 件の検索条件を適用中';
   }
+
+  @override
+  String get settingsTabRuntime => 'ゲーム動作';
+
+  @override
+  String get settingsGroupAppearance => '基本の外観';
+
+  @override
+  String get settingsGroupScreenAdaptation => '画面への適応';
+
+  @override
+  String get settingsGroupLayoutPosition => '配置と位置';
+
+  @override
+  String get settingsGroupContentCustomization => '表示内容のカスタマイズ';
+
+  @override
+  String get settingsGroupLayoutManagement => 'レイアウト管理';
+
+  @override
+  String get settingsOtherModuleDisplay => 'その他のカードの表示';
+
+  @override
+  String get settingsEditInformationLayout => '情報パネルの配置編集';
+
+  @override
+  String get settingsEditHdLayout => 'HDレイアウトの編集';
+
+  @override
+  String get settingsResetMenuOrder => 'メニューの順序をリセット';
+
+  @override
+  String get settingsResetCardOrder => 'カードの順序をリセット';
+
+  @override
+  String get settingsGroupPerformanceRendering => '描画とパフォーマンス';
+
+  @override
+  String get settingsGroupSubtitles => '字幕';
+
+  @override
+  String get settingsGroupScreenBackground => '画面とバックグラウンド動作';
+
+  @override
+  String get settingsGroupInformationCapture => 'ゲーム情報の読み取り';
+
+  @override
+  String get settingsFrameRefreshConfirm => 'フレーム再読込前に確認';
+
+  @override
+  String get settingsFrameRefreshConfirmDescription =>
+      '上部バーからゲームフレームを再読み込みする前に確認します。';
+
+  @override
+  String get settingsFrameRefreshConfirmSaveFailed =>
+      '再読込の確認設定を保存できませんでした。再試行してください。';
+
+  @override
+  String get settingsGroupDebuff => 'ギミック解除と装甲破砕';
+
+  @override
+  String get settingsGroupShipStatusFeedback => '艦娘の状態表示と振動';
+
+  @override
+  String get settingsGroupSystemNotifications => 'システム通知';
+
+  @override
+  String get settingsEnableSystemNotifications => 'システム通知を有効化';
+
+  @override
+  String get settingsSystemNotificationSound => 'システム通知音';
+
+  @override
+  String get settingsSystemNotificationVibration => 'システム通知の振動';
+
+  @override
+  String get settingsGroupDataUpdates => 'データの更新';
+
+  @override
+  String get settingsGroupDataSharingPrivacy => 'データ共有とプライバシー';
+
+  @override
+  String get settingsGroupClearLocalData => 'ローカルデータの削除';
+
+  @override
+  String get settingsGroupAccount => 'アカウント操作';
+
+  @override
+  String get settingsGroupDiagnosticsSupport => '診断とサポート';
+
+  @override
+  String get settingsStatusEnabled => '有効';
+
+  @override
+  String get settingsStatusDisabled => '無効';
+
+  @override
+  String get settingsFleetDisplayStandard => '通常の艦隊カード';
+
+  @override
+  String get settingsFleetDisplayHd => 'HD 2列の艦隊カード';
+
+  @override
+  String get briefingDisplayTitle => '概要の表示方式';
+
+  @override
+  String get briefingDisplayDescription =>
+      '折りたたみ式では複数の項目を同時に展開でき、タブ式では上部のタブで項目を切り替えます。HD モードでは適用されません。';
+
+  @override
+  String get briefingDisplayAccordion => '折りたたみ式';
+
+  @override
+  String get briefingDisplayTabs => 'タブ式';
+
+  @override
+  String get briefingTabForecast => '戦況';
+
+  @override
+  String get briefingTabFleet => '編成';
+
+  @override
+  String get briefingTabLandBase => '基地';
+
+  @override
+  String get briefingTabExpedition => '遠征';
+
+  @override
+  String get briefingTabRepair => '入渠';
+
+  @override
+  String get briefingTabConstruction => '建造';
+
+  @override
+  String get briefingTabQuests => '任務';
+
+  @override
+  String get briefingTabPreSortie => '確認';
 }

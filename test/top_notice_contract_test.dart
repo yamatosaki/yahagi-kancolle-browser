@@ -17,6 +17,7 @@ import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dar
 import 'package:yahagi_kancolle_browser/src/prototype_status_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/display_mode_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/display_mode_store.dart';
+import 'package:yahagi_kancolle_browser/src/settings/dashboard_display_mode.dart';
 import 'package:yahagi_kancolle_browser/src/settings/header_resource_settings.dart';
 import 'package:yahagi_kancolle_browser/src/settings/hd_layout_settings.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_controller.dart';
@@ -24,6 +25,7 @@ import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart'
 import 'package:yahagi_kancolle_browser/src/settings/network_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_store.dart';
+import 'package:yahagi_kancolle_browser/src/settings/ui_font_size.dart';
 import 'package:yahagi_kancolle_browser/src/theme/app_theme.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 
@@ -386,6 +388,10 @@ class _LayoutSettingsControllerStub extends ChangeNotifier
   bool get autoZoom => false;
 
   @override
+  DashboardDisplayMode get dashboardDisplayMode =>
+      DashboardDisplayMode.accordion;
+
+  @override
   List<String> get dashboardCardCollapsed => const <String>[];
 
   @override
@@ -436,6 +442,9 @@ class _LayoutSettingsControllerStub extends ChangeNotifier
 
   @override
   UiDisplaySize get uiDisplaySize => UiDisplaySize.normal;
+
+  @override
+  UiFontSize get uiFontSize => UiFontSize.system;
 
   @override
   bool get topNoticeEnabled => true;

@@ -70,12 +70,14 @@ class GameNotificationCoordinator {
   Future<void> _accountReady = Future<void>.value();
   Future<void> get accountReady => _accountReady;
 
-  bool get _canUseState =>
+  bool get _canUseState => _canUseGameState(_gameStateProvider());
+
+  bool _canUseGameState(GameState state) =>
       accountSession == null ||
       (!_loadingAccount &&
           accountSession!.current.isKnown &&
-          accountSession!.current.memberId == _gameStateProvider().memberId &&
-          _gameStateProvider().hasPortData);
+          accountSession!.current.memberId == state.memberId &&
+          state.hasPortData);
 
   NotificationTimerAnchorStore? _storeForMember(int memberId) {
     final store = timerAnchorStore;
@@ -163,6 +165,46 @@ class GameNotificationCoordinator {
   String _englishSeconds(int seconds) =>
       '$seconds ${seconds == 1 ? 'second' : 'seconds'}';
 
+  static final _countdownTemplateTokens = RegExp(
+    r'\{\{|\}\}|\{secondsText\}|\{seconds\}',
+  );
+
+  String _templateLiteral(String value) =>
+      value.replaceAll('{', '{{').replaceAll('}', '}}');
+
+  String _renderCountdownTemplate(String template, int seconds) =>
+      template.replaceAllMapped(
+        _countdownTemplateTokens,
+        (match) => switch (match[0]) {
+          '{{' => '{',
+          '}}' => '}',
+          '{secondsText}' => _englishSeconds(seconds),
+          '{seconds}' => '$seconds',
+          _ => match[0]!,
+        },
+      );
+
+  ScheduledNotificationItem _preemptAlarm({
+    required String key,
+    required String taskId,
+    required GameNotificationType type,
+    required DateTime triggerTime,
+    required DateTime deadline,
+    required int seconds,
+    required String title,
+    required String bodyTemplate,
+  }) => ScheduledNotificationItem(
+    key: key,
+    taskId: taskId,
+    type: type,
+    stage: NotificationAlarmStage.preempt,
+    triggerTime: triggerTime,
+    deadline: deadline,
+    title: title,
+    body: _renderCountdownTemplate(bodyTemplate, seconds),
+    bodyTemplate: bodyTemplate,
+  );
+
   String _fleetName(Fleet? fleet) => fleet?.name.trim().isNotEmpty == true
       ? fleet!.name.trim()
       : _text(
@@ -217,7 +259,7 @@ class GameNotificationCoordinator {
     _memberId = state.memberId;
     accountSession?.addListener(_onAccountChanged);
     if (accountSession != null) {
-      gameStateController.addListener(_onGameStateChanged);
+      gameStateController.notificationChanges.addListener(_onGameStateChanged);
       settingsController.addListener(_syncSnapshot);
       _onAccountChanged();
       return;
@@ -226,7 +268,7 @@ class GameNotificationCoordinator {
     _recordGlobalTimerAnchors(state);
     moraleRecoveryTimerController.reconcile(state, now: _now());
     _manualCompletionTasks = _captureManualCompletionTasks(state, _now());
-    gameStateController.addListener(_onGameStateChanged);
+    gameStateController.notificationChanges.addListener(_onGameStateChanged);
     settingsController.addListener(_syncSnapshot);
     _syncSnapshot();
   }
@@ -238,7 +280,7 @@ class GameNotificationCoordinator {
     _pendingSnapshot = null;
     final retryWake = _retryWake;
     if (retryWake != null && !retryWake.isCompleted) retryWake.complete();
-    gameStateController.removeListener(_onGameStateChanged);
+    gameStateController.notificationChanges.removeListener(_onGameStateChanged);
     settingsController.removeListener(_syncSnapshot);
     localeListenable?.removeListener(_onLocaleChanged);
     namesListenable?.removeListener(_onNamesChanged);
@@ -279,7 +321,9 @@ class GameNotificationCoordinator {
   }) {
     if (_disposed) return;
     final settings = settingsController.settings;
-    final usable = _canUseState;
+    final state = _gameStateProvider();
+    final now = _now();
+    final usable = _canUseGameState(state);
     if (!settings.master || !usable) {
       _pendingImmediateAlerts.clear();
     } else {
@@ -292,11 +336,14 @@ class GameNotificationCoordinator {
       sessionId: accountSession == null
           ? null
           : '$_instanceId:${accountSession!.current.generation}',
-      updatedAt: _now(),
+      updatedAt: now,
       immediateAlerts: _pendingImmediateAlerts.values.toList(growable: false),
-      alarms: settings.master && usable ? _buildScheduledAlarms() : const [],
-      ongoingItems: settings.master && usable && settings.ongoingLive
-          ? _buildOngoingItems()
+      alarms: settings.master && usable
+          ? _buildScheduledAlarms(state, now)
+          : const [],
+      // Task deadlines also validate alerts when the ongoing card is hidden.
+      ongoingItems: settings.master && usable
+          ? _buildOngoingItems(state, now)
           : const [],
       presentation: NotificationPresentation(
         localeCode: _activeLocaleCode,
@@ -555,11 +602,11 @@ class GameNotificationCoordinator {
     );
   }
 
-  List<ScheduledNotificationItem> _buildScheduledAlarms() {
+  List<ScheduledNotificationItem> _buildScheduledAlarms(
+    GameState state,
+    DateTime now,
+  ) {
     final settings = settingsController.settings;
-
-    final state = _gameStateProvider();
-    final now = _now();
     final desiredAlarms = <String, ScheduledNotificationItem>{};
 
     // 1. Expedition
@@ -591,13 +638,14 @@ class GameNotificationCoordinator {
             );
             if (preemptTime.isAfter(now)) {
               final key = 'expedition_${fleet.id}_preempt';
-              desiredAlarms[key] = ScheduledNotificationItem(
+              final templateName = _templateLiteral(missionName);
+              desiredAlarms[key] = _preemptAlarm(
                 key: key,
                 taskId: 'expedition:${fleet.id}',
                 type: GameNotificationType.expedition,
-                stage: NotificationAlarmStage.preempt,
-                removeTaskOnFire: false,
                 triggerTime: preemptTime,
+                deadline: retTime,
+                seconds: settings.expeditionPreemptSeconds,
                 title: _text(
                   '远征即将归还 · $fleetName',
                   '遠征即將歸還 · $fleetName',
@@ -605,12 +653,12 @@ class GameNotificationCoordinator {
                   '원정 귀환 임박 · $fleetName',
                   'Expedition returning soon · $fleetName',
                 ),
-                body: _text(
-                  '$missionName 还有 ${settings.expeditionPreemptSeconds} 秒返回母港，请做好迎接准备。',
-                  '$missionName 還有 ${settings.expeditionPreemptSeconds} 秒返回母港，請做好迎接準備。',
-                  '$missionName はあと ${settings.expeditionPreemptSeconds} 秒で母港に帰投します。お迎えの準備をしましょう。',
-                  '$missionName 원정이 ${settings.expeditionPreemptSeconds}초 후 모항으로 귀환합니다.',
-                  '$missionName returns to port in ${_englishSeconds(settings.expeditionPreemptSeconds)}.',
+                bodyTemplate: _text(
+                  '$templateName 还有 {seconds} 秒返回母港，请做好迎接准备。',
+                  '$templateName 還有 {seconds} 秒返回母港，請做好迎接準備。',
+                  '$templateName はあと {seconds} 秒で母港に帰投します。お迎えの準備をしましょう。',
+                  '$templateName 원정이 {seconds}초 후 모항으로 귀환합니다.',
+                  '$templateName returns to port in {secondsText}.',
                 ),
               );
             }
@@ -665,13 +713,14 @@ class GameNotificationCoordinator {
             );
             if (preemptTime.isAfter(now)) {
               final key = 'repair_${dock.id}_preempt';
-              desiredAlarms[key] = ScheduledNotificationItem(
+              final templateName = _templateLiteral(shipName);
+              desiredAlarms[key] = _preemptAlarm(
                 key: key,
                 taskId: 'repair:${dock.id}',
                 type: GameNotificationType.repair,
-                stage: NotificationAlarmStage.preempt,
-                removeTaskOnFire: false,
                 triggerTime: preemptTime,
+                deadline: compTime,
+                seconds: settings.repairPreemptSeconds,
                 title: _text(
                   '修复即将完成 · 船坞 #${dock.id}',
                   '修復即將完成 · 船塢 #${dock.id}',
@@ -679,12 +728,12 @@ class GameNotificationCoordinator {
                   '수리 완료 임박 · 도크 #${dock.id}',
                   'Repairs almost complete · Dock #${dock.id}',
                 ),
-                body: _text(
-                  '$shipName 还有 ${settings.repairPreemptSeconds} 秒修理完毕。',
-                  '$shipName 還有 ${settings.repairPreemptSeconds} 秒修理完畢。',
-                  '$shipName の修理があと ${settings.repairPreemptSeconds} 秒で完了します。',
-                  '$shipName 수리가 ${settings.repairPreemptSeconds}초 후 완료됩니다.',
-                  '$shipName finishes repairs in ${_englishSeconds(settings.repairPreemptSeconds)}.',
+                bodyTemplate: _text(
+                  '$templateName 还有 {seconds} 秒修理完毕。',
+                  '$templateName 還有 {seconds} 秒修理完畢。',
+                  '$templateName の修理があと {seconds} 秒で完了します。',
+                  '$templateName 수리가 {seconds}초 후 완료됩니다.',
+                  '$templateName finishes repairs in {secondsText}.',
                 ),
               );
             }
@@ -740,13 +789,14 @@ class GameNotificationCoordinator {
             );
             if (preemptTime.isAfter(now)) {
               final key = 'construction_${dock.id}_preempt';
-              desiredAlarms[key] = ScheduledNotificationItem(
+              final templateName = _templateLiteral(shipName);
+              desiredAlarms[key] = _preemptAlarm(
                 key: key,
                 taskId: 'construction:${dock.id}',
                 type: GameNotificationType.construction,
-                stage: NotificationAlarmStage.preempt,
-                removeTaskOnFire: false,
                 triggerTime: preemptTime,
+                deadline: compTime,
+                seconds: settings.constructionPreemptSeconds,
                 title: _text(
                   '建造即将完成 · 船坞 #${dock.id}',
                   '建造即將完成 · 船塢 #${dock.id}',
@@ -754,12 +804,12 @@ class GameNotificationCoordinator {
                   '건조 완료 임박 · 도크 #${dock.id}',
                   'Construction almost complete · Dock #${dock.id}',
                 ),
-                body: _text(
-                  '$shipName 还有 ${settings.constructionPreemptSeconds} 秒建造完成。',
-                  '$shipName 還有 ${settings.constructionPreemptSeconds} 秒建造完成。',
-                  '$shipName の建造があと ${settings.constructionPreemptSeconds} 秒で完了します。',
-                  '$shipName 건조가 ${settings.constructionPreemptSeconds}초 후 완료됩니다.',
-                  '$shipName finishes construction in ${_englishSeconds(settings.constructionPreemptSeconds)}.',
+                bodyTemplate: _text(
+                  '$templateName 还有 {seconds} 秒建造完成。',
+                  '$templateName 還有 {seconds} 秒建造完成。',
+                  '$templateName の建造があと {seconds} 秒で完了します。',
+                  '$templateName 건조가 {seconds}초 후 완료됩니다.',
+                  '$templateName finishes construction in {secondsText}.',
                 ),
               );
             }
@@ -920,13 +970,14 @@ class GameNotificationCoordinator {
               );
               if (preemptTime.isAfter(now)) {
                 final key = 'morale_${fleet.id}_nosaki_preempt';
-                desiredAlarms[key] = ScheduledNotificationItem(
+                final templateName = _templateLiteral(fleetName);
+                desiredAlarms[key] = _preemptAlarm(
                   key: key,
                   taskId: 'morale:${fleet.id}',
                   type: GameNotificationType.morale,
-                  stage: NotificationAlarmStage.preempt,
-                  removeTaskOnFire: false,
                   triggerTime: preemptTime,
+                  deadline: completeTime,
+                  seconds: settings.moralePreemptSeconds,
                   title: _text(
                     '野埼刷闪即将完成 · $fleetName',
                     '野埼刷閃即將完成 · $fleetName',
@@ -934,12 +985,12 @@ class GameNotificationCoordinator {
                     '노사키 반짝이 작업 완료 임박 · $fleetName',
                     'Nosaki morale training almost complete · $fleetName',
                   ),
-                  body: _text(
-                    '$fleetName 符合条件的随伴舰还有 ${settings.moralePreemptSeconds} 秒达到 54 闪。',
-                    '$fleetName 符合條件的隨伴艦還有 ${settings.moralePreemptSeconds} 秒達到 54 閃。',
-                    '$fleetName の対象の随伴艦はあと ${settings.moralePreemptSeconds} 秒で Cond 54（キラ状態）になります。',
-                    '$fleetName의 조건을 충족한 수반함은 ${settings.moralePreemptSeconds}초 후 컨디션 54에 도달합니다.',
-                    'Eligible escort ships in $fleetName reach morale 54 in ${_englishSeconds(settings.moralePreemptSeconds)}.',
+                  bodyTemplate: _text(
+                    '$templateName 符合条件的随伴舰还有 {seconds} 秒达到 54 闪。',
+                    '$templateName 符合條件的隨伴艦還有 {seconds} 秒達到 54 閃。',
+                    '$templateName の対象の随伴艦はあと {seconds} 秒で Cond 54（キラ状態）になります。',
+                    '$templateName의 조건을 충족한 수반함은 {seconds}초 후 컨디션 54에 도달합니다.',
+                    'Eligible escort ships in $templateName reach morale 54 in {secondsText}.',
                   ),
                 );
               }
@@ -992,13 +1043,14 @@ class GameNotificationCoordinator {
               );
               if (preemptTime.isAfter(now)) {
                 final key = 'morale_${fleet.id}_normal_preempt';
-                desiredAlarms[key] = ScheduledNotificationItem(
+                final templateName = _templateLiteral(fleetName);
+                desiredAlarms[key] = _preemptAlarm(
                   key: key,
                   taskId: 'morale:${fleet.id}',
                   type: GameNotificationType.morale,
-                  stage: NotificationAlarmStage.preempt,
-                  removeTaskOnFire: false,
                   triggerTime: preemptTime,
+                  deadline: completeTime,
+                  seconds: settings.moralePreemptSeconds,
                   title: _text(
                     '疲劳即将恢复 · $fleetName',
                     '疲勞即將恢復 · $fleetName',
@@ -1006,12 +1058,12 @@ class GameNotificationCoordinator {
                     '피로 회복 완료 임박 · $fleetName',
                     'Fatigue recovery almost complete · $fleetName',
                   ),
-                  body: _text(
-                    '$fleetName 全队舰船士气还有 ${settings.moralePreemptSeconds} 秒恢复至 49。',
-                    '$fleetName 全隊艦船士氣還有 ${settings.moralePreemptSeconds} 秒恢復至 49。',
-                    '$fleetName の全艦の士気があと ${settings.moralePreemptSeconds} 秒で49に回復します。',
-                    '$fleetName 모든 함선의 컨디션이 ${settings.moralePreemptSeconds}초 후 49로 회복됩니다.',
-                    'All ships in $fleetName recover to morale 49 in ${_englishSeconds(settings.moralePreemptSeconds)}.',
+                  bodyTemplate: _text(
+                    '$templateName 全队舰船士气还有 {seconds} 秒恢复至 49。',
+                    '$templateName 全隊艦船士氣還有 {seconds} 秒恢復至 49。',
+                    '$templateName の全艦の士気があと {seconds} 秒で49に回復します。',
+                    '$templateName 모든 함선의 컨디션이 {seconds}초 후 49로 회복됩니다.',
+                    'All ships in $templateName recover to morale 49 in {secondsText}.',
                   ),
                 );
               }
@@ -1048,11 +1100,8 @@ class GameNotificationCoordinator {
     return desiredAlarms.values.toList(growable: false);
   }
 
-  List<OngoingTaskItem> _buildOngoingItems() {
+  List<OngoingTaskItem> _buildOngoingItems(GameState state, DateTime now) {
     final settings = settingsController.settings;
-
-    final state = _gameStateProvider();
-    final now = _now();
     final items = <OngoingTaskItem>[];
 
     // 1. Expedition

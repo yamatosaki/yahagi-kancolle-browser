@@ -3,12 +3,15 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../account/account_session.dart';
 import '../battle/battle_damage_alert.dart';
 import '../battle/battle_models.dart';
 import '../bridge/captured_api_event.dart';
+import '../browser/game_surface_input_guard.dart';
+import '../browser/native_game_warning_dialog.dart';
 import '../game_state/game_state.dart';
 import '../settings/safety_settings_controller.dart';
 import '../settings/safety_settings_store.dart';
@@ -66,6 +69,7 @@ class BattleResultWarningOverlay extends StatefulWidget {
     this.damageControlNoticeEnabled,
     this.onReloadGame,
     this.onReloadGameFrame,
+    this.nativeWarningDialogPort,
   });
 
   final GameCaptureController gameCaptureController;
@@ -81,6 +85,7 @@ class BattleResultWarningOverlay extends StatefulWidget {
   final bool Function()? damageControlNoticeEnabled;
   final Future<void> Function()? onReloadGame;
   final Future<void> Function()? onReloadGameFrame;
+  final NativeGameWarningDialogPort? nativeWarningDialogPort;
 
   @override
   State<BattleResultWarningOverlay> createState() =>
@@ -104,6 +109,11 @@ class _BattleResultWarningOverlayState
       ValueNotifier<List<AdvanceWarningShip>>(const []);
   final Set<DialogRoute<void>> _warningDialogRoutes = {};
   DialogRoute<void>? _warningDialogRoute;
+  static int _nativeDialogSequence = 0;
+  _NativeWarningPresentation? _nativeWarningPresentation;
+  _DeferredFlutterWarning? _deferredFlutterWarning;
+  bool _nativeDialogUnavailable = false;
+  GameSurfaceInputGuardRoute? _inputGuardRoute;
   VoidCallback? _removeDamageControlNotice;
   bool _damageControlNoticeActive = false;
   int _damageControlNoticeRevision = 0;
@@ -122,6 +132,11 @@ class _BattleResultWarningOverlayState
   })?
   _navigation;
 
+  bool get _hasWarningDialog =>
+      _warningDialogRoute != null ||
+      _nativeWarningPresentation != null ||
+      _deferredFlutterWarning != null;
+
   @override
   void initState() {
     super.initState();
@@ -135,11 +150,14 @@ class _BattleResultWarningOverlayState
     widget.gameCaptureController.eventActivity.addListener(
       _onGameCaptureUpdate,
     );
+    widget.gameCaptureController.addListener(_onCaptureContinuityChanged);
+    _warningShips.addListener(_updateNativeWarning);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _updateNativeWarning();
     final remove = QuestCompletionDrawerHost.damageControlNoticeRemover(
       context,
     );
@@ -224,6 +242,10 @@ class _BattleResultWarningOverlayState
   @override
   void didUpdateWidget(BattleResultWarningOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.nativeWarningDialogPort != widget.nativeWarningDialogPort) {
+      _dismissNativeWarning();
+      _nativeDialogUnavailable = false;
+    }
     if (_damageControlNoticeActive && !_noticeEnabled()) {
       final generation = _advanceCheckGeneration;
       final scope = _accountSession.current;
@@ -270,19 +292,34 @@ class _BattleResultWarningOverlayState
       oldWidget.gameCaptureController.eventActivity.removeListener(
         _onGameCaptureUpdate,
       );
+      oldWidget.gameCaptureController.removeListener(
+        _onCaptureContinuityChanged,
+      );
       widget.gameCaptureController.eventActivity.addListener(
         _onGameCaptureUpdate,
       );
+      widget.gameCaptureController.addListener(_onCaptureContinuityChanged);
     }
   }
 
   @override
   void dispose() {
+    _deferredFlutterWarning = null;
+    _dismissNativeWarning();
+    _warningShips.removeListener(_updateNativeWarning);
     widget.safetySettingsController.removeListener(_onSafetySettingsChanged);
     _clearDamageControlNotice();
     _accountSession.removeListener(_onAccountChanged);
     _warningSession.removeListener(_onWarningSessionChanged);
     if (widget.warningSession == null) _warningSession.dispose();
+    final inputGuard = _inputGuardRoute;
+    _inputGuardRoute = null;
+    inputGuard?.cancelProtection();
+    if (inputGuard != null && inputGuard.isActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (inputGuard.isActive) inputGuard.navigator?.removeRoute(inputGuard);
+      });
+    }
     final routes = _warningDialogRoutes.toList();
     _warningDialogRoute = null;
     if (routes.isEmpty) {
@@ -303,6 +340,7 @@ class _BattleResultWarningOverlayState
     widget.gameCaptureController.eventActivity.removeListener(
       _onGameCaptureUpdate,
     );
+    widget.gameCaptureController.removeListener(_onCaptureContinuityChanged);
     super.dispose();
   }
 
@@ -406,11 +444,52 @@ class _BattleResultWarningOverlayState
   }
 
   void _dismissWarningDialog() {
+    _deferredFlutterWarning = null;
+    _dismissNativeWarning();
     final route = _warningDialogRoute;
     _warningDialogRoute = null;
     if (route != null && route.isActive) {
       route.navigator?.removeRoute(route);
     }
+  }
+
+  void _dismissNativeWarning() {
+    final presentation = _nativeWarningPresentation;
+    _nativeWarningPresentation = null;
+    if (presentation == null) return;
+    unawaited(
+      presentation.port.dismiss(presentation.id).catchError((Object error) {
+        debugPrint('Native safety warning dismissal failed: $error');
+      }),
+    );
+  }
+
+  void _onCaptureContinuityChanged() {
+    final presentation = _nativeWarningPresentation;
+    if (presentation != null &&
+        presentation.captureGeneration !=
+            widget.gameCaptureController.continuityGeneration) {
+      _invalidateWarning();
+    }
+  }
+
+  void _protectWarningDismissal() {
+    final current = _inputGuardRoute;
+    if (current != null && current.isActive) {
+      current.extendProtection();
+      return;
+    }
+    final guard = GameSurfaceInputGuardRoute(context: context);
+    _inputGuardRoute = guard;
+    // Cover the game before removing the warning so neither native nor platform
+    // views receive the remaining taps of the same burst.
+    unawaited(
+      Navigator.of(context, rootNavigator: true).push<void>(guard).whenComplete(
+        () {
+          if (identical(_inputGuardRoute, guard)) _inputGuardRoute = null;
+        },
+      ),
+    );
   }
 
   void _onAccountChanged() {
@@ -563,7 +642,18 @@ class _BattleResultWarningOverlayState
       return;
     }
     _warningShips.value = ships;
-    if (_warningDialogRoute != null) return;
+    final deferred = _deferredFlutterWarning;
+    if (deferred != null && !_deferredFlutterWarningIsCurrent(deferred)) {
+      // Rebinding capture can retain the last event. Fresh accepted danger must
+      // replace that old wait token without bypassing the still-held guard.
+      _deferFlutterWarning(
+        Navigator.of(context, rootNavigator: true),
+        refreshFailed: deferred.refreshFailed,
+        forceFlutter: deferred.forceFlutter,
+        nativePort: deferred.nativePort,
+      );
+    }
+    if (_hasWarningDialog) return;
     if (widget.safetySettingsController.advanceWarningDisplayMode ==
             AdvanceWarningDisplayMode.smart &&
         ships.every((ship) => ship.hasConfirmedDamageControl)) {
@@ -647,6 +737,7 @@ class _BattleResultWarningOverlayState
     }
     final generation = _advanceCheckGeneration;
     final captureGeneration = widget.gameCaptureController.continuityGeneration;
+    _protectWarningDismissal();
     _dismissWarningDialog();
     try {
       await action();
@@ -662,19 +753,46 @@ class _BattleResultWarningOverlayState
           widget.safetySettingsController.battleWarningMode ==
               BattleWarningMode.off ||
           !_currentSafetyEventAccepted() ||
-          _warningDialogRoute != null) {
+          _hasWarningDialog) {
         return;
       }
       _showWarningDialog(refreshFailed: true);
     }
   }
 
-  void _showWarningDialog({bool refreshFailed = false}) {
-    if (_warningDialogRoute != null) return;
+  void _showWarningDialog({
+    bool refreshFailed = false,
+    bool forceFlutter = false,
+  }) {
+    if (!mounted || _hasWarningDialog) return;
+    final nativePort = widget.nativeWarningDialogPort;
+    if (nativePort != null && !_nativeDialogUnavailable && !forceFlutter) {
+      final presentation = _NativeWarningPresentation(
+        id: ++_nativeDialogSequence,
+        port: nativePort,
+        scope: _accountSession.current,
+        sortieGeneration: _warningSession.generation,
+        captureGeneration: widget.gameCaptureController.continuityGeneration,
+        refreshFailed: refreshFailed,
+      );
+      _nativeWarningPresentation = presentation;
+      unawaited(_runNativeWarning(presentation));
+      return;
+    }
+    final navigator = Navigator.of(context, rootNavigator: true);
+    if (_hasFlutterInputProtection(navigator)) {
+      _deferFlutterWarning(
+        navigator,
+        refreshFailed: refreshFailed,
+        forceFlutter: forceFlutter,
+        nativePort: nativePort,
+      );
+      return;
+    }
     final warningGeneration = _warningSession.generation;
     final warningScope = _accountSession.current;
     late final DialogRoute<void> route;
-    route = DialogRoute<void>(
+    route = GameSafetyDialogRoute(
       context: context,
       barrierDismissible: false,
       builder: (context) {
@@ -720,6 +838,7 @@ class _BattleResultWarningOverlayState
                           _warningSession.generation != warningGeneration) {
                         return;
                       }
+                      _protectWarningDismissal();
                       _warningSession.muteCurrentSortie();
                     },
                     style: FilledButton.styleFrom(
@@ -747,7 +866,8 @@ class _BattleResultWarningOverlayState
                       if (mounted &&
                           identical(_warningDialogRoute, route) &&
                           route.isCurrent) {
-                        Navigator.of(context).pop();
+                        _protectWarningDismissal();
+                        _dismissWarningDialog();
                       }
                     },
                     style: FilledButton.styleFrom(
@@ -950,11 +1070,295 @@ class _BattleResultWarningOverlayState
     );
   }
 
+  void _deferFlutterWarning(
+    NavigatorState navigator, {
+    required bool refreshFailed,
+    required bool forceFlutter,
+    required NativeGameWarningDialogPort? nativePort,
+  }) {
+    final presentation = _DeferredFlutterWarning(
+      scope: _accountSession.current,
+      metadataGeneration: _metadataGeneration,
+      captureGeneration: widget.gameCaptureController.continuityGeneration,
+      sortieGeneration: _warningSession.generation,
+      refreshFailed: refreshFailed,
+      forceFlutter: forceFlutter,
+      nativePort: nativePort,
+    );
+    _deferredFlutterWarning = presentation;
+    unawaited(_waitForFlutterInputProtection(navigator, presentation));
+  }
+
+  bool _hasFlutterInputProtection(NavigatorState navigator) =>
+      GameSafetyDialogRoute.hasInputProtectionFor(navigator) ||
+      GameSurfaceInputGuardRoute.hasBlockingForHandoff(navigator);
+
+  bool _deferredFlutterWarningIsCurrent(_DeferredFlutterWarning presentation) =>
+      mounted &&
+      identical(_deferredFlutterWarning, presentation) &&
+      presentation.metadataGeneration == _metadataGeneration &&
+      presentation.captureGeneration ==
+          widget.gameCaptureController.continuityGeneration &&
+      presentation.sortieGeneration == _warningSession.generation &&
+      _accountSession.isCurrent(presentation.scope) &&
+      !_warningSession.isMuted &&
+      widget.safetySettingsController.battleWarningMode !=
+          BattleWarningMode.off &&
+      _warningShips.value.isNotEmpty &&
+      _currentSafetyEventAccepted();
+
+  Future<void> _waitForFlutterInputProtection(
+    NavigatorState navigator,
+    _DeferredFlutterWarning presentation,
+  ) async {
+    try {
+      while (_deferredFlutterWarningIsCurrent(presentation)) {
+        await Future.wait<void>([
+          GameSafetyDialogRoute.waitUntilInputProtectionIdle(navigator),
+          GameSurfaceInputGuardRoute.waitUntilReadyForHandoff(navigator),
+        ]);
+        if (!_deferredFlutterWarningIsCurrent(presentation)) return;
+        // A preserved dialog hands off atomically to a raw guard. Recheck both
+        // registries so completing the old route never exposes a gap.
+        if (_hasFlutterInputProtection(navigator)) continue;
+        _deferredFlutterWarning = null;
+        // New accepted metadata updates this queued warning just as it updates
+        // an already visible one. Explicit invalidations revoke its identity.
+        _showWarningDialog(
+          refreshFailed: presentation.refreshFailed,
+          forceFlutter:
+              presentation.forceFlutter &&
+              identical(
+                widget.nativeWarningDialogPort,
+                presentation.nativePort,
+              ),
+        );
+        return;
+      }
+    } finally {
+      if (identical(_deferredFlutterWarning, presentation)) {
+        _deferredFlutterWarning = null;
+      }
+    }
+  }
+
+  bool _nativeWarningIsCurrent(_NativeWarningPresentation presentation) =>
+      mounted &&
+      identical(_nativeWarningPresentation, presentation) &&
+      identical(widget.nativeWarningDialogPort, presentation.port) &&
+      _accountSession.isCurrent(presentation.scope) &&
+      _warningSession.generation == presentation.sortieGeneration &&
+      widget.gameCaptureController.continuityGeneration ==
+          presentation.captureGeneration &&
+      !_warningSession.isMuted &&
+      widget.safetySettingsController.battleWarningMode !=
+          BattleWarningMode.off &&
+      _currentSafetyEventAccepted();
+
+  Future<void> _runNativeWarning(
+    _NativeWarningPresentation presentation,
+  ) async {
+    NativeGameWarningAction? action;
+    try {
+      action = await presentation.port.show(
+        _nativeWarningPayload(presentation),
+      );
+    } catch (error) {
+      _nativeWarningFailed(presentation, error);
+      return;
+    }
+    if (!_nativeWarningIsCurrent(presentation)) {
+      if (identical(_nativeWarningPresentation, presentation)) {
+        _dismissNativeWarning();
+      }
+      return;
+    }
+    // The native window owns its post-action input guard. A Flutter modal here
+    // would hide the independent WebView and defeat the live background.
+    _nativeWarningPresentation = null;
+    switch (action) {
+      case null:
+      case NativeGameWarningAction.acknowledge:
+        return;
+      case NativeGameWarningAction.mute:
+        _warningSession.muteCurrentSortie();
+      case NativeGameWarningAction.reloadGame:
+        final reload = widget.onReloadGame;
+        if (reload != null) await _refreshNativeWarning(presentation, reload);
+      case NativeGameWarningAction.reloadFrame:
+        final reload = widget.onReloadGameFrame;
+        if (reload != null) await _refreshNativeWarning(presentation, reload);
+    }
+  }
+
+  Future<void> _refreshNativeWarning(
+    _NativeWarningPresentation presentation,
+    Future<void> Function() action,
+  ) async {
+    final generation = _advanceCheckGeneration;
+    try {
+      await action();
+    } catch (error) {
+      debugPrint('Manual native game refresh failed: $error');
+      if (!mounted ||
+          generation != _advanceCheckGeneration ||
+          presentation.captureGeneration !=
+              widget.gameCaptureController.continuityGeneration ||
+          !_accountSession.isCurrent(presentation.scope) ||
+          _warningSession.generation != presentation.sortieGeneration ||
+          _warningSession.isMuted ||
+          widget.safetySettingsController.battleWarningMode ==
+              BattleWarningMode.off ||
+          !_currentSafetyEventAccepted() ||
+          _hasWarningDialog) {
+        return;
+      }
+      _showWarningDialog(refreshFailed: true);
+    }
+  }
+
+  void _updateNativeWarning() {
+    final presentation = _nativeWarningPresentation;
+    if (presentation == null || !_nativeWarningIsCurrent(presentation)) return;
+    unawaited(
+      presentation.port
+          .update(_nativeWarningPayload(presentation))
+          .catchError(
+            (Object error) => _nativeWarningFailed(presentation, error),
+          ),
+    );
+  }
+
+  void _nativeWarningFailed(
+    _NativeWarningPresentation presentation,
+    Object error,
+  ) {
+    if (!_nativeWarningIsCurrent(presentation)) return;
+    debugPrint('Native safety warning unavailable: $error');
+    // Missing platform support is permanent for this overlay. A covered or
+    // temporarily unavailable WebView must be allowed to try on the next warning.
+    if (error is MissingPluginException) _nativeDialogUnavailable = true;
+    _dismissNativeWarning();
+    _showWarningDialog(
+      refreshFailed: presentation.refreshFailed,
+      forceFlutter: true,
+    );
+  }
+
+  Map<String, Object?> _nativeWarningPayload(
+    _NativeWarningPresentation presentation,
+  ) {
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
+    final ships = _warningShips.value;
+    final allEquipped = ships.every(
+      (ship) => ship.damageControlStatus == AdvanceDamageControlStatus.equipped,
+    );
+    final hasMissing = ships.any(
+      (ship) => ship.damageControlStatus == AdvanceDamageControlStatus.missing,
+    );
+    return {
+      'id': presentation.id,
+      'title': l10n.postBattleWarningTitle,
+      'headline': allEquipped
+          ? l10n.advanceWarningEquippedHeadline
+          : hasMissing
+          ? l10n.advanceWarningMissingHeadline
+          : l10n.advanceWarningUnknownHeadline,
+      'body': _postBattlePresentation
+          ? allEquipped
+                ? l10n.postBattleDamageControlEquippedBody
+                : l10n.postBattleDamageControlDangerBody
+          : allEquipped
+          ? l10n.advanceWarningEquippedBody
+          : l10n.postBattleWarningBody,
+      'rows': [
+        for (final ship in ships)
+          '${_warningShipName(ship, l10n)}\n${_warningShipStatus(ship, l10n)}',
+      ],
+      'labels': {
+        'acknowledge': l10n.acknowledgeAndRetreat,
+        'mute': l10n.advanceWarningMuteSortie,
+        'reloadGame': l10n.advanceWarningReloadGame,
+        'reloadFrame': l10n.advanceWarningReloadFrame,
+      },
+      'enabled': {
+        'acknowledge': true,
+        'mute': true,
+        'reloadGame': widget.onReloadGame != null,
+        'reloadFrame': widget.onReloadGameFrame != null,
+      },
+      'refreshFailed': presentation.refreshFailed
+          ? l10n.advanceWarningRefreshFailed
+          : null,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     return widget.child;
   }
 }
+
+final class _DeferredFlutterWarning {
+  const _DeferredFlutterWarning({
+    required this.scope,
+    required this.metadataGeneration,
+    required this.captureGeneration,
+    required this.sortieGeneration,
+    required this.refreshFailed,
+    required this.forceFlutter,
+    required this.nativePort,
+  });
+
+  final AccountScope scope;
+  final int metadataGeneration;
+  final int captureGeneration;
+  final int sortieGeneration;
+  final bool refreshFailed;
+  final bool forceFlutter;
+  final NativeGameWarningDialogPort? nativePort;
+}
+
+final class _NativeWarningPresentation {
+  const _NativeWarningPresentation({
+    required this.id,
+    required this.port,
+    required this.scope,
+    required this.sortieGeneration,
+    required this.captureGeneration,
+    required this.refreshFailed,
+  });
+
+  final int id;
+  final NativeGameWarningDialogPort port;
+  final AccountScope scope;
+  final int sortieGeneration;
+  final int captureGeneration;
+  final bool refreshFailed;
+}
+
+String _warningShipName(AdvanceWarningShip ship, AppLocalizations l10n) =>
+    ship.requiresDisambiguation
+    ? '${ship.name}（${l10n.advanceWarningShipPosition(ship.fleetId, ship.position)}）'
+    : ship.name;
+
+String _warningShipStatus(AdvanceWarningShip ship, AppLocalizations l10n) =>
+    switch (ship.damageControlStatus) {
+      AdvanceDamageControlStatus.missing => l10n.advanceWarningMissing,
+      AdvanceDamageControlStatus.unknown => l10n.advanceWarningUnknown,
+      AdvanceDamageControlStatus.equipped => l10n.advanceWarningEquipped(
+        ship.remainingDamageControls.entries
+            .map((entry) {
+              final item = entry.key == 42
+                  ? l10n.advanceWarningPersonnel
+                  : l10n.advanceWarningGoddess;
+              return '$item ×${entry.value}';
+            })
+            .join('、'),
+      ),
+    };
 
 class _AdvanceWarningButtonRow extends StatelessWidget {
   const _AdvanceWarningButtonRow({
@@ -1102,23 +1506,8 @@ class _AdvanceWarningShipRow extends StatelessWidget {
       context,
       equipped ? const Color(0xffd4a85f) : Colors.redAccent,
     );
-    final name = ship.requiresDisambiguation
-        ? '${ship.name}（${l10n.advanceWarningShipPosition(ship.fleetId, ship.position)}）'
-        : ship.name;
-    final status = switch (ship.damageControlStatus) {
-      AdvanceDamageControlStatus.missing => l10n.advanceWarningMissing,
-      AdvanceDamageControlStatus.unknown => l10n.advanceWarningUnknown,
-      AdvanceDamageControlStatus.equipped => l10n.advanceWarningEquipped(
-        ship.remainingDamageControls.entries
-            .map((entry) {
-              final item = entry.key == 42
-                  ? l10n.advanceWarningPersonnel
-                  : l10n.advanceWarningGoddess;
-              return '$item ×${entry.value}';
-            })
-            .join('、'),
-      ),
-    };
+    final name = _warningShipName(ship, l10n);
+    final status = _warningShipStatus(ship, l10n);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Builder(

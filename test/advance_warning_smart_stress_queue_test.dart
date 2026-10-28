@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_damage_alert.dart';
@@ -21,6 +22,17 @@ import 'fixtures/kcsapi_fixtures.dart';
 enum _HeaderAvailability { visible, hidden, removed, native }
 
 void main() {
+  const nativeChannel = MethodChannel(
+    'app.yahagi.kancollebrowser/game_fullscreen',
+  );
+  setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(nativeChannel, (_) async => false);
+  });
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(nativeChannel, null);
+  });
   testWidgets(
     'replacing a shared warning session clears a capsule without build exceptions',
     (tester) async {

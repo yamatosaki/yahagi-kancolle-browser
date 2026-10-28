@@ -9,6 +9,38 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get debuffReminderTitle => '削甲提醒';
+
+  @override
+  String get debuffReminderSourcePort => '母港';
+
+  @override
+  String get debuffReminderSourceBattleResult => '战斗结算';
+
+  @override
+  String get debuffReminderSourceAirDefense => '基地防空';
+
+  @override
+  String debuffReminderMessage(String source) {
+    return '$source：检测到解谜／削弱提示。';
+  }
+
+  @override
+  String get debuffReminderSectionTitle => '游戏内提醒';
+
+  @override
+  String get debuffReminderSettingTitle => '削甲提醒';
+
+  @override
+  String get debuffReminderSettingSubtitle => '两种方式均附带震动；检测到解谜／削弱提示时提醒';
+
+  @override
+  String get debuffReminderStyleDialog => '确认弹窗（默认）';
+
+  @override
+  String get debuffReminderStyleTopNotice => '顶部提醒';
+
+  @override
   String get cameraAvoidanceTitle => '摄像头避让';
 
   @override
@@ -343,6 +375,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get themeClearSkyBlue => '晴空蓝';
+
+  @override
+  String get uiFontSizeTitle => '界面字号';
+
+  @override
+  String get uiFontSizeDescription => '默认跟随系统。';
+
+  @override
+  String get uiFontSizeSystem => '默认（跟随系统）';
+
+  @override
+  String get uiFontSizeSmall => '小';
+
+  @override
+  String get uiFontSizeMedium => '中';
+
+  @override
+  String get uiFontSizeLarge => '大';
 
   @override
   String get uiDisplaySizeTitle => '界面UI大小';
@@ -1779,7 +1829,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get nativeGameSurfaceSwitchRenderingModeHint =>
-      '当前设备暂不兼容此模式。请滚动左侧菜单，前往【设置 - 画面与声音】切换渲染模式。';
+      '当前设备暂不兼容此模式。请滚动左侧菜单，前往【设置 - 游戏运行】切换渲染模式。';
 
   @override
   String nativeGameSurfacePageInitializationFailed(
@@ -1837,25 +1887,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sortUnlockAction => '解除当前排序锁定';
 
   @override
-  String get settingsTabScreen => '画面与声音';
+  String get settingsTabScreen => '外观与布局';
 
   @override
   String get settingsTabSound => '声音';
 
   @override
-  String get settingsTabBattle => '战斗';
+  String get settingsTabBattle => '出击与战斗';
 
   @override
-  String get settingsTabNotification => '通知';
+  String get settingsTabNotification => '通知与提醒';
 
   @override
-  String get settingsTabNetwork => '网络';
+  String get settingsTabNetwork => '网络与连接';
 
   @override
-  String get settingsTabData => '数据';
+  String get settingsTabData => '数据管理';
 
   @override
-  String get settingsTabAboutSupport => '关于';
+  String get settingsTabAboutSupport => '关于与支持';
 
   @override
   String get notificationSectionSystem => '系统通知状态';
@@ -3706,7 +3756,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get customFontDescription => '导入喜欢的字体，预览后应用。支持 TTF、OTF，最大 32 MB。';
 
   @override
-  String get customFontDefault => '默认字体（跟随界面语言）';
+  String get customFontDefault => '默认字体（系统字体大小）';
 
   @override
   String get customFontImport => '导入字体';
@@ -3860,11 +3910,179 @@ class AppLocalizationsZh extends AppLocalizations {
   String questQueryActive(int count) {
     return '$count 项查询条件已生效';
   }
+
+  @override
+  String get settingsTabRuntime => '游戏运行';
+
+  @override
+  String get settingsGroupAppearance => '基础外观';
+
+  @override
+  String get settingsGroupScreenAdaptation => '屏幕适配';
+
+  @override
+  String get settingsGroupLayoutPosition => '布局与位置';
+
+  @override
+  String get settingsGroupContentCustomization => '内容自定义';
+
+  @override
+  String get settingsGroupLayoutManagement => '布局管理';
+
+  @override
+  String get settingsOtherModuleDisplay => '其他模块显示';
+
+  @override
+  String get settingsEditInformationLayout => '信息面板布局编辑';
+
+  @override
+  String get settingsEditHdLayout => 'HD布局编辑';
+
+  @override
+  String get settingsResetMenuOrder => '恢复菜单栏顺序';
+
+  @override
+  String get settingsResetCardOrder => '恢复功能区卡片顺序';
+
+  @override
+  String get settingsGroupPerformanceRendering => '性能与画面';
+
+  @override
+  String get settingsGroupSubtitles => '字幕';
+
+  @override
+  String get settingsGroupScreenBackground => '保持运行';
+
+  @override
+  String get settingsGroupInformationCapture => '信息读取';
+
+  @override
+  String get settingsFrameRefreshConfirm => '框架刷新前确认';
+
+  @override
+  String get settingsFrameRefreshConfirmDescription => '从顶栏刷新游戏框架前显示确认对话框。';
+
+  @override
+  String get settingsFrameRefreshConfirmSaveFailed => '框架刷新确认设置保存失败，请重试。';
+
+  @override
+  String get settingsGroupDebuff => '解谜与削甲';
+
+  @override
+  String get settingsGroupShipStatusFeedback => '舰娘状态反馈';
+
+  @override
+  String get settingsGroupSystemNotifications => '系统通知';
+
+  @override
+  String get settingsEnableSystemNotifications => '启用系统通知';
+
+  @override
+  String get settingsSystemNotificationSound => '系统通知提示音';
+
+  @override
+  String get settingsSystemNotificationVibration => '系统通知振动';
+
+  @override
+  String get settingsGroupDataUpdates => '资料更新';
+
+  @override
+  String get settingsGroupDataSharingPrivacy => '数据共享与隐私';
+
+  @override
+  String get settingsGroupClearLocalData => '清理本地数据';
+
+  @override
+  String get settingsGroupAccount => '账号操作';
+
+  @override
+  String get settingsGroupDiagnosticsSupport => '诊断与支持';
+
+  @override
+  String get settingsStatusEnabled => '已开启';
+
+  @override
+  String get settingsStatusDisabled => '已关闭';
+
+  @override
+  String get settingsFleetDisplayStandard => '普通舰队卡片';
+
+  @override
+  String get settingsFleetDisplayHd => 'HD 双列舰队卡片';
+
+  @override
+  String get briefingDisplayTitle => '简报展示方式';
+
+  @override
+  String get briefingDisplayDescription =>
+      '折叠式可同时展开多个模块；标签式通过顶部标签切换模块。HD 模式下无效。';
+
+  @override
+  String get briefingDisplayAccordion => '折叠式';
+
+  @override
+  String get briefingDisplayTabs => '标签式';
+
+  @override
+  String get briefingTabForecast => '先知';
+
+  @override
+  String get briefingTabFleet => '编队';
+
+  @override
+  String get briefingTabLandBase => '陆基';
+
+  @override
+  String get briefingTabExpedition => '远征';
+
+  @override
+  String get briefingTabRepair => '入渠';
+
+  @override
+  String get briefingTabConstruction => '建造';
+
+  @override
+  String get briefingTabQuests => '任务';
+
+  @override
+  String get briefingTabPreSortie => '检查';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
 class AppLocalizationsZhHant extends AppLocalizationsZh {
   AppLocalizationsZhHant() : super('zh_Hant');
+
+  @override
+  String get debuffReminderTitle => '削甲提醒';
+
+  @override
+  String get debuffReminderSourcePort => '母港';
+
+  @override
+  String get debuffReminderSourceBattleResult => '戰鬥結算';
+
+  @override
+  String get debuffReminderSourceAirDefense => '基地防空';
+
+  @override
+  String debuffReminderMessage(String source) {
+    return '$source：偵測到解謎／削弱提示。';
+  }
+
+  @override
+  String get debuffReminderSectionTitle => '遊戲內提醒';
+
+  @override
+  String get debuffReminderSettingTitle => '削甲提醒';
+
+  @override
+  String get debuffReminderSettingSubtitle => '兩種方式均附帶震動；偵測到解謎／削弱提示時提醒';
+
+  @override
+  String get debuffReminderStyleDialog => '確認彈窗（預設）';
+
+  @override
+  String get debuffReminderStyleTopNotice => '頂部提醒';
 
   @override
   String get cameraAvoidanceTitle => '攝影鏡頭避讓';
@@ -4202,6 +4420,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get themeClearSkyBlue => '晴空藍';
+
+  @override
+  String get uiFontSizeTitle => '介面字級';
+
+  @override
+  String get uiFontSizeDescription => '預設跟隨系統。';
+
+  @override
+  String get uiFontSizeSystem => '預設（跟隨系統）';
+
+  @override
+  String get uiFontSizeSmall => '小';
+
+  @override
+  String get uiFontSizeMedium => '中';
+
+  @override
+  String get uiFontSizeLarge => '大';
 
   @override
   String get uiDisplaySizeTitle => '介面UI大小';
@@ -5639,7 +5875,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get nativeGameSurfaceSwitchRenderingModeHint =>
-      '目前裝置暫不相容此模式。請捲動左側選單，前往【設定 - 畫面與聲音】切換渲染模式。';
+      '目前裝置暫不相容此模式。請捲動左側選單，前往【設定 - 遊戲運行】切換渲染模式。';
 
   @override
   String nativeGameSurfacePageInitializationFailed(
@@ -5697,25 +5933,25 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get sortUnlockAction => '解除目前排序鎖定';
 
   @override
-  String get settingsTabScreen => '畫面與聲音';
+  String get settingsTabScreen => '外觀與布局';
 
   @override
   String get settingsTabSound => '聲音';
 
   @override
-  String get settingsTabBattle => '戰鬥';
+  String get settingsTabBattle => '出擊與戰鬥';
 
   @override
-  String get settingsTabNotification => '通知';
+  String get settingsTabNotification => '通知與提醒';
 
   @override
-  String get settingsTabNetwork => '網路';
+  String get settingsTabNetwork => '網路與連線';
 
   @override
-  String get settingsTabData => '資料';
+  String get settingsTabData => '資料管理';
 
   @override
-  String get settingsTabAboutSupport => '關於';
+  String get settingsTabAboutSupport => '關於與支援';
 
   @override
   String get notificationSectionSystem => '系統通知狀態';
@@ -7566,7 +7802,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get customFontDescription => '匯入喜歡的字型，預覽後套用。支援 TTF、OTF，最大 32 MB。';
 
   @override
-  String get customFontDefault => '預設字型（跟隨介面語言）';
+  String get customFontDefault => '預設字型（系統字級）';
 
   @override
   String get customFontImport => '匯入字型';
@@ -7720,4 +7956,140 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String questQueryActive(int count) {
     return '$count 項查詢條件已生效';
   }
+
+  @override
+  String get settingsTabRuntime => '遊戲運行';
+
+  @override
+  String get settingsGroupAppearance => '基本外觀';
+
+  @override
+  String get settingsGroupScreenAdaptation => '螢幕適配';
+
+  @override
+  String get settingsGroupLayoutPosition => '布局與位置';
+
+  @override
+  String get settingsGroupContentCustomization => '內容自訂';
+
+  @override
+  String get settingsGroupLayoutManagement => '布局管理';
+
+  @override
+  String get settingsOtherModuleDisplay => '其他模組顯示';
+
+  @override
+  String get settingsEditInformationLayout => '資訊面板布局編輯';
+
+  @override
+  String get settingsEditHdLayout => 'HD布局編輯';
+
+  @override
+  String get settingsResetMenuOrder => '還原選單列順序';
+
+  @override
+  String get settingsResetCardOrder => '還原功能區卡片順序';
+
+  @override
+  String get settingsGroupPerformanceRendering => '效能與畫面';
+
+  @override
+  String get settingsGroupSubtitles => '字幕';
+
+  @override
+  String get settingsGroupScreenBackground => '保持執行';
+
+  @override
+  String get settingsGroupInformationCapture => '資訊讀取';
+
+  @override
+  String get settingsFrameRefreshConfirm => '框架重新整理前確認';
+
+  @override
+  String get settingsFrameRefreshConfirmDescription => '從頂欄重新整理遊戲框架前顯示確認對話框。';
+
+  @override
+  String get settingsFrameRefreshConfirmSaveFailed => '框架重新整理確認設定儲存失敗，請重試。';
+
+  @override
+  String get settingsGroupDebuff => '解謎與削甲';
+
+  @override
+  String get settingsGroupShipStatusFeedback => '艦娘狀態回饋';
+
+  @override
+  String get settingsGroupSystemNotifications => '系統通知';
+
+  @override
+  String get settingsEnableSystemNotifications => '啟用系統通知';
+
+  @override
+  String get settingsSystemNotificationSound => '系統通知提示音';
+
+  @override
+  String get settingsSystemNotificationVibration => '系統通知震動';
+
+  @override
+  String get settingsGroupDataUpdates => '資料更新';
+
+  @override
+  String get settingsGroupDataSharingPrivacy => '資料分享與隱私';
+
+  @override
+  String get settingsGroupClearLocalData => '清理本機資料';
+
+  @override
+  String get settingsGroupAccount => '帳號操作';
+
+  @override
+  String get settingsGroupDiagnosticsSupport => '診斷與支援';
+
+  @override
+  String get settingsStatusEnabled => '已開啟';
+
+  @override
+  String get settingsStatusDisabled => '已關閉';
+
+  @override
+  String get settingsFleetDisplayStandard => '一般艦隊卡片';
+
+  @override
+  String get settingsFleetDisplayHd => 'HD 雙欄艦隊卡片';
+
+  @override
+  String get briefingDisplayTitle => '簡報展示方式';
+
+  @override
+  String get briefingDisplayDescription =>
+      '摺疊式可同時展開多個模組；分頁式透過頂部分頁切換模組。HD 模式下無效。';
+
+  @override
+  String get briefingDisplayAccordion => '摺疊式';
+
+  @override
+  String get briefingDisplayTabs => '分頁式';
+
+  @override
+  String get briefingTabForecast => '先知';
+
+  @override
+  String get briefingTabFleet => '編隊';
+
+  @override
+  String get briefingTabLandBase => '陸基';
+
+  @override
+  String get briefingTabExpedition => '遠征';
+
+  @override
+  String get briefingTabRepair => '入渠';
+
+  @override
+  String get briefingTabConstruction => '建造';
+
+  @override
+  String get briefingTabQuests => '任務';
+
+  @override
+  String get briefingTabPreSortie => '檢查';
 }

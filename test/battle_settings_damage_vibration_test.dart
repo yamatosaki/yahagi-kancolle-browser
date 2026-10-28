@@ -86,7 +86,7 @@ void main() {
     expect(find.text('进击后提醒'), findsOneWidget);
     expect(find.text('POI'), findsNothing);
     expect(find.text('KCA'), findsNothing);
-    expect(find.text('战斗状态效果'), findsOneWidget);
+    expect(find.text('舰娘状态反馈'), findsOneWidget);
     expect(find.text('启用状态效果'), findsOneWidget);
     expect(find.text('画面显示范围'), findsOneWidget);
     expect(find.text('受损闪烁'), findsOneWidget);

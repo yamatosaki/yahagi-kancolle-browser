@@ -1,5 +1,19 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+enum DebuffReminderStyle {
+  dialog,
+  topNotice;
+
+  String get storageValue => name;
+
+  static DebuffReminderStyle fromStorage(Object? value) {
+    return DebuffReminderStyle.values.firstWhere(
+      (style) => style.storageValue == value,
+      orElse: () => DebuffReminderStyle.dialog,
+    );
+  }
+}
+
 enum AnchorageNotificationMode {
   twentyMinutes,
   allRepaired,
@@ -34,6 +48,7 @@ class NotificationSettings {
     this.constructionPreemptSeconds = 0,
     this.morale = true,
     this.moralePreemptSeconds = 0,
+    this.debuffReminderStyle = DebuffReminderStyle.dialog,
   });
 
   final bool master;
@@ -53,6 +68,7 @@ class NotificationSettings {
   final int constructionPreemptSeconds;
   final bool morale;
   final int moralePreemptSeconds;
+  final DebuffReminderStyle debuffReminderStyle;
 
   NotificationSettings copyWith({
     bool? master,
@@ -72,6 +88,7 @@ class NotificationSettings {
     int? constructionPreemptSeconds,
     bool? morale,
     int? moralePreemptSeconds,
+    DebuffReminderStyle? debuffReminderStyle,
   }) {
     return NotificationSettings(
       master: master ?? this.master,
@@ -93,6 +110,7 @@ class NotificationSettings {
           constructionPreemptSeconds ?? this.constructionPreemptSeconds,
       morale: morale ?? this.morale,
       moralePreemptSeconds: moralePreemptSeconds ?? this.moralePreemptSeconds,
+      debuffReminderStyle: debuffReminderStyle ?? this.debuffReminderStyle,
     );
   }
 
@@ -117,7 +135,8 @@ class NotificationSettings {
           construction == other.construction &&
           constructionPreemptSeconds == other.constructionPreemptSeconds &&
           morale == other.morale &&
-          moralePreemptSeconds == other.moralePreemptSeconds;
+          moralePreemptSeconds == other.moralePreemptSeconds &&
+          debuffReminderStyle == other.debuffReminderStyle;
 
   @override
   int get hashCode => Object.hash(
@@ -138,6 +157,7 @@ class NotificationSettings {
     constructionPreemptSeconds,
     morale,
     moralePreemptSeconds,
+    debuffReminderStyle,
   );
 }
 
@@ -169,6 +189,8 @@ class SharedPreferencesNotificationSettingsStore
       '${_prefix}construction_preempt';
   static const String _keyMorale = '${_prefix}morale';
   static const String _keyMoralePreempt = '${_prefix}morale_preempt';
+  static const String _keyDebuffReminderStyle =
+      '${_prefix}debuff_reminder_style';
 
   static int _sanitizePreempt(int? seconds, int fallback) {
     if (seconds == 0 || seconds == 30 || seconds == 60) return seconds!;
@@ -210,6 +232,9 @@ class SharedPreferencesNotificationSettingsStore
         prefs.getInt(_keyMoralePreempt),
         0,
       ),
+      debuffReminderStyle: DebuffReminderStyle.fromStorage(
+        prefs.get(_keyDebuffReminderStyle),
+      ),
     );
   }
 
@@ -237,6 +262,10 @@ class SharedPreferencesNotificationSettingsStore
       ),
       prefs.setBool(_keyMorale, settings.morale),
       prefs.setInt(_keyMoralePreempt, settings.moralePreemptSeconds),
+      prefs.setString(
+        _keyDebuffReminderStyle,
+        settings.debuffReminderStyle.storageValue,
+      ),
     ]);
   }
 }

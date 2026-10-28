@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import 'package:yahagi_kancolle_browser/src/notification/notification_models.dart';
 import 'package:yahagi_kancolle_browser/src/notification/notification_port.dart';
+import 'package:yahagi_kancolle_browser/src/settings/layout_settings_controller.dart';
+import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/notification_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/notification_settings_page.dart';
 import 'package:yahagi_kancolle_browser/src/settings/notification_settings_store.dart';
@@ -33,7 +36,8 @@ class _NotificationPortStub implements NotificationPort {
 }
 
 void main() {
-  testWidgets('master switch disables every dependent notification control', (
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+  testWidgets('master switch disables dependent system notification controls', (
     tester,
   ) async {
     final controller = NotificationSettingsController(
@@ -57,7 +61,115 @@ void main() {
       final menu = element.widget as dynamic;
       expect(menu.onChanged, isNull);
     }
+    expect(find.byKey(const Key('debuff-reminder-style-menu')), findsNothing);
   });
+
+  testWidgets(
+    'top notices stay editable after system notifications are disabled',
+    (tester) async {
+      final controller = NotificationSettingsController();
+      addTearDown(controller.dispose);
+      final layout = await LayoutSettingsController.load(
+        SharedPreferencesLayoutSettingsStore(),
+      );
+      addTearDown(layout.dispose);
+      await _pumpPage(tester, controller, layout: layout);
+
+      await tester.tap(find.byKey(const Key('notification-master-switch')));
+      await tester.pumpAndSettle();
+      expect(controller.settings.master, isFalse);
+
+      final topNoticeRow = find
+          .ancestor(
+            of: find.byKey(const Key('settings-top-notice-enabled')),
+            matching: find.byType(Row),
+          )
+          .first;
+      final topNoticeSwitch = find.descendant(
+        of: topNoticeRow,
+        matching: find.byType(Switch),
+      );
+      await tester.ensureVisible(topNoticeSwitch);
+      await tester.tap(topNoticeSwitch);
+      await tester.pumpAndSettle();
+      expect(layout.topNoticeEnabled, isFalse);
+      expect(
+        tester
+            .widget<DropdownButton<int>>(
+              find.byKey(const Key('settings-top-notice-duration-dropdown')),
+            )
+            .onChanged,
+        isNull,
+      );
+
+      await tester.tap(topNoticeSwitch);
+      await tester.pumpAndSettle();
+      expect(layout.topNoticeEnabled, isTrue);
+      final duration = find.byKey(
+        const Key('settings-top-notice-duration-dropdown'),
+      );
+      await tester.ensureVisible(duration);
+      await tester.tap(duration);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('10 秒').last);
+      await tester.pumpAndSettle();
+      expect(layout.topNoticeDurationSeconds, 10);
+      expect(controller.settings.master, isFalse);
+      final reloaded = await LayoutSettingsController.load(
+        SharedPreferencesLayoutSettingsStore(),
+      );
+      addTearDown(reloaded.dispose);
+      expect(reloaded.topNoticeDurationSeconds, 10);
+      expect(reloaded.topNoticeEnabled, isTrue);
+    },
+  );
+
+  testWidgets(
+    'notification groups and reminder types follow the approved order',
+    (tester) async {
+      final controller = NotificationSettingsController();
+      addTearDown(controller.dispose);
+      final layout = await LayoutSettingsController.load(
+        SharedPreferencesLayoutSettingsStore(),
+      );
+      addTearDown(layout.dispose);
+      await _pumpPage(tester, controller, layout: layout);
+      final sections = [
+        '系统通知',
+        '通知类型与时机',
+        '后台常驻进行中进度',
+        lookupAppLocalizations(const Locale('zh')).topNoticeSectionTitle,
+        '系统通知状态',
+      ];
+      for (var index = 1; index < sections.length; index++) {
+        expect(
+          tester.getTopLeft(find.text(sections[index - 1])).dy,
+          lessThan(tester.getTopLeft(find.text(sections[index])).dy),
+        );
+      }
+      final rows = [
+        'expedition',
+        'repair',
+        'construction',
+        'anchorage',
+        'morale',
+      ];
+      for (var index = 1; index < rows.length; index++) {
+        expect(
+          tester
+              .getTopLeft(
+                find.byKey(Key('notification-${rows[index - 1]}-row')),
+              )
+              .dy,
+          lessThan(
+            tester
+                .getTopLeft(find.byKey(Key('notification-${rows[index]}-row')))
+                .dy,
+          ),
+        );
+      }
+    },
+  );
 
   testWidgets('notification type choices use aligned menus before switches', (
     tester,
@@ -76,15 +188,15 @@ void main() {
     const menuKeys = <Key>[
       Key('notification-expedition-menu'),
       Key('notification-repair-menu'),
-      Key('notification-anchorage-menu'),
       Key('notification-construction-menu'),
+      Key('notification-anchorage-menu'),
       Key('notification-morale-menu'),
     ];
     const switchKeys = <Key>[
       Key('notification-expedition-switch'),
       Key('notification-repair-switch'),
-      Key('notification-anchorage-switch'),
       Key('notification-construction-switch'),
+      Key('notification-anchorage-switch'),
       Key('notification-morale-switch'),
     ];
     for (var index = 0; index < menuKeys.length; index++) {
@@ -120,9 +232,9 @@ void main() {
         find.text('通知权限已授予'),
         find.text('精确提醒已授权'),
         find.text('通知渠道可用'),
-        find.text('启用通知服务'),
-        find.text('通知提示音'),
-        find.text('振动提醒'),
+        find.text('启用系统通知'),
+        find.text('系统通知提示音'),
+        find.text('系统通知振动'),
         find.text('常驻实时进度条卡片'),
         find.text('远征'),
         find.text('入渠'),
@@ -232,8 +344,9 @@ void main() {
 
 Future<void> _pumpPage(
   WidgetTester tester,
-  NotificationSettingsController controller,
-) async {
+  NotificationSettingsController controller, {
+  LayoutSettingsController? layout,
+}) async {
   tester.view.physicalSize = const Size(1400, 1000);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
@@ -246,6 +359,7 @@ Future<void> _pumpPage(
       supportedLocales: AppLocalizations.supportedLocales,
       home: NotificationSettingsPage(
         controller: controller,
+        layoutSettingsController: layout,
         notificationPort: _NotificationPortStub(),
       ),
     ),

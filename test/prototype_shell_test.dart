@@ -18,7 +18,12 @@ import 'package:yahagi_kancolle_browser/src/browser/gadget_bypass_store.dart';
 import 'package:yahagi_kancolle_browser/src/layout/display_corners.dart';
 import 'package:yahagi_kancolle_browser/src/layout/workspace_context_header.dart';
 import 'package:yahagi_kancolle_browser/src/settings/header_resource_settings.dart';
+import 'package:yahagi_kancolle_browser/src/settings/game_rendering_mode.dart';
+import 'package:yahagi_kancolle_browser/src/settings/game_rendering_mode_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_controller.dart';
+import 'package:yahagi_kancolle_browser/src/settings/dashboard_display_mode.dart';
+import 'package:yahagi_kancolle_browser/src/settings/ui_font_size.dart';
+import 'package:yahagi_kancolle_browser/src/theme/app_theme.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/network_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/network_settings_store.dart';
@@ -61,8 +66,10 @@ import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 import 'package:yahagi_kancolle_browser/src/quest/quest_completion_feedback.dart';
 import 'package:yahagi_kancolle_browser/src/quest/quest_completion_drawer.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/dashboard_card.dart';
+import 'package:yahagi_kancolle_browser/src/fleet/pre_sortie_check_summary.dart';
 import 'package:yahagi_kancolle_browser/src/layout/flat_style.dart';
 import 'package:yahagi_kancolle_browser/src/layout/panel_style.dart';
+import 'package:yahagi_kancolle_browser/src/layout/dashboard_tabs.dart';
 import 'package:yahagi_kancolle_browser/src/layout/ui_scale.dart';
 import 'package:yahagi_kancolle_browser/src/layout/hd_workspace_geometry.dart';
 import 'fixtures/kcsapi_fixtures.dart';
@@ -82,6 +89,8 @@ Future<LayoutSettingsController> _pumpMinimalShell(
   TopNoticeController? headerNoticeController,
   LayoutSettingsStore? layoutStore,
   String? localeCode,
+  DisplayMode displayMode = DisplayMode.auto,
+  GameRenderingModeController? renderingController,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
@@ -97,6 +106,7 @@ Future<LayoutSettingsController> _pumpMinimalShell(
   await tester.pumpWidget(
     YahagiApp(
       layoutSettingsController: layout,
+      gameRenderingModeController: renderingController,
       networkSettingsController: NetworkSettingsController(
         store: _MemoryNetworkSettingsStore(),
       ),
@@ -108,7 +118,7 @@ Future<LayoutSettingsController> _pumpMinimalShell(
         MemorySafetySettingsStore(),
       ),
       displayModeController: await DisplayModeController.load(
-        MemoryDisplayModeStore(),
+        MemoryDisplayModeStore(displayMode),
       ),
       controller: PrototypeStatusController(),
       browserController: GameBrowserController(
@@ -150,6 +160,61 @@ Future<void> _tapWorkspaceNavigationItem(
   await tester.tap(item);
 }
 
+Future<void> _longPressInformationPanel(WidgetTester tester) async {
+  final panel = find.byKey(const Key('information-panel'));
+  final tabbed = find
+      .descendant(
+        of: panel,
+        matching: find.byKey(const Key('dashboard-tab-bar')),
+      )
+      .evaluate()
+      .isNotEmpty;
+  await tester.longPressAt(
+    tester.getTopLeft(panel) + Offset(16, tabbed ? 66 : 16),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapBriefingTab(WidgetTester tester, String id) async {
+  final tab = find.byKey(Key('dashboard-tab-$id'));
+  await tester.ensureVisible(tab);
+  await tester.pumpAndSettle();
+  await tester.tap(tab);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _longPressBriefingTab(WidgetTester tester, String id) async {
+  final tab = find.byKey(Key('dashboard-tab-$id'));
+  await tester.ensureVisible(tab);
+  await tester.pumpAndSettle();
+  await tester.longPress(tab);
+  await tester.pumpAndSettle();
+  expect(find.byKey(const Key('dashboard-edit-done')), findsOneWidget);
+  expect(find.byKey(Key('$id-display-close')), findsNothing);
+}
+
+Future<void> _openBriefingModuleSettings(WidgetTester tester, String id) async {
+  await _longPressBriefingTab(tester, id);
+  final gear = find.byKey(Key('$id-display-settings-button'));
+  await tester.ensureVisible(gear);
+  await tester.pumpAndSettle();
+  await tester.tap(gear);
+  await tester.pumpAndSettle();
+  expect(find.byKey(Key('$id-display-close')), findsOneWidget);
+}
+
+Future<void> _closeBriefingModuleSettings(
+  WidgetTester tester,
+  String id,
+) async {
+  await tester.tap(find.byKey(Key('$id-display-close')));
+  await tester.pumpAndSettle();
+  expect(find.byKey(const Key('dashboard-edit-done')), findsOneWidget);
+  await tester.tap(find.byKey(const Key('dashboard-edit-done')));
+  await tester.pumpAndSettle();
+  expect(find.byKey(const Key('dashboard-tabs')), findsOneWidget);
+}
+
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() {
@@ -160,6 +225,1051 @@ void main() {
     addTearDown(binding.platformDispatcher.clearLocaleTestValue);
     addTearDown(binding.platformDispatcher.clearLocalesTestValue);
   });
+
+  testWidgets(
+    'briefing tabs keep default accordion preferences and hidden selection safe',
+    (tester) async {
+      final layout = await _pumpMinimalShell(
+        tester,
+        size: const Size(1200, 700),
+      );
+      addTearDown(layout.dispose);
+      expect(layout.dashboardDisplayMode, DashboardDisplayMode.accordion);
+      expect(find.byKey(const Key('dashboard-tabs')), findsNothing);
+      await layout.toggleDashboardCardCollapsed('fleet');
+      final collapsed = [...layout.dashboardCardCollapsed];
+      await layout.setDashboardDisplayMode(DashboardDisplayMode.tabs);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('dashboard-tabs')), findsOneWidget);
+      expect(
+        tester
+            .widget<FleetSummaryCard>(
+              find.byType(FleetSummaryCard, skipOffstage: false),
+            )
+            .collapsed,
+        isFalse,
+      );
+      await _tapBriefingTab(tester, 'fleet');
+      await tester.pumpAndSettle();
+      expect(find.byType(FleetSummaryCard), findsOneWidget);
+      await layout.toggleDashboardCardHidden('fleet');
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('dashboard-tab-fleet')), findsNothing);
+      expect(tester.takeException(), isNull);
+      await layout.toggleDashboardCardHidden('fleet');
+      await tester.pumpAndSettle();
+      expect(find.byType(FleetSummaryCard), findsNothing);
+      await layout.toggleDashboardCardHidden('fleet');
+      await tester.pumpAndSettle();
+      await layout.setDashboardDisplayMode(DashboardDisplayMode.accordion);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('dashboard-tabs')), findsNothing);
+      expect(layout.dashboardCardCollapsed, collapsed);
+      expect(layout.dashboardCardHidden, contains('fleet'));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final uiSize in UiDisplaySize.values) {
+    testWidgets('briefing tabs shell smoke at $uiSize', (tester) async {
+      final layout = await _pumpMinimalShell(
+        tester,
+        size: const Size(1200, 700),
+        uiSize: uiSize,
+      );
+      addTearDown(layout.dispose);
+      await layout.setDashboardDisplayMode(DashboardDisplayMode.tabs);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('dashboard-tabs')), findsOneWidget);
+      for (final id in [
+        'battle',
+        'fleet',
+        'land_base',
+        'construction',
+        'quests',
+        'pre_sortie',
+      ]) {
+        final tab = find.byKey(Key('dashboard-tab-$id'));
+        await tester.ensureVisible(tab);
+        await tester.tap(tab);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      }
+      expect(find.byType(PreSortieCheckSummary), findsOneWidget);
+      await tester.tap(find.byKey(const Key('sortie-check-mode-maps')));
+      await tester.pumpAndSettle();
+      final selectedMap = tester
+          .widget<Text>(
+            find
+                .descendant(
+                  of: find.byKey(const Key('sortie-check-mode-maps')),
+                  matching: find.byType(Text),
+                )
+                .first,
+          )
+          .style
+          ?.color;
+      await _tapBriefingTab(tester, 'fleet');
+      await tester.pumpAndSettle();
+      final checkTab = find.byKey(const Key('dashboard-tab-pre_sortie'));
+      await tester.ensureVisible(checkTab);
+      await tester.tap(checkTab);
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Text>(
+              find
+                  .descendant(
+                    of: find.byKey(const Key('sortie-check-mode-maps')),
+                    matching: find.byType(Text),
+                  )
+                  .first,
+            )
+            .style
+            ?.color,
+        selectedMap,
+      );
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'briefing check warnings remain inside their tab without a fixed banner',
+    (tester) async {
+      final state = GameStateController(
+        initialState: const GameState(
+          hasMasterData: true,
+          hasPortData: true,
+          masterShips: {
+            101: MasterShip(
+              id: 101,
+              name: '熊野改',
+              shipTypeId: 5,
+              maxFuel: 10,
+              maxAmmo: 10,
+              slotCount: 2,
+            ),
+          },
+          ships: {
+            1001: OwnedShip(
+              id: 1001,
+              masterId: 101,
+              level: 64,
+              currentHp: 30,
+              maxHp: 30,
+              currentFuel: 10,
+              currentAmmo: 10,
+              condition: 49,
+              slotIds: [7001],
+            ),
+          },
+          fleets: [
+            Fleet(id: 1, name: '第一舰队', shipIds: [1001]),
+          ],
+        ),
+      );
+      final layout = await _pumpMinimalShell(
+        tester,
+        size: const Size(1200, 700),
+        gameState: state,
+      );
+      addTearDown(layout.dispose);
+      await layout.setDashboardDisplayMode(DashboardDisplayMode.tabs);
+      await tester.pumpAndSettle();
+      final warning = find.byKey(const Key('dashboard-tab-warning-notice'));
+      expect(warning, findsNothing);
+      final checkTab = find.byKey(const Key('dashboard-tab-pre_sortie'));
+      await tester.ensureVisible(checkTab);
+      await tester.tap(checkTab);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('pre-sortie-warning-1-main-equipment')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const Key('sortie-check-mode-maps')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('pre-sortie-warning-1-main-equipment')),
+        findsNothing,
+      );
+      expect(warning, findsNothing);
+      await tester.tap(find.byKey(const Key('sortie-check-mode-ships')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('pre-sortie-warning-1-main-equipment')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('briefing tabs preserve HD separate modules and layout editing', (
+    tester,
+  ) async {
+    final layout = await _pumpMinimalShell(
+      tester,
+      size: const Size(1200, 700),
+      uiSize: UiDisplaySize.normal,
+    );
+    addTearDown(layout.dispose);
+    await layout.setHdEnabled(true);
+    await layout.setDashboardDisplayMode(DashboardDisplayMode.tabs);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('dashboard-tabs')), findsNothing);
+    expect(layout.dashboardDisplayMode, DashboardDisplayMode.tabs);
+    for (final id in layout.hdSettings.activeModules) {
+      expect(find.byKey(Key('dashboard-tab-$id')), findsNothing);
+      expect(find.byKey(ValueKey('hd-module-content-$id')), findsOneWidget);
+    }
+    await _tapWorkspaceNavigationItem(tester, 'settings');
+    await tester.pumpAndSettle();
+    await _tapWorkspaceNavigationItem(tester, 'game');
+    await tester.pumpAndSettle();
+    await _longPressInformationPanel(tester);
+    expect(find.byKey(const Key('dashboard-edit-done')), findsOneWidget);
+    expect(find.byKey(const Key('dashboard-tabs')), findsNothing);
+    await tester.tap(find.byKey(const Key('dashboard-edit-done')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('dashboard-tabs')), findsNothing);
+    await layout.setHdEnabled(false);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('dashboard-tabs')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final uiSize in [UiDisplaySize.normal, UiDisplaySize.minimal]) {
+    testWidgets(
+      'strict briefing HD round trips preserve saved tabs and ordinary preferences at $uiSize',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        addTearDown(() => SharedPreferences.setMockInitialValues({}));
+        var disposals = 0;
+        final layout = await _pumpMinimalShell(
+          tester,
+          size: const Size(1200, 800),
+          uiSize: uiSize,
+          layoutStore: SharedPreferencesLayoutSettingsStore(),
+          gameSurface: _LifecycleProbe(
+            key: const Key('strict-hd-tabs-live-game'),
+            onDispose: () => disposals++,
+          ),
+        );
+        addTearDown(layout.dispose);
+        final game = find.byKey(const Key('strict-hd-tabs-live-game'));
+        final originalGame = tester.element(game);
+        final order = [
+          'quests',
+          ...LayoutSettingsStore.defaultDashboardCardOrder.where(
+            (id) => id != 'quests',
+          ),
+        ];
+        await layout.setDashboardDisplayMode(DashboardDisplayMode.tabs);
+        await layout.setDashboardCardOrder(order);
+        await layout.toggleDashboardCardHidden('construction');
+        await layout.toggleDashboardCardCollapsed('fleet');
+        final hidden = [...layout.dashboardCardHidden];
+        final collapsed = [...layout.dashboardCardCollapsed];
+        final visibleOrder = order.where((id) => !hidden.contains(id)).toList();
+        await tester.pumpAndSettle();
+
+        void expectLiveGame() {
+          expect(tester.element(game), same(originalGame));
+          expect(disposals, 0);
+          expect(layout.dashboardCardOrder, order);
+          expect(layout.dashboardCardHidden, hidden);
+          expect(layout.dashboardCardCollapsed, collapsed);
+          expect(tester.takeException(), isNull);
+        }
+
+        void expectTabs() {
+          final tabs = tester.widget<DashboardTabs>(
+            find.byKey(const Key('dashboard-tabs')),
+          );
+          expect(tabs.tabs.map((tab) => tab.id).toList(), visibleOrder);
+          expect(
+            find.byKey(const Key('dashboard-tab-construction')),
+            findsNothing,
+          );
+          expectLiveGame();
+        }
+
+        expectTabs();
+        for (final size in [const Size(1200, 800), const Size(390, 844)]) {
+          tester.view.physicalSize = size;
+          await tester.pumpAndSettle();
+          expectTabs();
+          await layout.setHdEnabled(true);
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('dashboard-tabs')), findsNothing);
+          expect(layout.dashboardDisplayMode, DashboardDisplayMode.tabs);
+          expect(
+            find.byKey(
+              Key(
+                size.width > size.height
+                    ? 'hd-bottom-region'
+                    : 'hd-portrait-grid',
+              ),
+            ),
+            findsOneWidget,
+          );
+          expectLiveGame();
+
+          // Changing an ignored preference in HD must still save it, without
+          // inserting tabs into either HD layout or changing ordinary cards.
+          await layout.setDashboardDisplayMode(DashboardDisplayMode.accordion);
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('dashboard-tabs')), findsNothing);
+          expectLiveGame();
+          await layout.setHdEnabled(false);
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('dashboard-tabs')), findsNothing);
+          expect(layout.dashboardDisplayMode, DashboardDisplayMode.accordion);
+          expectLiveGame();
+
+          await layout.setHdEnabled(true);
+          await layout.setDashboardDisplayMode(DashboardDisplayMode.tabs);
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('dashboard-tabs')), findsNothing);
+          final restored = await LayoutSettingsController.load(
+            SharedPreferencesLayoutSettingsStore(),
+          );
+          expect(restored.hdSettings.enabled, isTrue);
+          expect(restored.dashboardDisplayMode, DashboardDisplayMode.tabs);
+          expect(restored.dashboardCardOrder, order);
+          expect(restored.dashboardCardHidden, hidden);
+          expect(restored.dashboardCardCollapsed, collapsed);
+          restored.dispose();
+          expectLiveGame();
+
+          await layout.setHdEnabled(false);
+          await tester.pumpAndSettle();
+          expectTabs();
+        }
+        final restored = await LayoutSettingsController.load(
+          SharedPreferencesLayoutSettingsStore(),
+        );
+        expect(restored.hdSettings.enabled, isFalse);
+        expect(restored.dashboardDisplayMode, DashboardDisplayMode.tabs);
+        expect(restored.dashboardCardOrder, order);
+        expect(restored.dashboardCardHidden, hidden);
+        expect(restored.dashboardCardCollapsed, collapsed);
+        restored.dispose();
+      },
+    );
+  }
+
+  testWidgets(
+    'strict briefing check warnings stay reachable after a deep map scroll',
+    (tester) async {
+      final gameState = GameStateController(
+        initialState: GameState(
+          hasMasterData: true,
+          hasPortData: true,
+          masterShips: const {
+            101: MasterShip(
+              id: 101,
+              name: '熊野改',
+              shipTypeId: 5,
+              maxFuel: 10,
+              maxAmmo: 10,
+              slotCount: 2,
+            ),
+          },
+          ships: {
+            for (var id = 1; id <= 4; id++)
+              id: OwnedShip(
+                id: id,
+                masterId: 101,
+                level: 64,
+                currentHp: 30,
+                maxHp: 30,
+                currentFuel: 0,
+                currentAmmo: 0,
+                condition: 18,
+                slotIds: const [7001],
+              ),
+          },
+          fleets: [
+            for (var id = 1; id <= 4; id++)
+              Fleet(id: id, name: '第$id舰队', shipIds: [id]),
+          ],
+          memberMapInfos: {
+            for (var id = 1; id <= 24; id++)
+              id: MemberMapInfo(
+                id: id,
+                mapAreaId: (id - 1) ~/ 6 + 57,
+                mapNo: (id - 1) % 6 + 1,
+                isEvent: true,
+                name: '海域$id',
+                requiredDefeatCount: 4,
+                defeatCount: 1,
+              ),
+          },
+        ),
+      );
+      final layout = await _pumpMinimalShell(
+        tester,
+        size: const Size(873, 393),
+        uiSize: UiDisplaySize.normal,
+        gameState: gameState,
+      );
+      addTearDown(layout.dispose);
+      await layout.setDashboardDisplayMode(DashboardDisplayMode.tabs);
+      await tester.pumpAndSettle();
+      final notice = find.byKey(const Key('dashboard-tab-warning-notice'));
+      expect(notice, findsNothing);
+      final checkTab = find.byKey(const Key('dashboard-tab-pre_sortie'));
+      await tester.ensureVisible(checkTab);
+      await tester.tap(checkTab);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('sortie-check-mode-maps')));
+      await tester.pumpAndSettle();
+      final scroll = tester
+          .widget<SingleChildScrollView>(
+            find.byKey(
+              const PageStorageKey<String>('dashboard-tab-scroll-pre_sortie'),
+            ),
+          )
+          .controller!;
+      expect(scroll.position.maxScrollExtent, greaterThan(500));
+      scroll.jumpTo(500);
+      await tester.pump();
+      await _tapBriefingTab(tester, 'fleet');
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(checkTab);
+      await tester.tap(checkTab);
+      await tester.pumpAndSettle();
+      expect(scroll.offset, 500);
+      scroll.jumpTo(0);
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('sortie-check-mode-ships')));
+      await tester.pumpAndSettle();
+      final firstWarning = find.byKey(const Key('pre-sortie-warning-1-supply'));
+      expect(firstWarning.hitTestable(), findsOneWidget);
+      await tester.tap(firstWarning);
+      await tester.pumpAndSettle();
+      expect(find.byType(FleetInformationCenter), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final uiSize in UiDisplaySize.values) {
+    testWidgets(
+      'strict briefing real cards preserve state across locale theme and rotation at $uiSize',
+      (tester) async {
+        final gameState = GameStateController(reducer: _HdMinimalStateReducer())
+          ..accept(portEvent);
+        await gameState.idle;
+        var disposals = 0;
+        final layout = await _pumpMinimalShell(
+          tester,
+          size: const Size(1280, 800),
+          uiSize: uiSize,
+          gameState: gameState,
+          gameSurface: _LifecycleProbe(
+            key: const Key('strict-briefing-live-game'),
+            onDispose: () => disposals++,
+          ),
+        );
+        addTearDown(layout.dispose);
+        await layout.setDashboardDisplayMode(DashboardDisplayMode.tabs);
+        await layout.setUiFontSize(UiFontSize.large);
+        await layout.setInformationPanelWidth(190);
+        await tester.pumpAndSettle();
+        final originalGame = tester.element(
+          find.byKey(const Key('strict-briefing-live-game')),
+        );
+        final fleetTab = find.byKey(const Key('dashboard-tab-fleet'));
+        await tester.ensureVisible(fleetTab);
+        await tester.tap(fleetTab);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('fleet-summary-selector-2')));
+        await tester.pumpAndSettle();
+        final originalFleet = tester.state(find.byType(FleetSummaryCard));
+        const locales = ['zh', 'en', 'ja', 'ko', 'zh_Hant'];
+        const sizes = [Size(873, 393), Size(390, 844), Size(1280, 800)];
+        for (var i = 0; i < locales.length; i++) {
+          tester.view.physicalSize = sizes[i % sizes.length];
+          await layout.setLocaleCode(locales[i]);
+          await layout.setAppThemeMode(
+            AppThemeMode.values[i % AppThemeMode.values.length],
+          );
+          await tester.pumpAndSettle();
+          expect(
+            tester.state(find.byType(FleetSummaryCard)),
+            same(originalFleet),
+          );
+          expect(find.text('HD舰娘3'), findsOneWidget);
+          expect(find.text('HD舰娘1'), findsNothing);
+          expect(
+            tester.element(find.byKey(const Key('strict-briefing-live-game'))),
+            same(originalGame),
+          );
+          expect(disposals, 0);
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: '${locales[i]} / $uiSize',
+          );
+        }
+      },
+    );
+  }
+
+  testWidgets(
+    'strict briefing all hidden restores modules without resetting mode or game',
+    (tester) async {
+      var disposals = 0;
+      final layout = await _pumpMinimalShell(
+        tester,
+        size: const Size(1200, 700),
+        gameSurface: _LifecycleProbe(
+          key: const Key('strict-empty-tabs-game'),
+          onDispose: () => disposals++,
+        ),
+      );
+      addTearDown(layout.dispose);
+      await layout.setDashboardDisplayMode(DashboardDisplayMode.tabs);
+      final order = [...layout.dashboardCardOrder];
+      for (final id in order) {
+        await layout.toggleDashboardCardHidden(id);
+      }
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('dashboard-tabs')), findsOneWidget);
+      expect(find.byKey(const Key('dashboard-tab-bar')), findsNothing);
+      expect(find.byKey(const Key('dashboard-tabs-edit-order')), findsNothing);
+      expect(tester.takeException(), isNull);
+      await _longPressInformationPanel(tester);
+      expect(find.byKey(const Key('dashboard-edit-done')), findsOneWidget);
+      for (final id in order) {
+        final visibility = find.byKey(Key('dashboard-visibility-$id'));
+        await tester.ensureVisible(visibility);
+        await tester.pumpAndSettle();
+        await tester.tap(visibility);
+        await tester.pumpAndSettle();
+      }
+      expect(layout.dashboardCardHidden, isEmpty);
+      await tester.tap(find.byKey(const Key('dashboard-edit-done')));
+      await tester.pumpAndSettle();
+      expect(layout.dashboardDisplayMode, DashboardDisplayMode.tabs);
+      expect(find.byKey(const Key('dashboard-tab-bar')), findsOneWidget);
+      expect(
+        tester
+            .widget<DashboardTabs>(find.byKey(const Key('dashboard-tabs')))
+            .tabs
+            .map((tab) => tab.id)
+            .toList(),
+        order,
+      );
+      expect(disposals, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final uiSize in [UiDisplaySize.normal, UiDisplaySize.minimal]) {
+    testWidgets(
+      'briefing tabs customize modules and persist drag order at $uiSize',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        addTearDown(() => SharedPreferences.setMockInitialValues({}));
+        final layout = await _pumpMinimalShell(
+          tester,
+          size: const Size(1200, 900),
+          uiSize: uiSize,
+          layoutStore: SharedPreferencesLayoutSettingsStore(),
+        );
+        addTearDown(layout.dispose);
+        await layout.setDashboardDisplayMode(DashboardDisplayMode.tabs);
+        await tester.pumpAndSettle();
+        final tabs = find.byKey(const Key('dashboard-tabs'));
+        const icons = {
+          'battle': Icons.remove_red_eye_outlined,
+          'fleet': Icons.directions_boat_filled_outlined,
+          'land_base': Icons.flight_rounded,
+          'expedition': Icons.explore_outlined,
+          'repair': Icons.build_circle_outlined,
+          'construction': Icons.handyman_outlined,
+          'quests': Icons.assignment_outlined,
+          'pre_sortie': Icons.security_outlined,
+        };
+        for (final entry in icons.entries) {
+          final tab = find.byKey(Key('dashboard-tab-${entry.key}'));
+          expect(
+            find.descendant(of: tab, matching: find.byIcon(entry.value)),
+            findsOneWidget,
+          );
+          await _openBriefingModuleSettings(tester, entry.key);
+          await _closeBriefingModuleSettings(tester, entry.key);
+          expect(tester.widget<DashboardTabs>(tabs).selectedId, 'battle');
+        }
+        expect(
+          find.byKey(const Key('dashboard-tabs-edit-order')),
+          findsNothing,
+        );
+        final battle = find.byKey(const Key('dashboard-tab-battle'));
+        await _openBriefingModuleSettings(tester, 'battle');
+        await tester.tap(find.byKey(const Key('battle-capsule-name')));
+        await tester.pumpAndSettle();
+        await _closeBriefingModuleSettings(tester, 'battle');
+        expect(tester.widget<DashboardTabs>(tabs).tabs.first.label, isEmpty);
+        expect(
+          find.descendant(
+            of: battle,
+            matching: find.byIcon(Icons.remove_red_eye_outlined),
+          ),
+          findsOneWidget,
+        );
+        await layout.setModuleShowName('battle', true);
+        await tester.pumpAndSettle();
+
+        final collapsedBefore = [...layout.dashboardCardCollapsed];
+        await _longPressBriefingTab(tester, 'battle');
+        final source = find.byKey(
+          const Key('dashboard-drag-region-construction'),
+        );
+        expect(source.hitTestable(), findsOneWidget);
+        final drag = await tester.startGesture(tester.getCenter(source));
+        await tester.pump(const Duration(milliseconds: 600));
+        final target = find.byKey(const Key('dashboard-target-battle'));
+        await drag.moveTo(
+          tester.getRect(target).topCenter + const Offset(0, 3),
+        );
+        await tester.pump(const Duration(milliseconds: 150));
+        await drag.up();
+        await tester.pumpAndSettle();
+        expect(layout.dashboardCardOrder.first, 'construction');
+        await tester.tap(find.byKey(const Key('dashboard-edit-done')));
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<DashboardTabs>(tabs).tabs.first.id,
+          'construction',
+        );
+        expect(layout.dashboardCardCollapsed, collapsedBefore);
+        final restored = await LayoutSettingsController.load(
+          SharedPreferencesLayoutSettingsStore(),
+        );
+        expect(restored.dashboardCardOrder, layout.dashboardCardOrder);
+        expect(restored.dashboardDisplayMode, DashboardDisplayMode.tabs);
+        restored.dispose();
+
+        await layout.setUiLocked(true);
+        await tester.pumpAndSettle();
+        final fleet = find.byKey(const Key('dashboard-tab-fleet'));
+        await tester.ensureVisible(fleet);
+        await tester.longPress(fleet);
+        await tester.pump();
+        expect(find.byKey(const Key('fleet-display-close')), findsNothing);
+        expect(find.byKey(const Key('dashboard-edit-done')), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'strict briefing long press persists fleet and module appearance with reachable fallback tabs',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      addTearDown(() => SharedPreferences.setMockInitialValues({}));
+      final layout = await _pumpMinimalShell(
+        tester,
+        size: const Size(1200, 800),
+        uiSize: UiDisplaySize.normal,
+        layoutStore: SharedPreferencesLayoutSettingsStore(),
+      );
+      addTearDown(layout.dispose);
+      await layout.setDashboardDisplayMode(DashboardDisplayMode.tabs);
+      await layout.setDashboardCardOrder(
+        LayoutSettingsStore.defaultDashboardCardOrder.reversed.toList(),
+      );
+      await layout.toggleDashboardCardHidden('repair');
+      await layout.toggleDashboardCardCollapsed('land_base');
+      await tester.pumpAndSettle();
+      await _tapBriefingTab(tester, 'quests');
+      final order = [...layout.dashboardCardOrder];
+      final hidden = [...layout.dashboardCardHidden];
+      final collapsed = [...layout.dashboardCardCollapsed];
+
+      DashboardTabs currentTabs() =>
+          tester.widget<DashboardTabs>(find.byKey(const Key('dashboard-tabs')));
+      DashboardTab tabData(String id) =>
+          currentTabs().tabs.singleWhere((tab) => tab.id == id);
+      void expectUnchangedLayout() {
+        expect(currentTabs().selectedId, 'quests');
+        expect(layout.dashboardCardOrder, order);
+        expect(layout.dashboardCardHidden, hidden);
+        expect(layout.dashboardCardCollapsed, collapsed);
+        expect(find.byKey(const Key('dashboard-edit-done')), findsNothing);
+        expect(tester.takeException(), isNull);
+      }
+
+      Future<void> openSettings(String id) async {
+        await _openBriefingModuleSettings(tester, id);
+        expect(layout.dashboardCardOrder, order);
+        expect(layout.dashboardCardHidden, hidden);
+        expect(layout.dashboardCardCollapsed, collapsed);
+      }
+
+      Future<void> closeSettings(String id) async {
+        await _closeBriefingModuleSettings(tester, id);
+        expectUnchangedLayout();
+      }
+
+      const icons = {
+        'fleet': Icons.directions_boat_filled_outlined,
+        'battle': Icons.remove_red_eye_outlined,
+      };
+      for (final entry in icons.entries) {
+        final id = entry.key;
+        await openSettings(id);
+        await tester.tap(find.byKey(Key('$id-capsule-logo')));
+        await tester.pumpAndSettle();
+        expect(layout.moduleShowLogo(id), isFalse);
+        await closeSettings(id);
+        expect(tabData(id).icon, isNull);
+        expect(tabData(id).label, isNotEmpty);
+
+        await openSettings(id);
+        await tester.tap(find.byKey(Key('$id-capsule-name')));
+        await tester.pumpAndSettle();
+        expect(layout.moduleShowName(id), isFalse);
+        await closeSettings(id);
+        expect(tabData(id).label, isEmpty);
+        expect(tabData(id).icon, entry.value);
+        final restoredHiddenAppearance = await LayoutSettingsController.load(
+          SharedPreferencesLayoutSettingsStore(),
+        );
+        expect(restoredHiddenAppearance.moduleShowLogo(id), isFalse);
+        expect(restoredHiddenAppearance.moduleShowName(id), isFalse);
+        restoredHiddenAppearance.dispose();
+
+        // Both appearance flags may be off, but the fallback icon must still
+        // open the same settings and allow restoring the name independently.
+        final tab = find.byKey(Key('dashboard-tab-$id'));
+        expect(
+          find.descendant(of: tab, matching: find.byIcon(entry.value)),
+          findsOneWidget,
+        );
+        await openSettings(id);
+        await tester.tap(find.byKey(Key('$id-capsule-name')));
+        await tester.pumpAndSettle();
+        await closeSettings(id);
+        expect(tabData(id).label, isNotEmpty);
+        expect(tabData(id).icon, isNull);
+      }
+
+      final restored = await LayoutSettingsController.load(
+        SharedPreferencesLayoutSettingsStore(),
+      );
+      for (final id in icons.keys) {
+        expect(restored.moduleShowLogo(id), isFalse);
+        expect(restored.moduleShowName(id), isTrue);
+      }
+      expect(restored.dashboardDisplayMode, DashboardDisplayMode.tabs);
+      expect(restored.dashboardCardOrder, order);
+      expect(restored.dashboardCardHidden, hidden);
+      expect(restored.dashboardCardCollapsed, collapsed);
+      restored.dispose();
+      expectUnchangedLayout();
+    },
+  );
+
+  testWidgets(
+    'home header customizer edits the existing resource configuration',
+    (tester) async {
+      final layout = await _pumpMinimalShell(
+        tester,
+        size: const Size(1200, 700),
+        uiSize: UiDisplaySize.normal,
+      );
+      addTearDown(layout.dispose);
+      await _tapWorkspaceNavigationItem(tester, 'settings');
+      await tester.pumpAndSettle();
+      await _tapWorkspaceNavigationItem(tester, 'game');
+      await tester.pumpAndSettle();
+      await tester.longPress(
+        find.byKey(const Key('header-resource-material-1')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('header-resource-edit-mode')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const Key('header-resource-filter')));
+      await tester.pumpAndSettle();
+      const id = headerFrameRefreshId;
+      final row = find.byKey(
+        const Key('header-resource-filter-row-frame-refresh'),
+      );
+      await tester.ensureVisible(row);
+      final before = layout.visibleHeaderResourceIds.contains(id);
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      expect(layout.visibleHeaderResourceIds.contains(id), !before);
+      await tester.tap(find.byKey(const Key('header-resource-filter-done')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('header-resource-edit-done')));
+      await tester.pumpAndSettle();
+      expect(find.byType(Dialog), findsNothing);
+      await _tapWorkspaceNavigationItem(tester, 'game');
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('header-resource-frame-refresh')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final size in [UiDisplaySize.normal, UiDisplaySize.minimal]) {
+    testWidgets('native home header opens a live checklist: $size', (
+      tester,
+    ) async {
+      const channel = MethodChannel(
+        'app.yahagi.kancollebrowser/native_warning',
+      );
+      final calls = <MethodCall>[];
+      final nativeResult = Completer<String?>();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            calls.add(call);
+            return call.method == 'show' ? nativeResult.future : null;
+          });
+      addTearDown(() {
+        if (!nativeResult.isCompleted) nativeResult.complete(null);
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null);
+      });
+      final rendering = await GameRenderingModeController.load(
+        MemoryGameRenderingModeStore(
+          GameRenderingMode.nativeActivityExperimental,
+        ),
+      );
+      addTearDown(rendering.dispose);
+      var gameDisposals = 0;
+      final layout = await _pumpMinimalShell(
+        tester,
+        size: const Size(1200, 700),
+        uiSize: size,
+        renderingController: rendering,
+        gameSurface: _LifecycleProbe(onDispose: () => gameDisposals++),
+      );
+      addTearDown(layout.dispose);
+      await _tapWorkspaceNavigationItem(tester, 'settings');
+      await tester.pumpAndSettle();
+      await _tapWorkspaceNavigationItem(tester, 'game');
+      await tester.pumpAndSettle();
+      await tester.longPress(
+        find.byKey(const Key('header-resource-material-1')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('header-resource-filter')));
+      await tester.pumpAndSettle();
+      final shows = calls.where((call) => call.method == 'show').toList();
+      expect(shows, hasLength(1));
+      expect((shows.single.arguments as Map)['kind'], 'headerResources');
+      expect(find.byType(Dialog), findsNothing);
+      expect(gameDisposals, 0);
+      await layout.setUiLocked(true);
+      await tester.pumpAndSettle();
+      final dismisses = calls
+          .where((call) => call.method == 'dismiss')
+          .toList();
+      expect(dismisses, hasLength(1));
+      expect((dismisses.single.arguments as Map)['kind'], 'headerResources');
+      nativeResult.complete(null);
+      await tester.pumpAndSettle();
+      expect(gameDisposals, 0);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final mode in [
+    GameRenderingMode.standard,
+    GameRenderingMode.compatibility,
+    GameRenderingMode.canvasCompatibility,
+  ]) {
+    testWidgets('home header close protects game input: $mode', (tester) async {
+      final rendering = await GameRenderingModeController.load(
+        MemoryGameRenderingModeStore(mode),
+      );
+      addTearDown(rendering.dispose);
+      final layout = await _pumpMinimalShell(
+        tester,
+        size: const Size(1200, 700),
+        uiSize: UiDisplaySize.normal,
+        renderingController: rendering,
+      );
+      addTearDown(layout.dispose);
+      await _tapWorkspaceNavigationItem(tester, 'settings');
+      await tester.pumpAndSettle();
+      await _tapWorkspaceNavigationItem(tester, 'game');
+      await tester.pumpAndSettle();
+      await tester.longPress(
+        find.byKey(const Key('header-resource-material-1')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('header-resource-filter')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('header-resource-edit-mode')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const Key('header-resource-filter-done')));
+      await tester.pump();
+      expect(find.byKey(const Key('game-safety-input-guard')), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.byType(Dialog), findsNothing);
+      expect(find.byKey(const Key('game-safety-input-guard')), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('native header cancels and detaches a replaced layout owner', (
+    tester,
+  ) async {
+    const channel = MethodChannel('app.yahagi.kancollebrowser/native_warning');
+    final calls = <MethodCall>[];
+    final nativeResult = Completer<String?>();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          calls.add(call);
+          return call.method == 'show' ? nativeResult.future : null;
+        });
+    addTearDown(() {
+      if (!nativeResult.isCompleted) nativeResult.complete(null);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+    final rendering = await GameRenderingModeController.load(
+      MemoryGameRenderingModeStore(
+        GameRenderingMode.nativeActivityExperimental,
+      ),
+    );
+    addTearDown(rendering.dispose);
+    final browser = _NoopBrowserPort();
+    final previous = await _pumpMinimalShell(
+      tester,
+      size: const Size(1200, 700),
+      uiSize: UiDisplaySize.normal,
+      renderingController: rendering,
+      browserPort: browser,
+    );
+    addTearDown(previous.dispose);
+    await _tapWorkspaceNavigationItem(tester, 'settings');
+    await tester.pumpAndSettle();
+    await _tapWorkspaceNavigationItem(tester, 'game');
+    await tester.pumpAndSettle();
+    await tester.longPress(find.byKey(const Key('header-resource-material-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('header-resource-filter')));
+    await tester.pumpAndSettle();
+    expect(calls.where((call) => call.method == 'show'), hasLength(1));
+    final replacement = await _pumpMinimalShell(
+      tester,
+      size: const Size(1200, 700),
+      uiSize: UiDisplaySize.normal,
+      renderingController: rendering,
+      browserPort: browser,
+    );
+    addTearDown(replacement.dispose);
+    expect(calls.where((call) => call.method == 'dismiss'), hasLength(1));
+    final updates = calls.where((call) => call.method == 'update').length;
+    final fitCalls = browser.fitGameScreenCalls;
+    await previous.toggleHeaderResourceVisible(headerSenkaId);
+    await tester.pumpAndSettle();
+    expect(calls.where((call) => call.method == 'update'), hasLength(updates));
+    expect(browser.fitGameScreenCalls, fitCalls);
+    nativeResult.complete(null);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final hd in [false, true]) {
+    testWidgets('home panel long press opens the live editor: HD=$hd', (
+      tester,
+    ) async {
+      final layout = await _pumpMinimalShell(
+        tester,
+        size: const Size(1200, 700),
+        uiSize: UiDisplaySize.normal,
+      );
+      addTearDown(layout.dispose);
+      if (hd) await layout.setHdEnabled(true);
+      await _tapWorkspaceNavigationItem(tester, 'settings');
+      await tester.pumpAndSettle();
+      await _tapWorkspaceNavigationItem(tester, 'game');
+      await tester.pumpAndSettle();
+      await _longPressInformationPanel(tester);
+      expect(find.byKey(const Key('dashboard-edit-done')), findsOneWidget);
+      expect(find.byKey(const Key('dashboard-target-fleet')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('dashboard-edit-done')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('dashboard-edit-done')), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('home panel long press edits the active HD fallback layout', (
+    tester,
+  ) async {
+    final layout = await _pumpMinimalShell(
+      tester,
+      size: const Size(600, 900),
+      uiSize: UiDisplaySize.normal,
+      displayMode: DisplayMode.landscape,
+    );
+    addTearDown(layout.dispose);
+    await layout.setHdEnabled(true);
+    await _tapWorkspaceNavigationItem(tester, 'settings');
+    await tester.pumpAndSettle();
+    await _tapWorkspaceNavigationItem(tester, 'game');
+    await tester.pumpAndSettle();
+    await _longPressInformationPanel(tester);
+    expect(find.byKey(const Key('dashboard-edit-done')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('dashboard-edit-done')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('dashboard-edit-done')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final uiSize in UiDisplaySize.values) {
+    testWidgets('header game refresh reloads the full page in $uiSize', (
+      tester,
+    ) async {
+      final browser = _NoopBrowserPort();
+      final layout = await _pumpMinimalShell(
+        tester,
+        uiSize: uiSize,
+        browserPort: browser,
+      );
+      addTearDown(layout.dispose);
+      const refreshId = 'game-refresh';
+      final refresh = find.byKey(const Key('header-resource-game-refresh'));
+      expect(refresh, findsNothing);
+      await layout.setHeaderResourceOrder([
+        refreshId,
+        ...layout.headerResourceOrder.where((id) => id != refreshId),
+      ]);
+      await layout.toggleHeaderResourceVisible(refreshId);
+      await tester.pumpAndSettle();
+
+      expect(refresh, findsOneWidget);
+      expect(
+        find.descendant(of: refresh, matching: find.text('刷新游戏')),
+        findsOneWidget,
+      );
+      final reloads = browser.reloadCalls;
+      await tester.tap(refresh);
+      await tester.pumpAndSettle();
+      expect(browser.reloadCalls, reloads + 1);
+      expect(find.byType(AlertDialog), findsNothing);
+
+      await layout.toggleHeaderResourceVisible(refreshId);
+      await tester.pumpAndSettle();
+      expect(refresh, findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   for (final size in const [Size(390, 844), Size(800, 500)]) {
     testWidgets('English shell dashboard and navigation fit $size', (
@@ -1447,37 +2557,41 @@ void main() {
       closeTo(settingsLabelX, 0.1),
     );
     expect(find.text('应用推荐显示比例（游戏与菜单比例 67:33）'), findsOneWidget);
+    expect(find.text('游戏声音'), findsNothing);
+    await tester.tap(find.byKey(const Key('settings-tab-1')));
+    await tester.pumpAndSettle();
     expect(find.text('游戏声音'), findsOneWidget);
     expect(find.text('后台播放声音'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('settings-tab-1')));
+    expect(find.text('游戏模式（默认）'), findsOneWidget);
+    expect(find.text('纯浏览模式'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('settings-tab-2')));
     await tester.pumpAndSettle();
     expect(find.text('大破提醒'), findsOneWidget);
     expect(
       tester.getTopLeft(find.text('大破提醒')).dy,
-      lessThan(tester.getTopLeft(find.text('战斗状态效果')).dy),
+      lessThan(tester.getTopLeft(find.text('舰娘状态反馈')).dy),
     );
-    await tester.tap(find.byKey(const Key('settings-tab-2')));
-    await tester.pumpAndSettle();
-    expect(find.text('启用通知服务'), findsOneWidget);
     await tester.tap(find.byKey(const Key('settings-tab-3')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('settings-logout-label')), findsNothing);
-    expect(find.textContaining('VPN 状态'), findsNothing);
+    expect(find.text('启用系统通知'), findsOneWidget);
+    expect(
+      find.byKey(const Key('settings-top-notice-enabled')),
+      findsOneWidget,
+    );
     await tester.tap(find.byKey(const Key('settings-tab-4')));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const Key('settings-logout-label')));
-    await tester.pumpAndSettle();
     expect(
       tester.getTopLeft(find.byKey(const Key('settings-logout-label'))).dx,
       closeTo(settingsLabelX, 0.1),
     );
-
-    expect(find.text('游戏模式（默认）'), findsOneWidget);
-    expect(find.text('纯浏览模式'), findsOneWidget);
     await tester.tap(find.byKey(const Key('settings-tab-5')));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('settings-logout-label')), findsNothing);
+    expect(find.text('纯浏览模式'), findsNothing);
+    await tester.tap(find.byKey(const Key('settings-tab-6')));
+    await tester.pumpAndSettle();
     expect(find.text('关于 ヤハギ', skipOffstage: false), findsWidgets);
-    expect(find.text('诊断与关于', skipOffstage: false), findsNothing);
     expect(find.text('安全边界', skipOffstage: false), findsNothing);
     await tester.tap(find.byKey(const Key('workspace-nav-game')));
     await tester.pumpAndSettle();
@@ -1612,7 +2726,7 @@ void main() {
     await _tapWorkspaceNavigationItem(tester, 'settings');
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('settings-tab-4')));
+    await tester.tap(find.byKey(const Key('settings-tab-1')));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('纯浏览模式'));
     await tester.pumpAndSettle();
@@ -1620,11 +2734,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(captureModeController.mode, CaptureMode.browserOnly);
-    expect(find.text('纯浏览模式 · 数据捕获已关闭', skipOffstage: false), findsOneWidget);
     expect(
       find.text('纯浏览模式将在重新载入页面后停止数据捕获。', skipOffstage: false),
       findsOneWidget,
     );
+    await tester.tap(find.byKey(const Key('settings-tab-6')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('settings-diagnostics-entry')),
+    );
+    await tester.tap(find.byKey(const Key('settings-diagnostics-entry')));
+    await tester.pumpAndSettle();
+    expect(find.text('纯浏览模式 · 数据捕获已关闭', skipOffstage: false), findsOneWidget);
     gameCaptureController.dispose();
     gameStateController.dispose();
     battleController.dispose();
@@ -1683,7 +2804,12 @@ void main() {
     expect(find.byKey(const Key('unsupported-game-surface')), findsOneWidget);
     await _tapWorkspaceNavigationItem(tester, 'settings');
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('settings-tab-4')));
+    await tester.tap(find.byKey(const Key('settings-tab-6')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('settings-diagnostics-entry')),
+    );
+    await tester.tap(find.byKey(const Key('settings-diagnostics-entry')));
     await tester.pumpAndSettle();
     expect(
       find.text('当前 WebView 不支持跨框架捕获', skipOffstage: false),
@@ -1753,7 +2879,12 @@ void main() {
 
     await _tapWorkspaceNavigationItem(tester, 'settings');
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('settings-tab-4')));
+    await tester.tap(find.byKey(const Key('settings-tab-6')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('settings-diagnostics-entry')),
+    );
+    await tester.tap(find.byKey(const Key('settings-diagnostics-entry')));
     await tester.pumpAndSettle();
     expect(find.text('母港接口验证通过', skipOffstage: false), findsOneWidget);
     gameCaptureController.dispose();
@@ -2168,7 +3299,7 @@ void main() {
         matching: find.byType(Material),
       ),
     );
-    expect(dockTab.color, const Color(0xff8a6628));
+    expect(dockTab.color, const Color(0xff5b4829));
 
     await tester.tap(find.byKey(const Key('workspace-nav-construction')));
     await tester.pumpAndSettle();
@@ -2578,7 +3709,7 @@ void main() {
             .getRect(find.byKey(const Key('workspace-title-settings')))
             .size,
         'settings tabs': tester.getRect(find.byType(SettingsSegmented)).size,
-        for (var index = 0; index < 6; index++)
+        for (var index = 0; index < 7; index++)
           'settings tab $index': tester
               .getRect(find.byKey(Key('settings-tab-$index')))
               .size,

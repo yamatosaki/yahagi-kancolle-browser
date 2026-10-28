@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import '../theme/app_palette.dart';
 import 'package:flutter/material.dart';
 import '../layout/dashboard_editing_scope.dart';
+import '../layout/dashboard_presentation_scope.dart';
 import '../layout/flat_collapse_chevron.dart';
 import '../layout/flat_style.dart';
 import '../layout/panel_style.dart';
@@ -47,6 +48,10 @@ class DashboardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final flat = PanelStyleScope.isFlat(context);
+    final palette = AppPalette.of(context);
+    final tabbed =
+        DashboardPresentationScope.isTabbed(context) &&
+        !DashboardEditingScope.isEditing(context);
     return AnimatedSize(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOutCubic,
@@ -65,7 +70,7 @@ class DashboardCard extends StatelessWidget {
             ? BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: appColor(context, flatDividerColor),
+                    color: palette.isDark ? flatDividerColor : palette.border,
                   ),
                 ),
               )
@@ -79,105 +84,134 @@ class DashboardCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            LayoutBuilder(
-              builder: (context, constraints) {
-                // English titles are long, but the flat header ellipsizes them
-                // instead of wrapping so the collapse button never leaves view.
-                if (flat) {
-                  return SizedBox(
-                    key: const Key('dashboard-card-header'),
-                    height: DashboardEditingScope.isEditing(context)
-                        ? flatEditRowHeight
-                        : flatHeaderHeight,
-                    child: _flatHeader(context),
-                  );
-                }
-                if (Localizations.maybeLocaleOf(context)?.languageCode ==
-                        'en' &&
-                    (constraints.maxWidth < 400 ||
-                        MediaQuery.textScalerOf(context).scale(14) > 14)) {
-                  final header = _englishHeader(context);
-                  if (constraints.maxWidth < 220) {
-                    return SingleChildScrollView(
-                      // Cards keep their own state in the slot their
-                      // PageStorageKey derives; an unkeyed scroll view would
-                      // restore that value as its offset and throw.
-                      key: const PageStorageKey('dashboard-card-header-scroll'),
-                      scrollDirection: Axis.horizontal,
-                      child: SizedBox(width: 220, child: header),
+            if (tabbed &&
+                (headerAction != null ||
+                    (!collapsed && (titleBadge != null || trailing != null))))
+              _tabbedHeaderControls()
+            else if (!tabbed)
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  // English titles are long, but the flat header ellipsizes them
+                  // instead of wrapping so the collapse button never leaves view.
+                  if (flat) {
+                    return SizedBox(
+                      key: const Key('dashboard-card-header'),
+                      height: DashboardEditingScope.isEditing(context)
+                          ? flatEditRowHeight
+                          : flatHeaderHeight,
+                      child: _flatHeader(context),
                     );
                   }
-                  return header;
-                }
-                return FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: SizedBox(
-                    width: constraints.maxWidth < 220
-                        ? 220
-                        : constraints.maxWidth,
-                    child: Row(
-                      children: [
-                        if (showLogo) ...[
-                          IconTheme(
-                            data: IconThemeData(
-                              size: 16,
-                              color: appColor(context, Color(0xffd4a85f)),
+                  if (Localizations.maybeLocaleOf(context)?.languageCode ==
+                          'en' &&
+                      (constraints.maxWidth < 400 ||
+                          MediaQuery.textScalerOf(context).scale(14) > 14)) {
+                    final header = _englishHeader(context);
+                    if (constraints.maxWidth < 220) {
+                      return SingleChildScrollView(
+                        // Cards keep their own state in the slot their
+                        // PageStorageKey derives; an unkeyed scroll view would
+                        // restore that value as its offset and throw.
+                        key: const PageStorageKey(
+                          'dashboard-card-header-scroll',
+                        ),
+                        scrollDirection: Axis.horizontal,
+                        child: SizedBox(width: 220, child: header),
+                      );
+                    }
+                    return header;
+                  }
+                  return FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: SizedBox(
+                      width: constraints.maxWidth < 220
+                          ? 220
+                          : constraints.maxWidth,
+                      child: Row(
+                        children: [
+                          if (showLogo) ...[
+                            IconTheme(
+                              data: IconThemeData(
+                                size: 16,
+                                color: appColor(context, Color(0xffd4a85f)),
+                              ),
+                              child: icon,
                             ),
-                            child: icon,
-                          ),
-                          if (showTitle) const SizedBox(width: 6),
-                        ],
-                        if (showTitle)
-                          Expanded(
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Flexible(
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      title,
-                                      style: appTextStyle(
-                                        context,
-                                        _titleStyle(false),
+                            if (showTitle) const SizedBox(width: 6),
+                          ],
+                          if (showTitle)
+                            Expanded(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        title,
+                                        style: appTextStyle(
+                                          context,
+                                          _titleStyle(false),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                                if (!collapsed && titleBadge != null) ...[
-                                  const SizedBox(width: 8),
-                                  titleBadge!,
+                                  if (!collapsed && titleBadge != null) ...[
+                                    const SizedBox(width: 8),
+                                    titleBadge!,
+                                  ],
                                 ],
-                              ],
-                            ),
-                          )
-                        else ...[
-                          const Spacer(),
-                          if (!collapsed && titleBadge != null) ...[
-                            titleBadge!,
-                            const SizedBox(width: 8),
+                              ),
+                            )
+                          else ...[
+                            const Spacer(),
+                            if (!collapsed && titleBadge != null) ...[
+                              titleBadge!,
+                              const SizedBox(width: 8),
+                            ],
                           ],
+                          if (!collapsed && trailing != null) ...[
+                            trailing!,
+                            const SizedBox(width: 3),
+                          ],
+                          ?headerAction,
+                          _collapseButton(context),
                         ],
-                        if (!collapsed && trailing != null) ...[
-                          trailing!,
-                          const SizedBox(width: 3),
-                        ],
-                        ?headerAction,
-                        _collapseButton(context),
-                      ],
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
             if (!collapsed) ...[const SizedBox(height: 0), child],
           ],
         ),
       ),
     );
   }
+
+  // The enclosing tab already names the module. Keep only its controls here,
+  // using their natural height and width so larger text is never scaled down.
+  Widget _tabbedHeaderControls() => SingleChildScrollView(
+    key: const PageStorageKey('dashboard-card-tab-controls-scroll'),
+    scrollDirection: Axis.horizontal,
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!collapsed && titleBadge != null) ...[
+          titleBadge!,
+          if (trailing != null || headerAction != null)
+            const SizedBox(width: 8),
+        ],
+        if (!collapsed && trailing != null) ...[
+          trailing!,
+          if (headerAction != null) const SizedBox(width: 3),
+        ],
+        ?headerAction,
+      ],
+    ),
+  );
 
   // Scaling the whole row would shrink the title whenever one child (badge,
   // switcher, gear) is taller than the 24dp header, so only that child scales.
@@ -285,7 +319,8 @@ class DashboardCard extends StatelessWidget {
           const SizedBox(width: 3),
         ],
         if (headerAction != null) fit(headerAction!, 24, Alignment.center),
-        if (!DashboardEditingScope.isEditing(context))
+        if (!DashboardEditingScope.isEditing(context) &&
+            !DashboardPresentationScope.isTabbed(context))
           FlatCollapseChevron(
             key: collapseButtonKey,
             collapsed: collapsed,
@@ -354,22 +389,25 @@ class DashboardCard extends StatelessWidget {
       ? fleetText(context, '展开$title')
       : fleetText(context, '折叠$title');
 
-  Widget _collapseButton(BuildContext context) => Semantics(
-    label: _collapseLabel(context),
-    child: IconButton(
-      key: collapseButtonKey,
-      visualDensity: VisualDensity.compact,
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 30),
-      padding: EdgeInsets.zero,
-      alignment: Alignment.centerRight,
-      onPressed: onToggleCollapse,
-      icon: Icon(
-        collapsed
-            ? Icons.keyboard_arrow_down_rounded
-            : Icons.keyboard_arrow_up_rounded,
-        size: 20,
-        color: appColor(context, Color(0xff8fa8b6)),
-      ),
-    ),
-  );
+  Widget _collapseButton(BuildContext context) =>
+      DashboardPresentationScope.isTabbed(context)
+      ? const SizedBox.shrink()
+      : Semantics(
+          label: _collapseLabel(context),
+          child: IconButton(
+            key: collapseButtonKey,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 30),
+            padding: EdgeInsets.zero,
+            alignment: Alignment.centerRight,
+            onPressed: onToggleCollapse,
+            icon: Icon(
+              collapsed
+                  ? Icons.keyboard_arrow_down_rounded
+                  : Icons.keyboard_arrow_up_rounded,
+              size: 20,
+              color: appColor(context, Color(0xff8fa8b6)),
+            ),
+          ),
+        );
 }

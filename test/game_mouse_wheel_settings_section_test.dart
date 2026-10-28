@@ -9,15 +9,47 @@ import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart'
 import 'package:yahagi_kancolle_browser/src/settings/game_mouse_wheel_settings.dart';
 import 'package:yahagi_kancolle_browser/src/settings/game_frame_refresh_shortcut_settings.dart';
 import 'package:yahagi_kancolle_browser/src/settings/screen_settings_page.dart';
+import 'package:yahagi_kancolle_browser/src/settings/game_runtime_settings_page.dart';
 
 void main() {
+  testWidgets('appearance settings no longer contain runtime controls', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final wheel = await GameMouseWheelSettingsController.load();
+    final layout = await LayoutSettingsController.load(
+      SharedPreferencesLayoutSettingsStore(),
+    );
+    final display = await DisplayModeController.load(MemoryDisplayModeStore());
+    addTearDown(wheel.dispose);
+    addTearDown(layout.dispose);
+    addTearDown(display.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: ScreenSettingsPage(
+          layoutSettingsController: layout,
+          displayModeController: display,
+          gameMouseWheelSettingsController: wheel,
+        ),
+      ),
+    );
+    expect(
+      find.byKey(const Key('settings-mouse-wheel-compatibility')),
+      findsNothing,
+    );
+    expect(find.byKey(const Key('settings-top-notice-enabled')), findsNothing);
+  });
+
   for (final locale in [
     const Locale('zh'),
     const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
     const Locale('ja'),
   ]) {
     testWidgets(
-      'screen settings can toggle and persist wheel compatibility: $locale',
+      'runtime settings can toggle and persist wheel compatibility: $locale',
       (tester) async {
         SharedPreferences.setMockInitialValues({});
         final wheel = await GameMouseWheelSettingsController.load();
@@ -25,21 +57,16 @@ void main() {
         final layout = await LayoutSettingsController.load(
           SharedPreferencesLayoutSettingsStore(),
         );
-        final display = await DisplayModeController.load(
-          MemoryDisplayModeStore(),
-        );
         addTearDown(wheel.dispose);
         addTearDown(frameRefresh.dispose);
         addTearDown(layout.dispose);
-        addTearDown(display.dispose);
         await tester.pumpWidget(
           MaterialApp(
             locale: locale,
             localizationsDelegates: AppLocalizations.localizationsDelegates,
             supportedLocales: AppLocalizations.supportedLocales,
-            home: ScreenSettingsPage(
+            home: GameRuntimeSettingsPage(
               layoutSettingsController: layout,
-              displayModeController: display,
               gameMouseWheelSettingsController: wheel,
               gameFrameRefreshShortcutSettings: frameRefresh,
             ),

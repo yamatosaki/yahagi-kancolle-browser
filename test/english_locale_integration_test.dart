@@ -168,9 +168,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Battle'), findsOneWidget);
-    expect(find.text('Network'), findsOneWidget);
-    expect(find.text('Data'), findsOneWidget);
+    expect(find.text('Sortie & battle'), findsOneWidget);
+    expect(find.text('Network & connection'), findsOneWidget);
+    expect(find.text('Data management'), findsOneWidget);
     expect(find.textContaining('2026-10-18'), findsOneWidget);
     expect(find.textContaining('数据'), findsNothing);
     expect(tester.takeException(), isNull);

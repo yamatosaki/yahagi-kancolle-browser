@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../browser/game_surface_dialog.dart';
 import '../game_state/game_state.dart';
 import '../layout/panel_style.dart';
 import 'expedition_strings.dart';
@@ -162,22 +163,48 @@ class ExpeditionMissionPicker extends StatelessWidget {
   Future<void> _showPicker(BuildContext context) async {
     final groups = groupExpeditionMissions(missions, missionIds);
     if (groups.isEmpty) return;
+    final strings = ExpeditionStrings.of(context);
     final selectedAreaId = groups
         .firstWhere(
           (group) => group.missionIds.contains(selectedMissionId),
           orElse: () => groups.first,
         )
         .areaId;
-    final selected = await showDialog<int>(
+    final selected = await showGameSurfaceDialog<int?>(
       context: context,
-      builder: (dialogContext) => _ExpeditionMissionPickerDialog(
+      title: strings.selectExpedition,
+      selectedChoiceId:
+          groups.any((group) => group.missionIds.contains(selectedMissionId))
+          ? 'mission-$selectedMissionId'
+          : null,
+      actions: [
+        GameSurfaceDialogAction<int?>(
+          id: 'close',
+          label: MaterialLocalizations.of(context).closeButtonTooltip,
+          value: null,
+        ),
+      ],
+      choices: [
+        for (final group in groups)
+          for (final missionId in group.missionIds)
+            GameSurfaceDialogChoice<int?>(
+              id: 'mission-$missionId',
+              label:
+                  '${expeditionDisplayId(missionId, missions[missionId])} · ${missions[missionId]?.name ?? strings.expeditionFallbackName}',
+              group: strings.expeditionAreaName(group.areaId),
+              value: missionId,
+            ),
+      ],
+      builder: (dialogContext, close) => _ExpeditionMissionPickerDialog(
         groups: groups,
         missions: missions,
         selectedAreaId: selectedAreaId,
         selectedMissionId: selectedMissionId,
+        onSelected: close,
+        onClose: () => close(null),
       ),
     );
-    if (selected != null) onSelected(selected);
+    if (selected != null && context.mounted) onSelected(selected);
   }
 }
 
@@ -187,12 +214,16 @@ class _ExpeditionMissionPickerDialog extends StatefulWidget {
     required this.missions,
     required this.selectedAreaId,
     required this.selectedMissionId,
+    required this.onSelected,
+    required this.onClose,
   });
 
   final List<ExpeditionAreaGroup> groups;
   final Map<int, MasterMission> missions;
   final int selectedAreaId;
   final int selectedMissionId;
+  final ValueChanged<int> onSelected;
+  final VoidCallback onClose;
 
   @override
   State<_ExpeditionMissionPickerDialog> createState() =>
@@ -233,7 +264,7 @@ class _ExpeditionMissionPickerDialogState
         clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
-            _DialogHeader(strings: strings),
+            _DialogHeader(strings: strings, onClose: widget.onClose),
             Divider(height: 1, color: appColor(context, Color(0xff385064))),
             Expanded(
               child: Row(
@@ -258,6 +289,7 @@ class _ExpeditionMissionPickerDialogState
                       missions: widget.missions,
                       selectedMissionId: widget.selectedMissionId,
                       fallbackName: strings.expeditionFallbackName,
+                      onSelected: widget.onSelected,
                     ),
                   ),
                 ],
@@ -271,9 +303,10 @@ class _ExpeditionMissionPickerDialogState
 }
 
 class _DialogHeader extends StatelessWidget {
-  const _DialogHeader({required this.strings});
+  const _DialogHeader({required this.strings, required this.onClose});
 
   final ExpeditionStrings strings;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) => ConstrainedBox(
@@ -295,7 +328,7 @@ class _DialogHeader extends StatelessWidget {
         ),
         IconButton(
           tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: onClose,
           icon: const Icon(Icons.close_rounded),
         ),
         const SizedBox(width: 4),
@@ -362,12 +395,14 @@ class _MissionList extends StatelessWidget {
     required this.missions,
     required this.selectedMissionId,
     required this.fallbackName,
+    required this.onSelected,
   });
 
   final List<int> missionIds;
   final Map<int, MasterMission> missions;
   final int selectedMissionId;
   final String fallbackName;
+  final ValueChanged<int> onSelected;
 
   @override
   Widget build(BuildContext context) => ListView.separated(
@@ -387,7 +422,7 @@ class _MissionList extends StatelessWidget {
         child: InkWell(
           key: Key('expedition-mission-option-$missionId'),
           borderRadius: BorderRadius.circular(7),
-          onTap: () => Navigator.of(context).pop(missionId),
+          onTap: () => onSelected(missionId),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
             child: Row(

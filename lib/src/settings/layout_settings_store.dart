@@ -8,6 +8,8 @@ import 'module_display_settings.dart';
 import 'fleet_display_options.dart';
 import 'hd_layout_settings.dart';
 import 'camera_avoidance_settings.dart';
+import 'ui_font_size.dart';
+import 'dashboard_display_mode.dart';
 
 enum FleetMoraleMetricMode { minimumCondition, recoveryCountdown }
 
@@ -73,6 +75,11 @@ abstract interface class InformationPanelSideSettingsStore {
   Future<void> saveInformationPanelOnLeft(bool onLeft);
 }
 
+abstract interface class DashboardDisplayModeSettingsStore {
+  Future<DashboardDisplayMode> loadDashboardDisplayMode();
+  Future<void> saveDashboardDisplayMode(DashboardDisplayMode mode);
+}
+
 abstract interface class WorkspaceMenuOrderSettingsStore {
   Future<List<String>> loadWorkspaceMenuOrder();
   Future<void> saveWorkspaceMenuOrder(List<String> order);
@@ -109,6 +116,11 @@ abstract interface class WorkspaceMenuPositionStore {
 abstract interface class UiDisplaySizeSettingsStore {
   Future<UiDisplaySize> loadUiDisplaySize();
   Future<void> saveUiDisplaySize(UiDisplaySize size);
+}
+
+abstract interface class UiFontSizeSettingsStore {
+  Future<UiFontSize> loadUiFontSize();
+  Future<void> saveUiFontSize(UiFontSize size);
 }
 
 abstract interface class HeaderUiSizeSettingsStore {
@@ -156,11 +168,13 @@ abstract interface class TopNoticeSettingsStore {
 class SharedPreferencesLayoutSettingsStore
     implements
         LayoutSettingsStore,
+        DashboardDisplayModeSettingsStore,
         ModuleDisplaySettingsStore,
         FleetDisplaySettingsStore,
         FleetMoraleMetricSettingsStore,
         HeaderResourceSettingsStore,
         UiDisplaySizeSettingsStore,
+        UiFontSizeSettingsStore,
         MinimalResourcePositionSettingsStore,
         MinimalCollapsedResourceSettingsStore,
         HeaderUiSizeSettingsStore,
@@ -173,6 +187,40 @@ class SharedPreferencesLayoutSettingsStore
         AppThemeSettingsStore,
         CameraAvoidanceSettingsStore,
         UiLockSettingsStore {
+  static const _dashboardDisplayModeKey = 'layout_dashboard_display_mode';
+
+  @override
+  Future<DashboardDisplayMode> loadDashboardDisplayMode() async {
+    final saved = (await SharedPreferences.getInstance()).get(
+      _dashboardDisplayModeKey,
+    );
+    return DashboardDisplayMode.values.firstWhere(
+      (mode) => mode.name == saved,
+      orElse: () => DashboardDisplayMode.accordion,
+    );
+  }
+
+  @override
+  Future<void> saveDashboardDisplayMode(DashboardDisplayMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    final previous = prefs.get(_dashboardDisplayModeKey);
+    try {
+      if (!await prefs.setString(_dashboardDisplayModeKey, mode.name)) {
+        throw StateError('Briefing display preference was not saved');
+      }
+    } catch (_) {
+      // Match the cache to the last confirmed platform write.
+      try {
+        if (previous is String) {
+          await prefs.setString(_dashboardDisplayModeKey, previous);
+        } else {
+          await prefs.remove(_dashboardDisplayModeKey);
+        }
+      } catch (_) {}
+      rethrow;
+    }
+  }
+
   static const _cameraAvoidanceKey = 'layout_camera_avoidance_v1';
 
   @override
@@ -402,9 +450,40 @@ class SharedPreferencesLayoutSettingsStore
   static const _keyVisibleHeaderResourceIds =
       'layout_visible_header_resource_ids';
   static const _keyUiDisplaySize = 'layout_ui_display_size';
+  static const _keyUiFontSize = 'layout_ui_font_size';
   static const _keyHeaderUiSize = 'layout_header_ui_size';
   static const _keyWorkspaceMenuSize = 'layout_workspace_menu_size';
   static const _keyFleetMoraleMetricMode = 'layout_fleet_morale_metric_mode';
+
+  @override
+  Future<UiFontSize> loadUiFontSize() async {
+    final saved = (await SharedPreferences.getInstance()).get(_keyUiFontSize);
+    return UiFontSize.values.firstWhere(
+      (size) => size.name == saved,
+      orElse: () => UiFontSize.system,
+    );
+  }
+
+  @override
+  Future<void> saveUiFontSize(UiFontSize size) async {
+    final prefs = await SharedPreferences.getInstance();
+    final previous = prefs.get(_keyUiFontSize);
+    try {
+      if (!await prefs.setString(_keyUiFontSize, size.name)) {
+        throw StateError('UI font size preference was not saved');
+      }
+    } catch (_) {
+      // The Dart cache updates before the platform write is confirmed.
+      try {
+        if (previous is String) {
+          await prefs.setString(_keyUiFontSize, previous);
+        } else {
+          await prefs.remove(_keyUiFontSize);
+        }
+      } catch (_) {}
+      rethrow;
+    }
+  }
 
   @override
   Future<UiDisplaySize> loadUiDisplaySize() async {
@@ -582,7 +661,9 @@ class SharedPreferencesLayoutSettingsStore
   @override
   Future<List<String>> loadDashboardCardOrder() async {
     final prefs = await SharedPreferences.getInstance();
-    final list = prefs.getStringList(_keyDashboardCardOrder);
+    // Module IDs also identify tab pages, so legacy duplicates must not create
+    // multiple pages with the same key. Keep the first saved position.
+    final list = prefs.getStringList(_keyDashboardCardOrder)?.toSet().toList();
     if (list != null && list.isNotEmpty) {
       // Ensure all default keys are present in case we added new ones
       for (final key in LayoutSettingsStore.defaultDashboardCardOrder) {

@@ -2,19 +2,18 @@ import '../theme/app_palette.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import '../account/account_session.dart';
 import '../subtitles/ship_subtitle_catalog_controller.dart';
 import '../subtitles/ship_subtitle_update_section.dart';
+import '../subtitles/ship_subtitle_data_strings.dart';
 import '../backup/record_backup.dart';
 
 import '../battle/fcd_map_controller.dart';
 import '../browser/game_browser_controller.dart';
 import '../browser/game_resource_cache_controller.dart';
 import '../capture/capture_mode_controller.dart';
-import '../capture/capture_mode_selector.dart';
 import '../capture/game_capture_controller.dart';
 import '../diagnostics/diagnostic_controller.dart';
 import '../game_state/game_state_controller.dart';
@@ -32,9 +31,6 @@ import '../toolbox/sortie_map_query/enemy_catalog_controller.dart';
 import '../kcwiki_report/kcwiki_report_settings.dart';
 import '../kcwiki_report/kcwiki_report_transport.dart';
 import '../widgets/top_notice.dart';
-import '../widgets/adaptive_input_dialog.dart';
-import 'diagnostic_user_section.dart';
-import 'diagnostics_section.dart';
 import 'fcd_map_update_section.dart';
 import 'game_rendering_mode_controller.dart';
 import 'game_resource_cache_section.dart';
@@ -43,6 +39,10 @@ import 'sortie_map_catalog_update_section.dart';
 import 'enemy_catalog_update_section.dart';
 import 'settings_ui_helpers.dart';
 import 'record_backup_section.dart';
+import 'data_update_metadata.dart';
+import 'settings_detail_page.dart';
+import 'settings_organization_strings.dart';
+import '../browser/game_resource_cache_store.dart';
 
 class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
   const DataSettingsPage({
@@ -101,6 +101,62 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
     final l10n =
         AppLocalizations.of(context) ??
         lookupAppLocalizations(const Locale('zh'));
+    final updates = <Widget>[
+      if (fcdMapController case final controller?)
+        _updateEntry(
+          context,
+          key: const Key('settings-data-update-fcd'),
+          title: l10n.fcdMapDataTitle,
+          controller: controller,
+          version: () => controller.version.toString(),
+          child: FcdMapUpdateSection(controller: controller),
+        ),
+      if (sortieMapCatalogController case final controller?)
+        _updateEntry(
+          context,
+          key: const Key('settings-data-update-maps'),
+          title: l10n.sortieMapDataTitle,
+          controller: controller,
+          version: () => controller.data.dataVersion,
+          child: SortieMapCatalogUpdateSection(controller: controller),
+        ),
+      if (enemyCatalogController case final controller?)
+        _updateEntry(
+          context,
+          key: const Key('settings-data-update-enemies'),
+          title: l10n.enemyDataTitle,
+          controller: controller,
+          version: () => controller.data.dataVersion,
+          child: EnemyCatalogUpdateSection(controller: controller),
+        ),
+      if (questCatalogController case final controller?)
+        _updateEntry(
+          context,
+          key: const Key('settings-data-update-quests'),
+          title: l10n.questCatalogDataTitle,
+          controller: controller,
+          version: () => controller.version.shortLabel,
+          child: QuestCatalogUpdateSection(controller: controller),
+        ),
+      if (improvementPlannerController case final controller?)
+        _updateEntry(
+          context,
+          key: const Key('settings-data-update-improvement'),
+          title: l10n.improvementDatasetTitle,
+          controller: controller,
+          version: () => controller.dataset.version.dataVersion,
+          child: ImprovementDatasetUpdateSection(controller: controller),
+        ),
+      if (shipSubtitleCatalogController case final controller?)
+        _updateEntry(
+          context,
+          key: const Key('settings-data-update-translations'),
+          title: ShipSubtitleDataStrings(l10n.localeName).title,
+          controller: controller,
+          version: () => controller.data.version,
+          child: ShipSubtitleUpdateSection(controller: controller),
+        ),
+    ];
     return Container(
       color: appColor(context, const Color(0xff0d1a26)),
       child: SingleChildScrollView(
@@ -108,74 +164,95 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            buildSectionTitle(l10n.logoutAndClear),
-            buildCard(
-              child: buildActionTile(
-                title: l10n.logoutAndClear,
-                titleKey: const Key('settings-logout-label'),
-                subtitle: l10n.logoutAndClearDesc,
-                trailing: Icon(
-                  Icons.logout,
-                  color: appColor(context, Color(0xffd4a85f)),
-                ),
-                onTap: () => _logoutAndClear(context, l10n),
+            if (updates.isNotEmpty) ...[
+              buildSectionTitle(
+                settingsOrganizationText(context, 'settingsGroupDataUpdates'),
               ),
-            ),
-            const SizedBox(height: 24),
-            buildSectionTitle(l10n.captureMode),
-            buildCard(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: CaptureModeSelector(controller: captureModeController),
-              ),
-            ),
-            if (kcwikiReportController case final controller?) ...<Widget>[
+              buildCard(child: Column(children: _divided(updates))),
               const SizedBox(height: 24),
-              buildSectionTitle(l10n.kcwikiReportSection),
+            ],
+            if (gameResourceCacheController case final controller?) ...[
+              buildSectionTitle(l10n.gameResourceCacheTitle),
               buildCard(
                 child: AnimatedBuilder(
                   animation: controller,
-                  builder: (context, _) => buildSwitchTile(
-                    switchKey: const Key('kcwiki-report-switch'),
-                    title: l10n.kcwikiReportTitle,
-                    subtitle: _kcwikiReportSubtitle(l10n, controller),
-                    value: controller.enabled,
-                    onChanged: (enabled) => unawaited(
-                      _setKcwikiReportEnabled(
-                        context,
-                        l10n,
-                        controller,
-                        enabled,
-                      ),
+                  builder: (context, _) => buildActionTile(
+                    key: const Key('settings-resource-cache-entry'),
+                    title: l10n.gameResourceCacheTitle,
+                    subtitle:
+                        '${controller.mode == GameResourceCacheMode.full ? l10n.gameResourceCacheFull : l10n.gameResourceCacheNone} · ${l10n.gameResourceCacheStoredSize(controller.completenessLine)}',
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => openSettingsDetail(
+                      context,
+                      title: l10n.gameResourceCacheTitle,
+                      child: GameResourceCacheSection(controller: controller),
                     ),
                   ),
                 ),
               ),
-            ],
-            if (diagnosticController case final diagnostics?) ...<Widget>[
               const SizedBox(height: 24),
-              buildSectionTitle(l10n.diagnosticLoggingSection),
+            ],
+            if (_backupService case final backup?) ...[
+              buildSectionTitle(RecordBackupStrings.of(context).section),
+              buildCard(
+                child: AnimatedBuilder(
+                  animation: backup,
+                  builder: (context, _) {
+                    final strings = RecordBackupStrings.of(context);
+                    final status = backup.lastError != null
+                        ? strings.syncFailed(backup.lastError!)
+                        : backup.pending
+                        ? strings.syncPending
+                        : backup.lastSync != null
+                        ? strings.lastSync(backup.lastSync!.toLocal())
+                        : strings.neverSynced;
+                    return buildActionTile(
+                      key: const Key('settings-record-backup-entry'),
+                      title: strings.section,
+                      subtitle:
+                          '${settingsOrganizationText(context, backup.enabled ? 'settingsStatusEnabled' : 'settingsStatusDisabled')} · $status',
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => openSettingsDetail(
+                        context,
+                        title: strings.section,
+                        child: RecordBackupSection(service: backup),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+            if (kcwikiReportController != null ||
+                telemetryController != null) ...[
+              buildSectionTitle(
+                settingsOrganizationText(
+                  context,
+                  'settingsGroupDataSharingPrivacy',
+                ),
+              ),
               buildCard(
                 child: Column(
-                  children: <Widget>[
-                    AnimatedBuilder(
-                      animation: diagnostics,
-                      builder: (context, _) => buildSwitchTile(
-                        switchKey: const Key('diagnosticLoggingSwitch'),
-                        title: l10n.diagnosticLoggingTitle,
-                        subtitle: l10n.diagnosticLoggingDesc,
-                        value: diagnostics.enabled,
-                        onChanged: diagnostics.setEnabled,
+                  children: _divided([
+                    if (kcwikiReportController case final controller?)
+                      AnimatedBuilder(
+                        animation: controller,
+                        builder: (context, _) => buildSwitchTile(
+                          switchKey: const Key('kcwiki-report-switch'),
+                          title: l10n.kcwikiReportTitle,
+                          subtitle: _kcwikiReportSubtitle(l10n, controller),
+                          value: controller.enabled,
+                          onChanged: (enabled) => unawaited(
+                            _setKcwikiReportEnabled(
+                              context,
+                              l10n,
+                              controller,
+                              enabled,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    if (telemetryController case final telemetry?) ...<Widget>[
-                      Divider(
-                        color: appColor(context, Color(0xff294052)),
-                        height: 1,
-                      ),
+                    if (telemetryController case final telemetry?)
                       AnimatedBuilder(
                         animation: telemetry,
                         builder: (context, _) => buildSwitchTile(
@@ -186,132 +263,17 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
                           onChanged: telemetry.setEnabled,
                         ),
                       ),
-                    ],
-                    Divider(
-                      color: appColor(context, Color(0xff294052)),
-                      height: 1,
-                    ),
-                    DiagnosticUserSection(controller: diagnostics),
-                  ],
+                  ]),
                 ),
               ),
-            ],
-            if (showDeveloperDiagnostics) ...<Widget>[
               const SizedBox(height: 24),
-              buildSectionTitle(l10n.diagnosticsAndAbout),
-              buildCard(
-                child: DiagnosticsSection(
-                  browserController: browserController,
-                  captureModeController: captureModeController,
-                  gameCaptureController: gameCaptureController,
-                  prototypeStatusController: prototypeStatusController,
-                  gameRenderingModeController: gameRenderingModeController,
-                ),
-              ),
             ],
-            if (fcdMapController != null ||
-                questCatalogController != null ||
-                sortieMapCatalogController != null ||
-                enemyCatalogController != null ||
-                improvementPlannerController != null ||
-                shipSubtitleCatalogController != null) ...<Widget>[
-              const SizedBox(height: 24),
-              buildSectionTitle(l10n.fcdMapSectionTitle),
-              buildCard(
-                child: Column(
-                  children: <Widget>[
-                    if (fcdMapController case final controller?)
-                      FcdMapUpdateSection(controller: controller),
-                    if (fcdMapController != null &&
-                        questCatalogController != null)
-                      const Divider(height: 1),
-                    if (questCatalogController case final controller?)
-                      QuestCatalogUpdateSection(controller: controller),
-                    if ((fcdMapController != null ||
-                            questCatalogController != null) &&
-                        sortieMapCatalogController != null)
-                      const Divider(height: 1),
-                    if (sortieMapCatalogController case final controller?)
-                      SortieMapCatalogUpdateSection(controller: controller),
-                    if (sortieMapCatalogController != null &&
-                        enemyCatalogController != null)
-                      const Divider(height: 1),
-                    if (enemyCatalogController case final controller?)
-                      EnemyCatalogUpdateSection(controller: controller),
-                    if ((fcdMapController != null ||
-                            questCatalogController != null ||
-                            sortieMapCatalogController != null ||
-                            enemyCatalogController != null) &&
-                        improvementPlannerController != null)
-                      const Divider(height: 1),
-                    if (improvementPlannerController case final controller?)
-                      ImprovementDatasetUpdateSection(controller: controller),
-                    if (shipSubtitleCatalogController
-                        case final controller?) ...[
-                      if (fcdMapController != null ||
-                          questCatalogController != null ||
-                          sortieMapCatalogController != null ||
-                          enemyCatalogController != null ||
-                          improvementPlannerController != null)
-                        const Divider(height: 1),
-                      ShipSubtitleUpdateSection(controller: controller),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-            if (gameResourceCacheController case final controller?) ...<Widget>[
-              const SizedBox(height: 24),
-              buildSectionTitle(l10n.gameResourceCacheTitle),
-              buildCard(
-                child: GameResourceCacheSection(controller: controller),
-              ),
-            ],
-            if (_backupService case final backup?) ...<Widget>[
-              const SizedBox(height: 24),
-              buildSectionTitle(RecordBackupStrings.of(context).section),
-              buildCard(child: RecordBackupSection(service: backup)),
-            ],
-            const SizedBox(height: 24),
-            buildSectionTitle(l10n.storageAndCache),
+            buildSectionTitle(
+              settingsOrganizationText(context, 'settingsGroupClearLocalData'),
+            ),
             buildCard(
               child: Column(
-                children: <Widget>[
-                  if (senkaController case final controller?) ...<Widget>[
-                    AnimatedBuilder(
-                      animation: controller,
-                      builder: (context, _) => buildActionTile(
-                        key: const Key('settings-base-senka-summary'),
-                        title: l10n.baseSenkaManualInputLabel,
-                        subtitle: l10n.baseSenkaCurrentValue(
-                          controller.monthBaseSenka.toStringAsFixed(2),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            IconButton(
-                              key: const Key('settings-set-base-senka'),
-                              tooltip: l10n.baseSenkaManualTitle,
-                              icon: const Icon(Icons.edit_outlined),
-                              onPressed: () =>
-                                  _setBaseSenka(context, l10n, controller),
-                            ),
-                            IconButton(
-                              key: const Key('settings-reset-base-senka'),
-                              tooltip: l10n.baseSenkaResetTitle,
-                              icon: const Icon(Icons.restart_alt),
-                              onPressed: () =>
-                                  _resetBaseSenka(context, l10n, controller),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Divider(
-                      color: appColor(context, Color(0xff294052)),
-                      height: 1,
-                    ),
-                  ],
+                children: _divided([
                   buildActionTile(
                     key: const Key('settings-clear-quest-cache'),
                     title: l10n.clearQuestCache,
@@ -330,9 +292,12 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
                       }
                     },
                   ),
-                  Divider(
-                    color: appColor(context, Color(0xff294052)),
-                    height: 1,
+                  buildActionTile(
+                    key: const Key('settings-clear-web-cache'),
+                    title: l10n.clearWebCache,
+                    subtitle: l10n.clearWebCacheDesc,
+                    trailing: const Icon(Icons.cleaning_services_outlined),
+                    onTap: () => _clearWebCache(context, l10n),
                   ),
                   buildActionTile(
                     key: const Key('settings-clear-logbook'),
@@ -340,10 +305,6 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
                     subtitle: RecordBackupStrings.of(context).clearLogbookHint,
                     trailing: const Icon(Icons.delete_forever_outlined),
                     onTap: () => _clearLogbook(context, l10n),
-                  ),
-                  Divider(
-                    color: appColor(context, Color(0xff294052)),
-                    height: 1,
                   ),
                   buildActionTile(
                     key: const Key('settings-clear-composition-records'),
@@ -354,18 +315,7 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
                     trailing: const Icon(Icons.delete_forever_outlined),
                     onTap: () => _clearCompositionRecords(context, l10n),
                   ),
-                  Divider(
-                    color: appColor(context, Color(0xff294052)),
-                    height: 1,
-                  ),
-                  buildActionTile(
-                    key: const Key('settings-clear-web-cache'),
-                    title: l10n.clearWebCache,
-                    subtitle: l10n.clearWebCacheDesc,
-                    trailing: const Icon(Icons.cleaning_services_outlined),
-                    onTap: () => _clearWebCache(context, l10n),
-                  ),
-                ],
+                ]),
               ),
             ),
             const SizedBox(height: 40),
@@ -374,6 +324,37 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
       ),
     );
   }
+
+  List<Widget> _divided(List<Widget> children) => [
+    for (var index = 0; index < children.length; index++) ...[
+      if (index > 0) const Divider(height: 1),
+      children[index],
+    ],
+  ];
+
+  Widget _updateEntry(
+    BuildContext context, {
+    required Key key,
+    required String title,
+    required Listenable controller,
+    required String Function() version,
+    required Widget child,
+  }) => AnimatedBuilder(
+    animation: controller,
+    builder: (context, _) {
+      final l10n =
+          AppLocalizations.of(context) ??
+          lookupAppLocalizations(const Locale('zh'));
+      return buildActionTile(
+        key: key,
+        title: title,
+        subtitle:
+            '${l10n.dataVersionLabel}：${DataUpdateMetadata.versionDate(version())}',
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => openSettingsDetail(context, title: title, child: child),
+      );
+    },
+  );
 
   String _kcwikiReportSubtitle(
     AppLocalizations l10n,
@@ -485,52 +466,6 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
     }
   }
 
-  Future<void> _logoutAndClear(
-    BuildContext context,
-    AppLocalizations l10n,
-  ) async {
-    final session = _accountSession;
-    final scope = session.current;
-    final confirmed = await _showAccountDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.logoutConfirmTitle),
-        content: Text(l10n.logoutConfirmDesc),
-        backgroundColor: appColor(context, const Color(0xff142735)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(l10n.confirmClear),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !session.isCurrent(scope)) return;
-    try {
-      await browserController.logoutAndClearSession();
-      if (context.mounted) {
-        TopNotice.show(
-          context,
-          message: l10n.logoutSucceeded,
-          tone: TopNoticeTone.success,
-        );
-      }
-    } catch (_) {
-      if (context.mounted) {
-        TopNotice.show(
-          context,
-          message: l10n.logoutFailed,
-          tone: TopNoticeTone.error,
-        );
-      }
-    }
-  }
-
   Future<void> _clearWebCache(
     BuildContext context,
     AppLocalizations l10n,
@@ -550,68 +485,6 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
         tone: TopNoticeTone.success,
       );
     }
-  }
-
-  Future<void> _resetBaseSenka(
-    BuildContext context,
-    AppLocalizations l10n,
-    SenkaController controller,
-  ) async {
-    final session = _accountSession;
-    final scope = session.current;
-    final confirmed = await _showAccountDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        key: const Key('settings-reset-base-senka-dialog'),
-        title: Text(l10n.baseSenkaResetConfirmTitle),
-        content: Text(l10n.baseSenkaResetConfirmDesc),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(l10n.cancel),
-          ),
-          TextButton(
-            key: const Key('settings-reset-base-senka-confirm'),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(l10n.confirmClear),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !session.isCurrent(scope)) return;
-    final saved = await controller.resetBaseSenka();
-    if (!context.mounted || !session.isCurrent(scope)) return;
-    TopNotice.show(
-      context,
-      message: saved ? l10n.baseSenkaResetSuccess : l10n.baseSenkaSaveFailed,
-      tone: saved ? TopNoticeTone.success : TopNoticeTone.error,
-    );
-  }
-
-  Future<void> _setBaseSenka(
-    BuildContext context,
-    AppLocalizations l10n,
-    SenkaController controller,
-  ) async {
-    final session = _accountSession;
-    final scope = session.current;
-    final value = await _showAccountDialog<double>(
-      context: context,
-      builder: (_) => _BaseSenkaInputDialog(
-        l10n: l10n,
-        initialValue: controller.monthBaseSenka,
-      ),
-    );
-    if (value == null || !session.isCurrent(scope)) return;
-    final saved = await controller.setBaseSenka(value);
-    if (!context.mounted || !session.isCurrent(scope)) return;
-    TopNotice.show(
-      context,
-      message: saved
-          ? l10n.baseSenkaSetSuccess(value.toStringAsFixed(2))
-          : l10n.baseSenkaSaveFailed,
-      tone: saved ? TopNoticeTone.success : TopNoticeTone.error,
-    );
   }
 
   Future<void> _clearLogbook(
@@ -784,87 +657,5 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
     } finally {
       session.removeListener(dismissStaleDialog);
     }
-  }
-}
-
-class _BaseSenkaInputDialog extends StatefulWidget {
-  const _BaseSenkaInputDialog({required this.l10n, required this.initialValue});
-
-  final AppLocalizations l10n;
-  final double initialValue;
-
-  @override
-  State<_BaseSenkaInputDialog> createState() => _BaseSenkaInputDialogState();
-}
-
-class _BaseSenkaInputDialogState extends State<_BaseSenkaInputDialog> {
-  late final TextEditingController _input;
-  bool _invalid = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _input = TextEditingController(
-      text: widget.initialValue.toStringAsFixed(2),
-    );
-  }
-
-  @override
-  void dispose() {
-    _input.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AdaptiveInputDialog(
-    dialogKey: const Key('settings-base-senka-dialog'),
-    title: Text(widget.l10n.baseSenkaManualDialogTitle),
-    content: TextField(
-      key: const Key('settings-base-senka-input'),
-      controller: _input,
-      autofocus: true,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: <TextInputFormatter>[
-        TextInputFormatter.withFunction((oldValue, newValue) {
-          return RegExp(r'^\d*(?:\.\d{0,2})?$').hasMatch(newValue.text)
-              ? newValue
-              : oldValue;
-        }),
-      ],
-      decoration: InputDecoration(
-        labelText: widget.l10n.baseSenkaManualInputLabel,
-        error: _invalid
-            ? Text(
-                widget.l10n.baseSenkaManualInvalid,
-                key: const Key('settings-base-senka-error'),
-              )
-            : null,
-      ),
-      onChanged: (_) {
-        if (_invalid) setState(() => _invalid = false);
-      },
-    ),
-    actions: <Widget>[
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: Text(widget.l10n.cancel),
-      ),
-      TextButton(
-        key: const Key('settings-base-senka-save'),
-        onPressed: _submit,
-        child: Text(widget.l10n.confirm),
-      ),
-    ],
-  );
-
-  void _submit() {
-    final raw = _input.text.trim();
-    final parsed = double.tryParse(raw);
-    final valid = RegExp(r'^\d+(?:\.\d{1,2})?$').hasMatch(raw);
-    if (!valid || parsed == null || !parsed.isFinite) {
-      setState(() => _invalid = true);
-      return;
-    }
-    Navigator.pop(context, parsed);
   }
 }

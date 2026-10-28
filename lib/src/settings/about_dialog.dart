@@ -14,11 +14,13 @@ class AboutContentWidget extends StatelessWidget {
     this.currentVersion = '1.0.2',
     this.releaseChecker,
     this.externalUrlLauncher,
+    this.supportSection,
   });
 
   final String currentVersion;
   final ReleaseChecker? releaseChecker;
   final ExternalUrlLauncher? externalUrlLauncher;
+  final Widget? supportSection;
   static const String repoOwner = 'yamatosaki';
   static const String repoName = 'yahagi-kancolle-browser';
   static const String githubUrl = 'https://github.com/$repoOwner/$repoName';
@@ -391,6 +393,7 @@ class AboutContentWidget extends StatelessWidget {
             ),
           ),
 
+          ?supportSection,
           // Disclaimer
           Container(
             key: const Key('about-disclaimer-scroll'),

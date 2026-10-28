@@ -6,6 +6,7 @@ import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import 'package:yahagi_kancolle_browser/src/settings/battle_settings_page.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_store.dart';
+import 'package:yahagi_kancolle_browser/src/settings/settings_organization_strings.dart';
 
 void main() {
   test('Chinese warning master switch uses an enabled label', () {
@@ -263,7 +264,16 @@ void main() {
       expect(
         tester.getTopLeft(selector).dy,
         lessThan(
-          tester.getTopLeft(find.text(l10n.battleStatusEffectsSection)).dy,
+          tester
+              .getTopLeft(
+                find.text(
+                  settingsOrganizationText(
+                    tester.element(find.byType(BattleSettingsPage)),
+                    'settingsGroupShipStatusFeedback',
+                  ),
+                ),
+              )
+              .dy,
         ),
       );
       await tester.ensureVisible(description);

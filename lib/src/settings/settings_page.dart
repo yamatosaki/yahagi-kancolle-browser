@@ -31,6 +31,7 @@ import '../toolbox/sortie_map_query/sortie_map_catalog_controller.dart';
 import '../toolbox/sortie_map_query/enemy_catalog_controller.dart';
 import '../improvement/improvement_planner_controller.dart';
 import 'screen_settings_page.dart';
+import 'game_runtime_settings_page.dart';
 import 'battle_settings_page.dart';
 import 'notification_settings_controller.dart';
 import 'notification_settings_page.dart';
@@ -44,7 +45,7 @@ import 'game_rendering_mode_controller.dart';
 import 'game_connector_controller.dart';
 import '../telemetry/telemetry_controller.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({
     super.key,
     required this.layoutSettingsController,
@@ -88,6 +89,9 @@ class SettingsPage extends StatelessWidget {
     this.isBattleActive = false,
     this.diagnosticController,
     this.telemetryController,
+    this.onEditHeaderResources,
+    this.onEditDashboardLayout,
+    this.onEditHdLayout,
   });
 
   final LayoutSettingsController layoutSettingsController;
@@ -132,66 +136,103 @@ class SettingsPage extends StatelessWidget {
   final DiagnosticController? diagnosticController;
   final TelemetryController? telemetryController;
 
+  final VoidCallback? onEditHeaderResources;
+  final VoidCallback? onEditDashboardLayout;
+  final VoidCallback? onEditHdLayout;
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  NotificationSettingsController? _fallbackNotifications;
+
+  @override
+  void dispose() {
+    _fallbackNotifications?.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final settings = widget;
+    final notifications =
+        settings.notificationSettingsController ??
+        (_fallbackNotifications ??= NotificationSettingsController());
     return LazyIndexedStack(
-      index: selectedIndex,
+      index: settings.selectedIndex,
       children: [
         ScreenSettingsPage(
-          layoutSettingsController: layoutSettingsController,
-          displayModeController: displayModeController,
-          audioController: audioController,
-          shipSubtitleSettingsController: shipSubtitleSettingsController,
-          shipSubtitleRuntimeController: shipSubtitleRuntimeController,
-          backgroundGameRetentionController: backgroundGameRetentionController,
-          toolbarDisplayController: toolbarDisplayController,
-          gameFrameRateSettingsController: gameFrameRateSettingsController,
-          screenAwakeController: screenAwakeController,
-          appExitSettingsController: appExitSettingsController,
-          gameMouseWheelSettingsController: gameMouseWheelSettingsController,
-          gameFrameRefreshShortcutSettings: gameFrameRefreshShortcutSettings,
-          gameRenderingModeController: gameRenderingModeController,
-          isBattleActive: isBattleActive,
+          layoutSettingsController: settings.layoutSettingsController,
+          displayModeController: settings.displayModeController,
+          onEditHeaderResources: settings.onEditHeaderResources,
+          onEditDashboardLayout: settings.onEditDashboardLayout,
+          onEditHdLayout: settings.onEditHdLayout,
+        ),
+        GameRuntimeSettingsPage(
+          layoutSettingsController: settings.layoutSettingsController,
+          audioController: settings.audioController,
+          shipSubtitleSettingsController:
+              settings.shipSubtitleSettingsController,
+          shipSubtitleRuntimeController: settings.shipSubtitleRuntimeController,
+          backgroundGameRetentionController:
+              settings.backgroundGameRetentionController,
+          gameFrameRateSettingsController:
+              settings.gameFrameRateSettingsController,
+          screenAwakeController: settings.screenAwakeController,
+          appExitSettingsController: settings.appExitSettingsController,
+          gameMouseWheelSettingsController:
+              settings.gameMouseWheelSettingsController,
+          gameFrameRefreshShortcutSettings:
+              settings.gameFrameRefreshShortcutSettings,
+          gameRenderingModeController: settings.gameRenderingModeController,
+          captureModeController: settings.captureModeController,
+          isBattleActive: settings.isBattleActive,
         ),
         BattleSettingsPage(
           battlePredictionSettingsController:
-              battlePredictionSettingsController,
-          safetySettingsController: safetySettingsController,
+              settings.battlePredictionSettingsController,
+          safetySettingsController: settings.safetySettingsController,
+          notificationSettingsController: notifications,
         ),
         NotificationSettingsPage(
-          controller:
-              notificationSettingsController ??
-              NotificationSettingsController(),
+          controller: notifications,
+          layoutSettingsController: settings.layoutSettingsController,
         ),
         NetworkSettingsPageNew(
-          networkSettingsController: networkSettingsController,
-          gadgetBypassController: gadgetBypassController,
-          browserController: browserController,
-          gameConnectorController: gameConnectorController,
+          networkSettingsController: settings.networkSettingsController,
+          gadgetBypassController: settings.gadgetBypassController,
+          browserController: settings.browserController,
+          gameConnectorController: settings.gameConnectorController,
+          gameStateController: settings.gameStateController,
         ),
         DataSettingsPage(
-          captureModeController: captureModeController,
-          browserController: browserController,
-          gameCaptureController: gameCaptureController,
-          prototypeStatusController: prototypeStatusController,
-          gameStateController: gameStateController,
-          senkaController: senkaController,
-          gameResourceCacheController: gameResourceCacheController,
-          kcwikiReportController: kcwikiReportController,
-          diagnosticController: diagnosticController,
-          showDeveloperDiagnostics: showDeveloperDiagnostics,
-          gameRenderingModeController: gameRenderingModeController,
-          fcdMapController: fcdMapController,
-          questCatalogController: questCatalogController,
-          sortieMapCatalogController: sortieMapCatalogController,
-          enemyCatalogController: enemyCatalogController,
-          improvementPlannerController: improvementPlannerController,
-          shipSubtitleCatalogController: shipSubtitleCatalogController,
-          telemetryController: telemetryController,
+          captureModeController: settings.captureModeController,
+          browserController: settings.browserController,
+          gameCaptureController: settings.gameCaptureController,
+          prototypeStatusController: settings.prototypeStatusController,
+          gameStateController: settings.gameStateController,
+          senkaController: settings.senkaController,
+          gameResourceCacheController: settings.gameResourceCacheController,
+          kcwikiReportController: settings.kcwikiReportController,
+          fcdMapController: settings.fcdMapController,
+          questCatalogController: settings.questCatalogController,
+          sortieMapCatalogController: settings.sortieMapCatalogController,
+          enemyCatalogController: settings.enemyCatalogController,
+          improvementPlannerController: settings.improvementPlannerController,
+          shipSubtitleCatalogController: settings.shipSubtitleCatalogController,
+          telemetryController: settings.telemetryController,
         ),
         AboutSupportSettingsPage(
-          currentVersion: currentVersion,
-          releaseChecker: releaseChecker,
+          currentVersion: settings.currentVersion,
+          releaseChecker: settings.releaseChecker,
+          diagnosticController: settings.diagnosticController,
+          showDeveloperDiagnostics: settings.showDeveloperDiagnostics,
+          browserController: settings.browserController,
+          captureModeController: settings.captureModeController,
+          gameCaptureController: settings.gameCaptureController,
+          prototypeStatusController: settings.prototypeStatusController,
+          gameRenderingModeController: settings.gameRenderingModeController,
         ),
       ],
     );

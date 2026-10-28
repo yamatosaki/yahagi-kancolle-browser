@@ -12,6 +12,7 @@ enum TopNoticeTone {
   quest,
   marriage,
   damageControl,
+  debuff,
 }
 
 const topNoticeKey = Key('top-notice');
@@ -45,7 +46,11 @@ class TopNoticeController extends ChangeNotifier {
   final List<TopNoticeData> _notices = [];
   DateTime? _batchStartedAt;
   Timer? _timer;
+  final Map<int, Timer> _noticeTimers = {};
   int _nextId = 0;
+
+  static bool _hasOwnDeadline(TopNoticeTone tone) =>
+      tone == TopNoticeTone.quest || tone == TopNoticeTone.debuff;
 
   void show({
     required String message,
@@ -77,16 +82,26 @@ class TopNoticeController extends ChangeNotifier {
     );
     if (append) {
       if (replacementKey != null) {
-        _notices.removeWhere(
-          (notice) => notice.replacementKey == replacementKey,
-        );
+        _removeWhere((notice) => notice.replacementKey == replacementKey);
       }
-      _notices.add(notice);
     } else {
-      _notices
-        ..clear()
-        ..add(notice);
+      // Quest and debuff alerts keep their own deadlines while routine notices
+      // replace each other. A new quest still starts a fresh quest batch.
+      _removeWhere(
+        (notice) =>
+            !_hasOwnDeadline(notice.tone) ||
+            (tone == TopNoticeTone.quest && notice.tone == TopNoticeTone.quest),
+      );
       _batchStartedAt = now;
+    }
+    _notices.add(notice);
+    if (_hasOwnDeadline(tone)) {
+      _noticeTimers[id] = Timer(duration, () {
+        _noticeTimers.remove(id);
+        if (!_removeWhere((notice) => notice.id == id)) return;
+        _resetEmptyBatch();
+        notifyListeners();
+      });
     }
     notifyListeners();
     _timer = Timer(duration, () {
@@ -94,44 +109,49 @@ class TopNoticeController extends ChangeNotifier {
         return;
       }
       _timer = null;
-      _notices.clear();
-      _batchStartedAt = null;
+      if (!_removeWhere((notice) => !_hasOwnDeadline(notice.tone))) return;
+      _resetEmptyBatch();
       notifyListeners();
     });
   }
 
   /// Removes a live-updating notice without dismissing unrelated messages.
   void removeByKey(String replacementKey) {
-    final oldLength = _notices.length;
-    _notices.removeWhere((notice) => notice.replacementKey == replacementKey);
-    if (_notices.length == oldLength) return;
-    if (_notices.isEmpty) {
-      _timer?.cancel();
-      _timer = null;
-      _batchStartedAt = null;
+    if (!_removeWhere((notice) => notice.replacementKey == replacementKey)) {
+      return;
     }
+    _resetEmptyBatch();
     notifyListeners();
   }
 
   void removeByTone(TopNoticeTone tone) {
+    if (!_removeWhere((notice) => notice.tone == tone)) return;
+    _resetEmptyBatch();
+    notifyListeners();
+  }
+
+  bool _removeWhere(bool Function(TopNoticeData) shouldRemove) {
     final oldLength = _notices.length;
-    _notices.removeWhere((notice) => notice.tone == tone);
-    if (_notices.length == oldLength) return;
+    _notices.removeWhere((notice) {
+      if (!shouldRemove(notice)) return false;
+      _noticeTimers.remove(notice.id)?.cancel();
+      return true;
+    });
+    return _notices.length != oldLength;
+  }
+
+  void _resetEmptyBatch() {
     if (_notices.isEmpty) {
       _timer?.cancel();
       _timer = null;
       _batchStartedAt = null;
     }
-    notifyListeners();
   }
 
   void hide() {
     _timer?.cancel();
     _timer = null;
-    if (_notices.isEmpty) {
-      return;
-    }
-    _notices.clear();
+    if (!_removeWhere((_) => true)) return;
     _batchStartedAt = null;
     notifyListeners();
   }
@@ -140,6 +160,10 @@ class TopNoticeController extends ChangeNotifier {
   void dispose() {
     _timer?.cancel();
     _timer = null;
+    for (final timer in _noticeTimers.values) {
+      timer.cancel();
+    }
+    _noticeTimers.clear();
     super.dispose();
   }
 }
@@ -386,6 +410,12 @@ _TopNoticePalette _paletteFor(TopNoticeTone tone) {
       background: Color(0xff2d2417),
       border: Color(0xffa7874f),
       foreground: Color(0xfff7e2ba),
+      icon: Icons.shield_outlined,
+    ),
+    TopNoticeTone.debuff => const _TopNoticePalette(
+      background: Color(0xff173d3b),
+      border: Color(0xff4fa79b),
+      foreground: Color(0xffb9f1e8),
       icon: Icons.shield_outlined,
     ),
   };

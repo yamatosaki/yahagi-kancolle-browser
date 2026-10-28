@@ -2,6 +2,11 @@ import '../theme/app_palette.dart';
 import 'package:flutter/material.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
+import '../account/account_session.dart';
+import '../game_state/game_state_controller.dart';
+import '../logbook/logbook_database.dart';
+import '../widgets/top_notice.dart';
+import 'settings_organization_strings.dart';
 import '../browser/gadget_bypass_controller.dart';
 import '../browser/game_browser_controller.dart';
 import 'gadget_bypass_section.dart';
@@ -18,12 +23,21 @@ class NetworkSettingsPageNew extends StatelessWidget with SettingsUIHelpers {
     required this.gadgetBypassController,
     required this.browserController,
     this.gameConnectorController,
+    this.gameStateController,
+    this.accountSession,
   });
 
   final NetworkSettingsController networkSettingsController;
   final GadgetBypassController gadgetBypassController;
   final GameBrowserController browserController;
   final GameConnectorController? gameConnectorController;
+  final GameStateController? gameStateController;
+  final AccountSession? accountSession;
+
+  AccountSession get _accountSession =>
+      accountSession ??
+      gameStateController?.accountSession ??
+      LogbookDatabase.accountSession;
 
   @override
   Widget build(BuildContext context) {
@@ -66,10 +80,93 @@ class NetworkSettingsPageNew extends StatelessWidget with SettingsUIHelpers {
                 onReloadRequired: browserController.reload,
               ),
             ),
+            const SizedBox(height: 24),
+            buildSectionTitle(
+              settingsOrganizationText(context, 'settingsGroupAccount'),
+            ),
+            buildCard(
+              child: buildActionTile(
+                title: l10n.logoutAndClear,
+                titleKey: const Key('settings-logout-label'),
+                subtitle: l10n.logoutAndClearDesc,
+                trailing: Icon(
+                  Icons.logout,
+                  color: appColor(context, const Color(0xffd4a85f)),
+                ),
+                onTap: () => _logoutAndClear(context, l10n),
+              ),
+            ),
             const SizedBox(height: 40),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _logoutAndClear(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) async {
+    final session = _accountSession;
+    final scope = session.current;
+    final confirmed = await _showAccountDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.logoutConfirmTitle),
+        content: Text(l10n.logoutConfirmDesc),
+        backgroundColor: appColor(context, const Color(0xff142735)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(l10n.confirmClear),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !session.isCurrent(scope)) return;
+    try {
+      await browserController.logoutAndClearSession();
+      if (context.mounted) {
+        TopNotice.show(
+          context,
+          message: l10n.logoutSucceeded,
+          tone: TopNoticeTone.success,
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        TopNotice.show(
+          context,
+          message: l10n.logoutFailed,
+          tone: TopNoticeTone.error,
+        );
+      }
+    }
+  }
+
+  Future<T?> _showAccountDialog<T>({
+    required BuildContext context,
+    required WidgetBuilder builder,
+  }) async {
+    final session = _accountSession;
+    final scope = session.current;
+    final route = DialogRoute<T>(context: context, builder: builder);
+    void dismissStaleDialog() {
+      if (!session.isCurrent(scope) && route.isActive) {
+        route.navigator?.removeRoute(route);
+      }
+    }
+
+    session.addListener(dismissStaleDialog);
+    try {
+      return await Navigator.of(context, rootNavigator: true).push<T>(route);
+    } finally {
+      session.removeListener(dismissStaleDialog);
+    }
   }
 }

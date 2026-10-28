@@ -3,16 +3,30 @@ import 'package:flutter/material.dart';
 
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
+import '../browser/game_surface_dialog.dart';
 import '../game_state/fleet_metrics.dart';
 
 Future<void> showFleetLineOfSightDetails(
   BuildContext context,
   FleetMetrics metrics,
-) {
+) async {
   final l10n = AppLocalizations.of(context);
-  return showDialog<void>(
+  await showGameSurfaceDialog<bool>(
     context: context,
-    builder: (context) => AlertDialog(
+    title: l10n?.losDetails ?? '索敌详情',
+    rows: [
+      '${l10n?.totalLos ?? '总索敌'}：${metrics.lineOfSight}',
+      for (final result in metrics.formula33)
+        '${l10n?.formula33 ?? '33式'} × ${result.mapModifier.toInt()}：${result.total.toStringAsFixed(2)}',
+    ],
+    actions: [
+      GameSurfaceDialogAction(
+        id: 'close',
+        label: l10n?.close ?? '关闭',
+        value: true,
+      ),
+    ],
+    builder: (context, close) => AlertDialog(
       backgroundColor: appColor(context, Color(0xff142735)),
       title: Text(
         l10n?.losDetails ?? '索敌详情',
@@ -51,7 +65,7 @@ Future<void> showFleetLineOfSightDetails(
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => close(true),
           child: Text(l10n?.close ?? '关闭'),
         ),
       ],

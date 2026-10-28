@@ -108,18 +108,29 @@ class _QuestCompletionFeedbackState extends State<QuestCompletionFeedback> {
         _pendingVerification.clear();
         return;
       }
-      final recent = _pendingQuests.values
-          .where(
-            (quest) =>
-                currentState.quests[quest.id]?.isCompleted == true &&
-                currentState.quests[quest.id]?.isAccepted == true,
-          )
-          .toList();
-      _pendingQuests.clear();
-      final awaiting = _pendingVerification.values.where((quest) {
+      final noticeTime = DateTime.now().toUtc();
+      final recent = _pendingQuests.values.where((quest) {
         final current = currentState.quests[quest.id];
-        return current != null &&
-            _isFullUnverified(current, DateTime.now().toUtc());
+        // The completed snapshot remains valid after a quick claim. Keep
+        // rejecting a local prediction that a live task has since contradicted.
+        final show =
+            _isCurrentPeriod(quest, noticeTime) &&
+            (quest.isServerCompleted ||
+                current == null ||
+                (current.isCompleted && current.isAccepted));
+        if (!show) _tracker.cancelPendingAlert(quest.id);
+        return show;
+      }).toList();
+      _pendingQuests.clear();
+      final completedIds = recent.map((quest) => quest.id).toSet();
+      final awaiting = _pendingVerification.values.where((quest) {
+        if (completedIds.contains(quest.id)) return false;
+        final current = currentState.quests[quest.id];
+        final show =
+            _isCurrentPeriod(quest, noticeTime) &&
+            (current == null || _isFullUnverified(current, noticeTime));
+        if (!show) _announcedVerification.remove(quest.id);
+        return show;
       }).toList();
       _pendingVerification.clear();
       if ((recent.isEmpty && awaiting.isEmpty) ||
@@ -162,6 +173,11 @@ class _QuestCompletionFeedbackState extends State<QuestCompletionFeedback> {
   String _period(GameQuest quest, DateTime now) =>
       widget.controller.questProgress?.periodFor(quest, now) ??
       questPeriodKey(0, quest.type, now);
+
+  bool _isCurrentPeriod(GameQuest quest, DateTime now) =>
+      !quest.isExpired(now) &&
+      (quest.updatedAt == null ||
+          _period(quest, quest.updatedAt!) == _period(quest, now));
 
   bool _isFullUnverified(GameQuest quest, DateTime now) =>
       quest.isAccepted &&

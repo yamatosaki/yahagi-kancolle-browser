@@ -4,11 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
-import 'package:yahagi_kancolle_browser/src/settings/display_mode_controller.dart';
-import 'package:yahagi_kancolle_browser/src/settings/display_mode_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
-import 'package:yahagi_kancolle_browser/src/settings/screen_settings_page.dart';
+import 'package:yahagi_kancolle_browser/src/settings/game_runtime_settings_page.dart';
 import 'package:yahagi_kancolle_browser/src/subtitles/ship_subtitle_catalog.dart';
 import 'package:yahagi_kancolle_browser/src/subtitles/ship_subtitle_catalog_controller.dart';
 import 'package:yahagi_kancolle_browser/src/subtitles/ship_subtitle_port.dart';
@@ -21,7 +19,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
   testWidgets(
-    'screen settings show runtime failure and retry without restart',
+    'runtime settings show runtime failure and retry without restart',
     (tester) async {
       GameStateController.disableTimerForTest = true;
       addTearDown(() => GameStateController.disableTimerForTest = false);
@@ -40,9 +38,6 @@ void main() {
       await settings.setEnabled(true);
       final layout = await LayoutSettingsController.load(
         SharedPreferencesLayoutSettingsStore(),
-      );
-      final display = await DisplayModeController.load(
-        MemoryDisplayModeStore(),
       );
       final catalog = ShipSubtitleCatalogController(
         data: ShipSubtitleCatalog(
@@ -63,7 +58,6 @@ void main() {
       addTearDown(runtime.dispose);
       addTearDown(settings.dispose);
       addTearDown(layout.dispose);
-      addTearDown(display.dispose);
       addTearDown(catalog.dispose);
       addTearDown(game.dispose);
       await runtime.initialize();
@@ -73,9 +67,8 @@ void main() {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: ScreenSettingsPage(
+            body: GameRuntimeSettingsPage(
               layoutSettingsController: layout,
-              displayModeController: display,
               shipSubtitleSettingsController: settings,
               shipSubtitleRuntimeController: runtime,
             ),
@@ -100,27 +93,22 @@ void main() {
   );
 
   testWidgets(
-    'actual screen settings expose opt-in and conditional subtitle choices',
+    'actual runtime settings expose opt-in and conditional subtitle choices',
     (tester) async {
       final settings = await ShipSubtitleSettingsController.load();
       final layout = await LayoutSettingsController.load(
         SharedPreferencesLayoutSettingsStore(),
       );
-      final display = await DisplayModeController.load(
-        MemoryDisplayModeStore(),
-      );
       addTearDown(settings.dispose);
       addTearDown(layout.dispose);
-      addTearDown(display.dispose);
       await tester.pumpWidget(
         MaterialApp(
           locale: const Locale('zh'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: ScreenSettingsPage(
+            body: GameRuntimeSettingsPage(
               layoutSettingsController: layout,
-              displayModeController: display,
               shipSubtitleSettingsController: settings,
             ),
           ),
@@ -140,6 +128,16 @@ void main() {
       expect(
         find.byKey(const Key('settings-ship-subtitle-font-size')),
         findsOneWidget,
+      );
+      expect(
+        tester.getTopLeft(language).dy,
+        lessThan(
+          tester
+              .getTopLeft(
+                find.byKey(const Key('settings-ship-subtitle-font-size')),
+              )
+              .dy,
+        ),
       );
       await tester.ensureVisible(language);
       await tester.tap(language);

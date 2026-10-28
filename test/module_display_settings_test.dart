@@ -100,7 +100,7 @@ void main() {
         fields.contains('name') ? findsOneWidget : findsNothing,
       );
       expect(
-        find.text('50%'),
+        find.text('50%+'),
         fields.contains('progress') ? findsOneWidget : findsNothing,
       );
       expect(

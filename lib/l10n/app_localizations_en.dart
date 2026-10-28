@@ -9,6 +9,39 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get debuffReminderTitle => 'Armor debuff reminder';
+
+  @override
+  String get debuffReminderSourcePort => 'Port';
+
+  @override
+  String get debuffReminderSourceBattleResult => 'Battle results';
+
+  @override
+  String get debuffReminderSourceAirDefense => 'Base air defense';
+
+  @override
+  String debuffReminderMessage(String source) {
+    return '$source: Puzzle or debuff cue detected.';
+  }
+
+  @override
+  String get debuffReminderSectionTitle => 'In-game reminders';
+
+  @override
+  String get debuffReminderSettingTitle => 'Armor debuff reminder';
+
+  @override
+  String get debuffReminderSettingSubtitle =>
+      'Both options vibrate when a puzzle or debuff cue is detected.';
+
+  @override
+  String get debuffReminderStyleDialog => 'Confirmation dialog (default)';
+
+  @override
+  String get debuffReminderStyleTopNotice => 'Top notice';
+
+  @override
   String get cameraAvoidanceTitle => 'Camera avoidance';
 
   @override
@@ -362,6 +395,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get themeClearSkyBlue => 'Clear sky blue';
+
+  @override
+  String get uiFontSizeTitle => 'Interface font size';
+
+  @override
+  String get uiFontSizeDescription => 'Default follows the system.';
+
+  @override
+  String get uiFontSizeSystem => 'Default (follow system)';
+
+  @override
+  String get uiFontSizeSmall => 'Small';
+
+  @override
+  String get uiFontSizeMedium => 'Medium';
+
+  @override
+  String get uiFontSizeLarge => 'Large';
 
   @override
   String get uiDisplaySizeTitle => 'UI size';
@@ -1869,7 +1920,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get nativeGameSurfaceSwitchRenderingModeHint =>
-      'This device is not compatible with this mode. Scroll the left menu and go to [Settings - Screen and sound] to change the rendering mode.';
+      'This device is not compatible with this mode. Scroll the left menu and go to [Settings - Game runtime] to change the rendering mode.';
 
   @override
   String nativeGameSurfacePageInitializationFailed(
@@ -1929,25 +1980,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sortUnlockAction => 'Unlock current sort';
 
   @override
-  String get settingsTabScreen => 'Screen and sound';
+  String get settingsTabScreen => 'Appearance & layout';
 
   @override
   String get settingsTabSound => 'Sound';
 
   @override
-  String get settingsTabBattle => 'Battle';
+  String get settingsTabBattle => 'Sortie & battle';
 
   @override
-  String get settingsTabNotification => 'Notifications';
+  String get settingsTabNotification => 'Notifications & reminders';
 
   @override
-  String get settingsTabNetwork => 'Network';
+  String get settingsTabNetwork => 'Network & connection';
 
   @override
-  String get settingsTabData => 'Data';
+  String get settingsTabData => 'Data management';
 
   @override
-  String get settingsTabAboutSupport => 'About';
+  String get settingsTabAboutSupport => 'About & support';
 
   @override
   String get notificationSectionSystem => 'System notification status';
@@ -3874,7 +3925,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Import a font you like, then preview and apply it. Supports TTF and OTF, up to 32 MB.';
 
   @override
-  String get customFontDefault => 'Default font (follows interface language)';
+  String get customFontDefault => 'Default font (system font size)';
 
   @override
   String get customFontImport => 'Import font';
@@ -4035,4 +4086,143 @@ class AppLocalizationsEn extends AppLocalizations {
   String questQueryActive(int count) {
     return '$count query conditions applied';
   }
+
+  @override
+  String get settingsTabRuntime => 'Game runtime';
+
+  @override
+  String get settingsGroupAppearance => 'Appearance';
+
+  @override
+  String get settingsGroupScreenAdaptation => 'Screen adaptation';
+
+  @override
+  String get settingsGroupLayoutPosition => 'Layout & position';
+
+  @override
+  String get settingsGroupContentCustomization => 'Content customization';
+
+  @override
+  String get settingsGroupLayoutManagement => 'Layout management';
+
+  @override
+  String get settingsOtherModuleDisplay => 'Other module content';
+
+  @override
+  String get settingsEditInformationLayout => 'Edit information panel layout';
+
+  @override
+  String get settingsEditHdLayout => 'Edit HD layout';
+
+  @override
+  String get settingsResetMenuOrder => 'Reset menu order';
+
+  @override
+  String get settingsResetCardOrder => 'Reset card order';
+
+  @override
+  String get settingsGroupPerformanceRendering => 'Performance & rendering';
+
+  @override
+  String get settingsGroupSubtitles => 'Subtitles';
+
+  @override
+  String get settingsGroupScreenBackground => 'Screen & background operation';
+
+  @override
+  String get settingsGroupInformationCapture => 'Game information capture';
+
+  @override
+  String get settingsFrameRefreshConfirm => 'Confirm before frame refresh';
+
+  @override
+  String get settingsFrameRefreshConfirmDescription =>
+      'Show confirmation before refreshing the game frame from the header.';
+
+  @override
+  String get settingsFrameRefreshConfirmSaveFailed =>
+      'Could not save frame refresh confirmation. Please try again.';
+
+  @override
+  String get settingsGroupDebuff => 'Gimmicks & armor debuff';
+
+  @override
+  String get settingsGroupShipStatusFeedback => 'Ship status feedback';
+
+  @override
+  String get settingsGroupSystemNotifications => 'System notifications';
+
+  @override
+  String get settingsEnableSystemNotifications => 'Enable system notifications';
+
+  @override
+  String get settingsSystemNotificationSound => 'System notification sound';
+
+  @override
+  String get settingsSystemNotificationVibration =>
+      'System notification vibration';
+
+  @override
+  String get settingsGroupDataUpdates => 'Data updates';
+
+  @override
+  String get settingsGroupDataSharingPrivacy => 'Data sharing & privacy';
+
+  @override
+  String get settingsGroupClearLocalData => 'Clear local data';
+
+  @override
+  String get settingsGroupAccount => 'Account';
+
+  @override
+  String get settingsGroupDiagnosticsSupport => 'Diagnostics & support';
+
+  @override
+  String get settingsStatusEnabled => 'Enabled';
+
+  @override
+  String get settingsStatusDisabled => 'Disabled';
+
+  @override
+  String get settingsFleetDisplayStandard => 'Standard fleet card';
+
+  @override
+  String get settingsFleetDisplayHd => 'HD two-column fleet card';
+
+  @override
+  String get briefingDisplayTitle => 'Briefing display';
+
+  @override
+  String get briefingDisplayDescription =>
+      'Accordion opens several modules at once. Tabs switch modules from the top. This setting has no effect in HD mode.';
+
+  @override
+  String get briefingDisplayAccordion => 'Accordion';
+
+  @override
+  String get briefingDisplayTabs => 'Tabs';
+
+  @override
+  String get briefingTabForecast => 'Forecast';
+
+  @override
+  String get briefingTabFleet => 'Fleet';
+
+  @override
+  String get briefingTabLandBase => 'Air Base';
+
+  @override
+  String get briefingTabExpedition => 'Exped.';
+
+  @override
+  String get briefingTabRepair => 'Repair';
+
+  @override
+  String get briefingTabConstruction => 'Build';
+
+  @override
+  String get briefingTabQuests => 'Quests';
+
+  @override
+  String get briefingTabPreSortie => 'Check';
 }

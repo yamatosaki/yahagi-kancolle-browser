@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../fleet/fleet_ui_strings.dart';
 import 'fleet_display_options.dart';
 import 'layout_settings_controller.dart';
+import 'game_display_settings_dialog.dart';
 
 class FleetDisplaySettingsSection extends StatelessWidget {
   const FleetDisplaySettingsSection({
@@ -259,35 +260,169 @@ Future<void> showFleetDisplaySettings(
   BuildContext context,
   LayoutSettingsController controller, {
   bool twoColumns = false,
-}) => showDialog<void>(
-  context: context,
-  builder: (context) => Dialog(
-    backgroundColor: appColor(context, const Color(0xff142735)),
-    insetPadding: const EdgeInsets.all(16),
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 720),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: IconButton(
-              key: const Key('fleet-display-close'),
-              tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.close),
+}) {
+  final limit = twoColumns ? 7 : maximumSummaryFields;
+  Set<String> visible() => twoColumns
+      ? controller.hdFleetDisplayFields
+      : controller.fleetDisplayFields;
+  Future<void> save(Set<String> fields) => twoColumns
+      ? controller.setHdFleetDisplayFields(fields)
+      : controller.setFleetDisplayFields(fields);
+  String text(String key) => fleetText(context, key);
+  Future<void> reset() async {
+    await Future.wait([
+      controller.setModuleShowLogo('fleet', true),
+      controller.setModuleShowName('fleet', true),
+      controller.setFleetSelectorLabelMode(FleetSelectorLabelMode.customName),
+      save({
+        ...defaultFields,
+        if (twoColumns) ...{'firepower', 'anti-sub'},
+      }),
+    ]);
+  }
+
+  Future<void> toggle(String id) {
+    if (id == 'appearance-logo') {
+      return controller.setModuleShowLogo(
+        'fleet',
+        !controller.moduleShowLogo('fleet'),
+      );
+    }
+    if (id == 'appearance-name') {
+      return controller.setModuleShowName(
+        'fleet',
+        !controller.moduleShowName('fleet'),
+      );
+    }
+    if (id == 'fleet-name-custom' || id == 'fleet-name-number') {
+      return controller.setFleetSelectorLabelMode(
+        id == 'fleet-name-custom'
+            ? FleetSelectorLabelMode.customName
+            : FleetSelectorLabelMode.number,
+      );
+    }
+    if (id == 'ship-type-localized' || id == 'ship-type-abbreviation') {
+      return controller.setFleetShipTypeLabelMode(
+        id == 'ship-type-localized'
+            ? FleetShipTypeLabelMode.localizedName
+            : FleetShipTypeLabelMode.abbreviation,
+      );
+    }
+    if (id.startsWith('field-')) {
+      final field = id.substring(6);
+      if (allFields.contains(field)) {
+        final next = visible().toSet();
+        if (!next.contains(field) &&
+            summaryFields.contains(field) &&
+            next.intersection(summaryFields).length >= limit) {
+          return Future<void>.value();
+        }
+        next.contains(field) ? next.remove(field) : next.add(field);
+        return save(next);
+      }
+    }
+    return Future<void>.value();
+  }
+
+  Map<String, Object?> item(
+    String id,
+    String label,
+    bool checked, {
+    bool enabled = true,
+  }) => {
+    'id': id,
+    'label': label,
+    'value': '',
+    'checked': checked,
+    'enabled': enabled,
+  };
+  return showGameDisplaySettingsDialog(
+    context: context,
+    controller: controller,
+    kind: 'fleetDisplay',
+    title: text(FleetUiKeys.fleetSummaryDisplay),
+    resetLabel: text(FleetUiKeys.reset),
+    onReset: reset,
+    onToggle: toggle,
+    items: () {
+      final selected = visible();
+      final count = selected.intersection(summaryFields).length;
+      return [
+        item(
+          'appearance-logo',
+          '${text(FleetUiKeys.capsuleAppearance)} · ${text('LOGO')}',
+          controller.moduleShowLogo('fleet'),
+        ),
+        item(
+          'appearance-name',
+          '${text(FleetUiKeys.capsuleAppearance)} · ${text(FleetUiKeys.name)}',
+          controller.moduleShowName('fleet'),
+        ),
+        item(
+          'fleet-name-custom',
+          '${text(FleetUiKeys.fleetSelectorName)} · ${text(FleetUiKeys.customFleetName)}',
+          controller.fleetSelectorLabelMode ==
+              FleetSelectorLabelMode.customName,
+        ),
+        item(
+          'fleet-name-number',
+          '${text(FleetUiKeys.fleetSelectorName)} · ${text(FleetUiKeys.shortFleetNumber)}',
+          controller.fleetSelectorLabelMode == FleetSelectorLabelMode.number,
+        ),
+        for (final group in displayGroups.entries)
+          for (final field in group.value.entries)
+            item(
+              'field-${field.key}',
+              '${text(group.key)} · ${text(field.value)}',
+              selected.contains(field.key),
+              enabled:
+                  selected.contains(field.key) ||
+                  !summaryFields.contains(field.key) ||
+                  count < limit,
             ),
-          ),
-          Flexible(
-            child: SingleChildScrollView(
-              child: FleetDisplaySettingsSection(
-                controller: controller,
-                twoColumns: twoColumns,
+        item(
+          'ship-type-localized',
+          '${text(FleetUiKeys.shipTypeName)} · ${text(FleetUiKeys.chinese)}',
+          controller.fleetShipTypeLabelMode ==
+              FleetShipTypeLabelMode.localizedName,
+        ),
+        item(
+          'ship-type-abbreviation',
+          '${text(FleetUiKeys.shipTypeName)} · ${text(FleetUiKeys.englishAbbreviation)}',
+          controller.fleetShipTypeLabelMode ==
+              FleetShipTypeLabelMode.abbreviation,
+        ),
+      ];
+    },
+    builder: (context, close) => Dialog(
+      key: const Key('fleet-display-settings-dialog'),
+      backgroundColor: appColor(context, const Color(0xff142735)),
+      insetPadding: const EdgeInsets.all(16),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                key: const Key('fleet-display-close'),
+                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                onPressed: close,
+                icon: const Icon(Icons.close),
               ),
             ),
-          ),
-        ],
+            Flexible(
+              child: SingleChildScrollView(
+                child: FleetDisplaySettingsSection(
+                  controller: controller,
+                  twoColumns: twoColumns,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     ),
-  ),
-);
+  );
+}

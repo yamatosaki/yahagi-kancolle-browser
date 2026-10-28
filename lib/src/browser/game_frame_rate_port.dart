@@ -6,6 +6,9 @@ import '../settings/game_frame_rate_settings.dart';
 import 'game_frame_rate_runtime_controller.dart';
 import 'game_frame_rate_script.dart';
 
+export '../settings/game_frame_rate_settings.dart'
+    show GameFrameRateConfigurationCancelledException;
+
 const MethodChannel _defaultGameFrameRateChannel = MethodChannel(
   'app.yahagi.kancollebrowser/game_frame_rate',
 );
@@ -29,9 +32,13 @@ GameFrameRateRuntimePort createGameFrameRateRuntimePort(
 final class MethodChannelGameFrameRatePort implements GameFrameRatePort {
   const MethodChannelGameFrameRatePort({
     this.channel = _defaultGameFrameRateChannel,
+    this.isActive,
+    this.cancelled,
   });
 
   final MethodChannel channel;
+  final bool Function()? isActive;
+  final Future<void>? cancelled;
 
   @override
   Future<bool> isSupported() async {
@@ -46,19 +53,51 @@ final class MethodChannelGameFrameRatePort implements GameFrameRatePort {
 
   @override
   Future<void> configure(GameFrameRateMode mode) async {
-    const attempts = 12;
+    var cancellationRequested = false;
+    final cancellation = cancelled?.then<void>((_) {
+      cancellationRequested = true;
+    });
+    Future<void> waitForConfiguration(Future<void> operation) {
+      return Future.any<void>(<Future<void>>[
+        operation,
+        if (cancellation != null)
+          cancellation.then<void>((_) {
+            throw const GameFrameRateConfigurationCancelledException();
+          }),
+      ]);
+    }
+
+    // Observe an already completed cancellation before sending native work.
+    if (cancellation != null) await Future<void>.value();
+    const attempts = 60;
     for (var attempt = 0; attempt < attempts; attempt += 1) {
+      _ensureActive(cancellationRequested);
       try {
-        await channel.invokeMethod<void>('configure', <String, Object?>{
-          'mode': mode.wireName,
-        });
+        await waitForConfiguration(
+          channel.invokeMethod<void>('configure', <String, Object?>{
+            'mode': mode.wireName,
+          }),
+        );
+        _ensureActive(cancellationRequested);
         return;
-      } on PlatformException catch (error) {
-        if (error.code != 'webview_not_found' || attempt == attempts - 1) {
+      } catch (error) {
+        _ensureActive(cancellationRequested);
+        if (error is! PlatformException ||
+            error.code != 'webview_not_found' ||
+            attempt == attempts - 1) {
           rethrow;
         }
-        await Future<void>.delayed(const Duration(milliseconds: 16));
+        await waitForConfiguration(
+          Future<void>.delayed(const Duration(milliseconds: 16)),
+        );
+        _ensureActive(cancellationRequested);
       }
+    }
+  }
+
+  void _ensureActive(bool cancellationRequested) {
+    if (cancellationRequested || isActive?.call() == false) {
+      throw const GameFrameRateConfigurationCancelledException();
     }
   }
 }
@@ -109,7 +148,9 @@ final class UnsupportedGameFrameRatePort implements GameFrameRatePort {
   Future<bool> isSupported() async => false;
 
   @override
-  Future<void> configure(GameFrameRateMode mode) async {}
+  Future<void> configure(GameFrameRateMode mode) async {
+    throw PlatformException(code: 'frame_rate_unsupported');
+  }
 }
 
 final class WebViewGameFrameRateRuntimePort

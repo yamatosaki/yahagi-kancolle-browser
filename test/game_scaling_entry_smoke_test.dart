@@ -27,18 +27,25 @@ import 'package:yahagi_kancolle_browser/src/settings/game_rendering_mode.dart';
 void main() {
   late _WebViewPlatform platform;
   final calls = <MethodCall>[];
+  final frameRateCalls = <MethodCall>[];
   Completer<void>? bindGate;
   const scaling = MethodChannel('app.webview/fixed_canvas_scaling');
+  const frameRate = MethodChannel('app.yahagi.kancollebrowser/game_frame_rate');
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     platform = _WebViewPlatform();
     WebViewPlatform.instance = platform;
     calls.clear();
+    frameRateCalls.clear();
     bindGate = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       ..setMockMethodCallHandler(scaling, (call) async {
         calls.add(call);
         if (call.method == 'bindFixedCanvas') await bindGate?.future;
+        return null;
+      })
+      ..setMockMethodCallHandler(frameRate, (call) async {
+        frameRateCalls.add(call);
         return null;
       })
       ..setMockMethodCallHandler(
@@ -49,6 +56,7 @@ void main() {
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       ..setMockMethodCallHandler(scaling, null)
+      ..setMockMethodCallHandler(frameRate, null)
       ..setMockMethodCallHandler(
         const MethodChannel(gameFrameReloadMethodChannelName),
         null,
@@ -70,6 +78,8 @@ void main() {
     });
     await tester.pumpWidget(MaterialApp(home: fixture.view));
     await drain(tester);
+    expect(frameRateCalls.map((call) => call.method), ['configure']);
+    expect(frameRateCalls.single.arguments, {'mode': 'auto'});
     expect(platform.controller.loads, hasLength(1));
     return fixture;
   }

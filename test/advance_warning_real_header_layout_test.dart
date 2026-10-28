@@ -15,6 +15,7 @@ import 'package:yahagi_kancolle_browser/src/browser/gadget_bypass_channel.dart';
 import 'package:yahagi_kancolle_browser/src/browser/gadget_bypass_controller.dart';
 import 'package:yahagi_kancolle_browser/src/browser/gadget_bypass_store.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_browser_controller.dart';
+import 'package:yahagi_kancolle_browser/src/browser/game_surface_input_guard.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_toolbar_controller.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode_controller.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode_store.dart';
@@ -514,11 +515,23 @@ Finder _capsule() => find
 
 Future<void> _pumpHeader(WidgetTester tester) async {
   await tester.pump();
+  if (find.byKey(const Key('game-safety-input-guard')).evaluate().isNotEmpty) {
+    // A refreshed warning waits for the real post-action touch guard to hand
+    // off. Header animation time alone does not advance its quiet interval.
+    await tester.pump(GameSurfaceInputGuardRoute.protectionDuration);
+    await tester.pump();
+  }
   await tester.pump(const Duration(milliseconds: 350));
   await tester.pump();
 }
 
 void _expectPendingRefresh(_RefreshBrowserPort port, _RefreshTarget target) {
+  expect(
+    find.byKey(const Key('game-safety-input-guard')),
+    findsOneWidget,
+    reason:
+        'Refresh keeps the game covered during the post-action touch guard.',
+  );
   expect(port.page.isCompleted, isFalse);
   expect(port.frame.isCompleted, isFalse);
   expect(port.pageCalls, target == _RefreshTarget.page ? 1 : 0);

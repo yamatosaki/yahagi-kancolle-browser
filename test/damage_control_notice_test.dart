@@ -426,35 +426,37 @@ void main() {
     );
   }
 
-  testWidgets('native fullscreen falls back without sending a damage toast', (
-    tester,
-  ) async {
-    const channel = MethodChannel('app.yahagi.kancollebrowser/game_fullscreen');
-    final messages = <String>[];
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
-      call,
-    ) async {
-      messages.add((call.arguments as Map)['message'] as String);
-      throw PlatformException(code: 'unavailable');
-    });
-    addTearDown(
-      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        channel,
-        null,
-      ),
-    );
-    final context = await _mountHost(tester, fullscreen: true, native: true);
-    expect(
-      await QuestCompletionDrawerHost.showDamageControlNotice(
+  testWidgets(
+    'native fullscreen falls back when its damage bubble is rejected',
+    (tester) async {
+      const channel = MethodChannel(
+        'app.yahagi.kancollebrowser/game_fullscreen',
+      );
+      final messages = <String>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        call,
+      ) async {
+        messages.add((call.arguments as Map)['message'] as String);
+        throw PlatformException(code: 'unavailable');
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          null,
+        ),
+      );
+      final context = await _mountHost(tester, fullscreen: true, native: true);
+      final shown = QuestCompletionDrawerHost.showDamageControlNotice(
         context,
         '大破舰已携带损管',
-      ),
-      isFalse,
-    );
-    await tester.pump();
-    expect(messages.where((message) => message.isNotEmpty), isEmpty);
-    expect(find.text('大破舰已携带损管'), findsNothing);
-  });
+      );
+      await tester.pump();
+      expect(await shown, isFalse);
+      await tester.pumpAndSettle();
+      expect(messages.where((message) => message.isNotEmpty), ['大破舰已携带损管']);
+      expect(find.text('大破舰已携带损管'), findsNothing);
+    },
+  );
 
   testWidgets('an obsolete show cannot remove the replayed notice', (
     tester,

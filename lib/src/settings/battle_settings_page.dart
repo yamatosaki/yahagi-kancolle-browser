@@ -5,6 +5,9 @@ import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import 'battle_prediction_settings.dart';
 import 'battle_prediction_settings_section.dart';
 import 'battle_status_effect_settings.dart';
+import 'debuff_reminder_settings_section.dart';
+import 'notification_settings_controller.dart';
+import 'settings_organization_strings.dart';
 import 'safety_settings_controller.dart';
 import 'safety_settings_store.dart';
 import 'settings_ui_helpers.dart';
@@ -13,11 +16,13 @@ class BattleSettingsPage extends StatelessWidget with SettingsUIHelpers {
   const BattleSettingsPage({
     super.key,
     this.battlePredictionSettingsController,
+    this.notificationSettingsController,
     required this.safetySettingsController,
   });
 
   final BattlePredictionSettingsController? battlePredictionSettingsController;
   final SafetySettingsController safetySettingsController;
+  final NotificationSettingsController? notificationSettingsController;
 
   @override
   Widget build(BuildContext context) {
@@ -118,7 +123,30 @@ class BattleSettingsPage extends StatelessWidget with SettingsUIHelpers {
               ),
             ),
             const SizedBox(height: 24),
-            buildSectionTitle(l10n.battleStatusEffectsSection),
+            if (notificationSettingsController case final notifications?) ...[
+              buildSectionTitle(
+                settingsOrganizationText(context, 'settingsGroupDebuff'),
+              ),
+              buildCard(
+                child: DebuffReminderSettingsSection(controller: notifications),
+              ),
+              const SizedBox(height: 24),
+            ],
+            if (battlePredictionSettingsController != null) ...<Widget>[
+              buildSectionTitle(l10n.battlePredictionSection),
+              buildCard(
+                child: BattlePredictionSettingsSection(
+                  controller: battlePredictionSettingsController!,
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+            buildSectionTitle(
+              settingsOrganizationText(
+                context,
+                'settingsGroupShipStatusFeedback',
+              ),
+            ),
             buildCard(
               child: AnimatedBuilder(
                 animation: safetySettingsController,
@@ -289,15 +317,6 @@ class BattleSettingsPage extends StatelessWidget with SettingsUIHelpers {
               ),
             ),
             const SizedBox(height: 24),
-            if (battlePredictionSettingsController != null) ...<Widget>[
-              buildSectionTitle(l10n.battlePredictionSection),
-              buildCard(
-                child: BattlePredictionSettingsSection(
-                  controller: battlePredictionSettingsController!,
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
             const SizedBox(height: 40),
           ],
         ),
