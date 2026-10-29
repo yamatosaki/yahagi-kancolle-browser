@@ -20,19 +20,17 @@ final class SharedPreferencesTelemetrySettingsStore
       return prefs.getBool(_enabledKey) ?? true;
     } catch (error, stackTrace) {
       debugPrint(
-        'Failed to load telemetry settings, falling back to enabled: $error\n$stackTrace',
+        'Failed to load telemetry settings, falling back to disabled: $error\n$stackTrace',
       );
-      return true;
+      return false;
     }
   }
 
   @override
   Future<void> saveEnabled(bool value) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_enabledKey, value);
-    } catch (error, stackTrace) {
-      debugPrint('Failed to save telemetry settings: $error\n$stackTrace');
+    final prefs = await SharedPreferences.getInstance();
+    if (!await prefs.setBool(_enabledKey, value)) {
+      throw StateError('Telemetry preference was not saved');
     }
   }
 }

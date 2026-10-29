@@ -43,14 +43,14 @@ fun interface GameResourceFetcher {
 }
 
 class HttpUrlConnectionGameResourceFetcher(
-    private val proxyProvider: () -> Proxy = { Proxy.NO_PROXY },
+    private val proxyProvider: () -> Proxy? = { null },
     private val connectTimeoutMs: Int = 8_000,
     private val readTimeoutMs: Int = 30_000,
     private val maxFileBytes: Long = MAX_RESOURCE_BYTES,
     private val temporaryDirectory: File = File(System.getProperty("java.io.tmpdir"), "yahagi-resource-downloads"),
     private val totalTimeoutMs: Long = 15_000,
-    private val connectionFactory: (String, Proxy) -> HttpURLConnection? = { url, proxy ->
-        URL(url).openConnection(proxy) as? HttpURLConnection
+    private val connectionFactory: (String, Proxy?) -> HttpURLConnection? = { url, proxy ->
+        NativeProxyRouting.openConnection(URL(url), proxy)
     },
 ) : GameResourceFetcher {
     private val cleanupDone = AtomicBoolean(false)

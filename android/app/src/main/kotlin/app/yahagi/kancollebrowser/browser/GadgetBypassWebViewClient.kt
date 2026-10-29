@@ -229,6 +229,7 @@ class GadgetBypassWebViewClient(
         original.onReceivedLoginRequest(view, realm, account, args)
     }
 
+    @androidx.annotation.RequiresApi(26)
     override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean =
         original.onRenderProcessGone(view, detail)
 
@@ -240,6 +241,7 @@ class GadgetBypassWebViewClient(
         original.onScaleChanged(view, oldScale, newScale)
     }
 
+    @androidx.annotation.RequiresApi(27)
     override fun onSafeBrowsingHit(
         view: WebView?,
         request: WebResourceRequest?,

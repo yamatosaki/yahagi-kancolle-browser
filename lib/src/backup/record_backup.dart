@@ -214,6 +214,7 @@ final class BackupArchive {
     required this.compositions,
     this.writerId = '',
     this.rowIds = const {},
+    this.writerRowIds = const {},
     this.senkaRaw,
     this.senkaSources = const {},
   });
@@ -232,6 +233,15 @@ final class BackupArchive {
   /// Main-database row ID -> archive row ID for [writerId].
   final Map<String, Map<String, int>> rowIds;
 
+  /// Retain each database's source IDs when another database writes the file.
+  /// [rowIds] remains the current writer's projection for older readers.
+  final Map<String, Map<String, Map<String, int>>> writerRowIds;
+
+  Map<String, Map<String, Map<String, int>>> _allWriterRowIds() => {
+    ...writerRowIds,
+    if (writerId.isNotEmpty) writerId: rowIds,
+  };
+
   BackupArchive merge(
     Map<String, List<Map<String, Object?>>> currentTables,
     List<CompositionRecord> currentCompositions, {
@@ -241,6 +251,7 @@ final class BackupArchive {
   }) {
     final mergedTables = <String, List<Map<String, Object?>>>{};
     final mergedRowIds = <String, Map<String, int>>{};
+    final allWriterRowIds = _allWriterRowIds();
     for (final table in LogbookDatabase.backupTables) {
       if (table == 'pending_construction_logs') {
         mergedTables[table] = currentTables[table]!;
@@ -250,9 +261,11 @@ final class BackupArchive {
       for (final row in tables[table]!) {
         rows[row['id']] = row;
       }
-      final ids = this.writerId == writerId
-          ? Map<String, int>.from(rowIds[table] ?? const {})
-          : <String, int>{};
+      final ids = Map<String, int>.from(
+        allWriterRowIds[writerId]?[table] ??
+            (this.writerId == writerId ? rowIds[table] : null) ??
+            const {},
+      );
       final eventIds = table == 'map_resource_logs'
           ? <Object?, int>{
               for (final entry in rows.entries)
@@ -325,6 +338,10 @@ final class BackupArchive {
       compositions: records.values.toList(),
       writerId: writerId,
       rowIds: mergedRowIds,
+      writerRowIds: {
+        ...allWriterRowIds,
+        if (writerId.isNotEmpty) writerId: mergedRowIds,
+      },
       senkaRaw: senkaRaw ?? this.senkaRaw,
       senkaSources: sources,
     );
@@ -339,10 +356,83 @@ final class BackupArchive {
     return mapEquals(a, b);
   }
 
+  static void _validateWriterMappingLimits(Map mappings) {
+    // Bound the new dimension without reducing the old per-table allowance.
+    // Reject overflow rather than evicting identities and duplicating history.
+    if (mappings.length > 256) {
+      throw const FormatException('Too many backup writers');
+    }
+    var total = 0;
+    for (final writer in mappings.entries) {
+      if (writer.key is! String ||
+          (writer.key as String).isEmpty ||
+          (writer.key as String).length > 100 ||
+          writer.value is! Map) {
+        throw const FormatException('Invalid backup writer mapping');
+      }
+      for (final table in (writer.value as Map).entries) {
+        if (!LogbookDatabase.backupTables.contains(table.key) ||
+            table.value is! Map ||
+            (table.value as Map).length > 1000000) {
+          throw const FormatException('Invalid backup writer mapping');
+        }
+        total += (table.value as Map).length;
+        if (total > LogbookDatabase.backupTables.length * 1000000) {
+          throw const FormatException('Too many backup row mappings');
+        }
+      }
+    }
+  }
+
+  static Map<String, Map<String, Map<String, int>>> _decodeWriterRowIds(
+    Object? raw,
+    Map<String, List<Map<String, Object?>>> tables,
+  ) {
+    if (raw == null) return {};
+    if (raw is! Map) {
+      throw const FormatException('Invalid backup writer mappings');
+    }
+    _validateWriterMappingLimits(raw);
+    final existingIds = <String, Set<int>>{};
+    final result = <String, Map<String, Map<String, int>>>{};
+    for (final writer in raw.entries) {
+      final mappedTables = <String, Map<String, int>>{};
+      for (final table in (writer.value as Map).entries) {
+        final name = table.key as String;
+        final targets = existingIds.putIfAbsent(
+          name,
+          () => tables[name]!.map((row) => row['id']).whereType<int>().toSet(),
+        );
+        final ids = <String, int>{};
+        final usedTargets = <int>{};
+        for (final entry in (table.value as Map).entries) {
+          final sourceId = entry.key is String
+              ? int.tryParse(entry.key as String)
+              : null;
+          final targetId = entry.value;
+          if (sourceId == null ||
+              sourceId <= 0 ||
+              '$sourceId' != entry.key ||
+              targetId is! int ||
+              !targets.contains(targetId) ||
+              !usedTargets.add(targetId)) {
+            throw const FormatException('Invalid backup writer row mapping');
+          }
+          ids[entry.key as String] = targetId;
+        }
+        mappedTables[name] = ids;
+      }
+      result[writer.key as String] = mappedTables;
+    }
+    return result;
+  }
+
   Uint8List encode({
     int maxPlainBytes = 250 * 1024 * 1024,
     int maxEncodedBytes = 100 * 1024 * 1024,
   }) {
+    final allWriterRowIds = _allWriterRowIds();
+    _validateWriterMappingLimits(allWriterRowIds);
     if (senkaRaw != null) validateSenkaArchiveRaw(senkaRaw!, memberId);
     if (senkaRaw == null && senkaSources.isNotEmpty) {
       throw const FormatException(
@@ -374,6 +464,7 @@ final class BackupArchive {
         'compositions': compositions.map((record) => record.toJson()).toList(),
         'writerId': writerId,
         'rowIds': rowIds,
+        if (allWriterRowIds.isNotEmpty) 'writerRowIds': allWriterRowIds,
         if (senkaRaw != null) ...{'senkaSchema': 1, 'senkaRaw': senkaRaw},
         if (senkaSources.isNotEmpty) 'senkaSources': senkaSources,
       });
@@ -547,6 +638,23 @@ final class BackupArchive {
         }
       }
     }
+    final writerRowIds = _decodeWriterRowIds(value['writerRowIds'], tables);
+    if (writerId is String && writerId.isNotEmpty) {
+      final currentMapping = writerRowIds[writerId];
+      if (currentMapping != null &&
+          !LogbookDatabase.backupTables.every(
+            (table) => mapEquals(
+              currentMapping[table] ?? const <String, int>{},
+              rowIds[table] ?? const <String, int>{},
+            ),
+          )) {
+        throw const FormatException(
+          'Conflicting current backup writer mapping',
+        );
+      }
+      writerRowIds[writerId] = rowIds;
+    }
+    _validateWriterMappingLimits(writerRowIds);
     final records = <CompositionRecord>[];
     for (final raw in value['compositions'] as List) {
       if (raw is! Map<String, dynamic>) {
@@ -572,6 +680,7 @@ final class BackupArchive {
       compositions: records,
       writerId: writerId as String? ?? '',
       rowIds: rowIds,
+      writerRowIds: writerRowIds,
       senkaRaw: senkaRaw,
       senkaSources: senkaSources,
     );
@@ -1900,6 +2009,7 @@ final class RecordBackupService extends ChangeNotifier {
           senkaRaw: archive.senkaRaw,
           senkaSources: archive.senkaSources,
           writerId: installationId ?? await database.backupSourceId(),
+          writerRowIds: archive._allWriterRowIds(),
           rowIds: {
             for (final table in LogbookDatabase.backupTables)
               if (table != 'pending_construction_logs')

@@ -1,6 +1,7 @@
 package app.yahagi.kancollebrowser
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ContentValues
 import android.content.Context
@@ -29,6 +30,7 @@ import android.view.ViewTreeObserver
 import android.view.WindowManager
 import android.webkit.WebView
 import android.widget.FrameLayout
+import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -464,6 +466,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
             GameResourceCacheStore(
                 resourceCacheRoot,
                 GameResourceCacheIndex(File(resourceCacheRoot, "index.json")),
+                reliableFileIdentity = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O,
                 policyProvider = {
                     if (gameResourceCacheMode == GameResourceCacheMode.TEMPORARY) {
                         GameResourceCachePolicy(
@@ -479,7 +482,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
             ),
             HttpUrlConnectionGameResourceFetcher(
                 proxyProvider = {
-                    webViewProxyManager?.currentNativeProxy() ?: java.net.Proxy.NO_PROXY
+                    webViewProxyManager?.currentNativeProxy()
                 },
                 temporaryDirectory = cacheDir.resolve("resource-downloads"),
             ),
@@ -656,11 +659,14 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
                     result.success(null)
                 }
                 "openSystemNotificationSettings" -> {
-                    startActivity(
+                    val settingsIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                         Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
                             putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-                        },
-                    )
+                        }
+                    } else {
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+                    }
+                    startActivity(settingsIntent)
                     result.success(null)
                 }
                 else -> result.notImplemented()
@@ -1117,6 +1123,8 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
         if (current is GadgetBypassWebViewClient && current.ownerToken === gadgetBypassClientOwner) return
         val originalClient = if (current is GadgetBypassWebViewClient) current.originalClient else current
 
+        // AndroidX 1.16 exposes this documented feature but omits it from its StringDef.
+        @SuppressLint("WrongConstant")
         val cookieInterceptSupported = runCatching {
             if (!WebViewFeature.isFeatureSupported(WebViewFeature.COOKIE_INTERCEPT)) false
             else {
@@ -1158,6 +1166,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
     }
 
     private fun restoreGadgetBypassClient() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val webViews = mutableListOf<WebView>()
         collectWebViews(window.decorView, webViews)
         for (webView in webViews) {
@@ -1189,15 +1198,6 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
         muted: Boolean,
         result: MethodChannel.Result,
     ) {
-        if (!WebViewFeature.isFeatureSupported(WebViewFeature.MUTE_AUDIO)) {
-            result.error(
-                "mute_audio_unsupported",
-                "This Android WebView does not support per-WebView audio muting.",
-                null,
-            )
-            return
-        }
-
         val webViews = mutableListOf<WebView>()
         collectWebViews(window.decorView, webViews)
         when (webViews.size) {
@@ -1208,8 +1208,16 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
             )
             1 -> {
                 try {
-                    WebViewCompat.setAudioMuted(webViews.single(), muted)
-                    result.success(null)
+                    if (WebViewFeature.isFeatureSupported(WebViewFeature.MUTE_AUDIO)) {
+                        WebViewCompat.setAudioMuted(webViews.single(), muted)
+                        result.success(null)
+                    } else {
+                        result.error(
+                            "mute_audio_unsupported",
+                            "This Android WebView does not support per-WebView audio muting.",
+                            null,
+                        )
+                    }
                 } catch (error: RuntimeException) {
                     result.error(
                         "mute_audio_failed",
@@ -1432,6 +1440,10 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
         sourceRect: Rect?,
         onComplete: (Boolean) -> Unit,
     ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            onComplete(false)
+            return
+        }
         try {
             val listener = PixelCopy.OnPixelCopyFinishedListener { copyResult ->
                 onComplete(copyResult == PixelCopy.SUCCESS)
@@ -1621,6 +1633,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun saveScreenshotWithMediaStore(
         bitmap: Bitmap,
         destination: ScreenshotDestination,

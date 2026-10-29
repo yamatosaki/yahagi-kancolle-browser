@@ -89,7 +89,7 @@ jobs:
           path: test/failures/
           if-no-files-found: ignore
       - run: chmod +x android/gradlew
-      - run: ./android/gradlew -p android :app:testDebugUnitTest --console=plain
+      - run: ./android/gradlew -p android :app:testDebugUnitTest :app:lintDebug --console=plain
       - run: flutter build apk --debug
       - name: Upload self-built debug APK
         uses: actions/upload-artifact@v4

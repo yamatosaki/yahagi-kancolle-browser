@@ -122,7 +122,7 @@ class GameResourceCacheEngineTest {
     }
 
     @Test
-    fun `304 hashes unchanged cached body only once per fetch at resource sizes`() {
+    fun `304 reuses checksum only with reliable file identity at resource sizes`() {
         for (megabytes in listOf(1, 4, 16)) {
             val root = temporaryFolder.newFolder("hash-$megabytes")
             val hashes = AtomicInteger()
@@ -133,11 +133,18 @@ class GameResourceCacheEngineTest {
                 })
             val url = official("/kcs2/version.json")
             val bytes = ByteArray(megabytes * 1024 * 1024) { 7 }
-            store.commit(checkNotNull(GameResourceCacheKey.from(url)), bytes, mimeType = "application/json")
+            val entry = store.commit(checkNotNull(GameResourceCacheKey.from(url)), bytes, mimeType = "application/json")
+            val attributes = java.nio.file.Files.readAttributes(
+                root.resolve("files/${entry.fileName}").toPath(),
+                java.nio.file.attribute.BasicFileAttributes::class.java,
+            )
+            // Windows returns no file key, so safely rehash after the 304.
+            // Filesystems with stable identity still hash only once per fetch.
+            val expectedHashes = if (attributes.fileKey() != null) 1 else 2
             hashes.set(0)
             val engine = GameResourceCacheEngine(store, QueueFetcher(result(ByteArray(0), 304))) { GameResourceCacheMode.TEMPORARY }
             assertArrayEquals(bytes, engine.fetch(url)?.bytes)
-            assertEquals("$megabytes MiB", 1, hashes.get())
+            assertEquals("$megabytes MiB", expectedHashes, hashes.get())
         }
     }
 

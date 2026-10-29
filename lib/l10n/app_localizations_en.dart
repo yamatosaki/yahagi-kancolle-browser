@@ -209,6 +209,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Anonymous device and usage statistics';
 
   @override
+  String get telemetrySaveFailed =>
+      'Settings could not be saved. Statistics are stopped for now, but the previous setting may return after a restart. Please retry saving.';
+
+  @override
+  String get telemetryRetrySave => 'Retry saving statistics settings';
+
+  @override
   String get telemetryAnonymousStatsDesc =>
       'Send anonymous device information and rendering mode statistics to help improve the app. No account or personal information is included.';
 

@@ -259,6 +259,53 @@ void main() {
     },
   );
 
+  testWidgets('failed telemetry opt-out offers retry without enabling stats', (
+    tester,
+  ) async {
+    final capture = await CaptureModeController.load(_MemoryCaptureModeStore());
+    final browser = GameBrowserController();
+    final gameCapture = GameCaptureController();
+    final prototype = PrototypeStatusController();
+    final gameState = GameStateController();
+    final store = _FailingTelemetryStore();
+    final service = _FakeTelemetryService();
+    final telemetry = TelemetryController(store: store, service: service);
+    addTearDown(capture.dispose);
+    addTearDown(browser.dispose);
+    addTearDown(gameCapture.dispose);
+    addTearDown(prototype.dispose);
+    addTearDown(gameState.dispose);
+    addTearDown(telemetry.dispose);
+    await tester.pumpWidget(
+      withTopNotice(
+        DataSettingsPage(
+          captureModeController: capture,
+          browserController: browser,
+          gameCaptureController: gameCapture,
+          prototypeStatusController: prototype,
+          gameStateController: gameState,
+          telemetryController: telemetry,
+        ),
+      ),
+    );
+    final stats = find.byKey(const Key('telemetryStatsSwitch'));
+    await tester.ensureVisible(stats);
+    await tester.tap(stats);
+    await tester.pumpAndSettle();
+    expect(telemetry.enabled, isFalse);
+    expect(service.starts, 0);
+    final retry = find.byKey(const Key('telemetry-save-retry'));
+    expect(retry, findsOneWidget);
+    expect(find.textContaining('重启后设置可能恢复'), findsOneWidget);
+    store.fail = false;
+    await tester.ensureVisible(retry);
+    await tester.tap(retry);
+    await tester.pumpAndSettle();
+    expect(store.value, isFalse);
+    expect(retry, findsNothing);
+    expect(service.starts, 0);
+  });
+
   testWidgets('KCWiki reporting defaults off and opt-in is confirmed', (
     tester,
   ) async {
@@ -603,6 +650,18 @@ final class _FakeTelemetryService implements TelemetryService {
   void onLifecycleChanged(AppLifecycleState state) {}
   @override
   void dispose() {}
+}
+
+final class _FailingTelemetryStore implements TelemetrySettingsStore {
+  bool fail = true;
+  bool value = true;
+  @override
+  Future<bool> loadEnabled() async => value;
+  @override
+  Future<void> saveEnabled(bool enabled) async {
+    if (fail) throw StateError('Disk unavailable');
+    value = enabled;
+  }
 }
 
 final class _FakeFcdUpdater implements FcdMapUpdateClient {

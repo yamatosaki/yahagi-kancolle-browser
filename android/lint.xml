@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Flutter regenerates this ignored file with valid Windows property
+         values. Keep PropertyEscape enabled for every other project file. -->
+    <issue id="PropertyEscape">
+        <ignore regexp="^local\.properties$" />
+    </issue>
+</lint>

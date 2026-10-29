@@ -197,6 +197,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get telemetryAnonymousStatsTitle => '匿名の端末および利用統計';
 
   @override
+  String get telemetrySaveFailed =>
+      '設定を保存できなかったため、統計を停止しています。再起動すると以前の設定に戻る可能性があります。保存を再試行してください。';
+
+  @override
+  String get telemetryRetrySave => '統計設定の保存を再試行';
+
+  @override
   String get telemetryAnonymousStatsDesc =>
       'アプリの品質向上と最適化のため、端末情報と描画モードを含む匿名の利用統計を送信します。アカウントや個人情報は一切含みません。';
 

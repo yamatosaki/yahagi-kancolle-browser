@@ -10,10 +10,24 @@ import org.junit.rules.TemporaryFolder
 import java.io.ByteArrayInputStream
 import java.net.URL
 import java.net.HttpURLConnection
+import java.net.Proxy
 import java.util.concurrent.TimeUnit
 
 class GameResourceFetcherTest {
     @get:Rule val temporaryFolder = TemporaryFolder()
+
+    @Test
+    fun `default downloads preserve system routing instead of forcing direct access`() {
+        var called = false
+        var requestedProxy: Proxy? = Proxy.NO_PROXY
+        val fetcher = HttpUrlConnectionGameResourceFetcher(
+            temporaryDirectory = temporaryFolder.newFolder("system-proxy"),
+            connectionFactory = { _, proxy -> called = true; requestedProxy = proxy; null },
+        )
+        assertNull(fetcher.fetch("https://w17k.kancolle-server.com/kcs2/resources/a.png", emptyMap(), null))
+        assertTrue(called)
+        assertNull("No application override must retain the system proxy selector", requestedProxy)
+    }
 
     @Test
     fun `slow resource download falls back within total budget and leaves no late file`() {

@@ -268,12 +268,25 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
                     if (telemetryController case final telemetry?)
                       AnimatedBuilder(
                         animation: telemetry,
-                        builder: (context, _) => buildSwitchTile(
-                          switchKey: const Key('telemetryStatsSwitch'),
-                          title: l10n.telemetryAnonymousStatsTitle,
-                          subtitle: l10n.telemetryAnonymousStatsDesc,
-                          value: telemetry.enabled,
-                          onChanged: telemetry.setEnabled,
+                        builder: (context, _) => Column(
+                          children: [
+                            buildSwitchTile(
+                              switchKey: const Key('telemetryStatsSwitch'),
+                              title: l10n.telemetryAnonymousStatsTitle,
+                              subtitle: l10n.telemetryAnonymousStatsDesc,
+                              value: telemetry.enabled,
+                              onChanged: telemetry.setEnabled,
+                            ),
+                            if (telemetry.saveFailed)
+                              buildActionTile(
+                                key: const Key('telemetry-save-retry'),
+                                title: l10n.telemetryRetrySave,
+                                subtitle: l10n.telemetrySaveFailed,
+                                trailing: const Icon(Icons.refresh),
+                                onTap: () =>
+                                    telemetry.setEnabled(telemetry.enabled),
+                              ),
+                          ],
                         ),
                       ),
                   ]),

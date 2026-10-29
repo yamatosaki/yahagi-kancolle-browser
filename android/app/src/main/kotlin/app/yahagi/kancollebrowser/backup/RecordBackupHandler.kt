@@ -465,7 +465,14 @@ class RecordBackupHandler(
             // after picker return can then be recovered on the next process.
             exportStore.select(token, uri.toString(), flags)
             if (resultFlags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION != 0 && flags != 0) {
-                runCatching { exportResolver.takePersistableUriPermission(uri, flags) }
+                runCatching {
+                    // Pass only the permission bits the picker actually granted.
+                    when (flags) {
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION -> exportResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION -> exportResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                        else -> exportResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                    }
+                }
             }
             executeExport(result) {
                 try {

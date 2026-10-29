@@ -158,6 +158,7 @@ class CompositionImageHandler(
         bitmap.recycle()
     }
 
+    @androidx.annotation.RequiresApi(29)
     private fun saveWithMediaStore(
         request: SaveRequest,
         destination: CompositionImageDestination,

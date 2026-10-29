@@ -2437,6 +2437,68 @@ void main() {
     },
   );
 
+  for (final restoringWriter in ['A', 'C']) {
+    test(
+      'restore as $restoringWriter retains other database row identities',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        const owner = 903299;
+        final root = await Directory.systemTemp.createTemp(
+          'yahagi-writer-restore-',
+        );
+        final source = await LogbookDatabase.openForTesting(
+          path: '${root.path}${Platform.pathSeparator}source.db',
+        );
+        final restoredDb = await LogbookDatabase.openForTesting(
+          path: '${root.path}${Platform.pathSeparator}restored.db',
+        );
+        final session = AccountSession(initialMemberId: owner);
+        final port = _MemoryDocumentPort();
+        final service = RecordBackupService(
+          enabledStore: _EnabledStore(),
+          session: session,
+          port: port,
+          compositionStore: FileCompositionRecordStore(
+            rootDirectory: () async => root,
+          ),
+          databaseFor: (_) => restoredDb,
+          installationId: restoringWriter,
+        );
+        addTearDown(() async {
+          service.dispose();
+          session.dispose();
+          await source.close();
+          await restoredDb.close();
+          await root.delete(recursive: true);
+        });
+        await source.insertRetirementRecord(
+          timestamp: 1,
+          type: '解体',
+          shipType: '驱逐舰',
+          shipName: 'same event values',
+          level: 1,
+        );
+        final sourceTables = await source.backupSnapshot();
+        final archive =
+            BackupArchive(
+                  memberId: owner,
+                  tables: {
+                    for (final table in LogbookDatabase.backupTables) table: [],
+                  },
+                  compositions: [],
+                )
+                .merge(sourceTables, [], writerId: 'A')
+                .merge(sourceTables, [], writerId: 'B');
+        await service.restore(archive);
+        await service.sync();
+        final fromDisk = BackupArchive.decode(port.live[owner]!);
+        final returned = fromDisk.merge(sourceTables, [], writerId: 'B');
+        expect(returned.tables['retirement_logs'], hasLength(2));
+        expect((await restoredDb.getRetirementRecords()), hasLength(2));
+      },
+    );
+  }
+
   test('startup replays an interrupted restore before automatic sync', () async {
     const owner = 903216;
     final root = await Directory.systemTemp.createTemp('yahagi-journal-');

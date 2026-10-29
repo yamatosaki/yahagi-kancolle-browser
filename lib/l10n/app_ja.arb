@@ -64,6 +64,8 @@
   "diagnosticLoggingTitle": "クライアント診断ログを記録",
   "diagnosticLoggingDesc": "性能とエラーの概要のみを記録し、アカウント、パスワード、ログイン情報は含みません",
   "telemetryAnonymousStatsTitle": "匿名の端末および利用統計",
+  "telemetrySaveFailed": "設定を保存できなかったため、統計を停止しています。再起動すると以前の設定に戻る可能性があります。保存を再試行してください。",
+  "telemetryRetrySave": "統計設定の保存を再試行",
   "telemetryAnonymousStatsDesc": "アプリの品質向上と最適化のため、端末情報と描画モードを含む匿名の利用統計を送信します。アカウントや個人情報は一切含みません。",
   "diagnosticPrivacyTitle": "プライバシー保護診断",
   "diagnosticPrivacyDesc": "エクスポート前に内容を再検査します。ログにはアカウント、パスワード、Cookie、トークン、リクエスト本文、レスポンス本文、チャット内容、スクリーンショットを記録せず、自動送信もしません。",

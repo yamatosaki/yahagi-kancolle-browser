@@ -29,6 +29,9 @@ if (releaseTaskRequested && !releaseSigningAvailable) {
 }
 
 dependencies {
+    // Cache integrity checks and atomic file replacement also run on API 24/25.
+    // The NIO variant backports java.nio.file without weakening those checks.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
     implementation("androidx.webkit:webkit:1.16.0")
     implementation("com.google.code.gson:gson:2.11.0")
     testImplementation("junit:junit:4.13.2")
@@ -43,7 +46,12 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
+    lint {
+        lintConfig = rootProject.file("lint.xml")
+    }
+
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }

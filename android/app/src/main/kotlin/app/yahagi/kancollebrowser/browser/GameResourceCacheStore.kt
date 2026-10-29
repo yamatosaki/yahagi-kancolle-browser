@@ -55,6 +55,8 @@ class GameResourceCacheStore(
     },
     private val fileChecksum: ((File) -> String)? = null,
     private val maintenanceNowNanos: () -> Long = System::nanoTime,
+    // NIO backports below API 26 expose path-based keys instead of file identity.
+    private val reliableFileIdentity: Boolean = true,
 ) {
     private val filesDirectory = root.resolve("files")
     private val temporaryDirectory = root.resolve("tmp")
@@ -137,9 +139,11 @@ class GameResourceCacheStore(
             current.byteLength != verified.entry.byteLength) return null
         val identity = fileIdentity(verified.file)
         if (identity == null) return invalidateFile(key)
-        // Changes, including same-length writes and atomic replacement, require
-        // a fresh checksum. Do not turn this into a process-wide stat cache.
-        val valid = if (verified.identity != null && identity == verified.identity) true else {
+        // A weak or absent file key cannot prove this is the verified file.
+        // Rehash it even when the size and timestamps are unchanged.
+        val unchangedReliableIdentity = reliableFileIdentity && identity.fileKey != null &&
+            verified.identity != null && identity == verified.identity
+        val valid = if (unchangedReliableIdentity) true else {
             runCatching { sha256(verified.file) }.getOrNull() == current.sha256 &&
                 fileIdentity(verified.file) == identity
         }

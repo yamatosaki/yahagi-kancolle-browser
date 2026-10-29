@@ -64,6 +64,8 @@
   "diagnosticLoggingTitle": "記錄用戶端診斷日誌",
   "diagnosticLoggingDesc": "僅記錄效能和錯誤摘要，不包含帳號、密碼或登入憑據",
   "telemetryAnonymousStatsTitle": "匿名裝置與使用統計",
+  "telemetrySaveFailed": "設定儲存失敗，目前已停止統計。重新啟動後設定可能還原，請重試儲存。",
+  "telemetryRetrySave": "重試儲存統計設定",
   "telemetryAnonymousStatsDesc": "傳送包含裝置資訊和渲染模式的匿名統計資料，以協助開發者持續最佳化與改進應用程式。不包含任何帳號或隱私資訊。",
   "diagnosticPrivacyTitle": "隱私安全診斷",
   "diagnosticPrivacyDesc": "匯出前會再次檢查內容。日誌不記錄帳號、密碼、Cookie、權杖、請求正文、回應正文、聊天內容或截圖，也不會自動上傳。",

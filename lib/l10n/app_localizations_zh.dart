@@ -194,6 +194,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get telemetryAnonymousStatsTitle => '匿名设备与使用统计';
 
   @override
+  String get telemetrySaveFailed => '设置保存失败，当前已停止统计。重启后设置可能恢复，请重试保存。';
+
+  @override
+  String get telemetryRetrySave => '重试保存统计设置';
+
+  @override
   String get telemetryAnonymousStatsDesc =>
       '发送包含设备信息和渲染模式的匿名统计数据，以帮助开发者持续优化和改进应用。不包含任何账号或隐私信息。';
 
@@ -4275,6 +4281,12 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get telemetryAnonymousStatsTitle => '匿名裝置與使用統計';
+
+  @override
+  String get telemetrySaveFailed => '設定儲存失敗，目前已停止統計。重新啟動後設定可能還原，請重試儲存。';
+
+  @override
+  String get telemetryRetrySave => '重試儲存統計設定';
 
   @override
   String get telemetryAnonymousStatsDesc =>

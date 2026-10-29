@@ -43,6 +43,9 @@ internal object CustomFontPreviewRenderer {
         }
         try {
             checkActive()
+            // Layout's API 23 constant has the same value as LineBreaker's API
+            // 29 constant; using the latter would break Android 7/8 previews.
+            @android.annotation.SuppressLint("WrongConstant")
             val layout = StaticLayout.Builder.obtain(request.text, 0, request.text.length, paint, request.width)
                 .setAlignment(Layout.Alignment.ALIGN_NORMAL)
                 .setLineSpacing(0f, 1.6f)

@@ -64,6 +64,8 @@
   "diagnosticLoggingTitle": "记录客户端诊断日志",
   "diagnosticLoggingDesc": "仅记录性能和错误摘要，不包含账号、密码或登录凭据",
   "telemetryAnonymousStatsTitle": "匿名设备与使用统计",
+  "telemetrySaveFailed": "设置保存失败，当前已停止统计。重启后设置可能恢复，请重试保存。",
+  "telemetryRetrySave": "重试保存统计设置",
   "telemetryAnonymousStatsDesc": "发送包含设备信息和渲染模式的匿名统计数据，以帮助开发者持续优化和改进应用。不包含任何账号或隐私信息。",
   "diagnosticPrivacyTitle": "隐私安全诊断",
   "diagnosticPrivacyDesc": "导出前会再次检查内容。日志不记录账号、密码、Cookie、令牌、请求正文、响应正文、聊天内容或截图，也不会自动上传。",

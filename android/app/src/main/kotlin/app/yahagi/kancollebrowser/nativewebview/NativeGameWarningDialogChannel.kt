@@ -309,6 +309,9 @@ internal class NativeGameWarningDialogChannel(
             }
 
             @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
+            // API 33+ gestures use installBackCallback(); retain the legacy
+            // callback for older Android versions and hardware Back dispatch.
+            @android.annotation.SuppressLint("GestureBackNavigation")
             override fun onBackPressed() { acknowledgeFromBack() }
         }
         createdDialog.requestWindowFeature(Window.FEATURE_NO_TITLE)

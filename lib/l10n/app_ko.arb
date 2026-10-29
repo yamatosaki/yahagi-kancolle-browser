@@ -80,6 +80,8 @@
   "diagnosticLoggingTitle": "클라이언트 진단 로그 기록",
   "diagnosticLoggingDesc": "성능 및 오류 요약만 기록하며 계정, 비밀번호, 로그인 인증 정보는 포함하지 않습니다",
   "telemetryAnonymousStatsTitle": "익명 기기 및 사용 통계",
+  "telemetrySaveFailed": "설정을 저장하지 못해 통계를 중지했습니다. 앱을 다시 시작하면 이전 설정으로 돌아갈 수 있습니다. 저장을 다시 시도해 주세요.",
+  "telemetryRetrySave": "통계 설정 저장 다시 시도",
   "telemetryAnonymousStatsDesc": "앱 개선을 위해 기기 정보와 렌더링 모드가 포함된 익명 통계를 보냅니다. 계정 및 개인 정보는 포함하지 않습니다.",
   "diagnosticPrivacyTitle": "개인 정보 보호 진단",
   "diagnosticPrivacyDesc": "내보내기 전에 내용을 다시 검사합니다. 로그에는 계정, 비밀번호, Cookie, 토큰, 요청 본문, 응답 본문, 채팅 내용, 스크린샷을 기록하지 않으며 자동으로 업로드하지 않습니다.",

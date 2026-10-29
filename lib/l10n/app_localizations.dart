@@ -457,6 +457,18 @@ abstract class AppLocalizations {
   /// **'匿名设备与使用统计'**
   String get telemetryAnonymousStatsTitle;
 
+  /// No description provided for @telemetrySaveFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'设置保存失败，当前已停止统计。重启后设置可能恢复，请重试保存。'**
+  String get telemetrySaveFailed;
+
+  /// No description provided for @telemetryRetrySave.
+  ///
+  /// In zh, this message translates to:
+  /// **'重试保存统计设置'**
+  String get telemetryRetrySave;
+
   /// No description provided for @telemetryAnonymousStatsDesc.
   ///
   /// In zh, this message translates to:

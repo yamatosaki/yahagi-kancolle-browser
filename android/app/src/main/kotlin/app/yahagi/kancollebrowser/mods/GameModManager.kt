@@ -349,7 +349,9 @@ internal class GameModManager(
                     throw GameModException("library_permission_denied", "Read and write access to the mod folder is required")
                 }
                 GameModLibraryDirectoryPolicy.selectDocumentId(uri.authority.orEmpty(), DocumentsContract.getTreeDocumentId(uri))
-                activity.contentResolver.takePersistableUriPermission(uri, permissions)
+                activity.contentResolver.takePersistableUriPermission(
+                    uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                )
                 // Finish the previous root's journal before another same-identity default
                 // can be opened. Rebind a recovered Documents grant to the old root first.
                 documentStore?.let { previous ->

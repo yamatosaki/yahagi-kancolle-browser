@@ -12,15 +12,10 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import java.io.InputStream
-import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.Socket
-import java.net.SocketTimeoutException
 import java.net.URL
-import javax.net.ssl.HttpsURLConnection
 import kotlin.coroutines.resume
 
 class WebViewProxyManager(private val context: Context) : MethodChannel.MethodCallHandler {
@@ -29,9 +24,9 @@ class WebViewProxyManager(private val context: Context) : MethodChannel.MethodCa
     private val ioScope = CoroutineScope(Dispatchers.IO + Job())
     private val proxyMutex = Mutex()
     @Volatile
-    private var nativeProxy: Proxy = Proxy.NO_PROXY
+    private var nativeProxy: Proxy? = null
 
-    fun currentNativeProxy(): Proxy = nativeProxy
+    fun currentNativeProxy(): Proxy? = nativeProxy
 
     fun dispose() {
         mainScope.cancel()
@@ -85,13 +80,6 @@ class WebViewProxyManager(private val context: Context) : MethodChannel.MethodCa
     }
 
     private fun applyProxyConfig(proxyUrl: String, result: MethodChannel.Result) {
-        if (!WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
-            result.success(
-                mapOf("success" to false, "code" to "proxy_override_unsupported", "message" to "当前设备不支持应用内代理")
-            )
-            return
-        }
-
         mainScope.launch {
             if (!proxyMutex.tryLock()) {
                 result.success(
@@ -101,13 +89,23 @@ class WebViewProxyManager(private val context: Context) : MethodChannel.MethodCa
             }
 
             try {
+                val controller = if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+                    ProxyController.getInstance()
+                } else {
+                    result.success(
+                        mapOf("success" to false, "code" to "proxy_override_unsupported", "message" to "当前设备不支持应用内代理")
+                    )
+                    return@launch
+                }
                 val startTime = System.currentTimeMillis()
+                // Validate the native route before changing WebView, without resolving DNS.
+                val preparedProxy = NativeProxyRouting.fromUrl(proxyUrl)
                 val proxyConfig = ProxyConfig.Builder()
                     .addProxyRule(proxyUrl)
                     .build()
 
                 val completed = awaitProxyCallback { callback ->
-                    ProxyController.getInstance().setProxyOverride(
+                    controller.setProxyOverride(
                         proxyConfig,
                         { Handler(Looper.getMainLooper()).post(it) },
                         callback,
@@ -115,7 +113,7 @@ class WebViewProxyManager(private val context: Context) : MethodChannel.MethodCa
                 }
                 val elapsedMs = System.currentTimeMillis() - startTime
                 if (completed) {
-                    nativeProxy = proxyFromUrl(proxyUrl)
+                    nativeProxy = preparedProxy
                     result.success(
                         mapOf("success" to true, "code" to "ok", "message" to "代理设置成功", "elapsedMs" to elapsedMs)
                     )
@@ -135,14 +133,6 @@ class WebViewProxyManager(private val context: Context) : MethodChannel.MethodCa
     }
 
     private fun clearProxyConfig(result: MethodChannel.Result) {
-        if (!WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
-            // If it's not supported, we can just say success because it means there was no proxy set anyway.
-            result.success(
-                mapOf("success" to true, "code" to "ok", "message" to "无需清除代理")
-            )
-            return
-        }
-
         mainScope.launch {
             if (!proxyMutex.tryLock()) {
                 result.success(
@@ -152,16 +142,25 @@ class WebViewProxyManager(private val context: Context) : MethodChannel.MethodCa
             }
 
             try {
+                val controller = if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+                    ProxyController.getInstance()
+                } else {
+                    // Unsupported devices cannot have an application proxy override.
+                    result.success(
+                        mapOf("success" to true, "code" to "ok", "message" to "无需清除代理")
+                    )
+                    return@launch
+                }
                 val startTime = System.currentTimeMillis()
                 val completed = awaitProxyCallback { callback ->
-                    ProxyController.getInstance().clearProxyOverride(
+                    controller.clearProxyOverride(
                         { Handler(Looper.getMainLooper()).post(it) },
                         callback,
                     )
                 }
                 val elapsedMs = System.currentTimeMillis() - startTime
                 if (completed) {
-                    nativeProxy = Proxy.NO_PROXY
+                    nativeProxy = null
                     result.success(
                         mapOf("success" to true, "code" to "ok", "message" to "系统网络已恢复", "elapsedMs" to elapsedMs)
                     )
@@ -195,12 +194,6 @@ class WebViewProxyManager(private val context: Context) : MethodChannel.MethodCa
             }
             true
         } ?: false
-    }
-
-    private fun proxyFromUrl(proxyUrl: String): Proxy {
-        val uri = java.net.URI(proxyUrl)
-        val type = if (uri.scheme.equals("socks", ignoreCase = true)) Proxy.Type.SOCKS else Proxy.Type.HTTP
-        return Proxy(type, InetSocketAddress(uri.host, uri.port))
     }
 
     private fun runNetworkDiagnostic(mode: String, host: String, port: Int, result: MethodChannel.Result) {
@@ -243,7 +236,10 @@ class WebViewProxyManager(private val context: Context) : MethodChannel.MethodCa
                 "socks5Proxy" -> Proxy.Type.SOCKS
                 else -> Proxy.Type.DIRECT
             }
-            val proxy = if (mode == "system") Proxy.NO_PROXY else Proxy(proxyType, InetSocketAddress(host, port))
+            val proxy = if (mode == "system") null else Proxy(
+                proxyType,
+                InetSocketAddress.createUnresolved(host.removeSurrounding("[", "]"), port),
+            )
 
             val gameJob = async { testHttpUrl("https://accounts.dmm.com/", proxy, 8000) }
             val googleJob = async { testHttpUrl("https://www.google.com/gen_204", proxy, 5000) }
@@ -297,16 +293,20 @@ class WebViewProxyManager(private val context: Context) : MethodChannel.MethodCa
         }
     }
 
-    private fun testHttpUrl(urlString: String, proxy: Proxy, timeout: Int): Pair<Boolean, Long> {
+    private fun testHttpUrl(urlString: String, proxy: Proxy?, timeout: Int): Pair<Boolean, Long> {
         val start = System.currentTimeMillis()
         return try {
             val url = URL(urlString)
-            val conn = url.openConnection(proxy) as HttpsURLConnection
-            conn.connectTimeout = timeout
-            conn.readTimeout = timeout
-            conn.connect()
-            val code = conn.responseCode
-            Pair(true, System.currentTimeMillis() - start)
+            val conn = requireNotNull(NativeProxyRouting.openConnection(url, proxy))
+            try {
+                conn.connectTimeout = timeout
+                conn.readTimeout = timeout
+                conn.connect()
+                conn.responseCode
+                Pair(true, System.currentTimeMillis() - start)
+            } finally {
+                conn.disconnect()
+            }
         } catch (e: Exception) {
             Pair(false, System.currentTimeMillis() - start)
         }

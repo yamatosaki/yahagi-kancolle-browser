@@ -3,6 +3,7 @@ package app.yahagi.kancollebrowser.browser
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -14,10 +15,65 @@ import java.util.concurrent.TimeUnit
 import org.json.JSONArray
 import org.json.JSONObject
 import java.security.MessageDigest
+import java.nio.file.Files
+import java.nio.file.attribute.BasicFileAttributes
 
 class GameResourceCacheStoreTest {
     @get:Rule
     val temporaryFolder = TemporaryFolder()
+
+    @Test
+    fun `unreliable file identity rehashes valid files before reusing validation`() {
+        val root = temporaryFolder.newFolder("unreliable-identity-valid")
+        var checksums = 0
+        val store = GameResourceCacheStore(
+            root,
+            GameResourceCacheIndex(root.resolve("index.json")),
+            reliableFileIdentity = false,
+            fileChecksum = { file ->
+                checksums++
+                MessageDigest.getInstance("SHA-256").digest(file.readBytes())
+                    .joinToString("") { "%02x".format(it) }
+            },
+        )
+        val key = GameResourceCacheKey("/kcs2/resources/a.png")
+        val bytes = byteArrayOf(1, 2, 3)
+        store.commit(key, bytes, mimeType = "image/png")
+        checksums = 0
+        val verified = checkNotNull(store.readFile(key))
+        assertEquals(1, checksums)
+
+        val validated = store.markVerifiedValidated(key, verified, emptyMap(), store.generation())
+
+        assertEquals(2, checksums)
+        assertNotNull(validated)
+        assertArrayEquals(bytes, validated!!.file.readBytes())
+    }
+
+    @Test
+    fun `unreliable equal metadata cannot reuse a checksum after same length content changes`() {
+        val root = temporaryFolder.newFolder("unreliable-identity-damaged")
+        val store = GameResourceCacheStore(
+            root,
+            GameResourceCacheIndex(root.resolve("index.json")),
+            reliableFileIdentity = false,
+        )
+        val key = GameResourceCacheKey("/kcs2/resources/a.png")
+        store.commit(key, byteArrayOf(1, 2, 3), mimeType = "image/png")
+        val verified = checkNotNull(store.readFile(key))
+        val before = checkNotNull(verified.identity)
+        verified.file.writeBytes(byteArrayOf(4, 5, 6))
+        Files.setLastModifiedTime(verified.file.toPath(), before.modified)
+        val attrs = Files.readAttributes(verified.file.toPath(), BasicFileAttributes::class.java)
+        // Model the old Android backport: changed bytes can retain every field
+        // exposed by its path-based file key and timestamp metadata.
+        assertEquals(before, GameResourceFileIdentity(
+            attrs.fileKey()?.toString(), attrs.size(), attrs.lastModifiedTime(), attrs.creationTime(),
+        ))
+
+        assertNull(store.markVerifiedValidated(key, verified, emptyMap(), store.generation()))
+        assertFalse(store.contains(key))
+    }
 
     @Test
     fun `file commit hashes the prepared copy when caller source changes`() {

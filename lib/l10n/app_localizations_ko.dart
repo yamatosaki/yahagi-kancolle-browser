@@ -201,6 +201,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get telemetryAnonymousStatsTitle => '익명 기기 및 사용 통계';
 
   @override
+  String get telemetrySaveFailed =>
+      '설정을 저장하지 못해 통계를 중지했습니다. 앱을 다시 시작하면 이전 설정으로 돌아갈 수 있습니다. 저장을 다시 시도해 주세요.';
+
+  @override
+  String get telemetryRetrySave => '통계 설정 저장 다시 시도';
+
+  @override
   String get telemetryAnonymousStatsDesc =>
       '앱 개선을 위해 기기 정보와 렌더링 모드가 포함된 익명 통계를 보냅니다. 계정 및 개인 정보는 포함하지 않습니다.';
 

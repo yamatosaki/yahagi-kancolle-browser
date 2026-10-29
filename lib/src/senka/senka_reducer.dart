@@ -85,7 +85,7 @@ class SenkaReducer {
     }
     current = reduceSenkaRewards(current, event, recordGain: recordSenkaReward);
     if (event.path == _rankingPath) {
-      current = _ranking(current, map, event.capturedAt);
+      current = _ranking(current, map, event);
     }
     if (!staleLifecycle) {
       current = _sortie(current, event.path, map, event.capturedAt);
@@ -367,8 +367,9 @@ class SenkaReducer {
   SenkaState _ranking(
     SenkaState state,
     Map<Object?, Object?> data,
-    DateTime capturedAt,
+    CapturedApiEvent event,
   ) {
+    final capturedAt = event.capturedAt;
     final cutoff = senkaRankingCutoff(capturedAt);
     // Before 03:00 on the first day, the API still serves last month's ranks.
     if (currentSenkaMonthKey(cutoff) != state.monthKey) return state;
@@ -380,15 +381,11 @@ class SenkaReducer {
     if (state.memberId <= 0) return refreshed;
     final rows = rawList.map(_map).whereType<Map<Object?, Object?>>().toList();
     if (rows.isEmpty) return refreshed;
-    final inferredMagic = _inferMagic(state, rows);
-    final decryptState = inferredMagic == null
-        ? refreshed
-        : refreshed.copyWith(magic: inferredMagic);
-    final history = <String, List<SenkaRankingSnapshot>>{
-      for (final entry in state.rankingHistory.entries)
-        entry.key: List<SenkaRankingSnapshot>.of(entry.value),
-    };
-    final playerRows = state.nickname.isEmpty
+    // The game omits api_pageno for its own-ranking request and supplies it
+    // when browsing a specific page. A namesake on another page is not the
+    // player, even when that nickname occurs only once in the response.
+    final playerRows =
+        event.requestParams.containsKey('api_pageno') || state.nickname.isEmpty
         ? const <Map<Object?, Object?>>[]
         : rows
               .where(
@@ -396,6 +393,14 @@ class SenkaReducer {
               )
               .toList();
     final playerRow = playerRows.length == 1 ? playerRows.single : null;
+    final inferredMagic = _inferMagic(state, rows, playerRow);
+    final decryptState = inferredMagic == null
+        ? refreshed
+        : refreshed.copyWith(magic: inferredMagic);
+    final history = <String, List<SenkaRankingSnapshot>>{
+      for (final entry in state.rankingHistory.entries)
+        entry.key: List<SenkaRankingSnapshot>.of(entry.value),
+    };
     final page = _int(data['api_disp_page']);
     double? playerSenka;
     double? playerBaseline;
@@ -484,7 +489,11 @@ class SenkaReducer {
   int _decryptionMagic(SenkaState state) =>
       state.magic > 9 ? state.magic : _magicLeft[state.memberId % 10];
 
-  int? _inferMagic(SenkaState state, List<Map<Object?, Object?>> rows) {
+  int? _inferMagic(
+    SenkaState state,
+    List<Map<Object?, Object?>> rows,
+    Map<Object?, Object?>? playerRow,
+  ) {
     if (rows.length < 2) return null;
     final factors = <int>[];
     for (final row in rows) {
@@ -514,7 +523,12 @@ class SenkaReducer {
     if (!candidates.contains(preferred)) {
       return candidates.isEmpty ? null : candidates.last;
     }
-    final historicalCandidate = _magicFromHistory(state, rows, candidates);
+    final historicalCandidate = _magicFromHistory(
+      state,
+      rows,
+      candidates,
+      playerRow,
+    );
     if (historicalCandidate != null) return historicalCandidate;
     if (preferred >= 10 && preferred <= 99 && divisor % preferred == 0) {
       return preferred;
@@ -526,6 +540,7 @@ class SenkaReducer {
     SenkaState state,
     List<Map<Object?, Object?>> rows,
     List<int> candidates,
+    Map<Object?, Object?>? playerRow,
   ) {
     if (candidates.length < 2) return null;
     final scores = <(int, double, int)>[];
@@ -535,9 +550,8 @@ class SenkaReducer {
       for (final row in rows) {
         final rank = _int(row['api_mxltvkpyuklh']);
         final encrypted = _int(row['api_wuhnhojjxmke']);
-        final nickname = '${row['api_mtjmdcwtvhdr'] ?? ''}';
         final anchorHistory = state.rankingHistory['$rank'];
-        final playerHistory = nickname == state.nickname
+        final playerHistory = identical(row, playerRow)
             ? state.rankingHistory['player']
             : null;
         final history = anchorHistory?.isNotEmpty == true
