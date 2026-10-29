@@ -5,13 +5,13 @@ import '../game_state/game_state_controller.dart';
 import '../game_state/game_state.dart';
 import '../fleet/dashboard_card.dart';
 import '../layout/flat_empty_text.dart';
-import '../layout/flat_style.dart';
 import '../layout/hd_dashboard_content.dart';
 import '../layout/flat_list_row.dart';
 import '../layout/module_summaries.dart';
 import '../layout/panel_style.dart';
 import '../settings/module_display_settings.dart';
 import 'quest_catalog_controller.dart';
+import 'quest_progress_display.dart';
 
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
@@ -245,7 +245,7 @@ class PinnedQuestsSummary extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: appColor(context, _getProgressColor(q)),
+                    color: q.progressColor(context),
                   ),
                 ),
               ),
@@ -298,11 +298,7 @@ class PinnedQuestsSummary extends StatelessWidget {
         trailing: progress.isEmpty
             ? null
             : flatRowTrailing(
-                flatRowText(
-                  context,
-                  progress,
-                  color: q.isCompleted ? flatDoneColor : _getProgressColor(q),
-                ),
+                flatRowText(context, progress, color: q.progressColor(context)),
               ),
       ),
     );
@@ -326,11 +322,5 @@ class PinnedQuestsSummary extends StatelessWidget {
       return l10n.inProgress;
     }
     return '';
-  }
-
-  Color _getProgressColor(GameQuest q) {
-    if (q.isCompleted) return const Color(0xff4caf50);
-    if (q.state == 2 && q.progressFlag > 0) return const Color(0xffd4a85f);
-    return const Color(0xff8197a5);
   }
 }

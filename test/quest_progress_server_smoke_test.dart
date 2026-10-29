@@ -31,7 +31,7 @@ final _catalog = QuestCatalog(const [
 
 void main() {
   test(
-    'By3 server snapshots refresh display without inventing map counts',
+    'By3 keeps recorded counts across server milestones without inventing maps',
     () async {
       final storage = _MemoryProgressStorage();
       final engine = _engine(storage);
@@ -52,8 +52,8 @@ void main() {
       final now = DateTime.now().toUtc();
       const snapshots = [
         (flag: 0, state: 2, label: '0/5'),
-        (flag: 1, state: 2, label: '50%+'),
-        (flag: 2, state: 2, label: '80%+'),
+        (flag: 1, state: 2, label: '0/5'),
+        (flag: 2, state: 2, label: '0/5'),
         (flag: 0, state: 2, label: '0/5'),
         (flag: 2, state: 3, label: '100%'),
       ];
@@ -107,8 +107,8 @@ void main() {
 
       expect(notifications, [
         '2:0:0/5:0/5',
-        '2:1:50%+:0/5',
-        '2:2:80%+:0/5',
+        '2:1:0/5:0/5',
+        '2:2:0/5:0/5',
         '2:0:0/5:0/5',
         '3:2:100%:5/5',
       ]);
@@ -129,7 +129,7 @@ void main() {
         sequence: 1,
         capturedAt: DateTime.now().toUtc(),
       );
-      expect(first.state.quests[_questId]?.displayProgressLabel, '80%+');
+      expect(first.state.quests[_questId]?.displayProgressLabel, '0/5');
       expect(first.state.quests[_questId]?.exactProgressLabel, '0/5');
       _expectSteps(firstEngine, count: 0);
       expect(storage.values[_memberId], isNotNull);
@@ -146,13 +146,13 @@ void main() {
     final quest = restored.state.quests[_questId]!;
     expect(quest.state, 2);
     expect(quest.progressFlag, 2);
-    expect(quest.displayProgressLabel, '80%+');
+    expect(quest.displayProgressLabel, '0/5');
     expect(quest.exactProgressLabel, '0/5');
     expect(quest.isCompleted, isFalse);
     _expectSteps(restoredEngine, count: 0);
     expect(
       _catalog.project(restored.state.quests).byGameId(_questId).progressLabel,
-      '80%+',
+      '0/5',
     );
     expect(restoredEngine.persistenceError, isNull);
 
@@ -224,6 +224,10 @@ void main() {
           find.byKey(const Key('quest-detail-exact-progress-912')),
           findsOneWidget,
         );
+        expect(
+          tester.widget<Text>(detailText('0/1').first).style?.color,
+          const Color(0xff8197a5),
+        );
 
         // Keep the page mounted so the controller notification must refresh it.
         await _serverQuest(
@@ -236,14 +240,14 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(
-          find.descendant(of: card, matching: find.text('80%+')),
+          find.descendant(of: card, matching: find.text('0/5')),
           findsOneWidget,
         );
-        expect(detailText('80%+'), findsOneWidget);
+        expect(detailText('0/5'), findsOneWidget);
         expect(detailText('服务器进度：80%+'), findsOneWidget);
         expect(
           find.byKey(const Key('quest-detail-exact-progress-912')),
-          findsNothing,
+          findsOneWidget,
         );
         for (final description in _stepDescriptions) {
           expect(detailText(description), findsOneWidget);
@@ -268,6 +272,10 @@ void main() {
         expect(detailText('100%'), findsOneWidget);
         expect(detailText('服务器进度：100%'), findsOneWidget);
         expect(detailText('1/1'), findsNWidgets(5));
+        expect(
+          tester.widget<Text>(detailText('1/1').first).style?.color,
+          const Color(0xff67d6a3),
+        );
         expect(detailText('0/1'), findsNothing);
         expect(controller.state.quests[_questId]?.exactProgressLabel, '5/5');
         _expectSteps(engine, count: 1);

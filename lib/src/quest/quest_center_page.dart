@@ -12,6 +12,7 @@ import '../layout/adaptive_layout.dart';
 import '../settings/display_mode_store.dart';
 import 'quest_catalog.dart';
 import 'quest_progress_engine.dart';
+import 'quest_progress_display.dart';
 import 'quest_catalog_controller.dart';
 import 'quest_query_controls.dart';
 
@@ -787,7 +788,7 @@ class _QuestCard extends StatelessWidget {
                     _SmallTag(
                       key: Key('quest-card-progress-${entry.id}'),
                       label: entry.progressLabel,
-                      color: appColor(context, entry.progressColor),
+                      color: entry.progressColor(context),
                       pill: true,
                     ),
                   ],
@@ -977,12 +978,7 @@ class _QuestDetail extends StatelessWidget {
                               ? Key('quest-detail-exact-progress-${entry.id}')
                               : null,
                           label: entry.progressLabel,
-                          color: appColor(
-                            context,
-                            entry.progressLabel == entry.exactProgress
-                                ? const Color(0xff8ec6e8)
-                                : entry.progressColor,
-                          ),
+                          color: entry.progressColor(context),
                         ),
                     ],
                   ),
@@ -1093,9 +1089,11 @@ class _QuestDetail extends StatelessWidget {
                                         context,
                                         TextStyle(
                                           fontSize: 13,
-                                          color: step.count >= step.required
-                                              ? const Color(0xff67d6a3)
-                                              : const Color(0xffdbe8ef),
+                                          color: questProgressColor(
+                                            context,
+                                            current: step.count,
+                                            total: step.required,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -1679,6 +1677,7 @@ class _QuestViewEntry {
     required this.category,
     required this.period,
     required this.progressLabel,
+    required this.liveQuest,
     required this.completed,
     required this.locked,
     required this.unlockState,
@@ -1709,6 +1708,7 @@ class _QuestViewEntry {
       // recurrence metadata can distinguish them; retain the API fallback.
       period: quest.type == 5 && doc?.period == 6 ? 6 : quest.type,
       progressLabel: quest.displayProgressLabel,
+      liveQuest: quest,
       completed: quest.isCompleted,
       locked: false,
       unlockState: QuestUnlockState.unlocked,
@@ -1744,6 +1744,7 @@ class _QuestViewEntry {
       category: doc.category,
       period: doc.period,
       progressLabel: item.progressLabel,
+      liveQuest: live,
       completed: live?.isCompleted ?? item.inferredCompleted,
       locked: item.unlockState == QuestUnlockState.locked,
       unlockState: item.unlockState,
@@ -1766,6 +1767,7 @@ class _QuestViewEntry {
   final int category;
   final int period;
   final String progressLabel;
+  final GameQuest? liveQuest;
   final bool completed;
   final bool locked;
   final QuestUnlockState unlockState;
@@ -1830,18 +1832,7 @@ class _QuestViewEntry {
     _ => const Color(0xffe58c4f),
   };
 
-  Color get progressColor {
-    if (completed) return const Color(0xff67d2a6);
-    final fraction = progressLabel.split('/');
-    if (fraction.length == 2) {
-      final current = int.tryParse(fraction[0]) ?? 0;
-      final total = int.tryParse(fraction[1]) ?? 0;
-      if (total > 0 && current * 2 >= total) return const Color(0xffe0ad4f);
-    }
-    if (progressLabel == '100%' || progressLabel == '50%+') {
-      return const Color(0xff67d2a6);
-    }
-    if (progressLabel == '80%+') return const Color(0xffe0ad4f);
-    return const Color(0xffa9bdc8);
-  }
+  Color progressColor(BuildContext context) =>
+      liveQuest?.progressColor(context) ??
+      questProgressColor(context, completed: completed);
 }

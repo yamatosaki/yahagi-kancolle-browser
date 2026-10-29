@@ -336,7 +336,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const Key('quest-card-201')),
-        matching: find.text('50%+'),
+        matching: find.text('0/1'),
       ),
       findsOneWidget,
     );
