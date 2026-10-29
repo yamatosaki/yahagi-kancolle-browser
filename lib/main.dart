@@ -148,6 +148,10 @@ import 'src/quest/quest_completion_badge.dart';
 import 'src/quest/quest_completion_feedback.dart';
 import 'src/quest/quest_completion_drawer.dart';
 import 'src/quest/quest_progress_engine.dart';
+import 'src/quest/quest_progress_dataset.dart';
+import 'src/quest/quest_progress_dataset_store.dart';
+import 'src/quest/quest_progress_rules_controller.dart';
+import 'src/quest/quest_progress_update_service.dart';
 import 'src/quest/quest_center_page.dart';
 import 'src/quest/quest_catalog_controller.dart';
 import 'src/quest/quest_catalog_store.dart';
@@ -288,10 +292,19 @@ Future<void> main() async {
     accountSession: accountSession,
   );
   final gameStateStore = GameStateStore();
+  final questProgressDatasetStore = QuestProgressDatasetStore(
+    const PreferencesQuestProgressDatasetStorage(),
+  );
+  final bundledQuestProgressDataset = await QuestProgressDataset.loadBundled();
+  final questProgressDataset = await questProgressDatasetStore
+      .loadBestAvailable(bundledQuestProgressDataset);
   final gameStateController = GameStateController(
     accountSession: accountSession,
     questStore: questStore,
-    questProgress: await QuestProgressEngine.load(),
+    questProgress: QuestProgressEngine(
+      goals: questProgressDataset.goals,
+      storage: PreferencesQuestProgressStorage(),
+    ),
     gameStateStore: gameStateStore,
   );
   await gameStateController.initialize();
@@ -328,6 +341,20 @@ Future<void> main() async {
   await improvementPlannerController.loadFavorites();
   final packageInfo = await PackageInfo.fromPlatform();
   final currentVersion = packageInfo.version;
+  final questProgressRulesController = QuestProgressRulesController(
+    dataset: questProgressDataset,
+    sourceHost:
+        questProgressDataset.version == bundledQuestProgressDataset.version
+        ? ''
+        : 'github.com',
+    updater: QuestProgressUpdateService(
+      client: http.Client(),
+      store: questProgressDatasetStore,
+      appVersion: currentVersion,
+    ),
+    onUpdated: (dataset) =>
+        gameStateController.updateQuestProgressGoals(dataset.goals),
+  );
   FcdMapStorage fcdMapStorage;
   try {
     fcdMapStorage = await ApplicationFcdMapStorage.create();
@@ -777,6 +804,7 @@ Future<void> main() async {
     battleController: battleController,
     fcdMapController: fcdMapController,
     questCatalogController: questCatalogController,
+    questProgressRulesController: questProgressRulesController,
     sortieMapCatalogController: sortieMapCatalogController,
     enemyCatalogController: enemyCatalogController,
     improvementPlannerController: improvementPlannerController,
@@ -805,6 +833,7 @@ Future<void> main() async {
       unawaited(gameResourceCacheController.refresh());
       unawaited(fcdMapController.checkForUpdates());
       unawaited(questCatalogController.checkForUpdates());
+      unawaited(questProgressRulesController.checkForUpdates());
       Future<void>.delayed(const Duration(seconds: 2), () {
         if (telemetryController.enabled) {
           unawaited(telemetryController.startIfEnabled());
@@ -1070,6 +1099,7 @@ class YahagiApp extends StatelessWidget {
     required this.battleController,
     this.fcdMapController,
     this.questCatalogController,
+    this.questProgressRulesController,
     this.sortieMapCatalogController,
     this.enemyCatalogController,
     this.improvementPlannerController,
@@ -1124,6 +1154,7 @@ class YahagiApp extends StatelessWidget {
   final BattleController battleController;
   final FcdMapController? fcdMapController;
   final QuestCatalogController? questCatalogController;
+  final QuestProgressRulesController? questProgressRulesController;
   final SortieMapCatalogController? sortieMapCatalogController;
   final EnemyCatalogController? enemyCatalogController;
   final ImprovementPlannerController? improvementPlannerController;
@@ -1255,6 +1286,7 @@ class YahagiApp extends StatelessWidget {
                     battleController: battleController,
                     fcdMapController: fcdMapController,
                     questCatalogController: questCatalogController,
+                    questProgressRulesController: questProgressRulesController,
                     sortieMapCatalogController: sortieMapCatalogController,
                     enemyCatalogController: enemyCatalogController,
                     improvementPlannerController: improvementPlannerController,
@@ -1544,6 +1576,7 @@ class YahagiShell extends StatefulWidget {
     this.gameInfoNoticeController,
     this.fcdMapController,
     this.questCatalogController,
+    this.questProgressRulesController,
     this.sortieMapCatalogController,
     this.enemyCatalogController,
     this.improvementPlannerController,
@@ -1582,6 +1615,7 @@ class YahagiShell extends StatefulWidget {
   final BattleController battleController;
   final FcdMapController? fcdMapController;
   final QuestCatalogController? questCatalogController;
+  final QuestProgressRulesController? questProgressRulesController;
   final SortieMapCatalogController? sortieMapCatalogController;
   final EnemyCatalogController? enemyCatalogController;
   final ImprovementPlannerController? improvementPlannerController;
@@ -3521,6 +3555,8 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                               widget.fcdMapController,
                                           questCatalogController:
                                               widget.questCatalogController,
+                                          questProgressRulesController: widget
+                                              .questProgressRulesController,
                                           sortieMapCatalogController:
                                               widget.sortieMapCatalogController,
                                           enemyCatalogController:

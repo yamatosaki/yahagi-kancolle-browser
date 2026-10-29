@@ -4094,4 +4094,46 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get briefingTabPreSortie => '確認';
+
+  @override
+  String get questProgressDataTitle => '任務進捗データ';
+
+  @override
+  String questProgressDataVersion(String version) {
+    return 'データバージョン：$version';
+  }
+
+  @override
+  String questProgressDataSource(String source) {
+    return '取得元：$source';
+  }
+
+  @override
+  String get questProgressBundledSource => 'Poi（内蔵）';
+
+  @override
+  String get questProgressCheckUpdates => '任務進捗データの更新を確認';
+
+  @override
+  String get questProgressChecking => '任務進捗データを確認中…';
+
+  @override
+  String get questProgressUpToDate => '任務進捗データは最新です。';
+
+  @override
+  String questProgressUpdated(String oldVersion, String newVersion) {
+    return '任務進捗データを $oldVersion から $newVersion に更新しました。変更はすぐに反映されます。';
+  }
+
+  @override
+  String get questProgressNetworkError =>
+      '任務進捗データの取得元に接続できません。しばらくしてから再試行してください。';
+
+  @override
+  String get questProgressValidationError =>
+      '任務進捗データを検証できませんでした。現在のバージョンを保持しています。';
+
+  @override
+  String get questProgressStorageError =>
+      '任務進捗データを保存できませんでした。現在のバージョンを保持しています。';
 }

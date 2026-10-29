@@ -1486,5 +1486,19 @@
   "briefingTabRepair": "入渠",
   "briefingTabConstruction": "建造",
   "briefingTabQuests": "任务",
-  "briefingTabPreSortie": "检查"
+  "briefingTabPreSortie": "检查",
+  "questProgressDataTitle": "任务进度资料",
+  "questProgressDataVersion": "资料版本：{version}",
+  "@questProgressDataVersion": {"placeholders": {"version": {"type": "String"}}},
+  "questProgressDataSource": "来源：{source}",
+  "@questProgressDataSource": {"placeholders": {"source": {"type": "String"}}},
+  "questProgressBundledSource": "Poi（内置）",
+  "questProgressCheckUpdates": "检查任务进度资料更新",
+  "questProgressChecking": "正在检查任务进度资料…",
+  "questProgressUpToDate": "任务进度资料已经是最新版本。",
+  "questProgressUpdated": "任务进度资料已从 {oldVersion} 更新至 {newVersion}，并已立即生效。",
+  "@questProgressUpdated": {"placeholders": {"oldVersion": {"type": "String"}, "newVersion": {"type": "String"}}},
+  "questProgressNetworkError": "无法连接任务进度资料来源，请稍后重试。",
+  "questProgressValidationError": "任务进度资料未通过校验，已保留现有版本。",
+  "questProgressStorageError": "无法保存任务进度资料，已保留现有版本。"
 }

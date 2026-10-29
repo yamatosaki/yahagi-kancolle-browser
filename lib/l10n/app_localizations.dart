@@ -7597,6 +7597,72 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'检查'**
   String get briefingTabPreSortie;
+
+  /// No description provided for @questProgressDataTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'任务进度资料'**
+  String get questProgressDataTitle;
+
+  /// No description provided for @questProgressDataVersion.
+  ///
+  /// In zh, this message translates to:
+  /// **'资料版本：{version}'**
+  String questProgressDataVersion(String version);
+
+  /// No description provided for @questProgressDataSource.
+  ///
+  /// In zh, this message translates to:
+  /// **'来源：{source}'**
+  String questProgressDataSource(String source);
+
+  /// No description provided for @questProgressBundledSource.
+  ///
+  /// In zh, this message translates to:
+  /// **'Poi（内置）'**
+  String get questProgressBundledSource;
+
+  /// No description provided for @questProgressCheckUpdates.
+  ///
+  /// In zh, this message translates to:
+  /// **'检查任务进度资料更新'**
+  String get questProgressCheckUpdates;
+
+  /// No description provided for @questProgressChecking.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在检查任务进度资料…'**
+  String get questProgressChecking;
+
+  /// No description provided for @questProgressUpToDate.
+  ///
+  /// In zh, this message translates to:
+  /// **'任务进度资料已经是最新版本。'**
+  String get questProgressUpToDate;
+
+  /// No description provided for @questProgressUpdated.
+  ///
+  /// In zh, this message translates to:
+  /// **'任务进度资料已从 {oldVersion} 更新至 {newVersion}，并已立即生效。'**
+  String questProgressUpdated(String oldVersion, String newVersion);
+
+  /// No description provided for @questProgressNetworkError.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法连接任务进度资料来源，请稍后重试。'**
+  String get questProgressNetworkError;
+
+  /// No description provided for @questProgressValidationError.
+  ///
+  /// In zh, this message translates to:
+  /// **'任务进度资料未通过校验，已保留现有版本。'**
+  String get questProgressValidationError;
+
+  /// No description provided for @questProgressStorageError.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法保存任务进度资料，已保留现有版本。'**
+  String get questProgressStorageError;
 }
 
 class _AppLocalizationsDelegate

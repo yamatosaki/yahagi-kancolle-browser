@@ -7,6 +7,7 @@ import '../account/shared_game_data.dart';
 import '../bridge/captured_api_event.dart';
 import '../quest/quest_store.dart';
 import '../quest/quest_progress_engine.dart';
+import '../quest/quest_progress_rules.dart';
 import '../battle/battle_models.dart';
 import '../battle/sortie_damage_control_ledger.dart';
 import '../performance/frame_notification_coalescer.dart';
@@ -228,6 +229,35 @@ final class GameStateController extends ChangeNotifier
       activeQuestCount: 0,
     );
     notifyListeners();
+  }
+
+  /// Keep a rule replacement in the same order as captured game responses.
+  Future<void> updateQuestProgressGoals(Map<int, QuestProgressGoal> goals) {
+    final operation = _queue.then((_) async {
+      await _initialization;
+      if (_disposed || questProgress == null) return;
+      final scope = accountSession?.current;
+      final previous = _state;
+      final next = await questProgress!.replaceGoals(
+        previous,
+        goals,
+        DateTime.now().toUtc(),
+      );
+      if (!_isCurrent(scope) || _state.memberId != previous.memberId) return;
+      _state = next;
+      _lastError = null;
+      notifyListeners();
+      // The progress engine owns the durable counters. These view caches are
+      // best effort, just as when restoring them during startup.
+      try {
+        await _questsFor(next.memberId)?.saveQuests(next.quests);
+        if (_isCurrent(scope)) gameStateStore?.save(next);
+      } catch (_) {}
+    });
+    // Expose adoption errors to the updater while keeping later API events
+    // usable even if a replacement fails.
+    _queue = operation.catchError((Object _) {});
+    return operation;
   }
 
   GameState _state;

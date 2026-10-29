@@ -1486,5 +1486,19 @@
   "briefingTabRepair": "入渠",
   "briefingTabConstruction": "建造",
   "briefingTabQuests": "任務",
-  "briefingTabPreSortie": "確認"
+  "briefingTabPreSortie": "確認",
+  "questProgressDataTitle": "任務進捗データ",
+  "questProgressDataVersion": "データバージョン：{version}",
+  "@questProgressDataVersion": {"placeholders": {"version": {"type": "String"}}},
+  "questProgressDataSource": "取得元：{source}",
+  "@questProgressDataSource": {"placeholders": {"source": {"type": "String"}}},
+  "questProgressBundledSource": "Poi（内蔵）",
+  "questProgressCheckUpdates": "任務進捗データの更新を確認",
+  "questProgressChecking": "任務進捗データを確認中…",
+  "questProgressUpToDate": "任務進捗データは最新です。",
+  "questProgressUpdated": "任務進捗データを {oldVersion} から {newVersion} に更新しました。変更はすぐに反映されます。",
+  "@questProgressUpdated": {"placeholders": {"oldVersion": {"type": "String"}, "newVersion": {"type": "String"}}},
+  "questProgressNetworkError": "任務進捗データの取得元に接続できません。しばらくしてから再試行してください。",
+  "questProgressValidationError": "任務進捗データを検証できませんでした。現在のバージョンを保持しています。",
+  "questProgressStorageError": "任務進捗データを保存できませんでした。現在のバージョンを保持しています。"
 }

@@ -2080,5 +2080,19 @@
   "briefingTabRepair": "Repair",
   "briefingTabConstruction": "Build",
   "briefingTabQuests": "Quests",
-  "briefingTabPreSortie": "Check"
+  "briefingTabPreSortie": "Check",
+  "questProgressDataTitle": "Quest progress data",
+  "questProgressDataVersion": "Data version: {version}",
+  "@questProgressDataVersion": {"placeholders": {"version": {"type": "String"}}},
+  "questProgressDataSource": "Source: {source}",
+  "@questProgressDataSource": {"placeholders": {"source": {"type": "String"}}},
+  "questProgressBundledSource": "Poi (bundled)",
+  "questProgressCheckUpdates": "Check quest progress data updates",
+  "questProgressChecking": "Checking quest progress data…",
+  "questProgressUpToDate": "Quest progress data is up to date.",
+  "questProgressUpdated": "Quest progress data updated from {oldVersion} to {newVersion}. Changes are effective immediately.",
+  "@questProgressUpdated": {"placeholders": {"oldVersion": {"type": "String"}, "newVersion": {"type": "String"}}},
+  "questProgressNetworkError": "Could not connect to the quest progress data source. Please try again later.",
+  "questProgressValidationError": "Quest progress data could not be validated. The current version has been kept.",
+  "questProgressStorageError": "Quest progress data could not be saved. The current version has been kept."
 }

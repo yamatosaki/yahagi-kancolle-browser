@@ -4046,6 +4046,45 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get briefingTabPreSortie => '检查';
+
+  @override
+  String get questProgressDataTitle => '任务进度资料';
+
+  @override
+  String questProgressDataVersion(String version) {
+    return '资料版本：$version';
+  }
+
+  @override
+  String questProgressDataSource(String source) {
+    return '来源：$source';
+  }
+
+  @override
+  String get questProgressBundledSource => 'Poi（内置）';
+
+  @override
+  String get questProgressCheckUpdates => '检查任务进度资料更新';
+
+  @override
+  String get questProgressChecking => '正在检查任务进度资料…';
+
+  @override
+  String get questProgressUpToDate => '任务进度资料已经是最新版本。';
+
+  @override
+  String questProgressUpdated(String oldVersion, String newVersion) {
+    return '任务进度资料已从 $oldVersion 更新至 $newVersion，并已立即生效。';
+  }
+
+  @override
+  String get questProgressNetworkError => '无法连接任务进度资料来源，请稍后重试。';
+
+  @override
+  String get questProgressValidationError => '任务进度资料未通过校验，已保留现有版本。';
+
+  @override
+  String get questProgressStorageError => '无法保存任务进度资料，已保留现有版本。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -8092,4 +8131,43 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get briefingTabPreSortie => '檢查';
+
+  @override
+  String get questProgressDataTitle => '任務進度資料';
+
+  @override
+  String questProgressDataVersion(String version) {
+    return '資料版本：$version';
+  }
+
+  @override
+  String questProgressDataSource(String source) {
+    return '來源：$source';
+  }
+
+  @override
+  String get questProgressBundledSource => 'Poi（內建）';
+
+  @override
+  String get questProgressCheckUpdates => '檢查任務進度資料更新';
+
+  @override
+  String get questProgressChecking => '正在檢查任務進度資料…';
+
+  @override
+  String get questProgressUpToDate => '任務進度資料已是最新版本。';
+
+  @override
+  String questProgressUpdated(String oldVersion, String newVersion) {
+    return '任務進度資料已從 $oldVersion 更新至 $newVersion，並已立即生效。';
+  }
+
+  @override
+  String get questProgressNetworkError => '無法連線至任務進度資料來源，請稍後再試。';
+
+  @override
+  String get questProgressValidationError => '任務進度資料未通過驗證，已保留現有版本。';
+
+  @override
+  String get questProgressStorageError => '無法儲存任務進度資料，已保留現有版本。';
 }

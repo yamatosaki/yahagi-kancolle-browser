@@ -36,11 +36,16 @@ class QuestStepProgress {
 
 /// Pure matching plus an ordered, account-scoped event ledger. No game requests.
 class QuestProgressEngine {
-  QuestProgressEngine({required this.goals, required this.storage});
-  final Map<int, QuestProgressGoal> goals;
+  QuestProgressEngine({
+    required Map<int, QuestProgressGoal> goals,
+    required this.storage,
+  }) : _goals = _freezeGoals(goals);
+  Map<int, QuestProgressGoal> _goals;
+  Map<int, QuestProgressGoal> get goals => _goals;
   final QuestProgressStorage storage;
   int _account = 0;
   int _generation = 0;
+  int? _restoringGeneration;
   final Map<int, _Record> _records = {};
   final Map<int, int> _ruleTypes = {};
   Map<int, GameQuest> _active = {};
@@ -70,6 +75,104 @@ class QuestProgressEngine {
       },
       storage: PreferencesQuestProgressStorage(),
     );
+  }
+
+  /// Adopt an overlay after earlier API events have finished. All migration and
+  /// projection work is staged before publishing either rules or counters.
+  Future<GameState> replaceGoals(
+    GameState state,
+    Map<int, QuestProgressGoal> nextGoals,
+    DateTime now,
+  ) async {
+    final candidate = _freezeGoals({...goals, ...nextGoals}, validate: true);
+    if (state.memberId > 0 && _account != state.memberId) {
+      final restoring = restore(state, now);
+      final generation = _generation;
+      state = await restoring;
+      if (generation != _generation) {
+        if (_restoringGeneration == _generation) {
+          // The replacement belongs to the application, even when the caller's
+          // account read was invalidated. The current read will see these rules
+          // after it resumes; do not overwrite its unread ledger with emptiness.
+          _goals = candidate;
+          return state.copyWith(quests: {}, availableQuests: {});
+        }
+        state = state.copyWith(
+          memberId: _account,
+          quests: Map.of(_active),
+          availableQuests: {},
+          hasCompleteQuestData: false,
+        );
+      }
+    }
+    final valid = {
+      for (final e in state.quests.entries)
+        if (!e.value.isExpired(now) && !_expiredQuest(e.value, now))
+          e.key: e.value,
+    };
+    final available = {
+      for (final e in state.availableQuests.entries)
+        if (!e.value.isExpired(now) && !_expiredQuest(e.value, now))
+          e.key: e.value,
+    };
+    if (valid.length != state.quests.length ||
+        available.length != state.availableQuests.length) {
+      state = state.copyWith(
+        quests: valid,
+        availableQuests: available,
+        hasCompleteQuestData: false,
+      );
+    }
+    final staged = QuestProgressEngine(goals: candidate, storage: storage);
+    staged._ruleTypes.addAll(_ruleTypes);
+    for (final e in _records.entries) {
+      final record = _Record.fromJson(e.value.toJson());
+      if (_expired(e.key, record, now)) continue;
+      final goal = candidate[e.key];
+      final quest = state.quests[e.key] ?? _active[e.key];
+      if (goal != null) {
+        staged._migrateRecord(
+          record,
+          goal,
+          now,
+          previousGoal: goals[e.key],
+          quest: quest,
+        );
+      }
+      staged._records[e.key] = record;
+    }
+    for (final quest in state.quests.values) {
+      final goal = candidate[quest.id];
+      if (goal == null || goals[quest.id] != null) continue;
+      final record = staged._record(quest, now);
+      if (record.claimed || quest.isServerCompleted) continue;
+      // This aggregate predates the definition; it cannot establish any of
+      // the newly introduced per-step conditions.
+      record.counts
+        ..clear()
+        ..addAll({
+          for (final step in goal.steps.entries)
+            step.key: _int(step.value['init']),
+        });
+      record.blocked |= (quest.progressCurrent ?? 0) > 0;
+    }
+    final result = staged.expire(state, now);
+    _goals = candidate;
+    _records
+      ..clear()
+      ..addAll(staged._records);
+    _ruleTypes
+      ..clear()
+      ..addAll(staged._ruleTypes);
+    _active = Map.of(result.quests);
+    final generation = _generation;
+    try {
+      await _save();
+      if (generation == _generation) persistenceError = null;
+    } catch (error) {
+      if (generation == _generation) persistenceError = error.toString();
+    }
+    return result;
   }
 
   Set<int> completedIds(DateTime now) => {
@@ -116,6 +219,7 @@ class QuestProgressEngine {
     _account = state.memberId;
     final account = _account;
     final generation = _generation;
+    _restoringGeneration = generation;
     _records.clear();
     _active = {};
     _seen.clear();
@@ -155,15 +259,8 @@ class QuestProgressEngine {
             if (_expired(id, r, now)) {
               expiredIds.add(id);
             } else {
-              final revision = goals[id]?.revision ?? 0;
-              if (r.ruleRevision < revision) {
-                // Counts observed under a weaker rule are useful reference
-                // progress, but require server confirmation after migration.
-                if (!r.claimed && r.counts.values.any((count) => count > 0)) {
-                  r.blocked = true;
-                }
-                r.ruleRevision = revision;
-              }
+              final goal = goals[id];
+              if (goal != null) _migrateRecord(r, goal, now);
               _records[id] = r;
             }
           }
@@ -213,7 +310,9 @@ class QuestProgressEngine {
       },
       hasCompleteQuestData: false,
     );
-    return expire(restored, now);
+    final result = expire(restored, now);
+    if (_restoringGeneration == generation) _restoringGeneration = null;
+    return result;
   }
 
   bool _expiredQuest(GameQuest q, DateTime now) =>
@@ -460,14 +559,21 @@ class QuestProgressEngine {
   }
 
   _Record _record(GameQuest q, DateTime now) => _records.putIfAbsent(q.id, () {
+    final goal = goals[q.id];
     final r = _Record(
-      questPeriodKey(_ruleTypes[q.id] ?? goals[q.id]?.type ?? 0, q.type, now),
+      questPeriodKey(goal?.type ?? _ruleTypes[q.id] ?? 0, q.type, now),
       q.type,
     );
-    r.ruleType = _ruleTypes[q.id];
-    final goal = goals[q.id];
+    r.ruleType = goal?.type ?? _ruleTypes[q.id];
     if (goal != null) {
       r.ruleRevision = goal.revision;
+      r.ruleFingerprint = _goalFingerprint(goal);
+      r.stepFingerprints.addAll(_stepFingerprints(goal));
+      r.stepRequirements.addAll({
+        for (final step in goal.steps.entries)
+          step.key: _int(step.value['required']),
+      });
+      r.resetInterval = _resetInterval(goal);
       // Legacy quest-only caches have no ledger revision to establish which
       // fleet rules produced their exact count.
       r.blocked =
@@ -504,6 +610,91 @@ class QuestProgressEngine {
     }
     return r;
   });
+
+  void _migrateRecord(
+    _Record record,
+    QuestProgressGoal goal,
+    DateTime now, {
+    QuestProgressGoal? previousGoal,
+    GameQuest? quest,
+  }) {
+    final fingerprint = _goalFingerprint(goal);
+    final previousFingerprint = previousGoal == null
+        ? record.ruleFingerprint
+        : _goalFingerprint(previousGoal);
+    final changed =
+        previousFingerprint != null && previousFingerprint != fingerprint;
+    final interval = _resetInterval(goal);
+    final scheduleChanged = previousGoal != null
+        ? previousGoal.type != goal.type ||
+              _resetInterval(previousGoal) != interval
+        : record.ruleFingerprint != null &&
+              (record.ruleType != goal.type ||
+                  record.resetInterval != interval);
+    final countPeriod = interval == null
+        ? null
+        : questPeriodKey(interval, record.apiType, now);
+    final previouslyComplete = previousGoal != null
+        ? _allDone(previousGoal, record)
+        : record.stepRequirements.isNotEmpty
+        ? record.stepRequirements.entries.every(
+            (step) => (record.counts[step.key] ?? 0) >= step.value,
+          )
+        : !changed && _allDone(goal, record);
+    final expiredCount =
+        interval != null &&
+        record.countPeriod != countPeriod &&
+        !previouslyComplete;
+    final serverCompleted = quest?.isServerCompleted ?? false;
+    if (!record.claimed && !serverCompleted) {
+      // A semantic change must never turn old observations into new proof.
+      // This remains set even when later events reach the replacement total.
+      record.blocked |=
+          changed ||
+          (record.ruleRevision < goal.revision &&
+              record.counts.values.any((count) => count > 0));
+    }
+    final previousSteps = previousGoal == null
+        ? record.stepFingerprints
+        : _stepFingerprints(previousGoal);
+    final nextSteps = _stepFingerprints(goal);
+    final counts = <String, int>{};
+    for (final step in goal.steps.entries) {
+      final required = _int(step.value['required']);
+      final unchanged =
+          previousSteps[step.key] == nextSteps[step.key] ||
+          (previousFingerprint == null && record.counts.containsKey(step.key));
+      counts[step.key] = record.claimed || serverCompleted
+          ? required
+          : !scheduleChanged && !expiredCount && unchanged
+          ? (record.counts[step.key] ?? _int(step.value['init'])).clamp(
+              0,
+              required,
+            )
+          : _int(step.value['init']);
+    }
+    record.counts
+      ..clear()
+      ..addAll(counts);
+    record.stepFingerprints
+      ..clear()
+      ..addAll(nextSteps);
+    record.stepRequirements
+      ..clear()
+      ..addAll({
+        for (final step in goal.steps.entries)
+          step.key: _int(step.value['required']),
+      });
+    record.ruleFingerprint = fingerprint;
+    if (goal.revision > record.ruleRevision) {
+      record.ruleRevision = goal.revision;
+    }
+    record.ruleType = goal.type;
+    record.resetInterval = interval;
+    record.period = questPeriodKey(goal.type, record.apiType, now);
+    record.countPeriod = countPeriod;
+    if (serverCompleted) record.blocked = false;
+  }
 
   GameState expire(GameState state, DateTime now, {bool project = true}) {
     final valid = {
@@ -576,7 +767,15 @@ class QuestProgressEngine {
           required,
         );
       }
-      final verified = goal.completeOnCount && !record.blocked;
+      if (q.isServerCompleted) {
+        for (final step in goal.steps.entries) {
+          record.counts[step.key] = _int(step.value['required']);
+        }
+        count = total;
+        record.blocked = false;
+      }
+      final verified =
+          goal.completeOnCount && _knownGoalShape(goal) && !record.blocked;
       if (q.progressCurrent == count &&
           q.progressRequired == total &&
           q.localCompletionVerified == verified) {
@@ -669,7 +868,6 @@ class QuestProgressEngine {
         path.endsWith('/api_req_map/next')) {
       if (path.endsWith('/start')) {
         _fleetId = _int(event.requestParams['api_deck_id'], 1);
-        add('sally');
       }
       _map = _int(data['api_maparea_id']) * 10 + _int(data['api_mapinfo_no']);
       _cell = _int(data['api_no']);
@@ -678,6 +876,7 @@ class QuestProgressEngine {
       _countedBattle = '';
       ships = _ships(previous, _fleetId);
       options.addAll({'maparea': _map, 'mapcell': _cell});
+      if (path.endsWith('/start')) add('sally');
       if (path.endsWith('/next')) add('reach_mapcell');
     } else if (path.endsWith('/api_req_practice/battle')) {
       _fleetId = _int(
@@ -785,6 +984,7 @@ class QuestProgressEngine {
   /// Invalidate in-flight restores without deleting this account's ledger.
   void resetSession() {
     _generation++;
+    _restoringGeneration = null;
     _account = 0;
     _records.clear();
     _ruleTypes.clear();
@@ -877,12 +1077,215 @@ List<int> _ids(dynamic value) => (value?.toString() ?? '')
     .where((v) => v > 0)
     .toList();
 
+const _goalMetadata = {'type', 'revision', 'fuzzy', 'resetInterval'};
+const _supportedQuestEvents = {
+  'battle',
+  'battle_boss',
+  'battle_boss_win',
+  'battle_boss_win_rank_a',
+  'battle_boss_win_rank_s',
+  'battle_rank_s',
+  'battle_win',
+  'create_item',
+  'create_ship',
+  'destory_item',
+  'destroy_ship',
+  'mission_success',
+  'practice',
+  'practice_win',
+  'practice_win_a',
+  'practice_win_s',
+  'reach_mapcell',
+  'remodel_item',
+  'remodel_ship',
+  'repair',
+  'sally',
+  'sinking',
+  'supply',
+};
+
+bool _knownGoalShape(QuestProgressGoal goal) =>
+    goal.raw.entries.every(
+      (e) => _goalMetadata.contains(e.key) || e.value is Map,
+    ) &&
+    goal.steps.keys.every(
+      (key) => _supportedQuestEvents.contains(key.split('@').first),
+    );
+
+int? _resetInterval(QuestProgressGoal goal) =>
+    goal.raw['resetInterval'] == null ? null : _int(goal.raw['resetInterval']);
+
+Map<int, QuestProgressGoal> _freezeGoals(
+  Map<int, QuestProgressGoal> goals, {
+  bool validate = false,
+}) => Map.unmodifiable({
+  for (final e in goals.entries)
+    e.key: _freezeGoal(e.key, e.value, validate: validate),
+});
+
+QuestProgressGoal _freezeGoal(
+  int id,
+  QuestProgressGoal goal, {
+  required bool validate,
+}) {
+  final raw = _freezeJson(goal.raw) as Map<String, dynamic>;
+  if (validate) {
+    if (id <= 0 || goal.id != id) {
+      throw FormatException('Invalid quest rule ID: $id');
+    }
+    for (final key in ['type', 'revision', 'resetInterval']) {
+      final value = raw[key];
+      if (raw.containsKey(key) && (value is! int || value < 0)) {
+        throw FormatException('Invalid quest rule $id.$key');
+      }
+      if (key != 'revision' &&
+          value is int &&
+          !{0, 1, 2, 3, 4, 8, 9}.contains(value) &&
+          !(value >= 101 && value <= 112)) {
+        throw FormatException('Invalid quest period $id.$key');
+      }
+    }
+    if (raw.containsKey('fuzzy') && raw['fuzzy'] is! bool) {
+      throw FormatException('Invalid quest rule $id.fuzzy');
+    }
+    for (final step in raw.entries.where((e) => e.value is Map)) {
+      final value = step.value as Map;
+      final required = value['required'], init = value['init'] ?? 0;
+      if (required is! int ||
+          required <= 0 ||
+          init is! int ||
+          init < 0 ||
+          init > required) {
+        throw FormatException('Invalid quest step $id.${step.key}');
+      }
+      for (final key in [
+        'shipType',
+        'maparea',
+        'mission',
+        'times',
+        'slotitemType2',
+        'slotitemId',
+        'mapcell',
+        'materialShipType',
+        'flagshipId',
+        'secondshipId',
+        'escortshipId',
+        'escortshipIdAll',
+        'flagship',
+        'secondship',
+        'escortship',
+        'shipNamesAll',
+        'flagshiptype',
+        'escortshiptype',
+        'flagshipclass',
+        'secondshipclass',
+        'escortshipclass',
+        'banshiptype',
+      ]) {
+        if (value.containsKey(key) && value[key] is! List) {
+          throw FormatException(
+            'Invalid quest constraint $id.${step.key}.$key',
+          );
+        }
+      }
+      for (final key in ['fleetlimit', 'materialShipMinCount']) {
+        if (value.containsKey(key) &&
+            (value[key] is! int || (value[key] as int) < 0)) {
+          throw FormatException(
+            'Invalid quest constraint $id.${step.key}.$key',
+          );
+        }
+      }
+      for (final key in [
+        'escortshipId',
+        'escortshipIdAll',
+        'escortship',
+        'shipNamesAll',
+        'escortshiptype',
+        'escortshipclass',
+      ]) {
+        if (!value.containsKey(key)) continue;
+        for (final group in value[key] as List) {
+          if (group is! List ||
+              group.length < 2 ||
+              group.length > 3 ||
+              group[0] is! List ||
+              (group[0] as List).isEmpty ||
+              group[1] is! int ||
+              (group[1] as int) <= 0 ||
+              (group.length == 3 && group[2] is! bool)) {
+            throw FormatException(
+              'Invalid quest fleet group $id.${step.key}.$key',
+            );
+          }
+        }
+      }
+    }
+  }
+  return QuestProgressGoal(id, raw);
+}
+
+dynamic _freezeJson(dynamic value) {
+  if (value is Map) {
+    final result = <String, dynamic>{};
+    for (final e in value.entries) {
+      if (e.key is! String) throw const FormatException('Non-string rule key');
+      result[e.key as String] = _freezeJson(e.value);
+    }
+    return Map<String, dynamic>.unmodifiable(result);
+  }
+  if (value is List) return List<dynamic>.unmodifiable(value.map(_freezeJson));
+  if (value == null ||
+      value is String ||
+      value is bool ||
+      (value is num && value.isFinite)) {
+    return value;
+  }
+  throw const FormatException('Invalid quest rule value');
+}
+
+dynamic _canonicalJson(dynamic value) {
+  if (value is Map) {
+    final keys = value.keys.cast<String>().toList()..sort();
+    return {for (final key in keys) key: _canonicalJson(value[key])};
+  }
+  if (value is List) return value.map(_canonicalJson).toList();
+  return value;
+}
+
+String _fingerprint(Map<String, dynamic> value) =>
+    sha256.convert(utf8.encode(jsonEncode(_canonicalJson(value)))).toString();
+
+String _goalFingerprint(QuestProgressGoal goal) => _fingerprint({
+  for (final e in goal.raw.entries)
+    if (e.key != 'revision' && e.key != 'description')
+      e.key: e.value is Map
+          ? {
+              for (final s in (e.value as Map).entries)
+                if (s.key != 'description') s.key.toString(): s.value,
+            }
+          : e.value,
+});
+
+Map<String, String> _stepFingerprints(QuestProgressGoal goal) => {
+  for (final step in goal.steps.entries)
+    step.key: _fingerprint({
+      for (final e in step.value.entries)
+        if (!{'description', 'required', 'init'}.contains(e.key))
+          e.key: e.value,
+    }),
+};
+
 class _Record {
   _Record(this.period, this.apiType);
   String period;
   String? countPeriod;
   int? ruleType;
   int ruleRevision = 0;
+  String? ruleFingerprint;
+  int? resetInterval;
+  final Map<String, String> stepFingerprints = {};
+  final Map<String, int> stepRequirements = {};
   final int apiType;
   final Map<String, int> counts = {};
   bool claimed = false, blocked = false;
@@ -891,6 +1294,10 @@ class _Record {
     'countPeriod': countPeriod,
     'ruleType': ruleType,
     'ruleRevision': ruleRevision,
+    'ruleFingerprint': ruleFingerprint,
+    'stepFingerprints': stepFingerprints,
+    'stepRequirements': stepRequirements,
+    'resetInterval': resetInterval,
     'type': apiType,
     'counts': counts,
     'claimed': claimed,
@@ -901,6 +1308,14 @@ class _Record {
     r.countPeriod = json['countPeriod'] as String?;
     r.ruleType = json['ruleType'] as int?;
     r.ruleRevision = _int(json['ruleRevision']);
+    r.ruleFingerprint = json['ruleFingerprint'] as String?;
+    r.resetInterval = json['resetInterval'] as int?;
+    for (final e in (json['stepFingerprints'] as Map? ?? {}).entries) {
+      if (e.value is String) r.stepFingerprints[e.key.toString()] = e.value;
+    }
+    for (final e in (json['stepRequirements'] as Map? ?? {}).entries) {
+      r.stepRequirements[e.key.toString()] = _int(e.value);
+    }
     r.claimed = json['claimed'] == true;
     r.blocked = json['blocked'] == true;
     for (final e in (json['counts'] as Map? ?? {}).entries) {

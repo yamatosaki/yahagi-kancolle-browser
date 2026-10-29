@@ -87,6 +87,7 @@ flutter:
     - assets/data/quests-scn.json
     - assets/data/quests-meta.json
     - assets/data/quest-progress-goals.json
+    - assets/data/quest-progress-meta.json
     - assets/data/poi-quest-LICENSE.txt
     - assets/data/improvement/
     - assets/data/development/

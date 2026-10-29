@@ -27,6 +27,7 @@ import 'game_mouse_wheel_settings.dart';
 import 'game_frame_refresh_shortcut_settings.dart';
 import '../battle/fcd_map_controller.dart';
 import '../quest/quest_catalog_controller.dart';
+import '../quest/quest_progress_rules_controller.dart';
 import '../toolbox/sortie_map_query/sortie_map_catalog_controller.dart';
 import '../toolbox/sortie_map_query/enemy_catalog_controller.dart';
 import '../improvement/improvement_planner_controller.dart';
@@ -76,6 +77,7 @@ class SettingsPage extends StatefulWidget {
     this.toolbarDisplayController,
     this.fcdMapController,
     this.questCatalogController,
+    this.questProgressRulesController,
     this.sortieMapCatalogController,
     this.enemyCatalogController,
     this.improvementPlannerController,
@@ -123,6 +125,7 @@ class SettingsPage extends StatefulWidget {
   final GameToolbarDisplayController? toolbarDisplayController;
   final FcdMapController? fcdMapController;
   final QuestCatalogController? questCatalogController;
+  final QuestProgressRulesController? questProgressRulesController;
   final SortieMapCatalogController? sortieMapCatalogController;
   final EnemyCatalogController? enemyCatalogController;
   final ImprovementPlannerController? improvementPlannerController;
@@ -217,6 +220,7 @@ class _SettingsPageState extends State<SettingsPage> {
           kcwikiReportController: settings.kcwikiReportController,
           fcdMapController: settings.fcdMapController,
           questCatalogController: settings.questCatalogController,
+          questProgressRulesController: settings.questProgressRulesController,
           sortieMapCatalogController: settings.sortieMapCatalogController,
           enemyCatalogController: settings.enemyCatalogController,
           improvementPlannerController: settings.improvementPlannerController,

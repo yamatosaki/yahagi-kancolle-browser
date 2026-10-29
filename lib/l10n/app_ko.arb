@@ -2080,5 +2080,19 @@
   "briefingTabRepair": "입거",
   "briefingTabConstruction": "건조",
   "briefingTabQuests": "임무",
-  "briefingTabPreSortie": "점검"
+  "briefingTabPreSortie": "점검",
+  "questProgressDataTitle": "임무 진행 데이터",
+  "questProgressDataVersion": "데이터 버전: {version}",
+  "@questProgressDataVersion": {"placeholders": {"version": {"type": "String"}}},
+  "questProgressDataSource": "출처: {source}",
+  "@questProgressDataSource": {"placeholders": {"source": {"type": "String"}}},
+  "questProgressBundledSource": "Poi (내장)",
+  "questProgressCheckUpdates": "임무 진행 데이터 업데이트 확인",
+  "questProgressChecking": "임무 진행 데이터 확인 중…",
+  "questProgressUpToDate": "임무 진행 데이터가 최신 버전입니다.",
+  "questProgressUpdated": "임무 진행 데이터를 {oldVersion}에서 {newVersion}(으)로 업데이트했습니다. 변경 사항이 즉시 적용됩니다.",
+  "@questProgressUpdated": {"placeholders": {"oldVersion": {"type": "String"}, "newVersion": {"type": "String"}}},
+  "questProgressNetworkError": "임무 진행 데이터 출처에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+  "questProgressValidationError": "임무 진행 데이터를 검증할 수 없습니다. 현재 버전을 유지합니다.",
+  "questProgressStorageError": "임무 진행 데이터를 저장할 수 없습니다. 현재 버전을 유지합니다."
 }

@@ -433,14 +433,21 @@ void main() {
   );
 
   for (final fleet in [
-    (373, ['Richelieu', 'Gloire'], [9, 3], [0, 0]),
+    (373, ['Richelieu', 'Gloire'], [8, 3], [0, 0]),
     (372, ['秋月', '吹雪', '伊勢', '日向'], [2, 2, 10, 10], [54, 1, 2, 2]),
   ]) {
     test(
       'quest ${fleet.$1} requires the full escort group beyond its flagship',
       () async {
         final h = await _Harness.create(
-          _practiceState(fleet.$1, now, fleet.$2, fleet.$3, classes: fleet.$4),
+          _practiceState(
+            fleet.$1,
+            now,
+            fleet.$2,
+            fleet.$3,
+            classes: fleet.$4,
+            masterIds: fleet.$1 == 373 ? [492, 965] : null,
+          ),
           now,
         );
         await h.practice(now, rank: 'A', times: 4);
@@ -451,14 +458,21 @@ void main() {
   }
 
   for (final fleet in [
-    (373, ['Richelieu', 'Gloire', 'Mogador'], [9, 3, 2], [0, 0, 0]),
+    (373, ['Richelieu', 'Gloire', 'Mogador'], [8, 3, 2], [0, 0, 0]),
     (372, ['秋月', '吹雪', '白雪', '伊勢', '日向'], [2, 2, 2, 10, 10], [54, 1, 1, 2, 2]),
   ]) {
     test(
       'quest ${fleet.$1} accepts sufficient escorts and preserves current-rule completion',
       () async {
         final h = await _Harness.create(
-          _practiceState(fleet.$1, now, fleet.$2, fleet.$3, classes: fleet.$4),
+          _practiceState(
+            fleet.$1,
+            now,
+            fleet.$2,
+            fleet.$3,
+            classes: fleet.$4,
+            masterIds: fleet.$1 == 373 ? [492, 965, 962] : null,
+          ),
           now,
         );
         await h.practice(now, rank: 'A', times: 4);
@@ -634,6 +648,7 @@ GameState _practiceState(
   List<String> names,
   List<int> types, {
   List<int>? classes,
+  List<int>? masterIds,
 }) => _state(_quest(id, now, type: id == 318 ? 3 : 5)).copyWith(
   fleets: [
     Fleet(
@@ -644,12 +659,12 @@ GameState _practiceState(
   ],
   ships: {
     for (var i = 1; i <= names.length; i++)
-      i: OwnedShip(id: i, masterId: i, level: 99),
+      i: OwnedShip(id: i, masterId: masterIds?[i - 1] ?? i, level: 99),
   },
   masterShips: {
     for (var i = 1; i <= names.length; i++)
-      i: MasterShip(
-        id: i,
+      (masterIds?[i - 1] ?? i): MasterShip(
+        id: masterIds?[i - 1] ?? i,
         name: names[i - 1],
         shipTypeId: types[i - 1],
         classTypeId: classes?[i - 1] ?? 0,

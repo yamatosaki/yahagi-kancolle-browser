@@ -4225,4 +4225,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get briefingTabPreSortie => 'Check';
+
+  @override
+  String get questProgressDataTitle => 'Quest progress data';
+
+  @override
+  String questProgressDataVersion(String version) {
+    return 'Data version: $version';
+  }
+
+  @override
+  String questProgressDataSource(String source) {
+    return 'Source: $source';
+  }
+
+  @override
+  String get questProgressBundledSource => 'Poi (bundled)';
+
+  @override
+  String get questProgressCheckUpdates => 'Check quest progress data updates';
+
+  @override
+  String get questProgressChecking => 'Checking quest progress data…';
+
+  @override
+  String get questProgressUpToDate => 'Quest progress data is up to date.';
+
+  @override
+  String questProgressUpdated(String oldVersion, String newVersion) {
+    return 'Quest progress data updated from $oldVersion to $newVersion. Changes are effective immediately.';
+  }
+
+  @override
+  String get questProgressNetworkError =>
+      'Could not connect to the quest progress data source. Please try again later.';
+
+  @override
+  String get questProgressValidationError =>
+      'Quest progress data could not be validated. The current version has been kept.';
+
+  @override
+  String get questProgressStorageError =>
+      'Quest progress data could not be saved. The current version has been kept.';
 }

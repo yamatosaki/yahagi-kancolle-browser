@@ -1,11 +1,48 @@
 {
   "repository": "https://github.com/poooi/poi",
-  "commit": "1e121a5c996d66850f367e6afce9bfbdcce6f7ff",
+  "commit": "725029997b84729df6394e1f107079b8e9437f36",
+  "path": "assets/data/fcd/questgoal.json",
+  "version": "2026/10/25/01",
+  "questCount": 432,
+  "stepCount": 962,
+  "upstreamSha256": "4d7dc2a39d80bb5dd5fcbac3d356424b7fbd36b9c689107d642861a4f0e448d2",
+  "nameToIdMigrations": [
+    249,
+    337,
+    339,
+    345,
+    346,
+    354,
+    355,
+    356,
+    357,
+    362,
+    368,
+    371,
+    373,
+    375,
+    377,
+    875,
+    888,
+    903,
+    904,
+    912,
+    928,
+    975,
+    977,
+    1018,
+    1045
+  ],
+  "localPolicy": {
+    "318": "Keep fuzzy reference-only completion because equipment requirements are not verified.",
+    "350": "Require the four exact ship ID lineages; revision must not fall below 1.",
+    "372": "Two aviation battleships and two destroyers are companions excluding the flagship.",
+    "373": "Use French master IDs and require two companions excluding the flagship; revision 2.",
+    "977": "Use Yamato Kai Ni / Musashi Kai Ni master IDs, two destroyers and cell 15 for 7-2-2; retain upstream fuzzy; revision 2.",
+    "1005": "Require all four ships at Kai or later, and retain upstream fuzzy; revision 1.",
+    "1138": "Require master equipment ID 120 instead of equipment type 17; revision 1."
+  },
   "overrides": {
     "977": "https://zekamashi.net/kancolle-kouryaku/yamatogata-batubyou/"
-  },
-  "corrections": {
-    "commit": "725029997b84729df6394e1f107079b8e9437f36",
-    "quests": [242, 350, 977, 1005, 1138, 1167]
   }
 }

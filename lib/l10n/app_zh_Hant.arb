@@ -1486,5 +1486,19 @@
   "briefingTabRepair": "入渠",
   "briefingTabConstruction": "建造",
   "briefingTabQuests": "任務",
-  "briefingTabPreSortie": "檢查"
+  "briefingTabPreSortie": "檢查",
+  "questProgressDataTitle": "任務進度資料",
+  "questProgressDataVersion": "資料版本：{version}",
+  "@questProgressDataVersion": {"placeholders": {"version": {"type": "String"}}},
+  "questProgressDataSource": "來源：{source}",
+  "@questProgressDataSource": {"placeholders": {"source": {"type": "String"}}},
+  "questProgressBundledSource": "Poi（內建）",
+  "questProgressCheckUpdates": "檢查任務進度資料更新",
+  "questProgressChecking": "正在檢查任務進度資料…",
+  "questProgressUpToDate": "任務進度資料已是最新版本。",
+  "questProgressUpdated": "任務進度資料已從 {oldVersion} 更新至 {newVersion}，並已立即生效。",
+  "@questProgressUpdated": {"placeholders": {"oldVersion": {"type": "String"}, "newVersion": {"type": "String"}}},
+  "questProgressNetworkError": "無法連線至任務進度資料來源，請稍後再試。",
+  "questProgressValidationError": "任務進度資料未通過驗證，已保留現有版本。",
+  "questProgressStorageError": "無法儲存任務進度資料，已保留現有版本。"
 }

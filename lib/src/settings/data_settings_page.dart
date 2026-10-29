@@ -23,6 +23,7 @@ import '../logbook/logbook_database.dart';
 import '../localization/record_backup_strings.dart';
 import '../prototype_status_controller.dart';
 import '../quest/quest_catalog_controller.dart';
+import '../quest/quest_progress_rules_controller.dart';
 import '../senka/senka_controller.dart';
 import '../telemetry/telemetry_controller.dart';
 import '../toolbox/composition_record_store.dart';
@@ -35,6 +36,7 @@ import 'fcd_map_update_section.dart';
 import 'game_rendering_mode_controller.dart';
 import 'game_resource_cache_section.dart';
 import 'quest_catalog_update_section.dart';
+import 'quest_progress_update_section.dart';
 import 'sortie_map_catalog_update_section.dart';
 import 'enemy_catalog_update_section.dart';
 import 'settings_ui_helpers.dart';
@@ -61,6 +63,7 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
     this.gameRenderingModeController,
     this.fcdMapController,
     this.questCatalogController,
+    this.questProgressRulesController,
     this.sortieMapCatalogController,
     this.enemyCatalogController,
     this.improvementPlannerController,
@@ -83,6 +86,7 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
   final GameRenderingModeController? gameRenderingModeController;
   final FcdMapController? fcdMapController;
   final QuestCatalogController? questCatalogController;
+  final QuestProgressRulesController? questProgressRulesController;
   final SortieMapCatalogController? sortieMapCatalogController;
   final EnemyCatalogController? enemyCatalogController;
   final ImprovementPlannerController? improvementPlannerController;
@@ -137,6 +141,15 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
           controller: controller,
           version: () => controller.version.shortLabel,
           child: QuestCatalogUpdateSection(controller: controller),
+        ),
+      if (questProgressRulesController case final controller?)
+        _updateEntry(
+          context,
+          key: const Key('settings-data-update-quest-progress'),
+          title: l10n.questProgressDataTitle,
+          controller: controller,
+          version: () => controller.version,
+          child: QuestProgressUpdateSection(controller: controller),
         ),
       if (improvementPlannerController case final controller?)
         _updateEntry(

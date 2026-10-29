@@ -1,1 +1,4 @@
 .githooks/* text eol=lf
+assets/data/quest-progress-goals.json text eol=lf
+assets/data/quest-progress-meta.json text eol=lf
+assets/data/quest-progress-sources.json text eol=lf

@@ -298,12 +298,20 @@ class _Session {
           Fleet(id: 1, name: 'one', shipIds: [1, 2, 3, 4, 5, 6]),
         ],
         ships: {
-          for (var id = 1; id <= 6; id++)
+          1: const OwnedShip(id: 1, masterId: 916, level: 99),
+          2: const OwnedShip(id: 2, masterId: 546, level: 99),
+          for (var id = 3; id <= 6; id++)
             id: OwnedShip(id: id, masterId: id, level: 99),
         },
         masterShips: {
-          1: const MasterShip(id: 1, name: '大和改二重', shipTypeId: 10),
-          2: const MasterShip(id: 2, name: '武蔵改二', shipTypeId: 9),
+          911: const MasterShip(
+            id: 911,
+            name: '大和改二',
+            shipTypeId: 9,
+            afterShipId: 916,
+          ),
+          916: const MasterShip(id: 916, name: '大和改二重', shipTypeId: 10),
+          546: const MasterShip(id: 546, name: '武蔵改二', shipTypeId: 9),
           for (var id = 3; id <= 6; id++)
             id: MasterShip(id: id, name: '駆逐$id', shipTypeId: 2),
         },

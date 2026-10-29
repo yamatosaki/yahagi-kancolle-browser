@@ -89,12 +89,20 @@ GameState sample(DateTime time, {int id = 977, int type = 4}) =>
         Fleet(id: 1, name: 'one', shipIds: [1, 2, 3, 4, 5, 6]),
       ],
       ships: {
-        for (var i = 1; i <= 6; i++)
+        1: const OwnedShip(id: 1, masterId: 916, level: 99),
+        2: const OwnedShip(id: 2, masterId: 546, level: 99),
+        for (var i = 3; i <= 6; i++)
           i: OwnedShip(id: i, masterId: i, level: 99),
       },
       masterShips: {
-        1: const MasterShip(id: 1, name: '大和改二重', shipTypeId: 10),
-        2: const MasterShip(id: 2, name: '武蔵改二', shipTypeId: 9),
+        911: const MasterShip(
+          id: 911,
+          name: '大和改二',
+          shipTypeId: 9,
+          afterShipId: 916,
+        ),
+        916: const MasterShip(id: 916, name: '大和改二重', shipTypeId: 10),
+        546: const MasterShip(id: 546, name: '武蔵改二', shipTypeId: 9),
         for (var i = 3; i <= 6; i++)
           i: MasterShip(id: i, name: '駆逐$i', shipTypeId: 2),
       },
@@ -317,7 +325,33 @@ void main() {
         expect(controller.lastError, isNull);
       }
       expect(controller.state.quests[977]!.exactProgressLabel, '4/4');
+      expect(controller.state.quests[977]!.isCompleted, isFalse);
+      expect(tracker.update(controller.state, now: clock), isFalse);
+      controller.accept(
+        kcsapiEvent(
+          '/kcsapi/api_get_member/questlist',
+          {
+            'api_list': [
+              {
+                'api_no': 977,
+                'api_title': 'task',
+                'api_detail': '',
+                'api_category': 2,
+                'api_type': 4,
+                'api_state': 3,
+                'api_progress_flag': 2,
+              },
+            ],
+          },
+          capturedAt: clock,
+          sequence: ++sequence,
+        ),
+      );
+      await controller.idle;
+      expect(controller.lastError, isNull);
+      expect(controller.state.quests[977]!.isServerCompleted, isTrue);
       expect(tracker.update(controller.state, now: clock), true);
+      expect(tracker.update(controller.state, now: clock), false);
     },
   );
   test(
@@ -556,7 +590,7 @@ void main() {
     },
   );
   test(
-    'B182 counts each correct boss once, survives restart and completes without questlist',
+    'B182 counts each correct boss once, survives restart and waits for server completion',
     () async {
       final store = MemoryProgress();
       var engine = QuestProgressEngine(goals: rules(), storage: store);
@@ -566,18 +600,25 @@ void main() {
       await h.battle(45, boss: false);
       await h.battle(72, cell: 7);
       expect(h.state.quests[977]!.progressCurrent, 0);
-      final validMaster = h.state.masterShips[2]!;
+      final validMusashi = h.state.ships[2]!;
       h.state = h.state.copyWith(
+        ships: {
+          ...h.state.ships,
+          2: const OwnedShip(id: 2, masterId: 148, level: 99),
+        },
         masterShips: {
           ...h.state.masterShips,
-          2: const MasterShip(id: 2, name: '武蔵改', shipTypeId: 9),
+          148: const MasterShip(
+            id: 148,
+            name: '武蔵改',
+            shipTypeId: 9,
+            afterShipId: 546,
+          ),
         },
       );
       await h.battle(45);
       expect(h.state.quests[977]!.progressCurrent, 0);
-      h.state = h.state.copyWith(
-        masterShips: {...h.state.masterShips, 2: validMaster},
-      );
+      h.state = h.state.copyWith(ships: {...h.state.ships, 2: validMusashi});
       await h.battle(45);
       await h.battle(45);
       await h.battle(53);
@@ -592,8 +633,9 @@ void main() {
       expect(h.state.quests[977]!.progressCurrent, 2);
       await h.battle(72, cell: 15);
       await h.battle(65);
-      expect(h.state.quests[977]!.isLocallyCompleted, true);
-      expect(tracker.update(h.state, now: now), true);
+      expect(h.state.quests[977]!.exactProgressLabel, '4/4');
+      expect(h.state.quests[977]!.isLocallyCompleted, false);
+      expect(h.state.quests[977]!.isCompleted, false);
       expect(tracker.update(h.state, now: now), false);
       expect(engine.stepsFor(977).map((s) => s.count), [1, 1, 1, 1]);
       await h.event('api_get_member/questlist', {
@@ -601,8 +643,27 @@ void main() {
           {'api_no': 977},
         ],
       });
-      // Server state 2 contradicts locally complete progress; no more local completion.
+      // Poi marks this rule fuzzy, so local counts and incomplete server
+      // snapshots can never prove completion.
       expect(h.state.quests[977]!.isLocallyCompleted, false);
+      expect(tracker.update(h.state, now: now), false);
+      await h.event('api_get_member/questlist', {
+        'api_list': [
+          {
+            'api_no': 977,
+            'api_title': 'task',
+            'api_detail': '',
+            'api_category': 2,
+            'api_type': 4,
+            'api_state': 3,
+            'api_progress_flag': 2,
+          },
+        ],
+      }, reduce: true);
+      expect(h.state.quests[977]!.isServerCompleted, true);
+      expect(h.state.quests[977]!.exactProgressLabel, '4/4');
+      expect(tracker.update(h.state, now: now), true);
+      expect(tracker.update(h.state, now: now), false);
     },
   );
   test(
@@ -831,7 +892,7 @@ void main() {
       false,
     );
     final all = rules();
-    expect(all.length, 131);
+    expect(all.length, 432);
     expect(all[977]!.steps.length, 4);
   });
 }

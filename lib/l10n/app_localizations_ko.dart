@@ -4122,4 +4122,46 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get briefingTabPreSortie => '점검';
+
+  @override
+  String get questProgressDataTitle => '임무 진행 데이터';
+
+  @override
+  String questProgressDataVersion(String version) {
+    return '데이터 버전: $version';
+  }
+
+  @override
+  String questProgressDataSource(String source) {
+    return '출처: $source';
+  }
+
+  @override
+  String get questProgressBundledSource => 'Poi (내장)';
+
+  @override
+  String get questProgressCheckUpdates => '임무 진행 데이터 업데이트 확인';
+
+  @override
+  String get questProgressChecking => '임무 진행 데이터 확인 중…';
+
+  @override
+  String get questProgressUpToDate => '임무 진행 데이터가 최신 버전입니다.';
+
+  @override
+  String questProgressUpdated(String oldVersion, String newVersion) {
+    return '임무 진행 데이터를 $oldVersion에서 $newVersion(으)로 업데이트했습니다. 변경 사항이 즉시 적용됩니다.';
+  }
+
+  @override
+  String get questProgressNetworkError =>
+      '임무 진행 데이터 출처에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.';
+
+  @override
+  String get questProgressValidationError =>
+      '임무 진행 데이터를 검증할 수 없습니다. 현재 버전을 유지합니다.';
+
+  @override
+  String get questProgressStorageError =>
+      '임무 진행 데이터를 저장할 수 없습니다. 현재 버전을 유지합니다.';
 }

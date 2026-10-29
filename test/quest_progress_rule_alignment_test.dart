@@ -165,7 +165,7 @@ Future<existing.Harness> _session(
 
 int _secondBossCount(existing.Harness h) => h.engine
     .stepsFor(977)
-    .singleWhere((step) => step.description == '7-2P2 S')
+    .singleWhere((step) => step.description == '7-2-2 S')
     .count;
 
 Future<existing.Harness> _disposalSession({
