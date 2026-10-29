@@ -343,8 +343,7 @@ Future<void> main() async {
   final currentVersion = packageInfo.version;
   final questProgressRulesController = QuestProgressRulesController(
     dataset: questProgressDataset,
-    sourceHost:
-        questProgressDataset.version == bundledQuestProgressDataset.version
+    sourceHost: identical(questProgressDataset, bundledQuestProgressDataset)
         ? ''
         : 'github.com',
     updater: QuestProgressUpdateService(

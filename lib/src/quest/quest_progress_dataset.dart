@@ -109,6 +109,18 @@ class QuestProgressDataset {
       goals: merged,
     );
   }
+
+  /// A newer app bundle remains authoritative for every ID it contains, while
+  /// previously cached IDs omitted by Poi remain available after an upgrade.
+  QuestProgressDataset retainMissingFrom(QuestProgressDataset fallback) {
+    if (fallback.goals.keys.every(goals.containsKey)) return this;
+    return QuestProgressDataset._(
+      version: version,
+      rawJson: rawJson,
+      sourceCommit: sourceCommit,
+      goals: {...fallback.goals, ...goals},
+    );
+  }
 }
 
 QuestProgressGoal _goal(int id, Map<String, dynamic> raw) => QuestProgressGoal(

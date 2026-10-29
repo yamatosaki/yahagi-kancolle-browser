@@ -20,10 +20,11 @@ class PreferencesQuestProgressStorage implements QuestProgressStorage {
       );
   @override
   Future<void> write(int account, String value) async {
-    await (await SharedPreferences.getInstance()).setString(
+    final written = await (await SharedPreferences.getInstance()).setString(
       'quest_progress_v1_$account',
       value,
     );
+    if (!written) throw StateError('Quest progress counter cache write failed');
   }
 }
 

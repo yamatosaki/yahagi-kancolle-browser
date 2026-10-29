@@ -62,10 +62,13 @@ final class QuestProgressDatasetStore {
           envelope['sha256'] != _digest(payload)) {
         return bundled;
       }
-      return QuestProgressDataset.parsePayload(
+      final cached = QuestProgressDataset.parsePayload(
         payload,
         sourceCommit: commit,
-      ).overlayOn(bundled);
+      );
+      return cached.version.compareTo(bundled.version) > 0
+          ? cached.overlayOn(bundled)
+          : bundled.retainMissingFrom(cached);
     } catch (_) {
       // Missing, corrupt, or unavailable caches never displace bundled rules.
       return bundled;
