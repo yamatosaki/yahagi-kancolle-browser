@@ -55,17 +55,17 @@ flutter analyze
 flutter test
 ```
 
-To run the native Android unit tests in Windows PowerShell:
+To run the native Android unit tests and lint checks in Windows PowerShell:
 
 ```powershell
-.\android\gradlew.bat -p android :app:testDebugUnitTest --console=plain
+.\android\gradlew.bat -p android :app:testDebugUnitTest :app:lintDebug --console=plain
 ```
 
 On Linux or macOS:
 
 ```sh
 chmod +x android/gradlew
-./android/gradlew -p android :app:testDebugUnitTest --console=plain
+./android/gradlew -p android :app:testDebugUnitTest :app:lintDebug --console=plain
 ```
 
 Some integration tests use raw samples kept only on local development machines. These tests explicitly skip when the samples are absent from a public checkout. The public tests using synthetic data do not require real accounts or game API dumps. Do not add raw data to the repository just to run the local integration tests.

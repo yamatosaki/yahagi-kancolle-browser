@@ -97,6 +97,35 @@ class RepositoryHygieneTest(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIn(path, result.stdout)
 
+    def test_release_signing_properties_are_blocked_without_echoing_passwords(self):
+        paths = ["release-signing.properties", "android/release-signing.properties"]
+        password = "synthetic-signing-password"
+        content = (
+            "storeFile=keys/release.jks\n"
+            f"storePassword={password}\n"
+            "keyAlias=release\n"
+            f"keyPassword={password}\n"
+        )
+        for path in paths:
+            self.write(path, content)
+        result = self.check("--staged")
+        self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+        self.assertIn("local-configuration-or-credentials", result.stdout)
+        for path in paths:
+            self.assertIn(path, result.stdout)
+        self.assertNotIn(password, result.stdout + result.stderr)
+
+    def test_release_signing_properties_are_ignored_in_root_and_subdirectories(self):
+        ignore_file = CHECKER.resolve().parents[1] / ".gitignore"
+        self.write(".gitignore", ignore_file.read_bytes())
+        paths = ["release-signing.properties", "android/release-signing.properties"]
+        result = subprocess.run(
+            ["git", "-C", str(self.root), "check-ignore", "--no-index", "--", *paths],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertEqual(paths, result.stdout.splitlines())
+
     def test_current_empty_synthetic_backup_fixture_passes(self):
         self.write("test/fixtures/record_backup_v12_empty.yhb", EMPTY_FIXTURE.read_bytes())
         result = self.check("--staged")

@@ -73,7 +73,10 @@ def path_category(path):
            for part in parts[:-1]):
         return "local-or-generated-directory"
     name = normalized.name
-    if name in {"local.properties", "key.properties", ".netrc", "_netrc", ".npmrc", ".pypirc", "id_rsa", "id_ed25519"}:
+    if name in {
+        "local.properties", "key.properties", "release-signing.properties",
+        ".netrc", "_netrc", ".npmrc", ".pypirc", "id_rsa", "id_ed25519",
+    }:
         return "local-configuration-or-credentials"
     if name == ".env" or (name.startswith(".env.") and name != ".env.example"):
         return "local-configuration-or-credentials"

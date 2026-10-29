@@ -55,17 +55,17 @@ flutter analyze
 flutter test
 ```
 
-Android 네이티브 단위 테스트는 Windows PowerShell에서 다음과 같이 실행하세요.
+Android 네이티브 단위 테스트와 lint 검사는 Windows PowerShell에서 다음과 같이 실행하세요.
 
 ```powershell
-.\android\gradlew.bat -p android :app:testDebugUnitTest --console=plain
+.\android\gradlew.bat -p android :app:testDebugUnitTest :app:lintDebug --console=plain
 ```
 
 Linux 또는 macOS에서는 다음과 같이 실행하세요.
 
 ```sh
 chmod +x android/gradlew
-./android/gradlew -p android :app:testDebugUnitTest --console=plain
+./android/gradlew -p android :app:testDebugUnitTest :app:lintDebug --console=plain
 ```
 
 일부 통합 테스트는 로컬에만 보관된 원본 샘플을 사용합니다. 공개 저장소를 복제한 환경에 이 샘플이 없으면 해당 테스트는 건너뛰었다고 명시합니다. 공개된 합성 테스트에는 실제 계정이나 게임 API 덤프가 필요하지 않습니다. 로컬 통합 테스트를 실행하기 위해 원본 데이터를 저장소에 추가하지 마세요.

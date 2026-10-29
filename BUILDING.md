@@ -55,17 +55,17 @@ flutter analyze
 flutter test
 ```
 
-Android 原生单元测试，在 Windows PowerShell 中执行：
+Android 原生单元测试和 lint 检查，在 Windows PowerShell 中执行：
 
 ```powershell
-.\android\gradlew.bat -p android :app:testDebugUnitTest --console=plain
+.\android\gradlew.bat -p android :app:testDebugUnitTest :app:lintDebug --console=plain
 ```
 
 在 Linux 或 macOS 中执行：
 
 ```sh
 chmod +x android/gradlew
-./android/gradlew -p android :app:testDebugUnitTest --console=plain
+./android/gradlew -p android :app:testDebugUnitTest :app:lintDebug --console=plain
 ```
 
 部分集成测试使用仅保存在本地的原始样本，公开检出缺少这些样本时会明确跳过。公开的人工合成测试不需要真实账号或游戏接口转储；不要为运行本地集成测试而把原始数据加入仓库。
