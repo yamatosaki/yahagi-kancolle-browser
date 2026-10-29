@@ -296,7 +296,7 @@ void main() {
             {
               'api_maparea_id': map ~/ 10,
               'api_mapinfo_no': map % 10,
-              'api_no': 13,
+              'api_no': map == 72 ? 15 : 13,
               'api_event_id': 5,
             },
             requestParams: {'api_deck_id': 1},
@@ -590,7 +590,7 @@ void main() {
         now.add(const Duration(minutes: 2)),
       );
       expect(h.state.quests[977]!.progressCurrent, 2);
-      await h.battle(72);
+      await h.battle(72, cell: 15);
       await h.battle(65);
       expect(h.state.quests[977]!.isLocallyCompleted, true);
       expect(tracker.update(h.state, now: now), true);

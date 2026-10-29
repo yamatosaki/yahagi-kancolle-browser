@@ -13,6 +13,10 @@ const _knownQuestStepFields = {
   'mapcell',
   'materialShipType',
   'materialShipMinCount',
+  'flagshipId',
+  'secondshipId',
+  'escortshipId',
+  'escortshipIdAll',
   'flagship',
   'secondship',
   'escortship',
@@ -110,6 +114,39 @@ bool matchesQuestStep(Map<String, dynamic> goal, QuestProgressEvent event) {
         (goal['materialShipMinCount'] as num? ?? 3)) {
       return false;
     }
+  }
+  final shipIds = event.options['shipIds'] is List
+      ? event.options['shipIds'] as List
+      : const [];
+  bool idMatches(int index, List allowed) {
+    if (index >= shipIds.length || shipIds[index] is! List) return false;
+    return (shipIds[index] as List).any(
+      (id) => id is int && id > 0 && allowed.contains(id),
+    );
+  }
+
+  for (final pair in [(0, 'flagshipId'), (1, 'secondshipId')]) {
+    if (goal[pair.$2] case final List allowed) {
+      if (!idMatches(pair.$1, allowed)) return false;
+    }
+  }
+  bool idGroupMatches(dynamic raw) {
+    final group = raw as List;
+    final first = group.length > 2 && group[2] == true ? 1 : 0;
+    var count = 0;
+    for (var i = first; i < shipIds.length; i++) {
+      if (idMatches(i, group[0] as List)) count++;
+    }
+    return count >= (group[1] as num);
+  }
+
+  if (goal['escortshipId'] case final List alternatives) {
+    if (alternatives.isNotEmpty && !alternatives.any(idGroupMatches)) {
+      return false;
+    }
+  }
+  if (goal['escortshipIdAll'] case final List groups) {
+    if (!groups.every(idGroupMatches)) return false;
   }
   final ships = event.ships;
   if (ships.isEmpty &&

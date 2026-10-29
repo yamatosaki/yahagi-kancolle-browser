@@ -3,5 +3,9 @@
   "commit": "1e121a5c996d66850f367e6afce9bfbdcce6f7ff",
   "overrides": {
     "977": "https://zekamashi.net/kancolle-kouryaku/yamatogata-batubyou/"
+  },
+  "corrections": {
+    "commit": "725029997b84729df6394e1f107079b8e9437f36",
+    "quests": [242, 350, 977, 1005, 1138, 1167]
   }
 }

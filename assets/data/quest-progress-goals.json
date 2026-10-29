@@ -180,7 +180,7 @@
     }
   },
   "242": {
-    "type": 3,
+    "type": 2,
     "battle_boss_win": {
       "description": "勝利",
       "maparea": [
@@ -780,15 +780,16 @@
   },
   "350": {
     "type": 103,
+    "revision": 1,
     "practice_win_a": {
       "description": "演習勝利 A",
-      "escortship": [
+      "escortshipId": [
         [
           [
-            "朧",
-            "漣",
-            "曙",
-            "潮"
+            93,
+            94,
+            15,
+            16
           ],
           4
         ]
@@ -3620,18 +3621,19 @@
   "1005": {
     "type": 101,
     "fuzzy": true,
+    "revision": 1,
     "battle_boss_win_rank_a@12": {
       "description": "1-2 A",
       "maparea": [
         12
       ],
-      "escortship": [
+      "escortshipId": [
         [
           [
-            "朧改",
-            "漣改",
-            "曙改",
-            "潮改"
+            230,
+            232,
+            231,
+            233
           ],
           4
         ]
@@ -3644,13 +3646,13 @@
       "maparea": [
         13
       ],
-      "escortship": [
+      "escortshipId": [
         [
           [
-            "朧改",
-            "漣改",
-            "曙改",
-            "潮改"
+            230,
+            232,
+            231,
+            233
           ],
           4
         ]
@@ -3663,13 +3665,13 @@
       "maparea": [
         15
       ],
-      "escortship": [
+      "escortshipId": [
         [
           [
-            "朧改",
-            "漣改",
-            "曙改",
-            "潮改"
+            230,
+            232,
+            231,
+            233
           ],
           4
         ]
@@ -3682,13 +3684,13 @@
       "maparea": [
         32
       ],
-      "escortship": [
+      "escortshipId": [
         [
           [
-            "朧改",
-            "漣改",
-            "曙改",
-            "潮改"
+            230,
+            232,
+            231,
+            233
           ],
           4
         ]
@@ -4130,10 +4132,11 @@
   },
   "1138": {
     "type": 106,
+    "revision": 1,
     "destory_item": {
-      "description": "廃棄 - 高射装置",
-      "slotitemType2": [
-        17
+      "description": "廃棄 - 91式高射装置",
+      "slotitemId": [
+        120
       ],
       "required": 4,
       "init": 0
@@ -4148,7 +4151,8 @@
     }
   },
   "1167": {
-    "type": 1,
+    "type": 2,
+    "resetInterval": 1,
     "remodel_item": {
       "description": "改修",
       "required": 3,
@@ -4157,6 +4161,7 @@
   },
   "977": {
     "type": 0,
+    "revision": 1,
     "battle_boss_win_rank_s@4-5": {
       "description": "4-5 S",
       "required": 1,
@@ -4227,7 +4232,7 @@
         72
       ],
       "mapcell": [
-        13
+        15
       ],
       "shipNamesAll": [
         [

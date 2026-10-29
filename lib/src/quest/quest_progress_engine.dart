@@ -479,10 +479,25 @@ class QuestProgressEngine {
         q.type,
         now,
       );
+      // Quest-only caches have no separate count-period marker. Do not turn
+      // yesterday's partial daily streak into progress for today on restore.
+      // As with ledger expiry, keep a fully reached streak for confirmation.
+      final expiredCount =
+          goal.raw['resetInterval'] != null &&
+          q.updatedAt != null &&
+          questPeriodKey(
+                _int(goal.raw['resetInterval']),
+                q.type,
+                q.updatedAt!,
+              ) !=
+              r.countPeriod;
       for (final e in goal.steps.entries) {
         r.counts[e.key] = q.isServerCompleted
             ? _int(e.value['required'])
-            : goal.steps.length == 1 && q.progressCurrent != null
+            : goal.steps.length == 1 &&
+                  q.progressCurrent != null &&
+                  (!expiredCount ||
+                      q.progressCurrent! >= _int(e.value['required']))
             ? q.progressCurrent!.clamp(0, _int(e.value['required']))
             : _int(e.value['init']);
       }
@@ -615,13 +630,35 @@ class QuestProgressEngine {
     final result = <QuestProgressEvent>[];
     final options = <String, dynamic>{'maparea': _map, 'mapcell': _cell};
     var ships = _ships(previous, _fleetId);
+    final shipIdEvents = <String>{
+      for (final quest in next.quests.values)
+        if (quest.isAccepted)
+          for (final step
+              in goals[quest.id]?.steps.entries ??
+                  const <MapEntry<String, Map<String, dynamic>>>[])
+            if (step.value.keys.any(
+              const {
+                'flagshipId',
+                'secondshipId',
+                'escortshipId',
+                'escortshipIdAll',
+              }.contains,
+            ))
+              step.key.split('@').first,
+    };
+    _QuestShipRemodelGraph? remodelGraph;
     void add(String kind, {int delta = 1, Map<String, dynamic>? extra}) {
       if (delta > 0) {
+        final shipIds = shipIdEvents.contains(kind) && ships.isNotEmpty
+            ? (remodelGraph ??= _QuestShipRemodelGraph(
+                previous.masterShips,
+              )).forShips(ships)
+            : null;
         result.add(
           QuestProgressEvent(
             kind,
             delta: delta,
-            options: {...options, ...?extra},
+            options: {...options, ...?extra, 'shipIds': ?shipIds},
             ships: ships,
           ),
         );
@@ -800,6 +837,35 @@ class QuestProgressEngine {
     await storage.write(account, raw);
     if (generation == _generation) _lastSaved = raw;
   }
+}
+
+// A goal names the first remodel that counts. Walk only incoming remodel links:
+// later variants count as their ancestors, but never as unvisited descendants.
+class _QuestShipRemodelGraph {
+  _QuestShipRemodelGraph(Map<int, MasterShip> masters) {
+    for (final ship in masters.values) {
+      if (ship.id > 0 && ship.afterShipId > 0) {
+        _incoming.putIfAbsent(ship.afterShipId, () => []).add(ship.id);
+      }
+    }
+  }
+
+  final _incoming = <int, List<int>>{};
+  final _sources = <int, List<int>>{};
+
+  List<List<int>> forShips(List<MasterShip> ships) => [
+    for (final ship in ships)
+      _sources.putIfAbsent(ship.id, () {
+        final seen = <int>{};
+        final queue = [ship.id];
+        for (var i = 0; i < queue.length; i++) {
+          final current = queue[i];
+          if (current <= 0 || !seen.add(current)) continue;
+          queue.addAll(_incoming[current] ?? const []);
+        }
+        return seen.toList(growable: false);
+      }),
+  ];
 }
 
 int _int(dynamic value, [int fallback = 0]) => value is num
