@@ -29,6 +29,28 @@
 
 本项目以 Flutter 和 Android 原生代码为主，目前没有稳定的外部代码插件 API。增加功能通常需要修改源码并重新构建；魔改 ZIP 主要用于受支持的游戏资源替换。
 
+## 定制任务进度规则
+
+普通源码构建直接使用内置规则，无需执行导入。维护规则时，须同步更新 `assets/data/` 中的 `quest-progress-goals.json`、`quest-progress-meta.json` 和 `quest-progress-sources.json` 三个文件，不能只修改单个 JSON。
+
+元数据中的 `sha256` 必须匹配 goals 文件的原始 UTF-8 字节（包括换行）；格式化或改变换行也会改变摘要。导入工具的输入是 Poi 仓库 `assets/data/fcd/questgoal.json` 的原始 FCD（含 `meta` 和 `data`），不是随包的纯规则映射。在仓库根目录运行：
+
+```sh
+python tool/import_poi_quest_goals.py "PATH_TO_QUESTGOAL_FCD" --commit REVIEWED_40_CHARACTER_SHA
+```
+
+将 `PATH_TO_QUESTGOAL_FCD` 替换为已审查 FCD 文件的路径，将 `REVIEWED_40_CHARACTER_SHA` 替换为对应上游提交的完整 40 位 Git SHA。工具生成上述三个文件；若输入经过本地修改，须在来源说明中明确记录，不能将其冒充未修改的上游快照。
+
+修改本项目的本地规则时，同时检查 [`tool/import_poi_quest_goals.py`](tool/import_poi_quest_goals.py) 的 `apply_policy` 和 [`quest_progress_policy.dart`](lib/src/quest/quest_progress_policy.dart)；运行时会再次应用 Dart policy。
+
+生成后运行：
+
+```sh
+flutter test test/quest_progress_dataset_test.dart test/quest_progress_bundle_parity_test.dart
+```
+
+有意变更规则时，维护对应回归预期与来源说明，并保留有效格式和摘要校验。独立 Fork 还需检查 [`quest_progress_update_service.dart`](lib/src/quest/quest_progress_update_service.dart) 的固定来源及 URL 允许列表，并决定如何处理 `quest-progress-rules.v1` 缓存：已有较新缓存或后续在线更新可能优先于定制的随包规则。
+
 ## 与官方版本并存
 
 在 `android/app/build.gradle.kts` 中，把 `defaultConfig.applicationId` 改为自己控制的唯一标识，例如 `org.example.yahagi.custom`。只改变安装标识时，可以保留现有 `namespace` 和 Kotlin 的 `package`，避免把简单并存配置扩大为整份原生代码迁移。

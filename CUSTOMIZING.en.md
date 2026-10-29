@@ -29,6 +29,28 @@ Commit new assets and declare them in `pubspec.yaml`; check asset declarations w
 
 The app uses Flutter and native Android code. It currently has no stable external code plugin API. New features generally require source changes and a rebuild; mod ZIPs cover supported game asset replacements.
 
+## Customize Quest Progress Rules
+
+Normal source builds use the bundled rules and need no import step. When maintaining rules, update all three files under `assets/data/` together: `quest-progress-goals.json`, `quest-progress-meta.json`, and `quest-progress-sources.json`. Do not edit just one JSON file.
+
+The metadata's `sha256` must match the goals file's raw UTF-8 bytes, including newlines. Formatting or changing line endings changes the digest. The importer takes the original `assets/data/fcd/questgoal.json` FCD envelope from Poi, containing `meta` and `data`, not the bundled flat rules map. Run from the repository root:
+
+```sh
+python tool/import_poi_quest_goals.py "PATH_TO_QUESTGOAL_FCD" --commit REVIEWED_40_CHARACTER_SHA
+```
+
+Replace `PATH_TO_QUESTGOAL_FCD` with the reviewed FCD file's path and `REVIEWED_40_CHARACTER_SHA` with the corresponding upstream commit's full 40-character Git SHA. The tool generates the three files above. If you modify the input locally, record those changes in the provenance; do not present it as an unchanged upstream snapshot.
+
+When changing this project's local rules, review both `apply_policy` in [`tool/import_poi_quest_goals.py`](tool/import_poi_quest_goals.py) and [`quest_progress_policy.dart`](lib/src/quest/quest_progress_policy.dart). The Dart policy is applied again at runtime.
+
+After generation, run:
+
+```sh
+flutter test test/quest_progress_dataset_test.dart test/quest_progress_bundle_parity_test.dart
+```
+
+For intentional rule changes, maintain the corresponding regression expectations and provenance while retaining format and digest validation. Independent forks must also review the fixed sources and URL allowlist in [`quest_progress_update_service.dart`](lib/src/quest/quest_progress_update_service.dart) and decide how to handle the `quest-progress-rules.v1` cache: an existing newer cache or later online update can take precedence over customized bundled rules.
+
 ## Install Alongside the Official App
 
 Change `defaultConfig.applicationId` in `android/app/build.gradle.kts` to a unique ID you control, such as `org.example.yahagi.custom`. For this installation-ID change, you can keep the existing `namespace` and Kotlin `package` declarations without migrating all native source packages.
