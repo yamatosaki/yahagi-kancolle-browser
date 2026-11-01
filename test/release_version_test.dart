@@ -2,6 +2,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/settings/release_version.dart';
 
 void main() {
+  test('1.0.9 stable supersedes 1.0.8 and every published 1.0.9 beta', () {
+    expect(isNewerRelease('v1.0.9', currentTag: 'v1.0.8'), isTrue);
+    for (var beta = 1; beta <= 7; beta++) {
+      expect(isNewerRelease('v1.0.9', currentTag: 'v1.0.9-beta.$beta'), isTrue);
+      expect(
+        isNewerRelease('v1.0.9-beta.$beta', currentTag: 'v1.0.9'),
+        isFalse,
+      );
+    }
+    expect(isNewerRelease('v1.0.9', currentTag: 'v1.0.9'), isFalse);
+  });
+
   test('1.0.8 stable supersedes 1.0.7 and every 1.0.8 beta', () {
     expect(isNewerRelease('v1.0.8', currentTag: 'v1.0.7'), isTrue);
     for (var beta = 1; beta <= 5; beta++) {
