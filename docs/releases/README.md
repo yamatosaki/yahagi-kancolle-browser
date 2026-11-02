@@ -8,6 +8,7 @@ These notes describe each version as it was released. Use the version link to do
 
 | Version / 版本 | 简体中文 | 繁體中文 | 日本語 | English | 한국어 |
 | --- | --- | --- | --- | --- | --- |
+| [1.0.9](https://github.com/yamatosaki/yahagi-kancolle-browser/releases/tag/1.0.9) | [简体中文](1.0.9/README.md) | [繁體中文](1.0.9/README.zh-Hant.md) | [日本語](1.0.9/README.ja.md) | [English](1.0.9/README.en.md) | [한국어](1.0.9/README.ko.md) |
 | [1.0.8](https://github.com/yamatosaki/yahagi-kancolle-browser/releases/tag/1.0.8) | [简体中文](1.0.8/README.md) | [繁體中文](1.0.8/README.zh-Hant.md) | [日本語](1.0.8/README.ja.md) | [English](1.0.8/README.en.md) | [한국어](1.0.8/README.ko.md) |
 | [1.0.7](https://github.com/yamatosaki/yahagi-kancolle-browser/releases/tag/1.0.7) | [简体中文](1.0.7/README.md) | [繁體中文](1.0.7/README.zh-Hant.md) | [日本語](1.0.7/README.ja.md) | [English](1.0.7/README.en.md) | [한국어](1.0.7/README.ko.md) |
 | [1.0.6](https://github.com/yamatosaki/yahagi-kancolle-browser/releases/tag/1.0.6) | [简体中文](1.0.6/README.md) | [繁體中文](1.0.6/README.zh-Hant.md) | [日本語](1.0.6/README.ja.md) | [English](1.0.6/README.en.md) | [한국어](1.0.6/README.ko.md) |
