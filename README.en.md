@@ -33,7 +33,9 @@ Visit [GitHub Releases](https://github.com/yamatosaki/yahagi-kancolle-browser/re
 | Platform | Availability and notes |
 | --- | --- |
 | Android | The main version maintained by this project. Download and install the APK from the releases page. |
-| iOS | A third-party IPA port by [Kutinana](https://github.com/Kutinana) is available on the releases page. See the relevant release notes for installation instructions, supported features, and maintenance status. |
+| iOS | A third-party port by [Kutinana](https://github.com/Kutinana). Download the IPA from the [releases page](https://github.com/yamatosaki/yahagi-kancolle-browser/releases) to sideload it, or install through the [TestFlight public beta](https://testflight.apple.com/join/WWU4StEm). See the relevant release notes for installation instructions, supported features, and maintenance status. |
+
+To use the TestFlight public beta, install Apple's official TestFlight app first. Available places and validity periods are as shown on the invitation page or in TestFlight.
 
 When updating on Android, follow the release notes and install over the existing app where possible. Before uninstalling, clearing app data, or changing devices, export any logbook and fleet records you want to keep.
 

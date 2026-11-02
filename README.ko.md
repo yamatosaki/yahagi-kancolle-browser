@@ -33,7 +33,9 @@
 | 플랫폼 | 다운로드 및 안내 |
 | --- | --- |
 | Android | 이 프로젝트에서 주로 유지·관리하는 버전입니다. 릴리스 페이지에서 APK를 다운로드해 설치할 수 있습니다. |
-| iOS | [Kutinana](https://github.com/Kutinana) 님이 제작한 서드파티 이식판 IPA를 릴리스 페이지에서 제공합니다. 설치 방법, 지원 기능 및 유지·관리 현황은 해당 버전의 릴리스 설명을 확인해 주세요. |
+| iOS | [Kutinana](https://github.com/Kutinana) 님이 제작한 서드파티 이식판입니다. [릴리스 페이지](https://github.com/yamatosaki/yahagi-kancolle-browser/releases)에서 IPA를 다운로드해 사이드로드하거나 [TestFlight 공개 테스트](https://testflight.apple.com/join/WWU4StEm)를 통해 설치할 수 있습니다. 설치 방법, 지원 기능 및 유지·관리 현황은 해당 버전의 릴리스 설명을 확인해 주세요. |
+
+TestFlight 공개 테스트를 이용하려면 먼저 Apple 공식 TestFlight 앱을 설치하세요. 참여 가능 인원과 유효 기간은 초대 페이지 또는 TestFlight에 표시된 내용을 기준으로 합니다.
 
 Android 버전을 업데이트할 때는 릴리스 설명에 따라 기존 앱 위에 설치하는 방법을 우선 이용해 주세요. 앱을 삭제하거나 앱 데이터를 지우거나 기기를 바꾸기 전에는 보관할 항해 일지와 편성 기록을 먼저 내보내세요.
 

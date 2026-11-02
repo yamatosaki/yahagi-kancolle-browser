@@ -33,7 +33,9 @@
 | プラットフォーム | 入手方法と注意点 |
 | --- | --- |
 | Android | 本プロジェクトが主に保守しているバージョンです。リリースページから APK をダウンロードしてインストールしてください。 |
-| iOS | [Kutinana](https://github.com/Kutinana) 氏によるサードパーティー移植版の IPA をリリースページで提供しています。インストール方法、対応機能、保守状況は、各バージョンのリリース説明をご確認ください。 |
+| iOS | [Kutinana](https://github.com/Kutinana) 氏によるサードパーティー移植版です。[リリースページ](https://github.com/yamatosaki/yahagi-kancolle-browser/releases)から IPA をダウンロードしてサイドロードするほか、[TestFlight 公開テスト](https://testflight.apple.com/join/WWU4StEm)からもインストールできます。インストール方法、対応機能、保守状況は、各バージョンのリリース説明をご確認ください。 |
+
+TestFlight 公開テストを利用するには、先に Apple 公式の TestFlight アプリをインストールしてください。募集枠と有効期限は、招待ページまたは TestFlight の表示をご確認ください。
 
 Android 版を更新する際は、リリース説明に従って上書きインストールしてください。アプリのアンインストール、アプリデータの消去、端末の変更を行う前に、残しておきたい航海日誌と編成記録をエクスポートしてください。
 

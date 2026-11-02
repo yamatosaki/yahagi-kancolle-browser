@@ -33,7 +33,9 @@
 | 平台 | 获取方式与说明 |
 | --- | --- |
 | Android | 本项目主要维护的版本，在发布页下载 APK 安装。 |
-| iOS | 发布页提供由 [Kutinana](https://github.com/Kutinana) 制作的第三方移植版 IPA。安装方式、支持功能和维护情况请以对应版本的发布说明为准。 |
+| iOS | 由 [Kutinana](https://github.com/Kutinana) 制作的第三方移植版，可在 [发布页](https://github.com/yamatosaki/yahagi-kancolle-browser/releases) 下载 IPA 侧载安装，也可通过 [TestFlight 公开测试](https://testflight.apple.com/join/WWU4StEm) 安装。安装方式、支持功能和维护情况请以对应版本的发布说明为准。 |
+
+使用 TestFlight 时，请先在 App Store 安装 Apple 官方的 TestFlight；测试名额及版本有效期以邀请页面和 TestFlight 中的显示为准。
 
 更新 Android 版本时，请优先按照发布说明覆盖安装。卸载应用、清除应用数据或更换设备前，请先导出需要保留的航海日志与编成记录。
 
