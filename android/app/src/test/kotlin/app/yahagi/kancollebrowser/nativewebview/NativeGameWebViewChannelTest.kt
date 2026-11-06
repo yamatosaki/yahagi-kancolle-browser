@@ -12,6 +12,24 @@ import org.junit.Test
 
 class NativeGameWebViewChannelTest {
     @Test
+    fun viewportClipIsAcceptedOnlyAsACompleteFiniteRectangle() {
+        val host = FakeHost()
+        val channel = activeChannel(host)
+        assertSuccess(channel, "create", mapOf("renderer" to "webgl"), 0L)
+        val bounds = mapOf(
+            "left" to -100.0, "top" to -60.0, "width" to 1200.0, "height" to 720.0,
+            "devicePixelRatio" to 1.0,
+            "clipLeft" to 20.0, "clipTop" to 40.0, "clipWidth" to 700.0, "clipHeight" to 400.0,
+        )
+        assertSuccess(channel, "setBounds", mapOf("generationId" to 0, "bounds" to bounds), null)
+        for (invalidBounds in listOf(bounds - "clipTop", bounds + ("clipWidth" to 0.0), bounds + ("clipLeft" to Double.NaN))) {
+            val result = RecordingResult()
+            channel.onMethodCall(MethodCall("setBounds", mapOf("generationId" to 0, "bounds" to invalidBounds)), result)
+            assertEquals("invalid_argument", result.errorCode)
+        }
+    }
+
+    @Test
     fun createFailurePreservesStageAndSafeDetails() {
         val host = FakeHost().apply {
             createFailure = NativeGameWebViewCreateException(

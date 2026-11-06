@@ -8,12 +8,14 @@ class GameDialogPresentationScope extends InheritedWidget {
     required this.nativeActivity,
     this.presentationEnabled = true,
     this.nativeChecklistPort,
+    this.customFontPath,
     required super.child,
   });
 
   final bool nativeActivity;
   final bool presentationEnabled;
   final NativeGameResourceChecklistPort? nativeChecklistPort;
+  final String? customFontPath;
 
   static GameDialogPresentationScope? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<GameDialogPresentationScope>();
@@ -22,5 +24,6 @@ class GameDialogPresentationScope extends InheritedWidget {
   bool updateShouldNotify(GameDialogPresentationScope oldWidget) =>
       nativeActivity != oldWidget.nativeActivity ||
       presentationEnabled != oldWidget.presentationEnabled ||
-      nativeChecklistPort != oldWidget.nativeChecklistPort;
+      nativeChecklistPort != oldWidget.nativeChecklistPort ||
+      customFontPath != oldWidget.customFontPath;
 }

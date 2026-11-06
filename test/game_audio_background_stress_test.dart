@@ -9,6 +9,79 @@ import 'package:yahagi_kancolle_browser/src/audio/game_audio_port.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_store.dart';
 
 void main() {
+  test('timed-out manual mute never rolls back into an unmute command', () {
+    fakeAsync((clock) {
+      final controller = _load(clock);
+      final gate = Completer<void>();
+      final effect = _AudioEffect();
+      final port = _AudioPort(
+        effect,
+        apply: (_, attempt) =>
+            attempt == 2 ? gate.future : Future<void>.value(),
+      );
+      unawaited(controller.attachPort(port));
+      clock.flushMicrotasks();
+      unawaited(controller.toggleMuted());
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(seconds: 6));
+
+      expect(controller.isMuted, isTrue);
+      expect(controller.effectiveMuted, isTrue);
+      expect(controller.errorMessage, isNotNull);
+      expect(controller.isBusy, isFalse);
+      expect(port.requests, [false, true]);
+      gate.complete();
+      clock.flushMicrotasks();
+      expect(effect.muted, isTrue);
+
+      unawaited(controller.handleLifecycleState(AppLifecycleState.paused));
+      clock.flushMicrotasks();
+      unawaited(controller.handleLifecycleState(AppLifecycleState.resumed));
+      clock.flushMicrotasks();
+      expect(effect.muted, isTrue);
+      expect(port.requests.skip(1), everyElement(isTrue));
+      controller.dispose();
+    });
+  });
+
+  test('late failed manual unmute cannot reopen the restored mute', () {
+    fakeAsync((clock) {
+      final controller = _load(clock);
+      final gate = Completer<void>();
+      final effect = _AudioEffect();
+      final port = _AudioPort(
+        effect,
+        apply: (_, attempt) =>
+            attempt == 3 ? gate.future : Future<void>.value(),
+      );
+      unawaited(controller.attachPort(port));
+      clock.flushMicrotasks();
+      unawaited(controller.toggleMuted());
+      clock.flushMicrotasks();
+      expect(effect.muted, isTrue);
+
+      unawaited(controller.toggleMuted());
+      clock.flushMicrotasks();
+      clock.elapse(const Duration(seconds: 6));
+      expect(controller.isMuted, isTrue);
+      expect(controller.effectiveMuted, isTrue);
+      expect(effect.muted, isTrue);
+      expect(port.requests, [false, true, false, true]);
+
+      // The old unmute applies only after its timeout and mute restoration.
+      // Its late effect must be repaired using the current manual mute target.
+      gate.complete();
+      clock.flushMicrotasks();
+      expect(controller.isMuted, isTrue);
+      expect(effect.muted, isTrue);
+      expect(port.requests, [false, true, false, true, true]);
+      final calls = port.requests.length;
+      clock.elapse(const Duration(minutes: 1));
+      expect(port.requests, hasLength(calls));
+      controller.dispose();
+    });
+  });
+
   test('a hung old support probe cannot hold replacement audio attachment', () {
     fakeAsync((clock) {
       final controller = _load(clock);

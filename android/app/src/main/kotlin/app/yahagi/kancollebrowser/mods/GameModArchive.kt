@@ -3,6 +3,10 @@ package app.yahagi.kancollebrowser.mods
 import java.io.File
 import java.io.InputStream
 import java.io.RandomAccessFile
+import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
+import java.nio.charset.Charset
+import java.nio.charset.CodingErrorAction
 import java.util.zip.CRC32
 import java.util.zip.ZipFile
 
@@ -28,12 +32,27 @@ internal data class ArchiveResource(
     val coordinateGraph: Map<String, List<Int>> = emptyMap(),
 )
 
+internal data class ParsedEntryPath(
+    val strippedRaw: String,
+    val preHackPath: String,
+    val normalizedPath: String,
+    val isHack: Boolean,
+)
+
 internal class GameModArchive(private val progress: GameModProgress? = null) {
     fun unpackLibrary(input: InputStream, sourceName: String, directory: File): ArchiveResult =
         unpackChecked(input, sourceName, directory, GAME_MOD_LIBRARY_ARCHIVE_LIMIT)
 
     fun unpack(input: InputStream, sourceName: String, directory: File): ArchiveResult =
         unpackChecked(input, sourceName, directory, MAX_ARCHIVE_BYTES)
+
+    private data class SeenEntry(
+        val resourceIndex: Int,
+        val unhackedStrippedRaw: String,
+        var hasHack: Boolean,
+        var hasPlain: Boolean,
+        var keptRawSize: Long,
+    )
 
     private fun unpackChecked(input: InputStream, sourceName: String, directory: File, archiveLimit: Long): ArchiveResult {
         if ((!directory.isDirectory && !directory.mkdirs()) || directory.listFiles()?.isNotEmpty() == true) {
@@ -58,43 +77,54 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
                     progress?.files(0, null, null, compressed, null)
                 }
             }
-            val expectedEntries = checkCentralDirectory(archive)
-            val normalizedPaths = mutableSetOf<String>()
+            val (expectedEntries, archiveCharset) = checkCentralDirectory(archive)
+            val seenByPath = mutableMapOf<String, SeenEntry>()
             val resources = mutableListOf<ArchiveResource>()
             val formatWarnings = linkedSetOf<String>()
             var expanded = 0L
+            var retainedBytes = 0L
             var decoded = 0L
             if (!files.mkdir()) throw GameModException("invalid_archive", "无法创建导入目录。")
-            ZipFile(archive).use { zip ->
-                val fileTotal = zip.entries().asSequence().count { !it.name.replace('\\', '/').endsWith('/') }
-                val byteTotal = zip.entries().asSequence().filter { !it.name.replace('\\', '/').endsWith('/') }
+            ZipFile(archive, archiveCharset).use { zip ->
+                val allEntries = zip.entries().asSequence().toList()
+                requireQuota(allEntries.size <= MAX_ENTRIES, "ZIP 文件数量不能超过 20000。")
+                val wrapperPrefix = detectWrapperDirectory(allEntries.asSequence().map { it.name })
+                val fileTotal = allEntries.count { !it.name.replace('\\', '/').endsWith('/') }
+                val byteTotal = allEntries.asSequence().filter { !it.name.replace('\\', '/').endsWith('/') }
                     .sumOf { it.size.coerceAtLeast(0L) }.takeIf { it <= MAX_EXPANDED_BYTES }
                 var completedFiles = 0
                 progress?.update(phase = "validate")
                 progress?.files(0, fileTotal, null, 0L, byteTotal)
-                val entries = zip.entries()
                 var count = 0
-                while (entries.hasMoreElements()) {
-                    val entry = entries.nextElement()
+                for (entry in allEntries) {
                     count++
                     requireQuota(count <= MAX_ENTRIES, "ZIP 文件数量不能超过 20000。")
-                    val sourcePath = normalizePath(entry.name)
+                    val isDirectory = entry.name.replace('\\', '/').endsWith('/')
+                    val parsed = parseEntryPath(entry.name, wrapperPrefix)
+                    val sourcePath = parsed.normalizedPath
                     val wav = WAV_PATH.matches(sourcePath)
                     val path = if (wav) sourcePath.dropLast(4) + ".mp3" else sourcePath
-                    val isDirectory = entry.name.replace('\\', '/').endsWith('/')
-                    if (path.isNotEmpty() && !normalizedPaths.add(path)) {
-                        throw GameModException("duplicate_resource", "ZIP 中存在相同目标资源：$path")
-                    }
                     if (isDirectory) {
                         if (entry.size != 0L) throw GameModException("invalid_archive", "目录条目包含数据。")
                         continue
                     }
                     if (path.isEmpty()) throw GameModException("unsafe_path", "资源路径为空。")
+                    val unhackedStrippedRaw = parsed.strippedRaw.replace(HACK_SUFFIX, ".$1")
+                    val existing = seenByPath[path]
+                    if (existing != null) {
+                        val canCoexist = path.endsWith(".png", ignoreCase = true) &&
+                            existing.unhackedStrippedRaw == unhackedStrippedRaw &&
+                            ((parsed.isHack && !existing.hasHack && existing.hasPlain) ||
+                                (!parsed.isHack && !existing.hasPlain && existing.hasHack))
+                        if (!canCoexist) {
+                            throw GameModException("duplicate_resource", "ZIP 中存在相同目标资源：$path")
+                        }
+                    }
                     requireQuota(entry.size in 0..MAX_FILE_BYTES, "单个文件不能超过 64 MiB。")
                     requireQuota(entry.compressedSize >= 0 && entry.size <= entry.compressedSize.coerceAtLeast(1) * MAX_RATIO,
                         "文件解压比例超过 200。")
                     val extension = sourcePath.substringAfterLast('.', "bin").takeIf { it.matches(Regex("[A-Za-z0-9]{1,8}")) } ?: "bin"
-                    val relativeFile = "files/${resources.size}.$extension"
+                    val relativeFile = if (existing == null) "files/${resources.size}.$extension" else "files/override-$count.$extension"
                     val target = File(directory, relativeFile)
                     progress?.files(completedFiles, fileTotal, path, expanded, byteTotal)
                     written.add(target)
@@ -130,7 +160,40 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
                     }
                     if (wav) GameModWav.validate(target)
                     else if (AUDIO_PATH.matches(path)) GameModMp3.validate(target)
-                    resources.add(classify(path, relativeFile).copy(sourcePaths = listOf(entry.name.replace('\\', '/'))))
+                    val rawEntryPath = entry.name.replace('\\', '/')
+                    if (existing == null) {
+                        resources.add(classify(path, relativeFile).copy(sourcePaths = listOf(rawEntryPath)))
+                        seenByPath[path] = SeenEntry(
+                            resourceIndex = resources.lastIndex,
+                            unhackedStrippedRaw = unhackedStrippedRaw,
+                            hasHack = parsed.isHack,
+                            hasPlain = !parsed.isHack,
+                            keptRawSize = actual,
+                        )
+                        retainedBytes += actual
+                    } else {
+                        formatWarnings.add("hack_overrides_original")
+                        val currentResource = resources[existing.resourceIndex]
+                        val keptTarget = File(directory, currentResource.relativeFile)
+                        if (parsed.isHack) {
+                            if (keptTarget.exists() && !keptTarget.delete()) {
+                                throw GameModException("invalid_archive", "无法更新同名资源：$path")
+                            }
+                            if (!target.renameTo(keptTarget)) {
+                                target.copyTo(keptTarget, overwrite = true)
+                                target.delete()
+                            }
+                            written.remove(target)
+                            retainedBytes = retainedBytes - existing.keptRawSize + actual
+                            existing.keptRawSize = actual
+                            existing.hasHack = true
+                        } else {
+                            target.delete()
+                            written.remove(target)
+                            existing.hasPlain = true
+                        }
+                        resources[existing.resourceIndex] = currentResource.copy(sourcePaths = currentResource.sourcePaths + rawEntryPath)
+                    }
                     completedFiles++
                     progress?.files(completedFiles, fileTotal, path, expanded, byteTotal)
                 }
@@ -146,7 +209,7 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
             val basename = sourceName.replace('\\', '/').substringAfterLast('/').let {
                 if (it.endsWith(".zip", ignoreCase = true)) it.dropLast(4) else it
             }.trim().take(160).ifEmpty { "魔改包" }
-            return ArchiveResult(basename, expanded, checkedResources, (formatWarnings + warnings).distinct())
+            return ArchiveResult(basename, retainedBytes, checkedResources, (formatWarnings + warnings).distinct())
         } catch (error: Exception) {
             written.forEach { it.delete() }
             files.delete()
@@ -158,7 +221,7 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
     }
 
     /** Inspect central attributes which java.util.zip.ZipEntry does not expose on Android. */
-    private fun checkCentralDirectory(file: File): Int = RandomAccessFile(file, "r").use { input ->
+    private fun checkCentralDirectory(file: File): Pair<Int, Charset> = RandomAccessFile(file, "r").use { input ->
         if (input.length() >= 6) {
             val signature = ByteArray(6); input.readFully(signature)
             if (signature.contentEquals(byteArrayOf(0x37, 0x7a, 0xbc.toByte(), 0xaf.toByte(), 0x27, 0x1c))) {
@@ -185,6 +248,7 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
             throw GameModException("invalid_archive", "不支持 ZIP64 或无效的 ZIP 目录。")
         }
         val localRanges = mutableListOf<Pair<Long, Long>>()
+        var useGbk = false
         input.seek(offset)
         repeat(count) {
             if (input.filePointer + 46 > endOffset) throw GameModException("invalid_archive", "ZIP 目录被截断。")
@@ -209,6 +273,9 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
             }
             val name = ByteArray(nameLength)
             input.readFully(name)
+            if (flags and 0x0800 == 0 && !useGbk && !isValidUtf8(name)) {
+                useGbk = true
+            }
             val nextEntry = input.filePointer + skip - nameLength
             // ZipFile trusts the central compressed size even when the inflater finishes
             // earlier. Anchor that size to real, non-overlapping bytes before applying
@@ -237,20 +304,7 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
                 throw GameModException("invalid_archive", "ZIP 本地条目相互重叠。")
             }
         }
-        count
-    }
-
-    private fun normalizePath(name: String): String {
-        val normalized = name.replace('\\', '/')
-        if (normalized.startsWith('/') || normalized.length > 4096 || normalized.any {
-                it.code < 32 || it == ':' || it == '%' || it == '?' || it == '#'
-            }) throw GameModException("unsafe_path", "ZIP 包含不安全的文件路径。")
-        val parts = normalized.split('/').filter { it.isNotEmpty() }
-        if (parts.any { it == "." || it == ".." || it.length > 255 }) {
-            throw GameModException("unsafe_path", "ZIP 包含不安全的相对路径。")
-        }
-        val path = (if (parts.firstOrNull() == "cache") parts.drop(1) else parts).joinToString("/")
-        return path.replace(Regex("\\.hack\\.([A-Za-z0-9]+)$"), ".$1")
+        count to if (useGbk) GBK_CHARSET else Charsets.UTF_8
     }
 
     private fun classify(path: String, relativeFile: String): ArchiveResource {
@@ -270,6 +324,7 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
                 kind = "ship"; reason = null; groupId = "ship:${ship.groupValues[2]}"
             }
             path.startsWith("kcs2/img/") && path.endsWith(".png") -> { kind = "image"; reason = null; groupId = null }
+            path.startsWith("kcs2/resources/furniture/") && path.endsWith(".png") -> { kind = "image"; reason = null; groupId = null }
             path.startsWith("kcs2/resources/ship/") -> { kind = "unsupported"; reason = "unknown_ship_asset"; groupId = null }
             path.startsWith("kcs/") || path.startsWith("kcs2/") -> { kind = "unsupported"; reason = "unsupported_type"; groupId = null }
             else -> { kind = "unsupported"; reason = "unsupported_path"; groupId = null }
@@ -347,12 +402,16 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
         value or ((bytes[offset + index].toLong() and 255) shl (index * 8))
     }
 
-    private companion object {
+    internal companion object {
         const val MAX_ARCHIVE_BYTES = 256L * 1024 * 1024
         const val MAX_EXPANDED_BYTES = 1024L * 1024 * 1024
         const val MAX_FILE_BYTES = 64L * 1024 * 1024
         const val MAX_ENTRIES = 20_000
         const val MAX_RATIO = 200L
+        val HACK_SUFFIX = Regex("\\.hack\\.([A-Za-z0-9]+)$")
+        val GBK_CHARSET: Charset = runCatching { Charset.forName("GBK") }.getOrDefault(Charsets.ISO_8859_1)
+        val GAME_ROOTS = setOf("kcs", "kcs2", "cache")
+        val RESERVED_ROOTS = setOf("kcs", "kcs2", "cache", "ship", ".", "..")
         val SHIP_PATH = Regex("kcs2/resources/ship/([a-z0-9_]+)/([0-9]{4})(?:_d)?_[A-Za-z0-9]+(?:_[A-Za-z0-9]+)?\\.png")
         val AUDIO_PATH = Regex("kcs/sound/kc[a-z0-9]+/[0-9]+\\.mp3")
         val WAV_PATH = Regex("kcs/sound/kc[a-z0-9]+/[0-9]+\\.(?i:wav)")
@@ -364,5 +423,63 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
             "power_up", "power_up_dmg", "character_full", "character_full_dmg", "character_up", "character_up_dmg", "remodel", "remodel_dmg",
             "special", "album_status", "icon_box", "reward_card", "reward_icon", "text_class", "text_name", "text_remodel_mes",
         )
+
+        fun isValidUtf8(bytes: ByteArray): Boolean = try {
+            Charsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT)
+                .decode(ByteBuffer.wrap(bytes))
+            true
+        } catch (_: CharacterCodingException) {
+            false
+        }
+
+        fun selectCharset(file: File): Charset = GameModArchive().checkCentralDirectory(file).second
+
+        fun detectWrapperDirectory(entryNames: Sequence<String>): String? {
+            var wrapper: String? = null
+            var hasGameSubdir = false
+            var hasFiles = false
+            for (raw in entryNames) {
+                val normalized = raw.replace('\\', '/')
+                if (normalized.endsWith('/')) continue
+                val parts = normalized.split('/').filter { it.isNotEmpty() }
+                if (parts.size < 2) return null
+                val first = parts[0]
+                if (first in RESERVED_ROOTS || first.startsWith("ship_")) return null
+                if (wrapper == null) wrapper = first
+                else if (wrapper != first) return null
+                hasFiles = true
+                if (parts[1] in GAME_ROOTS) hasGameSubdir = true
+            }
+            return if (hasFiles && hasGameSubdir) wrapper else null
+        }
+
+        fun parseEntryPath(name: String, wrapperDirectory: String? = null): ParsedEntryPath {
+            val normalized = name.replace('\\', '/')
+            if (normalized.startsWith('/') || normalized.length > 4096 || normalized.any {
+                    it.code < 32 || it == ':' || it == '%' || it == '?' || it == '#'
+                }) throw GameModException("unsafe_path", "ZIP 包含不安全的文件路径。")
+            val rawParts = normalized.split('/').filter { it.isNotEmpty() }
+            if (rawParts.any { it == "." || it == ".." || it.length > 255 }) {
+                throw GameModException("unsafe_path", "ZIP 包含不安全的相对路径。")
+            }
+            val afterWrapper = if (wrapperDirectory != null && rawParts.firstOrNull() == wrapperDirectory) {
+                rawParts.drop(1)
+            } else {
+                rawParts
+            }
+            val strippedRaw = afterWrapper.joinToString("/")
+            val afterCache = if (afterWrapper.firstOrNull() == "cache") afterWrapper.drop(1) else afterWrapper
+            val preHackPath = afterCache.joinToString("/")
+            val isHack = HACK_SUFFIX.containsMatchIn(preHackPath)
+            val normalizedPath = preHackPath.replace(HACK_SUFFIX, ".$1")
+            return ParsedEntryPath(
+                strippedRaw = strippedRaw,
+                preHackPath = preHackPath,
+                normalizedPath = normalizedPath,
+                isHack = isHack,
+            )
+        }
     }
 }

@@ -22,7 +22,7 @@ void main() {
       const EdgeInsets.only(bottom: 41),
     ]) {
       testWidgets(
-        'logbook deducts occupied screen edges $occupied at scale $scale',
+        'logbook keeps workspace bounds $occupied without extra SafeArea gap at scale $scale',
         (tester) async {
           tester.view.devicePixelRatio = 1;
           tester.view.physicalSize = const Size(915, 412);
@@ -54,7 +54,6 @@ void main() {
                         child: LogbookPage(
                           battleController: controller,
                           database: database,
-                          occupiedInsets: occupied,
                         ),
                       ),
                     ),
@@ -64,28 +63,14 @@ void main() {
             );
             await tester.pumpAndSettle();
             final bounds = tester.getRect(find.byType(TabBarView));
-            expect(
-              bounds.left,
-              closeTo(inset > occupied.left ? inset : occupied.left, .001),
-            );
-            expect(
-              bounds.right,
-              closeTo(
-                915 - (inset > occupied.right ? inset : occupied.right),
-                .001,
-              ),
-            );
-            expect(
-              bounds.bottom,
-              closeTo(
-                412 - (inset > occupied.bottom ? inset : occupied.bottom),
-                .001,
-              ),
-            );
+            expect(bounds.left, closeTo(occupied.left, .001));
+            expect(bounds.right, closeTo(915 - occupied.right, .001));
+            expect(bounds.bottom, closeTo(412 - occupied.bottom, .001));
             final table = tester.getRect(
               find.byKey(const Key('logbook-table-sortie')),
             );
             expect(table.left, closeTo(bounds.left + 12 * scale, .001));
+            expect(table.right, closeTo(bounds.right - 12 * scale, .001));
             expect(tester.takeException(), isNull);
           }
         },
@@ -152,10 +137,11 @@ void main() {
             ),
           );
           await tester.pumpAndSettle();
+          final expectedInset = parentSafeArea ? inset : 0.0;
           final bounds = tester.getRect(find.byType(TabBarView));
-          expect(bounds.left, inset);
-          expect(bounds.right, 915 - inset / 2);
-          expect(bounds.bottom, 412 - inset);
+          expect(bounds.left, expectedInset);
+          expect(bounds.right, 915 - expectedInset / 2);
+          expect(bounds.bottom, 412 - expectedInset);
           final tableLeft = tester
               .getRect(find.byKey(const Key('logbook-table-sortie')))
               .left;
@@ -2145,4 +2131,65 @@ void main() {
       hasLength(55),
     );
   });
+
+  testWidgets(
+    'all logbook tabs keep symmetric 12dp margins next to side menu under wide cutout insets',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(915, 412);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final database = await LogbookDatabase.openForTesting();
+      addTearDown(database.close);
+      final controller = BattleController(gameState: () => GameState.empty);
+      addTearDown(controller.dispose);
+
+      const categories = [
+        (0, 'logbook-table-sortie'),
+        (1, 'logbook-table-expedition'),
+        (2, 'logbook-table-construction'),
+        (3, 'logbook-table-development'),
+        (4, 'logbook-table-retirement'),
+      ];
+
+      for (final scale in [1.0, minimalUiScale]) {
+        for (final menuWidth in [41.0, 48.0]) {
+          for (final (tabIndex, tableKey) in categories) {
+            await tester.pumpWidget(
+              MaterialApp(
+                locale: const Locale('zh'),
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                home: Scaffold(
+                  body: MediaQuery(
+                    data: const MediaQueryData(
+                      size: Size(915, 412),
+                      padding: EdgeInsets.fromLTRB(63, 0, 28, 16),
+                      viewPadding: EdgeInsets.fromLTRB(63, 0, 28, 16),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.only(left: menuWidth),
+                      child: UiScale(
+                        scale: scale,
+                        child: LogbookPage(
+                          battleController: controller,
+                          database: database,
+                          selectedTabIndex: tabIndex,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+            await tester.pumpAndSettle();
+            final table = tester.getRect(find.byKey(Key(tableKey)));
+            expect(table.left, closeTo(menuWidth + 12 * scale, .001));
+            expect(table.right, closeTo(915 - 12 * scale, .001));
+            expect(table.bottom, closeTo(412 - 10 * scale, .001));
+          }
+        }
+      }
+    },
+  );
 }

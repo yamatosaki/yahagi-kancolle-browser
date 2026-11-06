@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -60,6 +61,132 @@ void main() {
       'HarmonyOS_Sans_SC',
     )..addFont(rootBundle.load('assets/fonts/HarmonyOS_Sans_SC.ttf'))).load();
   });
+
+  for (final gameRatio in [.5, .75]) {
+    testWidgets(
+      'landscape game accepts the first gesture outside ship details ($gameRatio)',
+      (tester) async {
+        SharedPreferences.setMockInitialValues(<String, Object>{});
+        final previousTimerSetting = GameStateController.disableTimerForTest;
+        GameStateController.disableTimerForTest = true;
+        addTearDown(
+          () => GameStateController.disableTimerForTest = previousTimerSetting,
+        );
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = _landscape;
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+
+        final fixture = await _AppFixture.load(dataset, UiDisplaySize.normal);
+        for (final notifier in fixture.notifiers) {
+          addTearDown(notifier.dispose);
+        }
+        await fixture.layout.setAutoZoom(false);
+        await fixture.layout.setGameAreaRatio(gameRatio);
+        fixture.game
+          ..accept(slotItemEvent)
+          ..accept(mapStartEvent)
+          ..accept(dayBattleEvent);
+        await fixture.game.idle;
+        fixture.battle
+          ..accept(mapStartEvent)
+          ..accept(dayBattleEvent);
+        await fixture.battle.idle;
+        await tester.pumpWidget(
+          RepaintBoundary(key: _captureKey, child: fixture.app),
+        );
+        await _settle(tester);
+
+        _expectSplit(
+          tester,
+          landscape: true,
+          hd: false,
+          infoRatio: 1 - gameRatio,
+        );
+        final surface = find.byType(_GameProbe);
+        final gameState = tester.state<_GameProbeState>(surface);
+        final gameBounds = tester.getRect(surface);
+        final popover = find.byKey(const Key('battle-ship-details-popover'));
+        // Compare every full pixel of the game picture, excluding fractional edges.
+        final gamePixelBounds = Rect.fromLTRB(
+          gameBounds.left.ceilToDouble(),
+          gameBounds.top.ceilToDouble(),
+          gameBounds.right.floorToDouble(),
+          gameBounds.bottom.floorToDouble(),
+        );
+        final gamePixels = await _readPixels(tester, gamePixelBounds);
+        expect(gamePixels.take(4), [0x07, 0x16, 0x21, 0xff]);
+
+        for (final compact in [false, true]) {
+          if (compact) {
+            final toggle = find.byKey(const Key('battle-mode-compact'));
+            await Scrollable.ensureVisible(
+              tester.element(toggle),
+              alignment: .5,
+            );
+            await tester.pump();
+            await tester.tap(toggle);
+            await _settle(tester);
+          }
+          final ship = find
+              .ancestor(
+                of: find.byKey(
+                  Key(
+                    compact ? 'compact-bar-friend-0' : 'battle-ship-friend-0',
+                  ),
+                ),
+                matching: find.byType(InkWell),
+              )
+              .first;
+          for (final drag in [false, true]) {
+            await Scrollable.ensureVisible(tester.element(ship), alignment: .5);
+            await tester.pump();
+            await tester.tap(ship);
+            await _settle(tester);
+            expect(
+              find.descendant(of: popover, matching: find.text('12.7cm 连装炮')),
+              findsOneWidget,
+            );
+            expect(tester.getRect(popover).left, greaterThan(gameBounds.right));
+            expect(tester.state(surface), same(gameState));
+            expect(tester.getRect(surface), gameBounds);
+            expect(
+              listEquals(
+                await _readPixels(tester, gamePixelBounds),
+                gamePixels,
+              ),
+              isTrue,
+              reason: 'Opening ship details must leave the game visible',
+            );
+
+            final taps = gameState.taps;
+            final drags = gameState.drags;
+            if (drag) {
+              await tester.dragFrom(gameBounds.center, const Offset(60, 0));
+            } else {
+              await tester.tapAt(gameBounds.center);
+            }
+            await _settle(tester);
+            expect(gameState.taps, taps + (drag ? 0 : 1));
+            expect(gameState.drags, drags + (drag ? 1 : 0));
+            expect(popover, findsNothing);
+            expect(tester.state(surface), same(gameState));
+            expect(tester.getRect(surface), gameBounds);
+            expect(
+              listEquals(
+                await _readPixels(tester, gamePixelBounds),
+                gamePixels,
+              ),
+              isTrue,
+              reason: 'Dismissing ship details must leave the game visible',
+            );
+            expect(tester.takeException(), isNull);
+          }
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
 
   for (final uiSize in [UiDisplaySize.normal, UiDisplaySize.minimal]) {
     testWidgets(
@@ -237,6 +364,24 @@ Future<void> _settle(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 350));
   await tester.pump();
   await tester.pump();
+}
+
+Future<Uint8List> _readPixels(WidgetTester tester, Rect bounds) async {
+  final boundary = tester.renderObject<RenderRepaintBoundary>(
+    find.byKey(_captureKey),
+  );
+  final layer = boundary.debugLayer! as OffsetLayer;
+  final crop = bounds.shift(-boundary.localToGlobal(Offset.zero));
+  final pixels = await tester.runAsync(() async {
+    final image = await layer.toImage(crop);
+    try {
+      final bytes = (await image.toByteData())!;
+      return bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes);
+    } finally {
+      image.dispose();
+    }
+  });
+  return pixels!;
 }
 
 Future<void> _revealMap(WidgetTester tester) async {
@@ -608,9 +753,15 @@ class _GameProbe extends StatefulWidget {
 }
 
 class _GameProbeState extends State<_GameProbe> {
+  int taps = 0;
+  int drags = 0;
+
   @override
-  Widget build(BuildContext context) =>
-      const ColoredBox(color: Color(0xff071621));
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: () => taps++,
+    onHorizontalDragEnd: (_) => drags++,
+    child: const ColoredBox(color: Color(0xff071621)),
+  );
 }
 
 final class _BundledMapUpdater implements FcdMapUpdateClient {

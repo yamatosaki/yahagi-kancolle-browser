@@ -940,6 +940,12 @@
   "battleEnemyPreviewPortraitsDesc": "전투 예측에 전투 전 적군 일러스트를 표시합니다.",
   "battleLastFormationHint": "이전에 선택한 진형 표시",
   "battleLastFormationHintDesc": "출격 지점에 도달하면 전투 예측에 해당 지점에서 이전에 사용한 진형을 표시합니다.",
+  "fleetInformationSyncTitle": "함대 정보 동기화",
+  "fleetInformationSyncImmediate": "즉시 동기화",
+  "fleetInformationSyncSettlement": "결과에서 동기화",
+  "fleetInformationSyncImmediateDesc": "전투 데이터를 받으면 함대 내구도와 응급수리 아이템 소모를 반영합니다.",
+  "fleetInformationSyncSettlementDesc": "전투 결과를 받으면 함대 내구도와 응급수리 아이템 소모를 반영합니다.",
+  "fleetInformationSyncSaveFailed": "저장하지 못했습니다. 다시 시도해 주세요.",
   "battleEnemyPreviewPosition": "전투 전 적 함대 예측 위치",
   "battleEnemyPreviewPositionDesc": "전투 전 적 함대 예측을 아군 HP 막대 위 또는 아래에 표시합니다.",
   "battleEnemyPreviewPositionAbove": "위",
@@ -1770,7 +1776,7 @@
   "menuPositionRight": "오른쪽",
   "topNoticeSectionTitle": "상단 메시지 알림",
   "topNoticeEnabledTitle": "상단 알림",
-  "topNoticeEnabledSubtitle": "상단의 「ヤハギ」 오른쪽에 개발, 개수, 출격 전 점검 및 임무 완료 알림을 표시합니다",
+  "topNoticeEnabledSubtitle": "상단의 「ヤハギ」 오른쪽에 개발, 개수, 출격/원정 점검 및 임무 완료 알림을 표시합니다",
   "topNoticeDurationTitle": "알림 표시 시간",
   "topNoticeDurationSubtitle": "알림 팝업이 표시된 후 조작하지 않으면 자동으로 닫히기까지의 시간",
   "topNoticeDuration5s": "5초 (기본값)",
@@ -1933,6 +1939,14 @@
   "noticeSortieReasonFatigue": "칸무스 피로 (노란 얼굴 / 빨간 얼굴)",
   "noticeSortieReasonMainSlot": "일반 장비 슬롯 미장착",
   "noticeSortieReasonExpansionSlot": "보강증설 슬롯 미사용",
+  "noticeExpeditionSupplyWarning": "원정 알림: 제 {fleets} 함대가 미보급 상태입니다",
+  "@noticeExpeditionSupplyWarning": {
+    "placeholders": {
+      "fleets": {
+        "type": "String"
+      }
+    }
+  },
   "lockUi": "화면 잠금",
   "unlockUi": "화면 잠금 해제",
   "uiLockedToast": "화면을 잠갔습니다. 레이아웃 편집은 비활성화되며 기능 전환은 계속 사용할 수 있습니다",

@@ -25,11 +25,13 @@ Future<void> showGameRefreshDialog({
       ),
       GameSurfaceDialogAction(
         id: 'refreshPage',
+        variant: 'outlined',
         label: l10n.refreshGamePage,
         value: 'refreshPage',
       ),
       GameSurfaceDialogAction(
         id: 'reloadFrame',
+        variant: 'filled',
         label: l10n.reloadGame,
         value: 'reloadFrame',
       ),

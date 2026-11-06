@@ -1154,6 +1154,7 @@ class _CompositionImagePageState extends State<CompositionImagePage> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
+          barrierDismissible: false,
           value: selectedTag,
           isExpanded: true,
           isDense: true,
@@ -1452,6 +1453,7 @@ class _CompositionImagePageState extends State<CompositionImagePage> {
   ) async {
     final memberId = widget.state.memberId;
     final confirmed = await showDialog<bool>(
+      barrierDismissible: false,
       context: context,
       builder: (context) => AlertDialog(
         title: Text(strings.deleteQuestion),
@@ -1600,6 +1602,7 @@ class _CompositionImagePageState extends State<CompositionImagePage> {
                       ),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<int>(
+                      barrierDismissible: false,
                       key: ValueKey('composition-area-${_effectiveArea ?? 0}'),
                       initialValue: _effectiveArea,
                       hint: Text(strings.noAirBase),
@@ -1728,6 +1731,7 @@ class _CompositionImagePageState extends State<CompositionImagePage> {
                     if (_targetKind != 0) const SizedBox(height: 8),
                     if (_targetKind == 1)
                       DropdownButtonFormField<String>(
+                        barrierDismissible: false,
                         key: const Key('composition-target-map'),
                         initialValue:
                             _normalMaps.any((map) => map.id == _normalMap)

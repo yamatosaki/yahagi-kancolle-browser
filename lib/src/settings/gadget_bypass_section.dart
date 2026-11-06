@@ -58,6 +58,7 @@ class _GadgetBypassSectionState extends State<GadgetBypassSection> {
 
   Future<void> _editCustomEndpoint(AppLocalizations l10n) async {
     final value = await showDialog<String>(
+      barrierDismissible: false,
       context: context,
       builder: (_) => StandaloneTextInputDialog(
         key: const Key('gadget-bypass-endpoint-dialog'),
@@ -161,6 +162,7 @@ class _GadgetBypassSectionState extends State<GadgetBypassSection> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: DropdownButtonFormField<String>(
+                barrierDismissible: false,
                 key: const Key('gadget-bypass-endpoint-dropdown'),
                 initialValue: _selectedPreset,
                 isExpanded: true,

@@ -102,6 +102,7 @@ class _Header extends StatelessWidget {
           const Spacer(),
           DropdownButtonHideUnderline(
             child: DropdownButton<BattleRank?>(
+              barrierDismissible: false,
               key: const Key('battle-rank-filter'),
               value: rankFilter,
               hint: Text(l10n.allRanks),

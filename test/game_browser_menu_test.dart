@@ -126,7 +126,7 @@ void main() {
     expect(find.byKey(const Key('game-browser-menu-dmm')), findsNothing);
   });
 
-  testWidgets('tapping barrier closes without invoking actions', (
+  testWidgets('tapping barrier keeps the menu open without invoking actions', (
     tester,
   ) async {
     final counter = _ActionCounter();
@@ -135,8 +135,11 @@ void main() {
     await tester.tapAt(const Offset(5, 5));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('game-browser-menu-close')), findsNothing);
+    expect(find.byKey(const Key('game-browser-menu-close')), findsOneWidget);
     expect(counter.total, 0);
+    await tester.tap(find.byKey(const Key('game-browser-menu-close')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('game-browser-menu-close')), findsNothing);
   });
 
   testWidgets('reload pops menu before invoking callback', (tester) async {

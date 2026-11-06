@@ -212,6 +212,7 @@ class _ShipEquipmentCompatibilityDrawerState
 
   Future<void> _showCategoryDialog() async {
     final selected = await showDialog<EquipmentInventoryCategory>(
+      barrierDismissible: false,
       context: context,
       builder: (context) => _CategoryDialog(selected: _category),
     );
@@ -224,6 +225,7 @@ class _ShipEquipmentCompatibilityDrawerState
         AppLocalizations.of(context) ??
         lookupAppLocalizations(const Locale('zh'));
     final value = await showDialog<String>(
+      barrierDismissible: false,
       context: context,
       builder: (context) => StandaloneTextInputDialog(
         key: const Key('ship-equipment-compatibility-search-dialog'),

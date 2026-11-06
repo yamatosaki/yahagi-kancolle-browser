@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 enum EnemyPreviewPosition { above, below }
 
+enum FleetInformationSyncMode { immediate, settlement }
+
 enum BattlePredictionSection { sortieMap, enemyPreview, predictionResult }
 
 const defaultBattlePredictionSectionOrder = <BattlePredictionSection>[
@@ -33,6 +35,10 @@ abstract interface class BattlePredictionSettingsStore {
 
   Future<void> saveEnemyPreviewPosition(EnemyPreviewPosition position);
 
+  Future<FleetInformationSyncMode> loadFleetInformationSyncMode();
+
+  Future<void> saveFleetInformationSyncMode(FleetInformationSyncMode mode);
+
   Future<List<BattlePredictionSection>?> loadSectionOrder();
 
   Future<void> saveSectionOrder(List<BattlePredictionSection> order);
@@ -45,6 +51,8 @@ final class SharedPreferencesBattlePredictionSettingsStore
       'battle.enemyPreviewPortraitsEnabled';
   static const String _lastFormationHintKey = 'battle.lastFormationHintEnabled';
   static const String _enemyPreviewPositionKey = 'battle.enemyPreviewPosition';
+  static const String _fleetInformationSyncModeKey =
+      'battle.fleetInformationSyncMode';
   static const String _sectionOrderKey = 'battle.sectionOrder';
 
   @override
@@ -109,6 +117,43 @@ final class SharedPreferencesBattlePredictionSettingsStore
   }
 
   @override
+  Future<FleetInformationSyncMode> loadFleetInformationSyncMode() async {
+    final value = (await SharedPreferences.getInstance()).get(
+      _fleetInformationSyncModeKey,
+    );
+    return FleetInformationSyncMode.values.firstWhere(
+      (mode) => mode.name == value,
+      orElse: () => FleetInformationSyncMode.immediate,
+    );
+  }
+
+  @override
+  Future<void> saveFleetInformationSyncMode(
+    FleetInformationSyncMode mode,
+  ) async {
+    final preferences = await SharedPreferences.getInstance();
+    final previous = preferences.get(_fleetInformationSyncModeKey);
+    try {
+      if (!await preferences.setString(
+        _fleetInformationSyncModeKey,
+        mode.name,
+      )) {
+        throw StateError('fleet information sync mode was not saved');
+      }
+    } catch (_) {
+      // SharedPreferences updates its cache before completing the platform write.
+      try {
+        if (previous is String) {
+          await preferences.setString(_fleetInformationSyncModeKey, previous);
+        } else {
+          await preferences.remove(_fleetInformationSyncModeKey);
+        }
+      } catch (_) {}
+      rethrow;
+    }
+  }
+
+  @override
   Future<List<BattlePredictionSection>?> loadSectionOrder() async {
     final value = (await SharedPreferences.getInstance()).get(_sectionOrderKey);
     if (value is! List) return null;
@@ -143,6 +188,8 @@ final class MemoryBattlePredictionSettingsStore
   bool _enemyPortraitsEnabled;
   bool _lastFormationHintEnabled;
   EnemyPreviewPosition _enemyPreviewPosition;
+  FleetInformationSyncMode _fleetInformationSyncMode =
+      FleetInformationSyncMode.immediate;
   List<BattlePredictionSection>? _sectionOrder;
 
   @override
@@ -175,6 +222,17 @@ final class MemoryBattlePredictionSettingsStore
   }
 
   @override
+  Future<FleetInformationSyncMode> loadFleetInformationSyncMode() async =>
+      _fleetInformationSyncMode;
+
+  @override
+  Future<void> saveFleetInformationSyncMode(
+    FleetInformationSyncMode mode,
+  ) async {
+    _fleetInformationSyncMode = mode;
+  }
+
+  @override
   Future<List<BattlePredictionSection>?> loadSectionOrder() async =>
       _sectionOrder;
 
@@ -191,12 +249,17 @@ final class BattlePredictionSettingsController extends ChangeNotifier {
   bool _enemyPortraitsEnabled = true;
   bool _lastFormationHintEnabled = true;
   EnemyPreviewPosition _enemyPreviewPosition = EnemyPreviewPosition.above;
+  FleetInformationSyncMode _fleetInformationSyncMode =
+      FleetInformationSyncMode.immediate;
+  Future<void> _fleetInformationSyncSave = Future<void>.value();
   List<BattlePredictionSection>? _sectionOrder;
   Future<void>? _sectionOrderOperation;
 
   bool get enemyPortraitsEnabled => _enemyPortraitsEnabled;
   bool get lastFormationHintEnabled => _lastFormationHintEnabled;
   EnemyPreviewPosition get enemyPreviewPosition => _enemyPreviewPosition;
+  FleetInformationSyncMode get fleetInformationSyncMode =>
+      _fleetInformationSyncMode;
   // Existing controllers retain their legacy arrangement across hot reload.
   List<BattlePredictionSection> get sectionOrder =>
       _sectionOrder ??
@@ -221,6 +284,8 @@ final class BattlePredictionSettingsController extends ChangeNotifier {
     controller._lastFormationHintEnabled = await store
         .loadLastFormationHintEnabled();
     controller._enemyPreviewPosition = await store.loadEnemyPreviewPosition();
+    controller._fleetInformationSyncMode = await store
+        .loadFleetInformationSyncMode();
     try {
       final savedOrder = await store.loadSectionOrder();
       if (savedOrder != null) {
@@ -253,6 +318,20 @@ final class BattlePredictionSettingsController extends ChangeNotifier {
     await _store.saveEnemyPreviewPosition(position);
     _enemyPreviewPosition = position;
     notifyListeners();
+  }
+
+  Future<void> setFleetInformationSyncMode(FleetInformationSyncMode mode) {
+    final pending = _fleetInformationSyncSave.then((_) async {
+      if (_fleetInformationSyncMode == mode) return;
+      await _store.saveFleetInformationSyncMode(mode);
+      _fleetInformationSyncMode = mode;
+      notifyListeners();
+    });
+    _fleetInformationSyncSave = pending.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return pending;
   }
 
   Future<void> setSectionOrder(List<BattlePredictionSection> order) {

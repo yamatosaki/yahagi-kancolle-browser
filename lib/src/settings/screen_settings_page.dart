@@ -102,6 +102,7 @@ class ScreenSettingsPage extends StatelessWidget with SettingsUIHelpers {
                       ),
                     ),
                     controlBuilder: (stacked) => DropdownButton<String>(
+                      barrierDismissible: false,
                       isExpanded: stacked,
                       itemHeight: null,
                       value:
@@ -141,6 +142,7 @@ class ScreenSettingsPage extends StatelessWidget with SettingsUIHelpers {
                       ),
                     ),
                     controlBuilder: (stacked) => DropdownButton<AppThemeMode>(
+                      barrierDismissible: false,
                       isExpanded: stacked,
                       itemHeight: null,
                       key: const Key('settings-app-theme-dropdown'),
@@ -214,6 +216,7 @@ class ScreenSettingsPage extends StatelessWidget with SettingsUIHelpers {
                       ],
                     ),
                     controlBuilder: (stacked) => DropdownButton<UiFontSize>(
+                      barrierDismissible: false,
                       key: const Key('settings-ui-font-size-dropdown'),
                       isExpanded: stacked,
                       itemHeight: null,
@@ -280,6 +283,7 @@ class ScreenSettingsPage extends StatelessWidget with SettingsUIHelpers {
                         ),
                       ),
                       DropdownButton<UiDisplaySize>(
+                        barrierDismissible: false,
                         key: const Key('settings-ui-display-size-dropdown'),
                         value: layoutSettingsController.uiDisplaySize,
                         underline: const SizedBox(),
@@ -378,6 +382,7 @@ class ScreenSettingsPage extends StatelessWidget with SettingsUIHelpers {
                               ? 112
                               : MediaQuery.textScalerOf(context).scale(28) + 32,
                           child: DropdownButton<String>(
+                            barrierDismissible: false,
                             isExpanded: true,
                             padding: const EdgeInsets.only(left: 14),
                             underline: const SizedBox.shrink(),
@@ -429,6 +434,7 @@ class ScreenSettingsPage extends StatelessWidget with SettingsUIHelpers {
                             ? 112
                             : MediaQuery.textScalerOf(context).scale(28) + 32,
                         child: DropdownButton<String>(
+                          barrierDismissible: false,
                           key: const Key('settings-information-panel-position'),
                           isExpanded: true,
                           padding: const EdgeInsets.only(left: 14),
@@ -466,6 +472,7 @@ class ScreenSettingsPage extends StatelessWidget with SettingsUIHelpers {
                     title: fleetText(context, '拓展功能区位置'),
                     titleKey: const Key('settings-hd-extension-position-title'),
                     trailing: DropdownButton<String>(
+                      barrierDismissible: false,
                       key: const Key('settings-hd-extension-position'),
                       underline: const SizedBox.shrink(),
                       value:
@@ -525,6 +532,7 @@ class ScreenSettingsPage extends StatelessWidget with SettingsUIHelpers {
                     ),
                     controlBuilder: (stacked) =>
                         DropdownButton<DashboardDisplayMode>(
+                          barrierDismissible: false,
                           key: const Key('settings-briefing-display-dropdown'),
                           isExpanded: stacked,
                           itemHeight: null,

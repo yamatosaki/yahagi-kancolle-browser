@@ -87,6 +87,7 @@ class GameFrameRateSettingsSection extends StatelessWidget {
     if (mode == controller.mode) return;
     if (mode == GameFrameRateMode.highRefresh) {
       final confirmed = await showDialog<bool>(
+        barrierDismissible: false,
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text(l10n.gameFrameRateHighRefreshDialogTitle),

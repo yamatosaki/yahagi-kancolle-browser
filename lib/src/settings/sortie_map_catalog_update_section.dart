@@ -90,6 +90,7 @@ final class SortieMapCatalogUpdateSection extends StatelessWidget {
       SortieMapCatalogUpdateFailed() => l10n.dataCatalogNetworkFailed,
     };
     await showDialog<void>(
+      barrierDismissible: false,
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.sortieMapDataTitle),

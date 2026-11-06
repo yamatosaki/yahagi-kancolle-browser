@@ -929,7 +929,8 @@ internal class NativeGameWebViewChannel(
 
     private fun parseBounds(raw: Any?): NativeGameWebViewBounds {
         val bounds = strictMap(raw)
-        requireExactKeys(bounds, BOUNDS_KEYS)
+        val hasClip = bounds.keys.any { it in CLIP_KEYS }
+        requireExactKeys(bounds, if (hasClip) BOUNDS_KEYS + CLIP_KEYS else BOUNDS_KEYS)
         fun double(key: String): Double =
             (bounds[key] as? Double)?.takeIf(Double::isFinite) ?:
                 invalid("$key must be a finite double")
@@ -940,6 +941,10 @@ internal class NativeGameWebViewChannel(
                 width = double("width"),
                 height = double("height"),
                 devicePixelRatio = double("devicePixelRatio"),
+                clipLeft = if (hasClip) double("clipLeft") else null,
+                clipTop = if (hasClip) double("clipTop") else null,
+                clipWidth = if (hasClip) double("clipWidth") else null,
+                clipHeight = if (hasClip) double("clipHeight") else null,
             )
         } catch (error: IllegalArgumentException) {
             invalid(error.message ?: "Invalid bounds")
@@ -1135,6 +1140,7 @@ internal class NativeGameWebViewChannel(
             "destroy",
         )
         val BOUNDS_KEYS = setOf("left", "top", "width", "height", "devicePixelRatio")
+        val CLIP_KEYS = setOf("clipLeft", "clipTop", "clipWidth", "clipHeight")
         const val INVALID_ARGUMENT = "invalid_argument"
         const val STALE_GENERATION = "stale_generation"
         const val HOST_UNAVAILABLE = "native_webview_unavailable"

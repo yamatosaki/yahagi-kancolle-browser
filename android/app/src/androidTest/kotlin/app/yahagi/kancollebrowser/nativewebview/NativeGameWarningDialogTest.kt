@@ -3,6 +3,7 @@ package app.yahagi.kancollebrowser.nativewebview
 import android.app.Dialog
 import android.os.Looper
 import android.os.SystemClock
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -112,6 +113,31 @@ class NativeGameWarningDialogTest {
         waitUntil { dialog() == null }
         assertEquals(listOf("acknowledge"), result.values)
         assertEquals(0, gameDowns)
+    }
+
+    @Test fun outsideTapsNeverChooseABattleActionAndTheButtonStillWorks() {
+        val result = show(21)
+        onMain {
+            repeat(3) {
+                for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
+                    val touch = event(action)
+                    try { requireNotNull(dialog()).dispatchTouchEvent(touch) } finally { touch.recycle() }
+                }
+            }
+            requireNotNull(dialog()).dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK))
+            requireNotNull(dialog()).dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK))
+            assertTrue(result.values.isEmpty())
+            assertNotNull(findView("native-game-warning-dialog"))
+            assertNull(findView("native-game-warning-input-guard"))
+            val stateField = NativeGameWarningDialogChannel::class.java.getDeclaredField("state").apply { isAccessible = true }
+            assertFalse((stateField.get(control) as NativeGameWarningDialogState).actionChosen)
+            val releaseField = NativeGameWarningDialogChannel::class.java.getDeclaredField("release").apply { isAccessible = true }
+            assertNull(releaseField.get(control))
+            assertEquals(0, gameDowns)
+            requireView("native-game-warning-acknowledge").performClick()
+            assertEquals(listOf("acknowledge"), result.values)
+        }
+        waitUntil { dialog() == null }
     }
 
     @Test fun replacingAProtectedWarningIsNotDismissedByItsOldTimerOrOldId() {

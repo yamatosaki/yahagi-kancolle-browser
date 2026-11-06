@@ -97,6 +97,7 @@ class DiagnosticUserSection extends StatelessWidget {
 
   Future<void> _confirmSave(BuildContext context, AppLocalizations l10n) async {
     final confirmed = await showDialog<bool>(
+      barrierDismissible: false,
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.diagnosticSaveConfirmTitle),
@@ -139,6 +140,7 @@ class DiagnosticUserSection extends StatelessWidget {
     AppLocalizations l10n,
   ) async {
     final confirmed = await showDialog<bool>(
+      barrierDismissible: false,
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.diagnosticShareConfirmTitle),
@@ -175,6 +177,7 @@ class DiagnosticUserSection extends StatelessWidget {
     AppLocalizations l10n,
   ) async {
     final confirmed = await showDialog<bool>(
+      barrierDismissible: false,
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.diagnosticClearConfirmTitle),

@@ -266,6 +266,7 @@ class _SenkaCalculatorViewState extends State<SenkaCalculatorView> {
   ) async {
     final l10n = AppLocalizations.of(context)!;
     final value = await showDialog<String>(
+      barrierDismissible: false,
       context: context,
       builder: (_) => StandaloneTextInputDialog(
         key: const Key('senka-value-input-dialog'),

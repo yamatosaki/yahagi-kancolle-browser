@@ -34,6 +34,7 @@ void main() {
           '/kcsapi/api_req_air_corps/change_name',
           '/kcsapi/api_req_air_corps/cond_recovery',
           '/kcsapi/api_port/airCorpsCondRecoveryWithTimer',
+          '/kcsapi/api_get_member/mission',
         }),
       );
     },

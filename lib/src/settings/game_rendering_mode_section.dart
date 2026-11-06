@@ -134,6 +134,7 @@ class GameRenderingModeSection extends StatelessWidget {
         AppLocalizations.of(context) ??
         lookupAppLocalizations(const Locale('zh'));
     final confirmed = await showDialog<bool>(
+      barrierDismissible: false,
       context: context,
       builder: (dialogContext) => AlertDialog(
         key: const Key('rendering-mode-confirm-dialog'),

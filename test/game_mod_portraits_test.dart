@@ -51,9 +51,21 @@ void main() {
       });
       expect(GameModPortraitResolver.select(ship, snapshot)?.id, 'full');
       expect(
+        GameModPortraitResolver.select(ship, snapshot, isDamaged: true)?.id,
+        'damage',
+      );
+      expect(
         GameModPortraitResolver.select(
           ship.copyWith(portraitFileName: 'unknown'),
           snapshot,
+        ),
+        isNull,
+      );
+      expect(
+        GameModPortraitResolver.select(
+          ship.copyWith(portraitFileName: 'unknown'),
+          snapshot,
+          isDamaged: true,
         ),
         isNull,
       );
@@ -120,6 +132,70 @@ void main() {
       );
     },
   );
+  test('damaged art resolves each matching layout in priority order', () {
+    final resources = [
+      {'id': 'normal', 'path': 'kcs2/resources/ship/banner/0426_4278.png'},
+      {
+        'id': 'character',
+        'path': 'kcs2/resources/ship/character_full_dmg/0426_1142.png',
+      },
+      {'id': 'banner', 'path': 'kcs2/resources/ship/banner_dmg/0426_5095.png'},
+      {
+        'id': 'remodel',
+        'path': 'kcs2/resources/ship/remodel_dmg/0426_3426.png',
+      },
+    ];
+    for (final (id, layout) in [
+      ('remodel', GameModPortraitLayout.remodel),
+      ('banner', GameModPortraitLayout.banner),
+      ('character', GameModPortraitLayout.characterFull),
+    ]) {
+      final snapshot = GameModPortraitSnapshot.fromMap({
+        'token': 't',
+        'resources': resources,
+      });
+      final resource = GameModPortraitResolver.select(
+        _fubuki,
+        snapshot,
+        isDamaged: true,
+      );
+      expect(resource?.id, id);
+      expect(resource?.layout, layout);
+      resources.removeWhere((item) => item['id'] == id);
+    }
+    final normalOnly = GameModPortraitSnapshot.fromMap({
+      'token': 't',
+      'resources': resources,
+    });
+    expect(
+      GameModPortraitResolver.select(_fubuki, normalOnly, isDamaged: true),
+      isNull,
+    );
+  });
+  test('normal and damaged Mod artwork are cached separately', () async {
+    final port = _ReadPort()
+      ..current = GameModPortraitSnapshot.fromMap({
+        'token': 'both',
+        'resources': [
+          {'id': 'normal', 'path': 'kcs2/resources/ship/banner/0426_4278.png'},
+          {
+            'id': 'damaged',
+            'path': 'kcs2/resources/ship/banner_dmg/0426_5095.png',
+          },
+        ],
+      });
+    final controller = GameModPortraitController(port: port);
+    addTearDown(controller.dispose);
+    await controller.initialize();
+
+    final normal = await controller.resolve(_fubuki);
+    final damaged = await controller.resolve(_fubuki, isDamaged: true);
+    expect(normal?.cacheKey, contains('/normal/'));
+    expect(damaged?.cacheKey, contains('/damaged/'));
+    expect(await controller.resolve(_fubuki), same(normal));
+    expect(await controller.resolve(_fubuki, isDamaged: true), same(damaged));
+    expect(port.reads, 2);
+  });
   test(
     'old image read cannot override a newly applied snapshot or off state',
     () async {

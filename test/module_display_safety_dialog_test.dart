@@ -165,6 +165,12 @@ void main() {
             await tester.tap(find.byKey(Key('$module-display-close')));
           } else if (close == 'outside') {
             await tester.tapAt(const Offset(3, 3));
+            await tester.pump();
+            expect(find.byType(Dialog), findsOneWidget);
+            expect(find.byKey(_guard), findsNothing);
+            expect(h.completed, isFalse);
+            expect(h.gameTouches, 0);
+            await tester.tap(find.byKey(Key('$module-display-close')));
           } else {
             await tester.binding.handlePopRoute();
           }

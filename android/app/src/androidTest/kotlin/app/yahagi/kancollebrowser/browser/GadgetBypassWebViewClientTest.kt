@@ -37,6 +37,27 @@ class GadgetBypassWebViewClientTest {
     }
 
     @Test
+    fun eachMainDocumentInvalidatesFitBeforeDelegatingEvenForTheSameUrl() {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val events = mutableListOf<String>()
+            val original = object : WebViewClient() {
+                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                    events += "delegate:$url"
+                }
+            }
+            val client = GadgetBypassWebViewClient(
+                original = original,
+                engine = GadgetBypassEngine(GadgetBypassCache(cacheDir)),
+                isEnabled = { false },
+                endpoint = { GadgetBypassRules.DEFAULT_ENDPOINT },
+                onDocumentStarted = { events += "invalidate" },
+            )
+            repeat(2) { client.onPageStarted(null, "https://example.test/game", null) }
+            assertEquals(listOf("invalidate", "delegate:https://example.test/game", "invalidate", "delegate:https://example.test/game"), events)
+        }
+    }
+
+    @Test
     fun cookieAwareRequestInterceptionCanBeEnabledOnSupportedWebView() {
         assumeTrue(WebViewFeature.isFeatureSupported(WebViewFeature.COOKIE_INTERCEPT))
         InstrumentationRegistry.getInstrumentation().runOnMainSync {

@@ -726,6 +726,12 @@
   "battleEnemyPreviewPortraitsDesc": "戦闘予測に戦闘前の敵艦画像を表示します。",
   "battleLastFormationHint": "前回選択した陣形を表示",
   "battleLastFormationHintDesc": "出撃マス到達時に、そのマスで前回使用した陣形を戦闘予測に表示します。",
+  "fleetInformationSyncTitle": "艦隊情報の同期",
+  "fleetInformationSyncImmediate": "即時同期",
+  "fleetInformationSyncSettlement": "戦闘結果で同期",
+  "fleetInformationSyncImmediateDesc": "戦闘データを受信した時点で艦隊の耐久と応急修理要員・女神の消費を反映します。",
+  "fleetInformationSyncSettlementDesc": "戦闘結果を受信した時点で艦隊の耐久と応急修理要員・女神の消費を反映します。",
+  "fleetInformationSyncSaveFailed": "保存に失敗しました。もう一度お試しください。",
   "battleEnemyPreviewPosition": "戦闘前の敵艦予測の位置",
   "battleEnemyPreviewPositionDesc": "戦闘前の敵艦予測を味方HPバーの上または下に表示します。",
   "battleEnemyPreviewPositionAbove": "上",
@@ -1188,7 +1194,7 @@
   "menuPositionRight": "右",
   "topNoticeSectionTitle": "トップバー通知",
   "topNoticeEnabledTitle": "トップバー通知",
-  "topNoticeEnabledSubtitle": "「ヤハギ」アイコン右側に開発、改修、出撃前確認、任務達成通知を表示します",
+  "topNoticeEnabledSubtitle": "「ヤハギ」アイコン右側に開発、改修、出撃・遠征確認、任務達成通知を表示します",
   "topNoticeDurationTitle": "表示時間",
   "topNoticeDurationSubtitle": "通知ポップアップが表示されてから自動で閉じるまでの時間",
   "topNoticeDuration5s": "5秒 (デフォルト)",
@@ -1339,6 +1345,14 @@
   "noticeSortieReasonFatigue": "疲労状態 (間宮点滅/赤疲労)",
   "noticeSortieReasonMainSlot": "主スロット未装備",
   "noticeSortieReasonExpansionSlot": "増設スロット未装備",
+  "noticeExpeditionSupplyWarning": "遠征注意：第 {fleets} 艦隊が未補給です",
+  "@noticeExpeditionSupplyWarning": {
+    "placeholders": {
+      "fleets": {
+        "type": "String"
+      }
+    }
+  },
   "lockUi": "レイアウトをロック",
   "unlockUi": "レイアウトのロックを解除",
   "uiLockedToast": "画面レイアウトがロックされました（編集は無効、機能の切り替えは可能）",

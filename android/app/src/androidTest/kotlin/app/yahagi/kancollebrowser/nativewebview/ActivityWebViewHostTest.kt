@@ -123,6 +123,76 @@ class ActivityWebViewHostTest {
     }
 
     @Test
+    fun equivalentPhysicalBoundsDoNotRequestAnotherLayoutOrHideTheGame() = onMain {
+        val root = sizedRoot()
+        host = ActivityWebViewHost(context, root, recordingSink(mutableListOf()))
+        val generation = requireNotNull(host!!.create())
+        val overlay = root.getChildAt(0) as FrameLayout
+        val webView = host!!.currentWebView
+        assertTrue(host!!.setBounds(generation, NativeGameWebViewBounds(10.0, 20.0, 100.0, 50.0, 2.0)))
+        assertTrue(host!!.setVisible(generation, true))
+        root.measure(View.MeasureSpec.makeMeasureSpec(800, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(600, View.MeasureSpec.EXACTLY))
+        root.layout(0, 0, 800, 600)
+        assertFalse(overlay.isLayoutRequested)
+        val originalParams = overlay.layoutParams
+        assertTrue(host!!.setBounds(generation, NativeGameWebViewBounds(10.01, 20.01, 99.99, 49.99, 2.0)))
+        assertSame(originalParams, overlay.layoutParams)
+        assertFalse(overlay.isLayoutRequested)
+        assertEquals(View.VISIBLE, overlay.visibility)
+        assertSame(webView, host!!.currentWebView)
+        assertFalse(host!!.setBounds(generation, NativeGameWebViewBounds(1000.0, 0.0, 10.0, 10.0, 1.0)))
+        assertTrue(host!!.setBounds(generation, NativeGameWebViewBounds(10.0, 20.0, 100.0, 50.0, 2.0)))
+        assertTrue(host!!.setVisible(generation, true))
+        assertEquals(View.VISIBLE, overlay.visibility)
+    }
+
+    @Test
+    fun croppingPreservesFullWebViewPlaneInsteadOfRefittingTheVisiblePart() = onMain {
+        val root = sizedRoot()
+        host = ActivityWebViewHost(context, root, recordingSink(mutableListOf()))
+        val generation = requireNotNull(host!!.create())
+        val overlay = root.getChildAt(0) as FrameLayout
+        assertTrue(host!!.setBounds(generation, NativeGameWebViewBounds(-30.0, 10.0, 460.0, 276.0, 2.0)))
+        val params = overlay.layoutParams as FrameLayout.LayoutParams
+        assertEquals(0, params.leftMargin)
+        assertEquals(20, params.topMargin)
+        assertEquals(800, params.width)
+        assertEquals(552, params.height)
+        val gameParams = host!!.currentWebView!!.layoutParams as FrameLayout.LayoutParams
+        assertEquals(-60, gameParams.leftMargin)
+        assertEquals(920, gameParams.width)
+        assertEquals(552, gameParams.height)
+        assertTrue(root.clipChildren)
+        assertTrue(host!!.setVisible(generation, true))
+        host!!.destroy(generation)
+        val nextGeneration = requireNotNull(host!!.create())
+        assertTrue(host!!.setBounds(nextGeneration, NativeGameWebViewBounds(-30.0, 10.0, 460.0, 276.0, 2.0)))
+        assertTrue(host!!.setVisible(nextGeneration, true))
+    }
+
+    @Test
+    fun cameraViewportClipsTheNativeOverlayAndPreservesTheFullGameCanvas() = onMain {
+        val root = sizedRoot()
+        host = ActivityWebViewHost(context, root, recordingSink(mutableListOf()))
+        val generation = requireNotNull(host!!.create())
+        assertTrue(host!!.setBounds(generation,
+            NativeGameWebViewBounds(-100.0, -60.0, 1200.0, 720.0, 1.0, 20.0, 40.0, 700.0, 400.0)))
+        val overlay = root.getChildAt(0) as FrameLayout
+        val outer = overlay.layoutParams as FrameLayout.LayoutParams
+        val inner = host!!.currentWebView!!.layoutParams as FrameLayout.LayoutParams
+        assertEquals(20, outer.leftMargin)
+        assertEquals(40, outer.topMargin)
+        assertEquals(700, outer.width)
+        assertEquals(400, outer.height)
+        assertEquals(-120, inner.leftMargin)
+        assertEquals(-100, inner.topMargin)
+        assertEquals(1200, inner.width)
+        assertEquals(720, inner.height)
+        assertTrue(overlay.clipChildren)
+        assertTrue(host!!.setVisible(generation, true))
+    }
+
+    @Test
     fun destroysOnceAndAllowsNewGeneration() = onMain {
         val root = sizedRoot()
         val events = mutableListOf<String>()

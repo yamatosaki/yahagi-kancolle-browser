@@ -97,34 +97,43 @@ class NativeGameReminderDialogTest {
         assertEquals(0, gameDowns)
     }
 
-    @Test fun onlyAnOutsideTapConfirmsNotCardBlankSpaceOrADrag() {
-        val result = showNotice("newShip", 1)
-        waitView(R.id.native_game_reminder_new_ship)
-        onMain {
-            val root = requireView(R.id.native_game_reminder_new_ship) as ViewGroup
-            val card = root.getChildAt(0)
-            val position = IntArray(2)
-            card.getLocationOnScreen(position)
-            tap(position[0] + 3f, position[1] + 3f)
-            assertNotNull(find(R.id.native_game_reminder_new_ship))
-            assertTrue(result.values.isEmpty())
-            dispatch(MotionEvent.ACTION_DOWN, 2f, 2f)
-            dispatch(MotionEvent.ACTION_MOVE, 202f, 2f)
-            dispatch(MotionEvent.ACTION_UP, 202f, 2f)
-            assertNotNull(find(R.id.native_game_reminder_new_ship))
-            assertTrue(result.values.isEmpty())
-            val diagonal = ViewConfiguration.get(root.context).scaledTouchSlop * 0.8f
-            dispatch(MotionEvent.ACTION_DOWN, 2f, 2f)
-            dispatch(MotionEvent.ACTION_MOVE, 2f + diagonal, 2f + diagonal)
-            dispatch(MotionEvent.ACTION_UP, 2f + diagonal, 2f + diagonal)
-            assertNotNull(find(R.id.native_game_reminder_new_ship))
-            assertTrue(result.values.isEmpty())
-            tap(2f, 2f)
-            assertNotNull(find(R.id.native_game_warning_input_guard))
-            assertTrue(result.values.isEmpty())
+    @Test fun outsideTapsAndDragsNeverAcknowledgeEitherNoticeKind() {
+        for ((index, kind) in listOf("debuff", "newShip").withIndex()) {
+            val result = showNotice(kind, index + 1L)
+            val rootId = if (kind == "debuff") R.id.native_game_reminder_debuff else R.id.native_game_reminder_new_ship
+            waitView(rootId)
+            onMain {
+                val root = requireView(rootId) as ViewGroup
+                val card = root.getChildAt(0)
+                val position = IntArray(2)
+                card.getLocationOnScreen(position)
+                tap(position[0] + 3f, position[1] + 3f)
+                assertNotNull(find(rootId))
+                assertTrue(result.values.isEmpty())
+                dispatch(MotionEvent.ACTION_DOWN, 2f, 2f)
+                dispatch(MotionEvent.ACTION_MOVE, 202f, 2f)
+                dispatch(MotionEvent.ACTION_UP, 202f, 2f)
+                assertNotNull(find(rootId))
+                assertTrue(result.values.isEmpty())
+                val diagonal = ViewConfiguration.get(root.context).scaledTouchSlop * 0.8f
+                dispatch(MotionEvent.ACTION_DOWN, 2f, 2f)
+                dispatch(MotionEvent.ACTION_MOVE, 2f + diagonal, 2f + diagonal)
+                dispatch(MotionEvent.ACTION_UP, 2f + diagonal, 2f + diagonal)
+                assertNotNull(find(rootId))
+                assertTrue(result.values.isEmpty())
+                repeat(3) { tap(2f, 2f) }
+                assertNotNull(find(rootId))
+                assertNull(find(R.id.native_game_warning_input_guard))
+                assertTrue(result.values.isEmpty())
+                val stateField = NativeGameWarningDialogChannel::class.java.getDeclaredField("state").apply { isAccessible = true }
+                assertFalse((stateField.get(control) as NativeGameWarningDialogState).actionChosen)
+                val releaseField = NativeGameWarningDialogChannel::class.java.getDeclaredField("release").apply { isAccessible = true }
+                assertNull(releaseField.get(control))
+                requireView(R.id.native_game_reminder_acknowledge).performClick()
+            }
+            waitResult(result, "acknowledge")
+            assertEquals(0, gameDowns)
         }
-        waitResult(result, "acknowledge")
-        assertEquals(0, gameDowns)
     }
 
     @Test fun backKeyAndCommittedGestureCallbacksBothUseTheQuietProtection() {

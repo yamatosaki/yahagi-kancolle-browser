@@ -6,6 +6,26 @@ import org.junit.Test
 
 class NativeGameWebViewBoundsTest {
     @Test
+    fun preservesFullGamePlaneWhenTheWindowCropsItsEdges() {
+        val game = NativeGameWebViewBounds(-30.0, 10.0, 460.0, 276.0, 2.0)
+        val plane = requireNotNull(game.toLayoutBounds(800, 600))
+        assertEquals(-60, plane.left)
+        assertEquals(20, plane.top)
+        assertEquals(920, plane.width)
+        assertEquals(552, plane.height)
+        assertNull(game.toLayoutBounds(0, 600))
+        assertNull(NativeGameWebViewBounds(900.0, 0.0, 20.0, 20.0, 1.0).toLayoutBounds(800, 600))
+    }
+
+    @Test
+    fun viewportClipDoesNotShrinkTheUnderlyingGamePlane() {
+        val game = NativeGameWebViewBounds(-100.0, -60.0, 1200.0, 720.0, 1.0, 20.0, 40.0, 700.0, 400.0)
+        assertEquals(PhysicalBounds(20, 40, 720, 440), game.toPhysicalBounds(1000, 800))
+        assertEquals(GameWebViewLayoutBounds(-100, -60, 1200, 720), game.toLayoutBounds(1000, 800))
+        assertIllegalArgument { NativeGameWebViewBounds(0.0, 0.0, 10.0, 10.0, 1.0, clipLeft = 0.0) }
+    }
+
+    @Test
     fun convertsLogicalBoundsToClippedPhysicalBounds() {
         val bounds = NativeGameWebViewBounds(
             left = 10.0,

@@ -23,13 +23,13 @@ void main() {
     }
     expect(applied, isEmpty);
     await tester.pump(const Duration(seconds: 2));
-    expect(applied, [249, 249, 249, 249]);
+    expect(applied, [249]);
     scheduler.schedule(() => applied.add(-1));
     scheduler.cancel();
     await tester.pump(const Duration(seconds: 2));
-    expect(applied, [249, 249, 249, 249]);
+    expect(applied, [249]);
   });
-  testWidgets('rechecks the latest foldable window metrics until stable', (
+  testWidgets('recovers once 200ms after the last window change', (
     tester,
   ) async {
     final scheduler = WindowMetricsRecoveryScheduler();
@@ -39,23 +39,25 @@ void main() {
 
     scheduler.schedule(() => firstGenerationRuns += 1);
     await tester.pump(const Duration(milliseconds: 50));
-    expect(firstGenerationRuns, 1);
+    expect(firstGenerationRuns, 0);
     scheduler.schedule(() => latestGenerationRuns += 1);
 
     await tester.pump(const Duration(milliseconds: 1));
-    expect(firstGenerationRuns, 1);
+    expect(firstGenerationRuns, 0);
     expect(
       latestGenerationRuns,
       0,
       reason: 'surface recovery must not run in the scheduling frame',
     );
 
-    await tester.pump(const Duration(milliseconds: 100));
-    await tester.pump(const Duration(milliseconds: 250));
-    await tester.pump(const Duration(milliseconds: 450));
+    await tester.pump(const Duration(milliseconds: 198));
+    expect(latestGenerationRuns, 0);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(latestGenerationRuns, 1);
+    await tester.pump(const Duration(seconds: 2));
 
-    expect(firstGenerationRuns, 1);
-    expect(latestGenerationRuns, 4);
+    expect(firstGenerationRuns, 0);
+    expect(latestGenerationRuns, 1);
   });
 
   testWidgets('does not run delayed recovery after disposal', (tester) async {

@@ -73,6 +73,7 @@ class TopNoticeSettingsSection extends StatelessWidget with SettingsUIHelpers {
                           const SizedBox(width: 12),
                           DropdownButtonHideUnderline(
                             child: DropdownButton<int>(
+                              barrierDismissible: false,
                               key: const Key(
                                 'settings-top-notice-duration-dropdown',
                               ),

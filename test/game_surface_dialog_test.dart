@@ -67,6 +67,10 @@ void main() {
         await tester.binding.handlePopRoute();
       } else {
         await tester.tapAt(const Offset(8, 8));
+        await tester.pump();
+        expect(find.text('question'), findsOneWidget);
+        expect(decisions, isEmpty);
+        await tester.binding.handlePopRoute();
       }
       staleClose(true);
       await held.up();
@@ -132,6 +136,7 @@ void main() {
       if (mode.usesActivityWebView) {
         expect(find.byType(AlertDialog), findsNothing);
         expect(requests.single['kind'], 'surfaceDialog');
+        expect(requests.single['dismissible'], isFalse);
         pending.complete({'action': 'selected', 'checked': false});
       } else {
         expect(requests, isEmpty);

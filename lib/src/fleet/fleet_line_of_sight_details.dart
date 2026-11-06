@@ -27,11 +27,7 @@ Future<void> showFleetLineOfSightDetails(
       ),
     ],
     builder: (context, close) => AlertDialog(
-      backgroundColor: appColor(context, Color(0xff142735)),
-      title: Text(
-        l10n?.losDetails ?? '索敌详情',
-        style: const TextStyle(fontWeight: FontWeight.w800),
-      ),
+      title: Text(l10n?.losDetails ?? '索敌详情'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

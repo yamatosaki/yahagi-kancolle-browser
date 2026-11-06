@@ -293,7 +293,7 @@ final class _NativeActivityGameSurfaceState
   late Duration _pageInitializationTimeout;
   late final Future<void> Function(NativeGameWebViewBounds) _boundsSink;
   late final Future<void> Function(bool) _visibilitySink;
-  final GlobalKey _surfaceSlotKey = GlobalKey(
+  final _surfaceSlotKey = GlobalKey<NativeGameSurfaceSlotState>(
     debugLabel: 'native-game-surface-slot',
   );
   final WindowMetricsRecoveryScheduler _windowMetricsRecoveryScheduler =
@@ -602,18 +602,22 @@ final class _NativeActivityGameSurfaceState
     final operationEpoch = _operationEpoch;
     final generationId = _generationId;
     if (port == null || generationId == null) return false;
+    final slot = _surfaceSlotKey.currentState;
+    if (slot == null || !slot.canSynchronizeBounds) return false;
+    final revision = slot.synchronizationRevision;
     setState(() {});
     await WidgetsBinding.instance.endOfFrame;
     if (!_matchesGeneration(port, generationId, operationEpoch)) return false;
-    final slotContext = _surfaceSlotKey.currentContext;
-    if (slotContext == null || !slotContext.mounted) return false;
-    final bounds = readNativeGameSurfaceBounds(
-      slotContext.findRenderObject(),
-      devicePixelRatio: View.of(slotContext).devicePixelRatio,
-    );
+    if (!identical(slot, _surfaceSlotKey.currentState) ||
+        revision != slot.synchronizationRevision) {
+      return false;
+    }
+    final bounds = slot.readStableBounds();
     if (bounds == null) return false;
     await _onBoundsChanged(bounds);
-    return _matchesGeneration(port, generationId, operationEpoch);
+    return _matchesGeneration(port, generationId, operationEpoch) &&
+        slot.canSynchronizeBounds &&
+        revision == slot.synchronizationRevision;
   }
 
   bool _startupDependenciesChanged(
@@ -818,6 +822,15 @@ final class _NativeActivityGameSurfaceState
     _networkRetryAvailable = false;
     _setStartupState(GameStartupState.networkReady);
     final initialAddress = resolveInitialGameAddress(widget.browserController);
+    // The default startup now applies audio before navigation. Give that
+    // separately bounded wait its own budget without changing cleanup or
+    // custom-orchestrator deadlines.
+    final preparationTimeout =
+        _cleanupTimeout +
+        switch (orchestrator) {
+          GameSurfaceAudioStartupBudget budget => budget.audioStartupWaitBudget,
+          _ => Duration.zero,
+        };
     var awaitingNavigationCommand = false;
     try {
       await orchestrator
@@ -843,7 +856,7 @@ final class _NativeActivityGameSurfaceState
               }
             },
           )
-          .timeout(_cleanupTimeout);
+          .timeout(preparationTimeout);
     } on TimeoutException {
       // The outer budget protects surface/capture/cookie preparation. Once
       // Android has acknowledged navigation, its late command reply cannot

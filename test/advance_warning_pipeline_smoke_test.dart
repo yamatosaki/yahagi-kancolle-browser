@@ -3,9 +3,11 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_controller.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_damage_alert.dart';
+import 'package:yahagi_kancolle_browser/src/battle/live_battle_card.dart';
 import 'package:yahagi_kancolle_browser/src/battle/prediction/battle_prediction_executor.dart';
 import 'package:yahagi_kancolle_browser/src/bridge/captured_api_event.dart';
 import 'package:yahagi_kancolle_browser/src/capture/battle_result_warning_overlay.dart';
@@ -15,6 +17,7 @@ import 'package:yahagi_kancolle_browser/src/game_state/combat_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_api_event_pipeline.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
+import 'package:yahagi_kancolle_browser/src/settings/battle_status_effect_settings.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_store.dart';
 
@@ -22,6 +25,67 @@ import 'damage_control_briefing_sync_test.dart'
     show apiEvent, createSortieState, mapData;
 
 void main() {
+  for (final settle in [false, true]) {
+    testWidgets(
+      '${settle ? 'Settlement' : 'Immediate'} fleet sync keeps live forecast '
+      'and both warning prompts current',
+      (tester) async {
+        final fixture = await _PipelineSmokeFixture.create(settle: settle);
+        addTearDown(fixture.dispose);
+        await fixture.settings.setAdvanceWarningTimings(
+          AdvanceWarningTimingSettings.battleAndAdvance,
+        );
+        await fixture.pump(tester, showLiveBattle: true);
+        await fixture.start(tester);
+
+        await fixture.fight(tester, openingHp: 100, damage: 100);
+        expect(find.textContaining('20 / 100'), findsOneWidget);
+        expect(
+          fixture.state.fleetDisplayState.ships[1002]!.currentHp,
+          settle ? 100 : 20,
+        );
+        expect(
+          fixture.state.fleetDisplayState.slotItems.containsKey(501),
+          settle,
+        );
+
+        await fixture.publish(
+          tester,
+          '/kcsapi/api_req_battle_midnight/battle',
+          {
+            'api_hougeki': _battleData(
+              openingHp: 20,
+              damage: 5,
+            )['api_hougeki1'],
+          },
+        );
+        expect(find.textContaining('15 / 100'), findsOneWidget);
+        expect(
+          fixture.state.fleetDisplayState.ships[1002]!.currentHp,
+          settle ? 100 : 15,
+        );
+
+        await fixture.publish(tester, '/kcsapi/api_req_sortie/battleresult', {
+          'api_win_rank': 'B',
+          'api_mvp': 1,
+        });
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(find.text('携带：应急修理女神 ×1'), findsOneWidget);
+        expect(fixture.state.fleetDisplayState.ships[1002]!.currentHp, 15);
+        expect(
+          fixture.state.fleetDisplayState.slotItems.containsKey(501),
+          isFalse,
+        );
+        await _acknowledge(tester);
+
+        await fixture.advance(tester);
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(find.text('携带：应急修理女神 ×1'), findsOneWidget);
+        await _acknowledge(tester);
+      },
+    );
+  }
+
   testWidgets(
     'production pipeline consumes both damage controls, repeats warnings, and resets sortie mute at port',
     (tester) async {
@@ -370,6 +434,7 @@ final class _PipelineSmokeFixture {
   static Future<_PipelineSmokeFixture> create({
     int wingmanHp = 100,
     bool active = false,
+    bool settle = false,
     GameApiEnvelopeDecoder? decodeEnvelope,
     int backgroundThresholdBytes = 64 * 1024,
   }) async {
@@ -413,6 +478,7 @@ final class _PipelineSmokeFixture {
       initialState: initialState,
       accountSession: account,
     );
+    if (settle) state.setDeferFleetBattleDisplay(true);
     await state.initialize();
     final settings = await SafetySettingsController.load(
       MemorySafetySettingsStore(),
@@ -431,6 +497,8 @@ final class _PipelineSmokeFixture {
         writebacks.damageControls += 1;
         state.applyDamageControlConsumption(consumed, capturedAt);
       },
+      onFleetBattleDisplayStarted: state.beginFleetBattleDisplay,
+      onFleetBattleDisplaySettled: state.settleFleetBattleDisplay,
       damageAlertPort: alerts,
       battleStatusEffectSettings: () => settings.battleStatusEffects,
       predictionExecutor: const ImmediateBattlePredictionExecutor(),
@@ -467,25 +535,44 @@ final class _PipelineSmokeFixture {
     );
   }
 
-  Future<void> pump(WidgetTester tester) => tester.pumpWidget(
-    MaterialApp(
-      home: BattleResultWarningOverlay(
-        accountSession: account,
-        gameCaptureController: capture,
-        loadSafetyState: () async {
-          await pipeline.dispatchIdle;
-          await battle.idle;
-          await state.idle;
-          return state.state;
-        },
-        safetySettingsController: settings,
-        damageAlertPort: alerts,
-        warningSession: battle.warningSession,
-        damageControlStateTrusted: () => battle.isDamageControlStateTrusted,
-        child: const SizedBox.expand(),
-      ),
-    ),
-  );
+  Future<void> pump(WidgetTester tester, {bool showLiveBattle = false}) =>
+      tester.pumpWidget(
+        MaterialApp(
+          locale: showLiveBattle ? const Locale('zh') : null,
+          localizationsDelegates: showLiveBattle
+              ? AppLocalizations.localizationsDelegates
+              : null,
+          supportedLocales: showLiveBattle
+              ? AppLocalizations.supportedLocales
+              : const [Locale('en')],
+          home: BattleResultWarningOverlay(
+            accountSession: account,
+            gameCaptureController: capture,
+            loadSafetyState: () async {
+              await pipeline.dispatchIdle;
+              await battle.idle;
+              await state.idle;
+              return state.state;
+            },
+            safetySettingsController: settings,
+            damageAlertPort: alerts,
+            warningSession: battle.warningSession,
+            damageControlStateTrusted: () => battle.isDamageControlStateTrusted,
+            child: showLiveBattle
+                ? Scaffold(
+                    body: SingleChildScrollView(
+                      child: LiveBattleCard(
+                        controller: battle,
+                        collapsed: false,
+                        onToggleCollapse: () {},
+                        damagePulseMode: DamagePulseFilter.off,
+                      ),
+                    ),
+                  )
+                : const SizedBox.expand(),
+          ),
+        ),
+      );
 
   Future<void> start(WidgetTester tester) {
     _node = 1;

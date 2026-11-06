@@ -70,6 +70,14 @@ void main() {
       expect(tester.getRect(content).top, greaterThanOrEqualTo(0));
       expect(tester.getRect(content).bottom, lessThanOrEqualTo(360));
       final row = find.byKey(const Key('header-resource-filter-row-senka'));
+      await tester.scrollUntilVisible(
+        row,
+        100,
+        scrollable: find.descendant(
+          of: list,
+          matching: find.byType(Scrollable),
+        ),
+      );
       final label = tester
           .widgetList<Text>(
             find.descendant(of: row, matching: find.byType(Text)),
@@ -92,6 +100,47 @@ void main() {
       await tester.tap(find.byKey(const Key('header-resource-filter-done')));
       await tester.pumpAndSettle();
       expect(find.byType(Dialog), findsNothing);
+    });
+  }
+
+  for (final locale in const [Locale('en'), Locale('zh')]) {
+    testWidgets('very short landscape at 200% can edit and finish in $locale', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(500, 200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _open(tester, locale: locale, textScale: 2);
+      expect(tester.takeException(), isNull);
+
+      final list = find.byKey(const Key('header-resource-filter-list'));
+      final lastRow = find.byKey(
+        const Key('header-resource-filter-row-useitem-100'),
+      );
+      await tester.scrollUntilVisible(
+        lastRow,
+        100,
+        scrollable: find.descendant(
+          of: list,
+          matching: find.byType(Scrollable),
+        ),
+      );
+      final checkbox = find.byKey(
+        const Key('header-resource-visible-useitem-100'),
+      );
+      final wasChecked = tester.widget<Checkbox>(checkbox).value;
+      await tester.ensureVisible(checkbox);
+      await tester.pumpAndSettle();
+      await tester.tap(checkbox);
+      await tester.pump();
+      expect(tester.widget<Checkbox>(checkbox).value, !wasChecked!);
+
+      final done = find.byKey(const Key('header-resource-filter-done'));
+      await tester.ensureVisible(done);
+      await tester.pumpAndSettle();
+      await tester.tap(done);
+      await tester.pumpAndSettle();
+      expect(find.byType(Dialog), findsNothing);
+      expect(tester.takeException(), isNull);
     });
   }
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1393,6 +1394,33 @@ void main() {
     },
   );
 
+  testWidgets(
+    'manual native fit cannot submit resized bounds after awaiting a frame',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(800, 600);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final fixture = _SurfaceFixture();
+      addTearDown(fixture.dispose);
+      await fixture.pump(tester);
+      await tester.pump();
+      fixture.port.calls.clear();
+      final fit = fixture.browserController.fitGameScreen();
+      tester.view.physicalSize = const Size(780, 600);
+      await tester.pump();
+      await fit;
+      expect(fixture.port.calls, isNot(contains('bounds')));
+      expect(fixture.port.calls, isNot(contains('fit')));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump();
+      expect(
+        fixture.port.calls.where((call) => call == 'bounds'),
+        hasLength(1),
+      );
+    },
+  );
+
   testWidgets('resuming the app resynchronizes native game bounds', (
     tester,
   ) async {
@@ -1410,7 +1438,7 @@ void main() {
     fixture.port.calls.clear();
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 200));
     await tester.pump();
 
     expect(fixture.port.calls, contains('bounds'));
@@ -1440,9 +1468,9 @@ void main() {
         'surface',
         'capture.supported',
         'capture.configure:true',
-        'navigate',
         'audio.supported',
         'audio.muted:false',
+        'navigate',
         'frame.supported',
         'frame.configure:auto',
       ]);
@@ -1504,6 +1532,389 @@ void main() {
       expect(audioPortNumber, 2);
     },
   );
+
+  testWidgets(
+    'slow capture plus bounded audio wait keeps native startup alive',
+    (tester) async {
+      final surface = _SurfaceFixture();
+      final captureReady = Completer<void>();
+      final capture = _BlockingCapturePort(captureReady);
+      final audioSupport = Completer<bool>();
+      final startup = await _DefaultOrchestratorFixture.create(
+        <String>[],
+        capturePortFactory: () => capture,
+        audioPortFactory: () => _BlockingAudioPort(audioSupport.future),
+      );
+      addTearDown(() async {
+        if (!captureReady.isCompleted) captureReady.complete();
+        if (!audioSupport.isCompleted) audioSupport.complete(false);
+        await tester.pump();
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+        startup.dispose();
+        await surface.dispose();
+      });
+      await surface.pump(
+        tester,
+        startupOrchestrator: _AudioRecoveryStartup(startup.orchestrator),
+      );
+      for (var frame = 0; frame < 40 && capture.enabledCalls.isEmpty; frame++) {
+        await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        await tester.pump(const Duration(milliseconds: 1));
+      }
+      expect(capture.enabledCalls, [true]);
+      await tester.pump(const Duration(milliseconds: 1400));
+      captureReady.complete();
+      await tester.pump();
+      expect(
+        startup.audioController.availability,
+        GameAudioAvailability.checking,
+      );
+      await tester.pump(const Duration(milliseconds: 601));
+      expect(find.byKey(const Key('native-game-surface-error')), findsNothing);
+      await tester.pump(const Duration(milliseconds: 149));
+      await tester.pump();
+      expect(
+        surface.port.calls.where((call) => call.startsWith('load:')),
+        hasLength(1),
+      );
+      expect(find.byKey(const Key('native-game-surface-error')), findsNothing);
+      audioSupport.complete(false);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('default startup still times out a permanently hung capture', (
+    tester,
+  ) async {
+    final surface = _SurfaceFixture();
+    final captureReady = Completer<void>();
+    final capture = _BlockingCapturePort(captureReady);
+    final startup = await _DefaultOrchestratorFixture.create(
+      <String>[],
+      capturePortFactory: () => capture,
+    );
+    addTearDown(() async {
+      if (!captureReady.isCompleted) captureReady.complete();
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      startup.dispose();
+      await surface.dispose();
+    });
+    await surface.pump(
+      tester,
+      startupOrchestrator: _AudioRecoveryStartup(startup.orchestrator),
+    );
+    for (var frame = 0; frame < 40 && capture.enabledCalls.isEmpty; frame++) {
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump(const Duration(milliseconds: 1));
+    }
+    expect(capture.enabledCalls, [true]);
+    await tester.pump(const Duration(milliseconds: 2700));
+    expect(find.byKey(const Key('native-game-surface-error')), findsNothing);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byKey(const Key('native-game-surface-error')), findsOneWidget);
+    expect(
+      surface.port.calls.where((call) => call.startsWith('load:')),
+      isEmpty,
+    );
+    // Release the independently bounded capture operation before Flutter
+    // verifies this widget test's timer invariants (before addTearDown).
+    captureReady.complete();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 11));
+  });
+
+  testWidgets('custom startup retains its original preparation deadline', (
+    tester,
+  ) async {
+    final surface = _SurfaceFixture();
+    final captureReady = Completer<void>();
+    surface.orchestrator.prepareCaptureCompleter = captureReady;
+    addTearDown(() async {
+      if (!captureReady.isCompleted) captureReady.complete();
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await surface.dispose();
+    });
+    await surface.pump(tester);
+    for (
+      var frame = 0;
+      frame < 20 && surface.orchestrator.prepareCaptureCalls == 0;
+      frame++
+    ) {
+      await tester.pump(const Duration(milliseconds: 1));
+    }
+    expect(surface.orchestrator.prepareCaptureCalls, 1);
+    await tester.pump(const Duration(milliseconds: 1900));
+    expect(find.byKey(const Key('native-game-surface-error')), findsNothing);
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(find.byKey(const Key('native-game-surface-error')), findsOneWidget);
+    expect(
+      surface.port.calls.where((call) => call.startsWith('load:')),
+      isEmpty,
+    );
+  });
+
+  test('new WebView startup supersedes a pending audio attachment', () async {
+    final calls = <String>[];
+    final retiredSupport = Completer<bool>();
+    addTearDown(() {
+      if (!retiredSupport.isCompleted) retiredSupport.complete(false);
+    });
+    var ports = 0;
+    final fixture = await _DefaultOrchestratorFixture.create(
+      calls,
+      audioPortFactory: () => ++ports == 1
+          ? _BlockingAudioPort(retiredSupport.future)
+          : _RecordingAudioPort(calls),
+    );
+    addTearDown(fixture.dispose);
+    final retired = fixture.orchestrator.attachAudioPortOnce();
+    await Future<void>.delayed(Duration.zero);
+    await fixture.orchestrator.runCaptureStartup(
+      waitForSurface: () async {},
+      isActive: () => true,
+      navigate: () async {},
+    );
+    var replacementAttached = false;
+    final replacement = fixture.orchestrator.attachAudioPortOnce().then(
+      (_) => replacementAttached = true,
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(
+      replacementAttached,
+      isTrue,
+      reason: 'A retired WebView cannot hold the replacement audio binding.',
+    );
+    expect(ports, 2);
+    expect(calls, contains('audio.muted:false'));
+    retiredSupport.complete(true);
+    await Future.wait([retired, replacement]);
+    await fixture.orchestrator.attachAudioPortOnce();
+    expect(ports, 2);
+  });
+
+  test('saved mute is applied before the first game navigation', () async {
+    final nativeAudio = _GenerationAudioPort(() => 1);
+    final fixture = await _DefaultOrchestratorFixture.create(
+      <String>[],
+      audioPortFactory: () => nativeAudio,
+      savedMuted: true,
+    );
+    addTearDown(fixture.dispose);
+    await fixture.orchestrator.runCaptureStartup(
+      waitForSurface: () async {},
+      isActive: () => true,
+      navigate: () async {
+        expect(nativeAudio.appliedMuted, isTrue);
+        expect(nativeAudio.commands, ['1:true']);
+      },
+    );
+    await fixture.orchestrator.attachAudioPortOnce();
+    expect(nativeAudio.commands, ['1:true']);
+  });
+
+  test('hung audio attachment cannot block game navigation', () {
+    fakeAsync((clock) {
+      final support = Completer<bool>();
+      late _DefaultOrchestratorFixture fixture;
+      unawaited(
+        _DefaultOrchestratorFixture.create(
+          <String>[],
+          audioPortFactory: () => _BlockingAudioPort(support.future),
+        ).then((value) => fixture = value),
+      );
+      clock.flushMicrotasks();
+      try {
+        var navigated = false;
+        unawaited(
+          fixture.orchestrator.runCaptureStartup(
+            waitForSurface: () async {},
+            isActive: () => true,
+            navigate: () async => navigated = true,
+          ),
+        );
+        clock.flushMicrotasks();
+        expect(navigated, isFalse);
+        clock.elapse(const Duration(milliseconds: 749));
+        expect(navigated, isFalse);
+        clock.elapse(const Duration(milliseconds: 1));
+        expect(navigated, isTrue);
+        expect(
+          fixture.audioController.availability,
+          GameAudioAvailability.checking,
+        );
+        support.complete(false);
+        clock.flushMicrotasks();
+        expect(
+          fixture.audioController.availability,
+          GameAudioAvailability.unavailable,
+        );
+      } finally {
+        if (!support.isCompleted) support.complete(false);
+        clock.flushMicrotasks();
+        fixture.dispose();
+        clock.flushMicrotasks();
+      }
+    });
+  });
+
+  test(
+    'retired audio completion cannot attach the next startup epoch',
+    () async {
+      final calls = <String>[];
+      final support = Completer<bool>();
+      final captureReady = Completer<void>();
+      final capture = _BlockingCapturePort(captureReady);
+      var ports = 0;
+      final fixture = await _DefaultOrchestratorFixture.create(
+        calls,
+        capturePortFactory: () => capture,
+        audioPortFactory: () => ++ports == 1
+            ? _BlockingAudioPort(support.future)
+            : _RecordingAudioPort(calls),
+      );
+      addTearDown(fixture.dispose);
+      addTearDown(() {
+        if (!support.isCompleted) support.complete(false);
+        if (!captureReady.isCompleted) captureReady.complete();
+      });
+      final retired = fixture.orchestrator.attachAudioPortOnce();
+      await Future<void>.delayed(Duration.zero);
+      final startup = fixture.orchestrator.runCaptureStartup(
+        waitForSurface: () async {},
+        isActive: () => true,
+        navigate: () async {},
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(capture.enabledCalls, [true]);
+      support.complete(true);
+      await retired;
+      captureReady.complete();
+      await startup;
+      await fixture.orchestrator.attachAudioPortOnce();
+      expect(ports, 2);
+      expect(calls, contains('audio.muted:false'));
+    },
+  );
+
+  for (final scenario in [
+    (recoveries: 1, savedMuted: false),
+    (recoveries: 3, savedMuted: true),
+  ]) {
+    testWidgets(
+      'renderer recovery reapplies internal mute ${scenario.recoveries} times, saved=${scenario.savedMuted}',
+      (tester) async {
+        final surface = _SurfaceFixture();
+        final capture = _RecreatedWebViewCapturePort();
+        final nativeAudio = _GenerationAudioPort(() => surface.port.generation);
+        final startup = await _DefaultOrchestratorFixture.create(
+          <String>[],
+          capturePortFactory: () => capture,
+          audioPortFactory: () => nativeAudio,
+          savedMuted: scenario.savedMuted,
+        );
+        final tracedStartup = _AudioRecoveryStartup(startup.orchestrator);
+        addTearDown(() async {
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump();
+          startup.dispose();
+          await surface.dispose();
+        });
+
+        Future<void> waitFor(bool Function() predicate) async {
+          for (var frame = 0; frame < 60; frame++) {
+            if (predicate()) return;
+            await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+            await tester.pump(const Duration(milliseconds: 1));
+          }
+          fail('Audio recovery did not reach its initialization stage.');
+        }
+
+        void pageReady(int generation) {
+          for (final type in ['pageStarted', 'pageFinished']) {
+            surface.port.addEvent(
+              _event(
+                type,
+                generationId: generation,
+                url: 'https://game.example/',
+              ),
+            );
+          }
+        }
+
+        await surface.pump(tester, startupOrchestrator: tracedStartup);
+        await waitFor(
+          () => surface.port.calls.any((call) => call.startsWith('load:')),
+        );
+        pageReady(7);
+        await waitFor(() => startup.audioController.canToggle);
+        if (!scenario.savedMuted) {
+          await startup.audioController.toggleMuted();
+        }
+        expect(startup.audioController.isMuted, isTrue);
+        expect(nativeAudio.appliedMuted, isTrue);
+
+        for (var recovery = 1; recovery <= scenario.recoveries; recovery++) {
+          final previous = surface.port.generation;
+          final previousAudioStages = tracedStartup.audioStages;
+          surface.port.addEvent(
+            _event(
+              'renderProcessGone',
+              generationId: previous,
+              didCrash: false,
+            ),
+          );
+          surface.port.addEvent(_event('destroyed', generationId: previous));
+          await tester.pump();
+          capture.replaceWebView();
+          surface.port.generation++;
+          // Model the new WebView's independent audio state. Only an actual
+          // setMuted command from the production controller can change it.
+          nativeAudio.appliedMuted = false;
+          await tester.tap(find.byKey(const Key('native-game-surface-reload')));
+          await waitFor(
+            () =>
+                surface.port.calls
+                    .where((call) => call.startsWith('load:'))
+                    .length ==
+                recovery + 1,
+          );
+          final generation = surface.port.generation;
+          pageReady(generation);
+          await waitFor(() => tracedStartup.audioStages > previousAudioStages);
+          for (var frame = 0; frame < 8; frame++) {
+            await tester.pump();
+          }
+          expect(startup.audioController.isMuted, isTrue);
+          expect(nativeAudio.appliedMuted, isTrue);
+          expect(
+            nativeAudio.commands.where(
+              (command) => command.startsWith('$generation:'),
+            ),
+            ['$generation:true'],
+          );
+          final commands = [...nativeAudio.commands];
+          await startup.audioController.handleLifecycleState(
+            AppLifecycleState.paused,
+          );
+          await startup.audioController.handleLifecycleState(
+            AppLifecycleState.resumed,
+          );
+          pageReady(generation);
+          await tester.pump();
+          await tester.pump();
+          expect(nativeAudio.appliedMuted, isTrue);
+          expect(nativeAudio.commands, commands);
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   test(
     'default orchestrator serializes capture changes with latest mode last',
@@ -4295,13 +4706,14 @@ final class _DefaultOrchestratorFixture {
     List<String> calls, {
     GameCapturePort Function()? capturePortFactory,
     GameAudioPort Function()? audioPortFactory,
+    bool savedMuted = false,
   }) async {
     final networkController = _RecordingNetworkController(calls);
     final captureModeController = await CaptureModeController.load(
       const _GameCaptureModeStore(),
     );
     final audioController = await GameAudioController.load(
-      const _GameAudioMemoryStore(),
+      _GameAudioMemoryStore(muted: savedMuted),
     );
     final frameRateController = await GameFrameRateSettingsController.load(
       MemoryGameFrameRateSettingsStore(),
@@ -4498,6 +4910,65 @@ final class _BlockingCapturePort implements GameCapturePort {
   void dispose() => unawaited(_events.close());
 }
 
+final class _GenerationAudioPort implements GameAudioPort {
+  _GenerationAudioPort(this.generation);
+
+  final int Function() generation;
+  final commands = <String>[];
+  bool appliedMuted = false;
+
+  @override
+  Future<bool> isSupported() async => true;
+
+  @override
+  Future<void> setMuted(bool muted) async {
+    commands.add('${generation()}:$muted');
+    appliedMuted = muted;
+  }
+}
+
+final class _AudioRecoveryStartup
+    implements GameSurfaceStartupOrchestrator, GameSurfaceAudioStartupBudget {
+  _AudioRecoveryStartup(this.delegate);
+
+  final DefaultGameSurfaceStartupOrchestrator delegate;
+  int audioStages = 0;
+
+  @override
+  Duration get audioStartupWaitBudget => delegate.audioStartupWaitBudget;
+
+  @override
+  Future<GameSurfaceNetworkResult> applyNetworkSettings() async =>
+      const GameSurfaceNetworkResult.success();
+
+  @override
+  Future<void> runCaptureStartup({
+    required Future<void> Function() waitForSurface,
+    required bool Function() isActive,
+    required Future<void> Function() navigate,
+  }) => delegate.runCaptureStartup(
+    waitForSurface: waitForSurface,
+    isActive: isActive,
+    navigate: navigate,
+  );
+
+  @override
+  Future<void> prepareCapture() => delegate.prepareCapture();
+
+  @override
+  Future<void> attachAudioPortOnce() async {
+    audioStages++;
+    await delegate.attachAudioPortOnce();
+  }
+
+  @override
+  Future<bool> attachFrameRatePlatformPort() =>
+      delegate.attachFrameRatePlatformPort();
+
+  @override
+  void dispose() => delegate.dispose();
+}
+
 final class _RecordingAudioPort implements GameAudioPort {
   _RecordingAudioPort(this.calls);
 
@@ -4565,13 +5036,15 @@ final class _GameCaptureModeStore implements CaptureModeStore {
 }
 
 final class _GameAudioMemoryStore implements GameAudioStore {
-  const _GameAudioMemoryStore();
+  const _GameAudioMemoryStore({this.muted = false});
+
+  final bool muted;
 
   @override
   Future<bool?> readBackgroundPlaybackEnabled() async => false;
 
   @override
-  Future<bool?> readMuted() async => false;
+  Future<bool?> readMuted() async => muted;
 
   @override
   Future<void> writeBackgroundPlaybackEnabled(bool enabled) async {}

@@ -27,6 +27,7 @@ import 'package:yahagi_kancolle_browser/src/settings/safety_settings_controller.
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/ui_font_size.dart';
 import 'package:yahagi_kancolle_browser/src/theme/app_theme.dart';
+import 'package:yahagi_kancolle_browser/src/theme/custom_font_controller.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 
 Map<String, String> collectBusinessDartSources(Directory projectRoot) {
@@ -402,6 +403,9 @@ class _LayoutSettingsControllerStub extends ChangeNotifier
 
   @override
   bool get enhancedDamagePulse => false;
+
+  @override
+  CustomFontController? get customFontController => null;
 
   @override
   String get fontFamily => 'sans-serif';

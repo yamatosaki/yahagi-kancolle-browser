@@ -50,6 +50,14 @@ void main() {
       findsOneWidget,
     );
 
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('development-secretary-picker-dialog')),
+      findsOneWidget,
+    );
+    expect(selected, isNull);
+
     await tester.tap(find.text('炮战系'));
     await tester.pumpAndSettle();
     expect(find.text('内华达级（内华达）'), findsOneWidget);

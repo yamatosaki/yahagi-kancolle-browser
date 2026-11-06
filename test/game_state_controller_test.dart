@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'dart:async';
 
 import 'package:yahagi_kancolle_browser/src/battle/battle_controller.dart';
+import 'package:yahagi_kancolle_browser/src/battle/sortie_damage_control_ledger.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_store.dart';
@@ -11,6 +12,62 @@ import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
   group('GameStateController', () {
+    test('fleet settlement display holds only participating ships', () async {
+      final controller = GameStateController();
+      addTearDown(controller.dispose);
+      controller
+        ..accept(portEvent)
+        ..accept(
+          kcsapiEvent('/kcsapi/api_get_member/slot_item', [
+            {'api_id': 7002, 'api_slotitem_id': 42},
+          ]),
+        )
+        ..accept(mapStartEvent);
+      await controller.idle;
+
+      controller
+        ..setDeferFleetBattleDisplay(true)
+        ..beginFleetBattleDisplay([9001])
+        ..applyFriendlyBattleHp({9001: 6, 9002: 5}, DateTime.utc(2026))
+        ..applyDamageControlConsumption({
+          9001: [
+            const DamageControlEquipmentRef(instanceId: 7002, masterId: 42),
+          ],
+        }, DateTime.utc(2026));
+      await controller.idle;
+
+      expect(controller.state.ships[9001]!.currentHp, 6);
+      expect(controller.state.slotItems, isNot(contains(7002)));
+      final display = controller.fleetDisplayState;
+      expect(display.ships[9001]!.currentHp, 28);
+      expect(display.ships[9001]!.slotIds, contains(7002));
+      expect(display.slotItems, contains(7002));
+      expect(display.ships[9002]!.currentHp, 5);
+      expect(controller.fleetDisplayState, same(display));
+
+      controller.settleFleetBattleDisplay();
+      await controller.idle;
+      expect(controller.fleetDisplayState, same(controller.state));
+    });
+
+    test('capture interruption releases a fleet display hold', () async {
+      final controller = GameStateController();
+      addTearDown(controller.dispose);
+      controller
+        ..accept(portEvent)
+        ..accept(mapStartEvent);
+      await controller.idle;
+      controller
+        ..setDeferFleetBattleDisplay(true)
+        ..beginFleetBattleDisplay([9001])
+        ..applyFriendlyBattleHp({9001: 6}, DateTime.utc(2026));
+      await controller.idle;
+
+      expect(controller.fleetDisplayState.ships[9001]!.currentHp, 28);
+      controller.interruptCaptureContinuity();
+      expect(controller.fleetDisplayState, same(controller.state));
+    });
+
     test('processes captured events in acceptance order', () async {
       final controller = GameStateController();
       addTearDown(controller.dispose);

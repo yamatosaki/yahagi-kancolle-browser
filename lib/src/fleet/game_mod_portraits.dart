@@ -93,13 +93,16 @@ final class GameModPortraitResource {
   const GameModPortraitResource({required this.id, required this.path});
   final String id;
   final String path;
-  GameModPortraitLayout get layout => path.contains('/remodel/')
-      ? GameModPortraitLayout.remodel
-      : path.contains('/banner/')
-      ? GameModPortraitLayout.banner
-      : path.contains('/character_full/')
-      ? GameModPortraitLayout.characterFull
-      : GameModPortraitLayout.full;
+  GameModPortraitLayout get layout {
+    final layoutPath = path.replaceAll('_dmg/', '/');
+    return layoutPath.contains('/remodel/')
+        ? GameModPortraitLayout.remodel
+        : layoutPath.contains('/banner/')
+        ? GameModPortraitLayout.banner
+        : layoutPath.contains('/character_full/')
+        ? GameModPortraitLayout.characterFull
+        : GameModPortraitLayout.full;
+  }
 }
 
 final class GameModPortraitSnapshot {
@@ -146,18 +149,20 @@ final class GameModPortraitSnapshot {
 abstract final class GameModPortraitResolver {
   static GameModPortraitResource? select(
     MasterShip ship,
-    GameModPortraitSnapshot snapshot,
-  ) {
+    GameModPortraitSnapshot snapshot, {
+    bool isDamaged = false,
+  }) {
     final id = ship.id.toString().padLeft(4, '0');
-    for (final type in ['remodel', 'banner', 'character_full', 'full']) {
+    for (final baseType in ['remodel', 'banner', 'character_full', 'full']) {
+      final type = isDamaged ? '${baseType}_dmg' : baseType;
       final cipher = ShipPortraitUriBuilder.createCipher(ship.id, 'ship_$type');
-      final filename = type == 'full' ? ship.portraitFileName : null;
-      if (type == 'full' &&
+      final filename = baseType == 'full' ? ship.portraitFileName : null;
+      if (baseType == 'full' &&
           (filename == null || !RegExp(r'^[a-z0-9]+$').hasMatch(filename))) {
         continue;
       }
       final path =
-          'kcs2/resources/ship/$type/${id}_$cipher${type == 'full' ? '_$filename' : ''}.png';
+          'kcs2/resources/ship/$type/${id}_$cipher${filename == null ? '' : '_$filename'}.png';
       final resource = snapshot._resourcesByPath[path];
       if (resource != null) return resource;
     }
@@ -265,12 +270,19 @@ class GameModPortraitController extends ChangeNotifier
     notifyListeners();
   }
 
-  Future<GameModPortraitImage?> resolve(MasterShip ship) {
+  Future<GameModPortraitImage?> resolve(
+    MasterShip ship, {
+    bool isDamaged = false,
+  }) {
     final snapshot = _snapshot;
     if (_disposed || !_enabled || snapshot == null || snapshot.token.isEmpty) {
       return SynchronousFuture(null);
     }
-    final resource = GameModPortraitResolver.select(ship, snapshot);
+    final resource = GameModPortraitResolver.select(
+      ship,
+      snapshot,
+      isDamaged: isDamaged,
+    );
     if (resource == null) return SynchronousFuture(null);
     final key = '${snapshot.token}/${resource.id}/fixed-v2';
     final existing = _images.remove(key);

@@ -61,6 +61,7 @@ class _AppExitGuardState extends State<AppExitGuard> {
         actions: [
           GameSurfaceDialogAction(
             id: 'stay',
+            variant: 'filled',
             label: l10n.appExitStay,
             value: false,
           ),

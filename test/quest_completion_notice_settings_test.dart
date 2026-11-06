@@ -215,4 +215,103 @@ void main() {
       notices.hide();
     },
   );
+
+  testWidgets(
+    'expedition screen entry pipeline shows top notice for unresupplied Fleets 2/3/4 and obeys duration',
+    (tester) async {
+      final game = GameStateController(
+        initialState: GameState.empty.copyWith(
+          memberId: 100,
+          hasMasterData: true,
+          masterShips: const {
+            1: MasterShip(
+              id: 1,
+              name: '吹雪',
+              shipTypeId: 2,
+              maxFuel: 15,
+              maxAmmo: 20,
+            ),
+          },
+          ships: const {
+            1: OwnedShip(
+              id: 1,
+              masterId: 1,
+              level: 10,
+              currentFuel: 0,
+              currentAmmo: 0,
+            ),
+            2: OwnedShip(
+              id: 2,
+              masterId: 1,
+              level: 10,
+              currentFuel: 10,
+              currentAmmo: 20,
+            ),
+            3: OwnedShip(
+              id: 3,
+              masterId: 1,
+              level: 10,
+              currentFuel: 15,
+              currentAmmo: 20,
+            ),
+            4: OwnedShip(
+              id: 4,
+              masterId: 1,
+              level: 10,
+              currentFuel: 15,
+              currentAmmo: 15,
+            ),
+          },
+          fleets: const [
+            Fleet(id: 1, name: '第1舰队', shipIds: [1]),
+            Fleet(id: 2, name: '第2舰队', shipIds: [2]),
+            Fleet(id: 3, name: '第3舰队', shipIds: [3]),
+            Fleet(id: 4, name: '第4舰队', shipIds: [4]),
+          ],
+        ),
+      );
+      final layout = await LayoutSettingsController.load(
+        SharedPreferencesLayoutSettingsStore(),
+      );
+      final notices = TopNoticeController();
+      addTearDown(game.dispose);
+      addTearDown(layout.dispose);
+      addTearDown(notices.dispose);
+      await game.initialize();
+      await layout.setTopNoticeDurationSeconds(10);
+      await pumpHarness(tester, game: game, layout: layout, notices: notices);
+
+      final info = GameInfoNoticeController(
+        stateProvider: () => game.state,
+        layoutSettingsController: layout,
+        topNoticeController: notices,
+      );
+      final pipeline = GameApiEventPipeline(
+        consumers: [game, info],
+        settleGameState: () => game.idle,
+      );
+
+      pipeline.add(
+        kcsapiEvent('/kcsapi/api_get_member/mission', {
+          'api_list_items': [
+            {'api_mission_id': 1, 'api_state': 0},
+          ],
+          'api_limit_time': [0, 0, 0],
+        }, capturedAt: DateTime.now().toUtc()),
+      );
+      await pipeline.idle;
+      expect(game.lastError, isNull);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(find.text('远征提醒：第 2、4 舰队尚未补给'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 6));
+      expect(notices.current?.message, '远征提醒：第 2、4 舰队尚未补给');
+      await tester.pump(const Duration(seconds: 4));
+      expect(notices.current, isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      notices.hide();
+    },
+  );
 }

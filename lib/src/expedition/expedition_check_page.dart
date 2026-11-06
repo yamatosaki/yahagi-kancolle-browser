@@ -1,3 +1,4 @@
+import '../widgets/app_popup_menu_button.dart';
 import '../widgets/app_segmented_style.dart';
 import '../theme/app_palette.dart';
 import 'package:flutter/material.dart';
@@ -828,7 +829,7 @@ class _TargetMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<int>(
+    return AppPopupMenuButton<int>(
       initialValue: target,
       onSelected: onSelected,
       color: appColor(context, Color(0xff1b263b)),

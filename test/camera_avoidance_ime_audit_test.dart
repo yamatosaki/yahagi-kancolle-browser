@@ -92,6 +92,34 @@ void main() {
   }
 
   testWidgets(
+    'rotating camera geometry waits for window settling while manual distance stays immediate',
+    (tester) async {
+      restoreView(tester);
+      final harness = _Harness();
+      await harness.pump(tester);
+      expect(harness.bounds, hasLength(1));
+      await harness.pump(
+        tester,
+        size: const Size(400, 900),
+        cutouts: [_cutout(const Rect.fromLTWH(170, 4, 24, 24))],
+      );
+      expect(harness.bounds, hasLength(1));
+      expect(harness.visibility, [true]);
+      await harness.pump(
+        tester,
+        size: const Size(400, 900),
+        distance: 96,
+        cutouts: [_cutout(const Rect.fromLTWH(170, 4, 24, 24))],
+      );
+      expect(harness.bounds, hasLength(2));
+      harness.expectSynchronized(tester);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump();
+      expect(harness.bounds, hasLength(2));
+    },
+  );
+
+  testWidgets(
     'camera enable, distance, and edge changes synchronize during IME',
     (tester) async {
       restoreView(tester);
@@ -289,6 +317,8 @@ void main() {
       distance: 120,
       cutouts: cutouts,
     );
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump();
     expect(harness.bounds, hasLength(count + 1));
     expect(harness.insets.top, 80);
     harness.expectSynchronized(tester);

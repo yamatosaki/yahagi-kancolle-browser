@@ -81,17 +81,23 @@ void main() {
     });
   }
 
-  testWidgets('outside tap acknowledges the active dialog', (tester) async {
-    final h = _Harness(tester);
-    await h.mount();
-    await h.send(DebuffReminderSource.port);
-    await tester.pumpAndSettle();
-    await tester.tapAt(const Offset(5, 5));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'outside tap preserves the alert until explicit acknowledgement',
+    (tester) async {
+      final h = _Harness(tester);
+      await h.mount();
+      await h.send(DebuffReminderSource.port);
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
 
-    expect(_dialog, findsNothing);
-    expect(h.controller.alerts, isEmpty);
-  });
+      expect(_dialog, findsOneWidget);
+      expect(h.controller.alerts, isNotEmpty);
+      await h.confirm();
+      expect(_dialog, findsNothing);
+      expect(h.controller.alerts, isEmpty);
+    },
+  );
 
   testWidgets('system back acknowledges the active dialog', (tester) async {
     final h = _Harness(tester);

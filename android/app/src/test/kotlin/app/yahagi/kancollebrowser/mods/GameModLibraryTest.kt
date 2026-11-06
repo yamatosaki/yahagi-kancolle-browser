@@ -267,6 +267,42 @@ class GameModLibraryTest {
         assertTrue((scan.items.single()["error"] as String).contains("20000"))
     }
 
+    @Test fun `scan imports GBK outer wrapper ZIP and preserves hack override over plain backup`() {
+        val root = temporary.newFolder()
+        val moddedDay = png(1)
+        val plainDay = png(2)
+        val moddedNight = png(3)
+        val plainNight = png(4)
+        val shutter = png(5)
+        val wrapper = "[舰colle] 硬盘挖出来的战斗界面魔改"
+        val gbkZip = ByteArrayOutputStream().also { out ->
+            ZipOutputStream(out, java.nio.charset.Charset.forName("GBK")).use { zip ->
+                zip.putNextEntry(ZipEntry("$wrapper/")); zip.closeEntry()
+                listOf(
+                    "$wrapper/cover.png" to png(0),
+                    "$wrapper/info.json" to "{\"name\":\"battle\"}".toByteArray(),
+                    "$wrapper/kcs2/img/common/bg_map/bg_h.hack.png" to moddedDay,
+                    "$wrapper/kcs2/img/common/bg_map/bg_h.png" to plainDay,
+                    "$wrapper/kcs2/img/common/bg_map/bg_y.hack.png" to moddedNight,
+                    "$wrapper/kcs2/img/common/bg_map/bg_y.png" to plainNight,
+                    "$wrapper/kcs2/img/common/common_shutter.hack.png" to shutter,
+                ).forEach { (name, bytes) ->
+                    zip.putNextEntry(ZipEntry(name)); zip.write(bytes); zip.closeEntry()
+                }
+            }
+        }.toByteArray()
+        root.resolve("$wrapper.zip").writeBytes(gbkZip)
+        val library = GameModLibrary(GameModFileLibraryStore(root), temporary.newFolder())
+        val scan = library.scan()
+        assertEquals("new", scan.items.single()["status"])
+        assertEquals(3, scan.items.single()["supportedCount"])
+        val candidate = library.acceptScan(scan.token).single()
+        val folder = root.resolve(candidate.path)
+        assertArrayEquals(moddedDay, folder.resolve("kcs2/img/common/bg_map/bg_h.png").readBytes())
+        assertArrayEquals(moddedNight, folder.resolve("kcs2/img/common/bg_map/bg_y.png").readBytes())
+        assertArrayEquals(shutter, folder.resolve("kcs2/img/common/common_shutter.png").readBytes())
+    }
+
     private fun zip(vararg entries: Pair<String, ByteArray>): ByteArray = ByteArrayOutputStream().also { output ->
         ZipOutputStream(output).use { zip -> entries.forEach { (name, bytes) -> zip.putNextEntry(ZipEntry(name)); zip.write(bytes); zip.closeEntry() } }
     }.toByteArray()

@@ -5,6 +5,7 @@ import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import '../browser/game_surface_dialog.dart';
 import '../browser/game_dialog_presentation_scope.dart';
 import 'release_check_service.dart';
+import 'release_version.dart';
 
 class StartupUpdateNotice extends StatefulWidget {
   const StartupUpdateNotice({
@@ -89,10 +90,11 @@ class _StartupUpdateNoticeState extends State<StartupUpdateNotice> {
     final l10n =
         AppLocalizations.of(context) ??
         lookupAppLocalizations(const Locale('zh'));
+    final versionLabel = displayReleaseVersion(result.latestVersion);
     await showGameSurfaceDialog<bool>(
       context: context,
       title: l10n.startupUpdateTitle,
-      message: l10n.startupUpdateMessage(result.latestVersion),
+      message: l10n.startupUpdateMessage(versionLabel),
       allowFlutterFallback: false,
       actions: [
         GameSurfaceDialogAction(
@@ -104,7 +106,7 @@ class _StartupUpdateNoticeState extends State<StartupUpdateNotice> {
       builder: (dialogContext, close) => AlertDialog(
         title: Text(l10n.startupUpdateTitle),
         content: SingleChildScrollView(
-          child: Text(l10n.startupUpdateMessage(result.latestVersion)),
+          child: Text(l10n.startupUpdateMessage(versionLabel)),
         ),
         actions: <Widget>[
           TextButton(onPressed: () => close(true), child: Text(l10n.confirm)),

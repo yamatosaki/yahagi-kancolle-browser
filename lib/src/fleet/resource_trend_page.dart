@@ -128,6 +128,7 @@ class _ResourceTrendPageState extends State<ResourceTrendPage>
     bool useSafeArea = true,
   }) {
     final route = DialogRoute<T>(
+      barrierDismissible: false,
       context: context,
       builder: builder,
       useSafeArea: useSafeArea,

@@ -78,6 +78,7 @@ class DevelopmentSecretaryPicker extends StatelessWidget {
           ? null
           : () async {
               final key = await showDialog<String>(
+                barrierDismissible: false,
                 context: context,
                 builder: (context) => _DevelopmentSecretaryPickerDialog(
                   groups: groupDevelopmentSecretaryPools(

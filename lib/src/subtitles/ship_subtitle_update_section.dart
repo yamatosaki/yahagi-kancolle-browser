@@ -101,6 +101,7 @@ final class ShipSubtitleUpdateSection extends StatelessWidget {
       ShipSubtitleUpdateFailed() => l10n.dataCatalogNetworkFailed,
     };
     await showDialog<void>(
+      barrierDismissible: false,
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(strings.title),

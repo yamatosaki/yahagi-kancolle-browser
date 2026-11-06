@@ -3,25 +3,43 @@ package app.yahagi.kancollebrowser.browser
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import org.json.JSONObject
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 
-/** Applies a fixed-canvas fit on the UI thread, including repeated fits at the same percent. */
-internal class FixedCanvasScaleApplier {
-    private val handler = Handler(Looper.getMainLooper())
-    private var latestRequest = 0L
-    private var cancelPending: (() -> Unit)? = null
+/** Fits a stable viewport once, sharing the result with overlapping callers. */
+internal class FixedCanvasScaleApplier(
+    private val documentClient: (WebView) -> WebViewClient? = { webView ->
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.GET_WEB_VIEW_CLIENT)) WebViewCompat.getWebViewClient(webView)
+        else null
+    },
+) {
+    private data class FitKey(
+        val webView: WebView,
+        val documentUrl: String?,
+        val documentClient: WebViewClient?,
+        val documentEpoch: Long?,
+        val unobservedDocumentRequest: Long?,
+        val viewportWidth: Int,
+        val viewportHeight: Int,
+        val scalePercent: Int,
+        val contentWidth: Int,
+        val contentHeight: Int,
+    )
 
-    fun cancel() {
-        latestRequest++
-        val pending = cancelPending
-        cancelPending = null
-        pending?.invoke()
-    }
+    private val handler = Handler(Looper.getMainLooper())
+    private val requests = FixedCanvasFitRequests<FitKey>()
+    private var runningRequest: FixedCanvasFitRequests.Request<FitKey>? = null
+    private var unobservedDocumentRequest = 0L
+
+    fun cancel() = requests.cancel()
 
     fun apply(
         webView: WebView,
@@ -32,33 +50,50 @@ internal class FixedCanvasScaleApplier {
         isCurrent: () -> Boolean,
         onComplete: (Result<Boolean>) -> Unit,
     ) {
-        cancel()
-        val request = latestRequest
-        var completed = false
-        var timeout: Runnable? = null
-        var alignment: Runnable? = null
-        fun finish(outcome: Result<Boolean>) {
-            if (completed) return
-            completed = true
-            timeout?.let(handler::removeCallbacks)
-            alignment?.let(handler::removeCallbacks)
-            if (request == latestRequest) cancelPending = null
-            onComplete(outcome)
-        }
-        cancelPending = { finish(Result.success(false)) }
-        try {
+        val key = try {
             val viewportHeight = webView.height
             require(viewportWidth > 0 && viewportHeight > 0 && scalePercent > 0 && contentWidth > 0 && contentHeight > 0)
-            val targetScale = min(
-                viewportWidth.toDouble() / contentWidth,
-                viewportHeight.toDouble() / contentHeight,
-            )
-            val documentUrl = webView.url
-            fun current() = !completed && request == latestRequest && isCurrent() && webView.url == documentUrl
+            val client = documentClient(webView)
+            // Without a client getter, equal URLs cannot establish that two
+            // calls belong to the same document. Let the latest call settle.
+            FitKey(webView, webView.url, client, (client as? GadgetBypassWebViewClient)?.documentEpoch,
+                if (client == null) ++unobservedDocumentRequest else null,
+                viewportWidth, viewportHeight, scalePercent, contentWidth, contentHeight)
+        } catch (error: RuntimeException) {
+            cancel()
+            onComplete(Result.failure(error))
+            return
+        }
+        val request = requests.begin(key, {
+            isCurrent() && webView.url == key.documentUrl && documentClient(webView) === key.documentClient &&
+                (key.documentClient as? GadgetBypassWebViewClient)?.documentEpoch == key.documentEpoch && webView.width == key.viewportWidth &&
+                webView.height == key.viewportHeight
+        }, onComplete)
+        if (request === runningRequest) return
+        runningRequest = request
+
+        var timeout: Runnable? = null
+        var preparation: Runnable? = null
+        var alignment: Runnable? = null
+        request.onFinish = {
+            timeout?.let(handler::removeCallbacks)
+            preparation?.let(handler::removeCallbacks)
+            alignment?.let(handler::removeCallbacks)
+            if (runningRequest === request) runningRequest = null
+        }
+        fun finish(outcome: Result<Boolean>) = requests.finish(request, outcome)
+        fun current() = requests.isCurrent(request)
+
+        try {
             if (!current()) {
                 finish(Result.success(false))
                 return
             }
+            val targetScale = min(
+                viewportWidth.toDouble() / contentWidth,
+                key.viewportHeight.toDouble() / contentHeight,
+            )
+            val calibration = FixedCanvasCalibration(targetScale, max(contentWidth, contentHeight))
             val timeoutAction = Runnable {
                 val outcome = try {
                     if (!current()) Result.success(false)
@@ -69,25 +104,19 @@ internal class FixedCanvasScaleApplier {
                 finish(outcome)
             }
             timeout = timeoutAction
-            if (!handler.postDelayed(timeoutAction, 5_000L)) {
+            if (!handler.postDelayed(timeoutAction, 3_000L)) {
                 finish(Result.success(false))
                 return
             }
 
-            var observedScale: Double? = null
-            var stableSamples = 0
-            var scaleBeforeZoom: Double? = null
-            var zoomRequestedAt = 0L
-            var targetStableSince: Long? = null
-            var scrollResetPending = false
             fun alignPrecisely() {
                 try {
                     if (!current()) {
                         finish(Result.success(false))
                         return
                     }
-                    // Read renderer geometry rather than WebView.getScale(), whose
-                    // UI-thread cache can still describe the preceding page scale.
+                    // WebView.getScale() can still cache the preceding page
+                    // scale. Read geometry from Chromium's visual viewport.
                     webView.evaluateJavascript("""
                         (() => {
                           if (window.__yahagiMobileReadPresentation?.() !== 'game') return null;
@@ -102,60 +131,24 @@ internal class FixedCanvasScaleApplier {
                             }
                             val viewport = JSONObject(value)
                             val actualScale = viewport.getDouble("scale")
-                            check(actualScale.isFinite() && actualScale > 0) { "Invalid game viewport scale." }
-                            val scaleError = abs(targetScale - actualScale) * max(contentWidth, contentHeight)
-                            val offsetX = abs(viewport.getDouble("x")) * actualScale
-                            val offsetY = abs(viewport.getDouble("y")) * actualScale
-                            val offset = max(offsetX, offsetY)
-                            val previous = observedScale
-                            stableSamples = if (previous != null &&
-                                abs(previous - actualScale) * max(contentWidth, contentHeight) <= 0.05
-                            ) stableSamples + 1 else 1
-                            observedScale = actualScale
-                            val now = SystemClock.uptimeMillis()
-                            val pendingScale = scaleBeforeZoom
-                            if (pendingScale != null && stableSamples >= 3 &&
-                                (abs(pendingScale - actualScale) * max(contentWidth, contentHeight) > 0.05 ||
-                                    now - zoomRequestedAt >= 250L)
-                            ) scaleBeforeZoom = null
-                            // Chromium's minimum zoom can round by a fraction of
-                            // a physical pixel. Do not retry an unresolvable subpixel.
-                            if (scaleError <= 0.25 && offset <= 0.25 && stableSamples >= 3) {
-                                val stableSince = targetStableSince ?: now.also { targetStableSince = it }
-                                if (now - stableSince >= 160L && now - zoomRequestedAt >= 500L) {
-                                    webView.scrollTo(0, 0)
+                            val offset = max(abs(viewport.getDouble("x")), abs(viewport.getDouble("y"))) * actualScale
+                            when (val action = calibration.sample(SystemClock.uptimeMillis(), actualScale, offset)) {
+                                FixedCanvasCalibration.Action.Complete -> {
                                     finish(Result.success(true))
                                     return@evaluateJavascript
                                 }
-                            } else {
-                                targetStableSince = null
-                                if (scaleError > 0.25 && stableSamples >= 3 && scaleBeforeZoom == null) {
-                                    // Use one zoom path only. Mixing initial-scale
-                                    // settings with zoomBy lets late renderer updates
-                                    // overwrite a fit that appeared to have completed.
-                                    scaleBeforeZoom = actualScale
-                                    zoomRequestedAt = now
-                                    webView.zoomBy((targetScale / actualScale).toFloat().coerceIn(0.01f, 100f))
-                                    observedScale = null
-                                    stableSamples = 0
+                                FixedCanvasCalibration.Action.Unresolved -> {
+                                    Log.d("FixedCanvasScale", "Fit did not converge: viewport=${key.viewportWidth}x${key.viewportHeight}, target=$targetScale, actual=$actualScale, offset=$offset")
+                                    finish(Result.success(false))
+                                    return@evaluateJavascript
                                 }
-                            }
-                            if (scrollResetPending) {
-                                webView.scrollTo(0, 0)
-                                scrollResetPending = false
-                            } else if (scaleError <= 0.25 && offset > 0.25 && stableSamples >= 3) {
-                                // Native scroll positions are integers. A leftover
-                                // fractional renderer offset can round to zero, so
-                                // scrollTo(0, 0) alone never sends a new position.
-                                // Move one pixel, then return on the next sample.
-                                webView.scrollTo(if (offsetX > 0.25) 1 else 0, if (offsetY > 0.25) 1 else 0)
-                                scrollResetPending = true
-                            } else {
-                                webView.scrollTo(0, 0)
+                                is FixedCanvasCalibration.Action.Zoom -> webView.zoomBy(action.factor)
+                                FixedCanvasCalibration.Action.ResetScroll -> webView.scrollTo(0, 0)
+                                FixedCanvasCalibration.Action.Wait -> Unit
                             }
                             val retry = Runnable { alignPrecisely() }
                             alignment = retry
-                            if (!handler.postDelayed(retry, 32L)) finish(Result.success(false))
+                            if (!handler.postDelayed(retry, 80L)) finish(Result.success(false))
                         } catch (error: Exception) {
                             finish(Result.failure(error as? RuntimeException
                                 ?: IllegalStateException("Unable to read game viewport.", error)))
@@ -166,9 +159,8 @@ internal class FixedCanvasScaleApplier {
                 }
             }
 
-            // Chromium rounds its viewport in density-independent pixels before
-            // applying the document-width zoom limit. Reserve that rounding plus
-            // one DIP so the exact fit remains above the minimum allowed zoom.
+            // Chromium rounds the viewport in density-independent pixels
+            // before applying its minimum zoom. Keep the exact fit attainable.
             val density = webView.resources.displayMetrics.density.toDouble()
             val roundedViewportWidth = ceil(viewportWidth / density) * density
             val minimumWidth = max(
@@ -184,8 +176,6 @@ internal class FixedCanvasScaleApplier {
                   // CSSOM edits preserve textContent, so runtime reinjection
                   // keeps this rule. Removing the game style releases it.
                   rule.style.setProperty('min-width', '${minimumWidth}px', 'important');
-                  // Independent physical edge rounding can leave a subpixel
-                  // contain margin. Keep the DMM shell outside the game clipped.
                   rule.style.setProperty('background', '#000', 'important');
                   const sheet = style.sheet;
                   let bodyRule = Array.from(sheet.cssRules).find((entry) => entry.selectorText === 'body');
@@ -194,21 +184,30 @@ internal class FixedCanvasScaleApplier {
                   return true;
                 })();
             """.trimIndent()
-            webView.evaluateJavascript(prepare) { prepared ->
-                if (!handler.post {
-                    try {
-                        if (!current() || prepared != "true") {
-                            finish(Result.success(false))
-                        } else {
-                            alignPrecisely()
-                        }
-                    } catch (error: RuntimeException) {
-                        finish(Result.failure(error))
+            val prepareAction = Runnable {
+                try {
+                    if (!current()) {
+                        finish(Result.success(false))
+                        return@Runnable
                     }
-                }) {
-                    finish(Result.success(false))
+                    webView.evaluateJavascript(prepare) { prepared ->
+                        if (!handler.post {
+                            try {
+                                if (!current() || prepared != "true") finish(Result.success(false))
+                                else alignPrecisely()
+                            } catch (error: RuntimeException) {
+                                finish(Result.failure(error))
+                            }
+                        }) finish(Result.success(false))
+                    }
+                } catch (error: RuntimeException) {
+                    finish(Result.failure(error))
                 }
             }
+            preparation = prepareAction
+            // A changed viewport creates a new request and restarts this wait.
+            // Joining the same request does not postpone an already stable fit.
+            if (!handler.postDelayed(prepareAction, 180L)) finish(Result.success(false))
         } catch (error: RuntimeException) {
             finish(Result.failure(error))
         }

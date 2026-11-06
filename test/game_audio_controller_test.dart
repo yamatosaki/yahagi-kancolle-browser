@@ -39,7 +39,7 @@ void main() {
     expect(controller.errorMessage, isNull);
   });
 
-  test('keeps the old state when the native mute call fails', () async {
+  test('retains manual mute intent when the native mute call fails', () async {
     final store = _MemoryAudioStore();
     final port = _RecordingAudioPort();
     final controller = await GameAudioController.load(store);
@@ -48,10 +48,151 @@ void main() {
 
     await controller.toggleMuted();
 
-    expect(controller.isMuted, isFalse);
-    expect(store.savedMuted, isNull);
+    expect(controller.isMuted, isTrue);
+    expect(controller.effectiveMuted, isTrue);
+    expect(store.savedMuted, isTrue);
     expect(controller.errorMessage, isNotNull);
+
+    port.failSetMuted = false;
+    await controller.handleLifecycleState(AppLifecycleState.paused);
+    await controller.handleLifecycleState(AppLifecycleState.resumed);
+    expect(port.actualMuted, isTrue);
+    expect(port.requests.skip(1), everyElement(isTrue));
+    expect(controller.errorMessage, isNull);
   });
+
+  test(
+    'failed preference saving never reopens a successfully muted game',
+    () async {
+      final store = _MemoryAudioStore()
+        ..muteWriteError = StateError('save failed');
+      final port = _RecordingAudioPort();
+      final controller = await GameAudioController.load(store);
+      addTearDown(controller.dispose);
+      await controller.attachPort(port);
+      port.requests.clear();
+
+      await controller.toggleMuted();
+
+      expect(controller.isMuted, isTrue);
+      expect(controller.effectiveMuted, isTrue);
+      expect(port.actualMuted, isTrue);
+      expect(port.requests, [true]);
+      expect(store.savedMuted, isNull);
+      expect(controller.errorMessage, contains('save failed'));
+      await controller.handleLifecycleState(AppLifecycleState.paused);
+      await controller.handleLifecycleState(AppLifecycleState.resumed);
+      expect(port.actualMuted, isTrue);
+      expect(port.requests, [true]);
+      expect(controller.errorMessage, contains('save failed'));
+    },
+  );
+
+  test(
+    'replacement port preserves manual mute after failed preference saving',
+    () async {
+      final store = _MemoryAudioStore()
+        ..muteWriteError = StateError('save failed');
+      final controller = await GameAudioController.load(store);
+      addTearDown(controller.dispose);
+      await controller.attachPort(_RecordingAudioPort());
+      await controller.toggleMuted();
+      final replacement = _RecordingAudioPort();
+
+      await controller.attachPort(replacement);
+
+      expect(controller.isMuted, isTrue);
+      expect(replacement.requests, [true]);
+      expect(replacement.actualMuted, isTrue);
+      expect(controller.errorMessage, contains('save failed'));
+    },
+  );
+
+  test(
+    'a failed unmute cannot discard an earlier unsaved mute warning',
+    () async {
+      final store = _MemoryAudioStore()
+        ..savedMuted = false
+        ..muteWriteError = StateError('mute save failed');
+      final port = _RecordingAudioPort();
+      final controller = await GameAudioController.load(store);
+      addTearDown(controller.dispose);
+      await controller.attachPort(port);
+      await controller.toggleMuted();
+      expect(controller.isMuted, isTrue);
+      expect(store.savedMuted, isFalse);
+      expect(controller.errorMessage, contains('mute save failed'));
+
+      port.failSetMuted = true;
+      await controller.toggleMuted();
+      expect(controller.isMuted, isTrue);
+      expect(store.savedMuted, isFalse);
+      final replacement = _RecordingAudioPort();
+      await controller.attachPort(replacement);
+      await controller.handleLifecycleState(AppLifecycleState.paused);
+      await controller.handleLifecycleState(AppLifecycleState.resumed);
+      expect(controller.isMuted, isTrue);
+      expect(replacement.actualMuted, isTrue);
+      expect(controller.errorMessage, contains('mute save failed'));
+
+      // Only a successful preference write can clear the persistence warning.
+      store.muteWriteError = null;
+      await controller.toggleMuted();
+      expect(controller.isMuted, isFalse);
+      expect(store.savedMuted, isFalse);
+      expect(controller.errorMessage, isNull);
+    },
+  );
+
+  test(
+    'failed unmute restores mute even when the native failure applied first',
+    () async {
+      final store = _MemoryAudioStore()..savedMuted = true;
+      final port = _RecordingAudioPort();
+      final controller = await GameAudioController.load(store);
+      addTearDown(controller.dispose);
+      await controller.attachPort(port);
+      port.requests.clear();
+      port.failSetMuted = true;
+      port.applyBeforeFailure = true;
+
+      await controller.toggleMuted();
+
+      expect(controller.isMuted, isTrue);
+      expect(controller.effectiveMuted, isTrue);
+      expect(store.savedMuted, isTrue);
+      expect(port.requests, [false, true]);
+      expect(port.actualMuted, isTrue);
+      expect(controller.errorMessage, contains('native mute failed'));
+    },
+  );
+
+  test(
+    'explicit successful unmute is kept when preference saving fails',
+    () async {
+      final store = _MemoryAudioStore()
+        ..savedMuted = true
+        ..muteWriteError = StateError('save failed');
+      final port = _RecordingAudioPort();
+      final controller = await GameAudioController.load(store);
+      addTearDown(controller.dispose);
+      await controller.attachPort(port);
+      port.requests.clear();
+
+      await controller.toggleMuted();
+
+      expect(controller.isMuted, isFalse);
+      expect(controller.effectiveMuted, isFalse);
+      expect(port.actualMuted, isFalse);
+      expect(port.requests, [false]);
+      expect(store.savedMuted, isTrue);
+      expect(controller.errorMessage, contains('save failed'));
+      await controller.handleLifecycleState(AppLifecycleState.paused);
+      await controller.handleLifecycleState(AppLifecycleState.resumed);
+      expect(port.actualMuted, isFalse);
+      expect(controller.errorMessage, contains('save failed'));
+    },
+  );
 
   test('reports unsupported without changing system or saved state', () async {
     final store = _MemoryAudioStore();
@@ -149,12 +290,14 @@ void main() {
 final class _MemoryAudioStore implements GameAudioStore {
   bool? savedMuted;
   bool? savedBackgroundPlayback;
+  Object? muteWriteError;
 
   @override
   Future<bool?> readMuted() async => savedMuted;
 
   @override
   Future<void> writeMuted(bool muted) async {
+    if (muteWriteError case final error?) throw error;
     savedMuted = muted;
   }
 
@@ -171,6 +314,9 @@ final class _MemoryAudioStore implements GameAudioStore {
 final class _RecordingAudioPort implements GameAudioPort {
   bool supported = true;
   bool failSetMuted = false;
+  bool applyBeforeFailure = false;
+  bool? actualMuted;
+  final List<bool> requests = [];
   final List<bool> mutedValues = [];
 
   @override
@@ -178,9 +324,12 @@ final class _RecordingAudioPort implements GameAudioPort {
 
   @override
   Future<void> setMuted(bool muted) async {
+    requests.add(muted);
+    if (applyBeforeFailure) actualMuted = muted;
     if (failSetMuted) {
       throw StateError('native mute failed');
     }
     mutedValues.add(muted);
+    actualMuted = muted;
   }
 }

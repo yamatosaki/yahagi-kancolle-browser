@@ -379,6 +379,7 @@ class _GameResourceCacheSectionState extends State<GameResourceCacheSection>
     required String confirmLabel,
   }) async =>
       await showDialog<bool>(
+        barrierDismissible: false,
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text(title),

@@ -152,6 +152,7 @@ final class CameraAvoidanceScope extends InheritedWidget {
     required this.enabled,
     this.cutoutEdges = const <CameraAvoidanceEdge>{},
     this.synchronizationInsets,
+    this.requestedDistance,
     required super.child,
   });
 
@@ -164,6 +165,10 @@ final class CameraAvoidanceScope extends InheritedWidget {
   /// from margins capped only by temporary keyboard constraints.
   final EdgeInsets? synchronizationInsets;
 
+  /// Keeps an intentional setting change distinguishable from the same
+  /// distance moving to another edge or being capped by a resized window.
+  final double? requestedDistance;
+
   static CameraAvoidanceScope? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<CameraAvoidanceScope>();
 
@@ -172,12 +177,17 @@ final class CameraAvoidanceScope extends InheritedWidget {
   EdgeInsets gameViewPadding(EdgeInsets padding) =>
       !enabled ? padding : _withoutCutoutPadding(padding, cutoutEdges);
 
+  /// Apply the same window-to-local conversion as this scope's MediaQuery.
+  EdgeInsets localViewPadding(EdgeInsets windowPadding) =>
+      gameViewPadding(_remaining(windowPadding, insets));
+
   @override
   bool updateShouldNotify(CameraAvoidanceScope oldWidget) =>
       oldWidget.insets != insets ||
       oldWidget.windowSize != windowSize ||
       oldWidget.enabled != enabled ||
       oldWidget.synchronizationInsets != synchronizationInsets ||
+      oldWidget.requestedDistance != requestedDistance ||
       !setEquals(oldWidget.cutoutEdges, cutoutEdges);
 }
 
@@ -367,6 +377,7 @@ final class _CameraAvoidanceViewportState
               widget.enabled,
               widget.distance,
             ),
+            requestedDistance: widget.distance,
             child: Padding(
               padding: insets,
               child: MediaQuery(data: localMedia, child: widget.child),

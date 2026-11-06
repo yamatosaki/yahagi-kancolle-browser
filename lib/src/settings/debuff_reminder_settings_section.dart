@@ -27,6 +27,7 @@ class DebuffReminderSettingsSection extends StatelessWidget
             width: 220,
             child: DropdownButtonHideUnderline(
               child: DropdownButton<DebuffReminderStyle>(
+                barrierDismissible: false,
                 key: const Key('debuff-reminder-style-menu'),
                 value: settings.debuffReminderStyle,
                 alignment: AlignmentDirectional.centerEnd,

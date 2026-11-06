@@ -66,6 +66,19 @@ void main() {
           );
         } else if (close == 'outside') {
           await tester.tapAt(const Offset(5, 200));
+          await tester.pump();
+          expect(
+            find.byKey(const Key('header-resource-filter-dialog')),
+            findsOneWidget,
+          );
+          expect(
+            find.byKey(const Key('game-safety-input-guard')),
+            findsNothing,
+          );
+          expect(gameTouches, 0);
+          await tester.tap(
+            find.byKey(const Key('header-resource-filter-done')),
+          );
         } else if (close == 'held-cancel') {
           await settings.setUiLocked(true);
         } else {

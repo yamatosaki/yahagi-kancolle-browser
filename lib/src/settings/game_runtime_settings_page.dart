@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../audio/game_audio_controller.dart';
+import '../audio/game_audio_feedback.dart';
 import '../capture/capture_mode_controller.dart';
 import '../capture/capture_mode_selector.dart';
 import '../localization/runtime_message_text.dart';
@@ -92,9 +93,13 @@ class GameRuntimeSettingsPage extends StatelessWidget with SettingsUIHelpers {
                 buildSwitchTile(
                   title: l10n.gameSound,
                   value: !audio.isMuted,
-                  onChanged: (value) {
-                    if (audio.canToggle) audio.toggleMuted();
+                  subtitle: switch (audio.errorMessage) {
+                    final error? => gameAudioErrorText(context, error),
+                    null => null,
                   },
+                  onChanged: audio.canToggle
+                      ? (_) => audio.toggleMuted()
+                      : null,
                 ),
                 _divider(context),
                 buildSwitchTile(

@@ -72,10 +72,13 @@ internal data class NativeGameWarningDialogSpec(
     val items: List<NativeGameChecklistItem> = emptyList(),
     val resetLabel: String? = null,
     val appliedChangeId: Long = 0L,
-    val dismissible: Boolean = true,
+    val dismissible: Boolean = false,
     val checkbox: NativeGameSurfaceCheckbox? = null,
     val choices: List<NativeGameSurfaceChoice> = emptyList(),
     val selectedChoiceId: String? = null,
+    val presentation: NativeGameDialogPresentation = NativeGameDialogPresentation(),
+    val variants: Map<String, String> = emptyMap(),
+    val postTouchProtectionActions: Set<String>? = null,
 ) {
     val key: NativeGameDialogKey get() = NativeGameDialogKey(kind, id)
     val isNotice: Boolean get() = kind != "battle"
@@ -134,21 +137,37 @@ internal data class NativeGameWarningDialogSpec(
             val applied = values["appliedChangeId"] ?: 0L
             require(applied is Number && applied.toDouble().isFinite() && applied.toLong() >= 0 &&
                 applied.toDouble() == applied.toLong().toDouble()) { "Invalid applied checklist change id" }
-            require(surface || listOf("choices", "checkbox", "selectedChoiceId", "dismissible").none { values.containsKey(it) }) {
+            require(surface || listOf("choices", "checkbox", "selectedChoiceId", "dismissible", "postTouchProtectionActions").none { values.containsKey(it) }) {
                 "Surface dialog controls require a surface dialog"
             }
-            val dismissible = values["dismissible"] ?: true
-            require(dismissible is Boolean) { "Dialog dismissible must be boolean" }
+            // Accept legacy boolean payloads without allowing outside dismissal.
+            val requestedDismissible = values["dismissible"] ?: false
+            require(requestedDismissible is Boolean) { "Dialog dismissible must be boolean" }
             val checkbox = values["checkbox"]?.let(NativeGameSurfaceCheckbox::parse)
             val rawChoices = values["choices"]
             require(rawChoices == null || rawChoices is List<*>) { "Dialog choices must be a list" }
             val choices = (rawChoices as? List<*>)?.map(NativeGameSurfaceChoice::parse) ?: emptyList()
             require(choices.size <= 256 && choices.map { it.id }.toSet().size == choices.size &&
                 choices.none { it.id in displayActions }) { "Dialog choice ids must be unique, bounded and distinct from actions" }
+            val postTouchProtectionActions = if (values.containsKey("postTouchProtectionActions")) {
+                val raw = values["postTouchProtectionActions"]
+                require(raw is List<*>) { "Post-touch protection actions must be a list" }
+                val knownIds = displayActions.toSet() + choices.map { it.id }
+                require(raw.size <= knownIds.size && raw.all { it is String && it in knownIds } &&
+                    raw.toSet().size == raw.size) { "Post-touch protection actions must be unique existing action or choice ids" }
+                raw.map { it as String }.toSet()
+            } else null
             val selectedChoiceId = values["selectedChoiceId"]?.let {
                 require(it is String && choices.any { choice -> choice.id == it }) { "Unknown selected dialog choice" }
                 it
             }
+            val variants = values["variants"]?.let { raw ->
+                require(raw is Map<*, *> && raw.keys.all { it in displayActions }) { "Invalid dialog action variants" }
+                raw.entries.associate { (key, variant) ->
+                    require(variant in setOf("text", "filled", "outlined")) { "Invalid dialog action variant" }
+                    key as String to variant as String
+                }
+            } ?: emptyMap()
             return NativeGameWarningDialogSpec(
                 id, text("title"), if (notice && values["headline"] == null) "" else text("headline", allowEmpty = notice),
                 if (checklist && values["body"] == null) "" else text("body", allowEmpty = true), rows,
@@ -162,7 +181,8 @@ internal data class NativeGameWarningDialogSpec(
                     value ?: true
                 },
                 (values["refreshFailed"] as? String)?.takeIf { it.isNotEmpty() },
-                kind, displayActions, items, resetLabel, applied.toLong(), dismissible, checkbox, choices, selectedChoiceId,
+                kind, displayActions, items, resetLabel, applied.toLong(), false, checkbox, choices, selectedChoiceId,
+                NativeGameDialogPresentation.parse(values["presentation"]), variants, postTouchProtectionActions,
             )
         }
     }

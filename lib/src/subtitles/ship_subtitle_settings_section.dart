@@ -41,6 +41,7 @@ class ShipSubtitleSettingsSection extends StatelessWidget
             _choiceRow(
               strings.language,
               DropdownButton<ShipSubtitleLanguage>(
+                barrierDismissible: false,
                 key: const Key('settings-ship-subtitle-language'),
                 value: controller.language,
                 underline: const SizedBox(),
@@ -63,6 +64,7 @@ class ShipSubtitleSettingsSection extends StatelessWidget
             _choiceRow(
               strings.fontSize,
               DropdownButton<ShipSubtitleFontSize>(
+                barrierDismissible: false,
                 key: const Key('settings-ship-subtitle-font-size'),
                 value: controller.fontSize,
                 underline: const SizedBox(),

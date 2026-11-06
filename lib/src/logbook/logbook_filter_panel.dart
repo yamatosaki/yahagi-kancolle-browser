@@ -42,7 +42,7 @@ Future<Map<String, String>?> showLogbookFilterPanel({
       : anchor;
   return showGeneralDialog<Map<String, String>>(
     context: context,
-    barrierDismissible: true,
+    barrierDismissible: false,
     barrierLabel: uiText(context, '关闭筛选'),
     barrierColor: appColor(context, Colors.transparent),
     transitionDuration: const Duration(milliseconds: 120),
@@ -211,6 +211,7 @@ class _FilterPanelRouteState extends State<_FilterPanelRoute> {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
+              barrierDismissible: false,
               value: value,
               isExpanded: true,
               dropdownColor: appColor(context, Color(0xff102936)),

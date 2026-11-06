@@ -44,6 +44,11 @@ void main() {
       await tester.pumpAndSettle();
       if (close == 'outside') {
         await tester.tapAt(const Offset(5, 5));
+        await tester.pump();
+        expect(find.text('title'), findsOneWidget);
+        expect(presentation.isClosing, isFalse);
+        expect(h.gameTouches, 0);
+        await tester.tap(find.byKey(_ack));
       } else {
         await tester.binding.handlePopRoute();
       }

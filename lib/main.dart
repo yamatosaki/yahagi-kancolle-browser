@@ -29,6 +29,7 @@ import 'src/fleet/resource_grid.dart';
 import 'src/logbook/logbook_page.dart';
 import 'src/battle/live_battle_card.dart';
 import 'src/audio/game_audio_controller.dart';
+import 'src/audio/game_audio_feedback.dart';
 import 'src/audio/game_audio_store.dart';
 import 'src/browser/game_browser_controller.dart';
 import 'src/browser/game_load_event.dart';
@@ -48,6 +49,7 @@ import 'src/browser/game_toolbar_display_controller.dart';
 import 'src/browser/game_screenshot_controller.dart';
 import 'src/browser/game_surface_boundary.dart';
 import 'src/browser/game_surface_viewport.dart';
+import 'src/layout/window_layout_controller.dart';
 import 'src/browser/game_workspace_visibility.dart';
 import 'src/browser/game_environment_host.dart';
 import 'src/browser/game_application_restart_port.dart';
@@ -307,6 +309,17 @@ Future<void> main() async {
     ),
     gameStateStore: gameStateStore,
   );
+  void updateFleetInformationSyncMode() {
+    gameStateController.setDeferFleetBattleDisplay(
+      battlePredictionSettingsController.fleetInformationSyncMode ==
+          FleetInformationSyncMode.settlement,
+    );
+  }
+
+  updateFleetInformationSyncMode();
+  battlePredictionSettingsController.addListener(
+    updateFleetInformationSyncMode,
+  );
   await gameStateController.initialize();
   final kcwikiReportController = await KcwikiReportController.load(
     SharedPreferencesKcwikiReportSettingsStore(),
@@ -468,6 +481,8 @@ Future<void> main() async {
     waitForGameState: () => gameStateController.idle,
     onFriendlyHpUpdated: gameStateController.applyFriendlyBattleHp,
     onDamageControlConsumed: gameStateController.applyDamageControlConsumption,
+    onFleetBattleDisplayStarted: gameStateController.beginFleetBattleDisplay,
+    onFleetBattleDisplaySettled: gameStateController.settleFleetBattleDisplay,
     damageAlertPort: const MethodChannelBattleDamageAlertPort(),
     battleStatusEffectSettings: () =>
         safetySettingsController.battleStatusEffects,
@@ -1328,31 +1343,38 @@ class YahagiApp extends StatelessWidget {
   }
 
   Widget _withDebuffReminders(Widget child) {
-    final scopedChild = GameDialogPresentationScope(
+    Widget scoped(Widget child) => GameDialogPresentationScope(
       nativeActivity:
           gameRenderingModeController?.mode.usesActivityWebView == true,
       presentationEnabled: !(gameRenderingModeController?.isBusy ?? false),
+      customFontPath:
+          layoutSettingsController.customFontController?.selectedFont?.path,
       child: child,
     );
     final reminder = debuffReminderController;
     final settings = notificationSettingsController;
     final notices = headerNoticeController;
     if (reminder == null || settings == null || notices == null) {
-      return scopedChild;
+      return scoped(child);
     }
-    return DebuffReminderFeedback(
-      controller: reminder,
-      nativeWarningDialogPort:
-          gameRenderingModeController?.mode.usesActivityWebView == true &&
-              !(gameRenderingModeController?.isBusy ?? false)
-          ? const MethodChannelNativeGameWarningDialogPort.forReminder('debuff')
-          : null,
-      presentationEnabled: !(gameRenderingModeController?.isBusy ?? false),
-      settingsController: settings,
-      headerNoticeController: notices,
-      topNoticeDuration: () =>
-          Duration(seconds: layoutSettingsController.topNoticeDurationSeconds),
-      child: scopedChild,
+    return scoped(
+      DebuffReminderFeedback(
+        controller: reminder,
+        nativeWarningDialogPort:
+            gameRenderingModeController?.mode.usesActivityWebView == true &&
+                !(gameRenderingModeController?.isBusy ?? false)
+            ? const MethodChannelNativeGameWarningDialogPort.forReminder(
+                'debuff',
+              )
+            : null,
+        presentationEnabled: !(gameRenderingModeController?.isBusy ?? false),
+        settingsController: settings,
+        headerNoticeController: notices,
+        topNoticeDuration: () => Duration(
+          seconds: layoutSettingsController.topNoticeDurationSeconds,
+        ),
+        child: child,
+      ),
     );
   }
 
@@ -1646,10 +1668,16 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   );
   final WindowMetricsRecoveryScheduler _windowMetricsRecoveryScheduler =
       WindowMetricsRecoveryScheduler();
+  final WindowLayoutController _windowLayoutController =
+      WindowLayoutController.acquire();
+  int _windowMetricsRecoveryGeneration = 0;
+  bool _windowFitRequested = false;
   WindowMetricsChangeTracker? _windowMetricsChangeTracker;
+  EdgeInsets? _stableFallbackViewPadding;
+  EdgeInsets? _stableNativeViewPadding;
+  bool _fallbackPaddingGeometryPending = false;
   int _workspaceIndex = 0;
   bool _gameFullscreen = false;
-  bool _layoutFitScheduled = false;
   Size? _normalWorkspaceSize;
   bool _gameWorkspaceSizeFrozen = false;
   int? _expeditionCheckFleetId;
@@ -1682,6 +1710,8 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _windowLayoutController.addListener(_onWindowLayoutChanged);
+    unawaited(_windowLayoutController.initialize());
     unawaited(_gameModsController.initialize());
     widget.displayModeController.addListener(_onDisplayModeChanged);
     widget.layoutSettingsController.addListener(_onLayoutSettingsChanged);
@@ -1723,6 +1753,8 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
     _questFilters.dispose();
     _gameModsController.dispose();
     _windowMetricsRecoveryScheduler.dispose();
+    _windowLayoutController.removeListener(_onWindowLayoutChanged);
+    WindowLayoutController.release(_windowLayoutController);
     _backgroundGameRetentionCoordinator?.dispose();
     widget.telemetryController?.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -1782,9 +1814,33 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final view = View.of(context);
     _windowMetricsChangeTracker ??= WindowMetricsChangeTracker(
-      WindowMetricsSnapshot.fromView(View.of(context)),
+      WindowMetricsSnapshot.fromView(view),
     );
+    _stableFallbackViewPadding ??= EdgeInsets.fromViewPadding(
+      view.viewPadding,
+      view.devicePixelRatio,
+    );
+    _stableNativeViewPadding =
+        _readStableNativeViewPadding() ?? _stableNativeViewPadding;
+  }
+
+  EdgeInsets? _readStableNativeViewPadding() {
+    final view = View.of(context);
+    return _windowLayoutController.stableViewPadding(
+      physicalViewSize: view.physicalSize,
+      devicePixelRatio: view.devicePixelRatio,
+    );
+  }
+
+  EdgeInsets _gameViewPadding() {
+    final padding =
+        _stableNativeViewPadding ??
+        _stableFallbackViewPadding ??
+        EdgeInsets.zero;
+    return CameraAvoidanceScope.maybeOf(context)?.localViewPadding(padding) ??
+        padding;
   }
 
   void _onLayoutSettingsChanged() {
@@ -1800,14 +1856,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
         _hdEditing = false;
       }
     });
-    if (_layoutFitScheduled) return;
-    _layoutFitScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _layoutFitScheduled = false;
-      if (mounted) {
-        widget.browserController.fitGameScreen().catchError((Object _) {});
-      }
-    });
+    _fitGameScreenAfterFrame();
   }
 
   @override
@@ -1825,15 +1874,20 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
     if (tracker != null) {
       final change = tracker.update(current);
       if (change == WindowMetricsChange.imeOnly) {
+        if (!tracker.isImeVisible) _fallbackPaddingGeometryPending = false;
+        _windowFitRequested = false;
+        _windowMetricsRecoveryGeneration++;
         _windowMetricsRecoveryScheduler.cancel();
         return;
       }
       if (change == WindowMetricsChange.unchanged) {
         return;
       }
+      if (change == WindowMetricsChange.insetsOnly) return;
     } else {
       _windowMetricsChangeTracker = WindowMetricsChangeTracker(current);
     }
+    _fallbackPaddingGeometryPending = true;
     _applyOrientationPolicy();
     _scheduleWindowMetricsRecovery();
   }
@@ -1846,18 +1900,65 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   }
 
   void _scheduleWindowMetricsRecovery() {
+    _windowFitRequested = true;
+    final generation = ++_windowMetricsRecoveryGeneration;
     _windowMetricsRecoveryScheduler.schedule(() {
       if (!mounted) return;
       final tracker = _windowMetricsChangeTracker;
       if (tracker?.isImeVisible ?? false) return;
+      if (!_windowLayoutController.canSynchronize(
+        View.of(context).physicalSize,
+        requireMatchingPhysicalSize: _gameFullscreen,
+      )) {
+        return;
+      }
+      if (_fallbackPaddingGeometryPending) {
+        final view = View.of(context);
+        _stableFallbackViewPadding = EdgeInsets.fromViewPadding(
+          view.viewPadding,
+          view.devicePixelRatio,
+        );
+        _fallbackPaddingGeometryPending = false;
+      }
+      _stableNativeViewPadding =
+          _readStableNativeViewPadding() ?? _stableNativeViewPadding;
       setState(() {});
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+        if (!mounted || generation != _windowMetricsRecoveryGeneration) return;
         if (tracker?.isImeVisible ?? false) return;
+        if (!_windowLayoutController.canSynchronize(
+          View.of(context).physicalSize,
+          requireMatchingPhysicalSize: _gameFullscreen,
+        )) {
+          return;
+        }
         tracker?.markCurrentGeometryStable();
+        _windowFitRequested = false;
         widget.browserController.fitGameScreen().catchError((Object _) {});
       });
     });
+  }
+
+  void _onWindowLayoutChanged() {
+    if (!mounted) return;
+    if (!_windowLayoutController.canSynchronize(
+      View.of(context).physicalSize,
+      requireMatchingPhysicalSize: _gameFullscreen,
+    )) {
+      _windowMetricsRecoveryGeneration++;
+      _windowMetricsRecoveryScheduler.cancel();
+      return;
+    }
+    final nativePadding = _readStableNativeViewPadding();
+    final paddingChanged =
+        nativePadding != null && nativePadding != _stableNativeViewPadding;
+    if (nativePadding != null) _stableNativeViewPadding = nativePadding;
+    if (_gameFullscreen || paddingChanged) {
+      setState(() {});
+    }
+    if (_gameFullscreen || _windowFitRequested || paddingChanged) {
+      _scheduleWindowMetricsRecovery();
+    }
   }
 
   void _onDisplayModeChanged() {
@@ -1869,10 +1970,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   }
 
   void _fitGameScreenAfterFrame() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      widget.browserController.fitGameScreen().catchError((Object _) {});
-    });
+    _scheduleWindowMetricsRecovery();
   }
 
   void _applyOrientationPolicy() {
@@ -1938,24 +2036,30 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
             title: l10n.selectHeaderVisibleItems,
             message: '',
             builder: (dialogContext, acknowledge) => Dialog(
-              backgroundColor: appColor(dialogContext, const Color(0xff142735)),
-              insetPadding: const EdgeInsets.all(16),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 720),
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(24),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Row(
                         children: [
-                          Expanded(child: Text(l10n.selectHeaderVisibleItems)),
+                          Expanded(
+                            child: Text(
+                              l10n.selectHeaderVisibleItems,
+                              style: Theme.of(
+                                dialogContext,
+                              ).textTheme.headlineSmall,
+                            ),
+                          ),
                           IconButton(
                             key: const Key('settings-header-editor-close'),
                             tooltip: MaterialLocalizations.of(
                               dialogContext,
                             ).closeButtonTooltip,
                             onPressed: acknowledge,
+                            color: Theme.of(dialogContext).colorScheme.primary,
                             icon: const Icon(Icons.close),
                           ),
                         ],
@@ -2048,7 +2152,20 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
         isMuted: widget.audioController.isMuted,
         audioEnabled: widget.audioController.canToggle,
         onToggleMuted: () async {
-          await widget.audioController.toggleMuted();
+          final audio = widget.audioController;
+          await audio.toggleMuted();
+          if (!mounted ||
+              !context.mounted ||
+              !identical(audio, widget.audioController)) {
+            return;
+          }
+          if (audio.errorMessage case final error?) {
+            TopNotice.show(
+              context,
+              message: gameAudioErrorText(context, error),
+              tone: TopNoticeTone.error,
+            );
+          }
         },
         onFitScreen: () async {
           try {
@@ -2177,7 +2294,8 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
     // HD keeps its own viewport and safe-area geometry while its modules can
     // use the minimal panel style.
     final flatShell = usesFlatPanel(size: uiSize, hd: hd) && !hd;
-    final bottomSafeArea = MediaQuery.viewPaddingOf(context).bottom;
+    final gameViewPadding = _gameViewPadding();
+    final bottomSafeArea = gameViewPadding.bottom;
     // A horizontal bar on the bottom screen edge sits between the content and
     // the gesture area, so in the flat layout the bar clears the gesture area
     // itself and the content above it does not.
@@ -2279,14 +2397,6 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
       },
     );
 
-    final logbookMenuExtent = shellNavigationExtent;
-    final logbookOccupiedInsets = menuHorizontal
-        ? EdgeInsets.only(
-            bottom: menuTop ? 0 : logbookMenuExtent + navigationGestureInset,
-          )
-        : menuOnRight
-        ? EdgeInsets.only(right: logbookMenuExtent)
-        : EdgeInsets.only(left: logbookMenuExtent);
     final panelAlignedNavigation =
         _workspaceIndex == 0 &&
         // Keep navigation beside both panels when the remaining workspace is
@@ -2880,8 +2990,20 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                           final gameSurfaceWrapper =
                                               GameSurfaceViewport(
                                                 aspectRatio: 1200 / 720,
+                                                viewPadding: gameViewPadding,
                                                 fullscreen: _gameFullscreen,
                                                 isLandscape: isLandscape,
+                                                fullscreenFitAxis:
+                                                    _windowLayoutController
+                                                        .fitAxis(
+                                                          physicalSize: View.of(
+                                                            context,
+                                                          ).physicalSize,
+                                                          isLandscape:
+                                                              currentWindowSize()
+                                                                  .aspectRatio >
+                                                              1,
+                                                        ),
                                                 displayMode: screenDisplayMode,
                                                 fitWithinBounds:
                                                     menuHorizontal &&
@@ -3455,7 +3577,6 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                         LogbookPage(
                                           battleController:
                                               widget.battleController,
-                                          occupiedInsets: logbookOccupiedInsets,
                                           selectedTabIndex: _logbookTabIndex,
                                           onTabChanged: (value) {
                                             setState(

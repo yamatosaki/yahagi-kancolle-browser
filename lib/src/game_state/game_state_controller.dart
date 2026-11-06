@@ -87,6 +87,7 @@ final class GameStateController extends ChangeNotifier
     if (identical(scope, _accountScope)) return;
     _accountScope = scope;
     _sortieConsumptions.clear();
+    _fleetBattleDisplayHold = null;
     _captureContinuityInterrupted = false;
     _sortieCaptureDocumentId = null;
     _hasAcceptedLiveEvent = true;
@@ -268,8 +269,48 @@ final class GameStateController extends ChangeNotifier
   String? _lastUpdatedPath;
   bool _disposed = false;
   bool _hasAcceptedLiveEvent;
+  bool _deferFleetBattleDisplay = false;
+  _FleetBattleDisplayHold? _fleetBattleDisplayHold;
 
   GameState get state => _state;
+
+  /// The display hold applies only to the fleet views, never to safety checks.
+  GameState get fleetDisplayState {
+    return _fleetBattleDisplayHold?.project(_state, _reducer) ?? _state;
+  }
+
+  void setDeferFleetBattleDisplay(bool defer) {
+    if (_deferFleetBattleDisplay == defer) return;
+    _deferFleetBattleDisplay = defer;
+    if (!defer && _fleetBattleDisplayHold != null) {
+      _fleetBattleDisplayHold = null;
+      _notifyUiListeners();
+    }
+  }
+
+  void beginFleetBattleDisplay(Iterable<int> shipIds) {
+    if (_disposed || !_deferFleetBattleDisplay || shipIds.isEmpty) return;
+    _fleetBattleDisplayHold ??= _FleetBattleDisplayHold(
+      _state,
+      shipIds.toSet(),
+    );
+  }
+
+  void settleFleetBattleDisplay() {
+    final hold = _fleetBattleDisplayHold;
+    if (hold == null) return;
+    final continuityGeneration = _captureContinuityGeneration;
+    // Let pending HP and damage-control writes finish before revealing them.
+    _queue = _queue.then((_) {
+      if (_disposed ||
+          continuityGeneration != _captureContinuityGeneration ||
+          _fleetBattleDisplayHold != hold) {
+        return;
+      }
+      _fleetBattleDisplayHold = null;
+      _captureNotifications.schedule(_notifyUiListeners);
+    });
+  }
 
   /// State changes for notification scheduling, independent of UI frames.
   Listenable get notificationChanges => _notificationChanges;
@@ -310,6 +351,11 @@ final class GameStateController extends ChangeNotifier
   void interruptCaptureContinuity() {
     _captureContinuityGeneration++;
     _captureContinuityInterrupted = true;
+    // After a capture gap there may be no matching settlement to release it.
+    if (_fleetBattleDisplayHold != null) {
+      _fleetBattleDisplayHold = null;
+      _captureNotifications.schedule(_notifyUiListeners);
+    }
   }
 
   bool _preservesInterruptedConsumptions(CapturedApiEvent event) =>
@@ -507,6 +553,12 @@ final class GameStateController extends ChangeNotifier
           _captureContinuityInterrupted = false;
           _sortieCaptureDocumentId = null;
         }
+        if (resetsConsumptions ||
+            event.path == '/kcsapi/api_req_map/start' ||
+            event.path == '/kcsapi/api_req_map/next' ||
+            event.path == '/kcsapi/api_req_map/air_raid') {
+          _fleetBattleDisplayHold = null;
+        }
         if (next.combatState.isActive && event.captureDocumentId != null) {
           _sortieCaptureDocumentId = event.captureDocumentId;
         }
@@ -653,5 +705,24 @@ final class GameStateController extends ChangeNotifier
       unawaited(gameStateStore!.flush());
     }
     super.dispose();
+  }
+}
+
+final class _FleetBattleDisplayHold {
+  _FleetBattleDisplayHold(this.baseline, this.shipIds)
+    : _source = baseline,
+      _display = baseline;
+
+  final GameState baseline;
+  final Set<int> shipIds;
+  GameState _source;
+  GameState _display;
+
+  GameState project(GameState state, GameStateReducer reducer) {
+    if (!identical(state, _source)) {
+      _display = reducer.projectFleetBattleDisplay(state, baseline, shipIds);
+      _source = state;
+    }
+    return _display;
   }
 }

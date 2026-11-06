@@ -5,6 +5,30 @@ import 'package:flutter/painting.dart';
 import 'package:yahagi_kancolle_browser/src/layout/window_metrics_change.dart';
 
 void main() {
+  test('system bar visibility alone does not resize the window', () {
+    const hidden = WindowMetricsSnapshot(
+      physicalSize: Size(1220, 824),
+      devicePixelRatio: 3.25,
+      imeBottom: 0,
+    );
+    for (final padding in const [
+      EdgeInsets.only(bottom: 52),
+      EdgeInsets.only(right: 52),
+    ]) {
+      final shown = WindowMetricsSnapshot(
+        physicalSize: hidden.physicalSize,
+        devicePixelRatio: hidden.devicePixelRatio,
+        imeBottom: 0,
+        viewPadding: padding,
+      );
+      expect(classifyWindowMetricsChange(hidden, shown).name, 'insetsOnly');
+      expect(classifyWindowMetricsChange(shown, hidden).name, 'insetsOnly');
+      final tracker = WindowMetricsChangeTracker(hidden);
+      expect(tracker.update(shown).name, 'insetsOnly');
+      expect(tracker.update(hidden).name, 'insetsOnly');
+    }
+  });
+
   test('180-degree cutout and safe-inset swaps count as geometry changes', () {
     final left = WindowMetricsSnapshot(
       physicalSize: const Size(2400, 1080),

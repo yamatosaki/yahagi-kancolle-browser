@@ -20,6 +20,7 @@ import '../widgets/top_notice.dart';
 /// - Ship modernization (increases, MAX flags, failure)
 /// - Marriage (luck bonus and remaining to cap)
 /// - Sortie safety checks (ship/equipment capacity warnings)
+/// - Expedition supply checks (Fleets 2, 3, and 4 fuel/ammo status)
 /// - Practice assistant (opponent base experience and training cruiser bonus)
 class GameInfoNoticeController implements GameApiEventConsumer {
   GameInfoNoticeController({
@@ -65,6 +66,7 @@ class GameInfoNoticeController implements GameApiEventConsumer {
         path == '/kcsapi/api_req_kaisou/powerup' ||
         path == '/kcsapi/api_req_kaisou/marriage' ||
         path == '/kcsapi/api_get_member/mapinfo' ||
+        path == '/kcsapi/api_get_member/mission' ||
         path == '/kcsapi/api_req_member/get_practice_enemyinfo';
   }
 
@@ -84,8 +86,15 @@ class GameInfoNoticeController implements GameApiEventConsumer {
         return;
       }
       try {
-        final rawData = GameApiDecoder.decodeEventData(event);
+        final rawData = GameApiDecoder.decodeEventData(
+          event,
+          allowMissingData: event.path == '/kcsapi/api_get_member/mission',
+        );
         if (_disposed || (scope != null && !accountSession!.isCurrent(scope))) {
+          return;
+        }
+        if (event.path == '/kcsapi/api_get_member/mission') {
+          _handleExpeditionCheck(stateBefore);
           return;
         }
         if (rawData is! Map<String, Object?>) return;
@@ -488,6 +497,61 @@ class GameInfoNoticeController implements GameApiEventConsumer {
       );
       return;
     }
+  }
+
+  void _handleExpeditionCheck(GameState state) {
+    if (state.fleets.isEmpty || !state.hasMasterData) {
+      return;
+    }
+
+    final unresuppliedFleetIds = <int>[];
+    for (final targetFleetId in const <int>[2, 3, 4]) {
+      Fleet? fleet;
+      for (final candidate in state.fleets) {
+        if (candidate.id == targetFleetId) {
+          fleet = candidate;
+          break;
+        }
+      }
+      if (fleet == null ||
+          fleet.shipIds.isEmpty ||
+          fleet.mission.isActive ||
+          fleet.mission.state > 0) {
+        continue;
+      }
+
+      var needsSupply = false;
+      for (final shipId in fleet.shipIds) {
+        final ship = state.ships[shipId];
+        if (ship == null) continue;
+        final master = state.masterShips[ship.masterId];
+        if (master == null || (master.maxFuel <= 0 && master.maxAmmo <= 0)) {
+          continue;
+        }
+        if (ship.currentFuel < master.maxFuel ||
+            ship.currentAmmo < master.maxAmmo) {
+          needsSupply = true;
+          break;
+        }
+      }
+
+      if (needsSupply) {
+        unresuppliedFleetIds.add(targetFleetId);
+      }
+    }
+
+    if (unresuppliedFleetIds.isEmpty) {
+      return;
+    }
+
+    final l10n = _getL10n();
+    final code = layoutSettingsController.effectiveLocaleCode;
+    final separator = (code == 'en' || code == 'ko') ? ', ' : '、';
+    final fleetsLabel = unresuppliedFleetIds.join(separator);
+    postNotice(
+      message: l10n.noticeExpeditionSupplyWarning(fleetsLabel),
+      tone: TopNoticeTone.warning,
+    );
   }
 
   void _handlePracticeEnemyInfo(Map<String, Object?> data, GameState state) {

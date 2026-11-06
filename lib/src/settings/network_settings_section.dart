@@ -92,6 +92,7 @@ class _NetworkSettingsSectionState extends State<NetworkSettingsSection> {
 
   Future<void> _editProxyInput(AppLocalizations l10n) async {
     final value = await showDialog<_ProxyInputValue>(
+      barrierDismissible: false,
       context: context,
       builder: (_) => _NetworkProxyInputDialog(
         l10n: l10n,

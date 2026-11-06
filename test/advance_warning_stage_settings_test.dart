@@ -157,11 +157,15 @@ void main() {
 
     final timingsBeforeDismiss = controller.advanceWarningTimings;
     final savedBeforeDismiss = await store.loadAdvanceWarningTimings();
+    final alternative = find.text(l10n.advanceWarningPostBattle);
     await _tapVisible(tester, dropdown);
-    expect(find.text(l10n.advanceWarningPostBattle).last, findsOneWidget);
+    expect(alternative, findsOneWidget);
     await tester.tapAt(const Offset(8, 8));
     await tester.pumpAndSettle();
-    expect(find.text(l10n.advanceWarningPostBattle), findsNothing);
+    expect(alternative, findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(alternative, findsNothing);
     expect(controller.advanceWarningTimings, timingsBeforeDismiss);
     expect(await store.loadAdvanceWarningTimings(), savedBeforeDismiss);
     expect(tester.takeException(), isNull);

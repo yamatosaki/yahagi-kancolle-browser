@@ -714,18 +714,24 @@ class GameModLibrary @JvmOverloads constructor(
 
     private fun extractValidated(archive: File, tree: File) {
         var total = 0L
-        ZipFile(archive).use { zip ->
-            val entries = zip.entries()
-            while (entries.hasMoreElements()) {
-                val entry = entries.nextElement()
-                if (entry.isDirectory) continue
-                var path = entry.name.replace('\\', '/').split('/').filter { it.isNotEmpty() }
-                if (path.firstOrNull() == "cache") path = path.drop(1)
-                val normalized = safe(path.joinToString("/").replace(Regex("\\.hack\\.([A-Za-z0-9]+)$"), ".$1"))
+        ZipFile(archive, GameModArchive.selectCharset(archive)).use { zip ->
+            val allEntries = zip.entries().asSequence().filterNot { it.name.replace('\\', '/').endsWith('/') }.toList()
+            val wrapper = GameModArchive.detectWrapperDirectory(allEntries.asSequence().map { it.name })
+            val hackTargets = allEntries.mapNotNullTo(mutableSetOf()) { entry ->
+                val parsed = GameModArchive.parseEntryPath(entry.name, wrapper)
+                if (parsed.isHack && parsed.normalizedPath.endsWith(".png", ignoreCase = true)) parsed.strippedRaw.replace(GameModArchive.HACK_SUFFIX, ".$1") else null
+            }
+            for (entry in allEntries) {
+                val parsed = GameModArchive.parseEntryPath(entry.name, wrapper)
+                if (!parsed.isHack && parsed.strippedRaw in hackTargets) continue
+                val normalized = safe(parsed.normalizedPath)
                 if (normalized == MARKER) fail("unsafe_path", "ZIP 不能覆盖魔改包标记。")
                 val destination = File(tree, normalized).apply { parentFile?.mkdirs() }
                 zip.getInputStream(entry).use { source -> destination.outputStream().use { total += copyDigest(source, it, null, MAX_FILE) } }
                 if (total > MAX_TREE) fail("quota_exceeded", "魔改包总大小不能超过 1 GiB。")
+                if (normalized.endsWith(".png", ignoreCase = true)) {
+                    GameModPng.validateImport(destination)
+                }
             }
         }
     }

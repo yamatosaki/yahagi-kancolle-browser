@@ -131,8 +131,66 @@ class GameModArchiveTest {
     }
 
     @Test fun `rejects duplicate normalized resources including hack aliases and wrapper aliases`() {
-        assertEquals("duplicate_resource", failure(archive(full to png(), full.replace(".png", ".hack.png") to png())).code)
+        assertEquals("duplicate_resource", failure(archive(full to png(), "cache/${full.replace(".png", ".hack.png")}" to png())).code)
         assertEquals("duplicate_resource", failure(archive(full to png(), "cache/$full" to png())).code)
+    }
+
+    @Test fun `same folder hack suffix overrides plain cache backup in either entry order`() {
+        val modded = png(scanline = byteArrayOf(0, 11, 22, 33, -1))
+        val original = png(scanline = byteArrayOf(0, 99, 88, 77, -1))
+        for (entries in listOf(
+            arrayOf("kcs2/img/common/bg_map/bg_h.hack.png" to modded, "kcs2/img/common/bg_map/bg_h.png" to original),
+            arrayOf("kcs2/img/common/bg_map/bg_h.png" to original, "kcs2/img/common/bg_map/bg_h.hack.png" to modded),
+        )) {
+            val root = temporaryFolder.newFolder()
+            val result = GameModArchive().unpack(archive(*entries).inputStream(), "battle-bg.zip", root)
+            val resource = result.resources.single()
+            assertEquals("kcs2/img/common/bg_map/bg_h.png", resource.path)
+            assertTrue(resource.supported)
+            assertEquals(2, resource.sourcePaths.size)
+            assertTrue(result.warnings.contains("hack_overrides_original"))
+            assertArrayEquals(modded, root.resolve(resource.relativeFile).readBytes())
+            assertEquals(1, root.resolve("files").listFiles()!!.size)
+        }
+    }
+
+    @Test fun `unpacks GBK outer wrapper directory with battle backgrounds shutter and furniture`() {
+        val moddedDay = png(scanline = byteArrayOf(0, 1, 2, 3, -1))
+        val plainDay = png(scanline = byteArrayOf(0, 9, 9, 9, -1))
+        val moddedNight = png(scanline = byteArrayOf(0, 4, 5, 6, -1))
+        val plainNight = png(scanline = byteArrayOf(0, 8, 8, 8, -1))
+        val shutter = png(scanline = byteArrayOf(0, 7, 8, 9, -1))
+        val furniture = png(scanline = byteArrayOf(0, 10, 20, 30, -1))
+        val wrapper = "[舰colle] 硬盘挖出来的战斗界面魔改"
+        val gbkOut = ByteArrayOutputStream()
+        ZipOutputStream(gbkOut, java.nio.charset.Charset.forName("GBK")).use { zip ->
+            zip.putNextEntry(ZipEntry("$wrapper/")); zip.closeEntry()
+            mapOf(
+                "$wrapper/cover.png" to png(),
+                "$wrapper/info.json" to "{\"name\":\"battle\"}".toByteArray(),
+                "$wrapper/kcs2/img/common/bg_map/bg_h.hack.png" to moddedDay,
+                "$wrapper/kcs2/img/common/bg_map/bg_h.png" to plainDay,
+                "$wrapper/kcs2/img/common/bg_map/bg_y.hack.png" to moddedNight,
+                "$wrapper/kcs2/img/common/bg_map/bg_y.png" to plainNight,
+                "$wrapper/kcs2/img/common/common_shutter.hack.png" to shutter,
+                "$wrapper/kcs2/resources/furniture/outside/050_01.png" to furniture,
+            ).forEach { (name, bytes) ->
+                zip.putNextEntry(ZipEntry(name)); zip.write(bytes); zip.closeEntry()
+            }
+        }
+        val root = temporaryFolder.newFolder()
+        val result = GameModArchive().unpack(gbkOut.toByteArray().inputStream(), "$wrapper.zip", root)
+        val byPath = result.resources.associateBy { it.path }
+        assertEquals(6, result.resources.size)
+        assertEquals(4, result.resources.count { it.supported })
+        assertTrue(result.warnings.contains("hack_overrides_original"))
+        assertTrue(result.warnings.contains("unsupported_files"))
+        assertArrayEquals(moddedDay, root.resolve(byPath.getValue("kcs2/img/common/bg_map/bg_h.png").relativeFile).readBytes())
+        assertArrayEquals(moddedNight, root.resolve(byPath.getValue("kcs2/img/common/bg_map/bg_y.png").relativeFile).readBytes())
+        assertArrayEquals(shutter, root.resolve(byPath.getValue("kcs2/img/common/common_shutter.png").relativeFile).readBytes())
+        assertArrayEquals(furniture, root.resolve(byPath.getValue("kcs2/resources/furniture/outside/050_01.png").relativeFile).readBytes())
+        assertFalse(byPath.getValue("cover.png").supported)
+        assertFalse(byPath.getValue("info.json").supported)
     }
 
     @Test fun `rejects unix symlink entries before extracting`() {

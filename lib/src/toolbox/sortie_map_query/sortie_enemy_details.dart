@@ -39,6 +39,7 @@ Future<void> showSortieEnemyDetails(
     return Future<void>.value();
   }
   return showDialog<void>(
+    barrierDismissible: false,
     context: context,
     barrierColor: appColor(context, Colors.black54),
     builder: (context) =>

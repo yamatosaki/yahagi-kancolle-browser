@@ -2099,6 +2099,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get battleLastFormationHintDesc => '到达出击节点时，在未卜先知中提示该点上次使用的阵形。';
 
   @override
+  String get fleetInformationSyncTitle => '编队信息同步';
+
+  @override
+  String get fleetInformationSyncImmediate => '即时同步';
+
+  @override
+  String get fleetInformationSyncSettlement => '结算同步';
+
+  @override
+  String get fleetInformationSyncImmediateDesc => '收到战斗数据后更新编队血量和损管消耗。';
+
+  @override
+  String get fleetInformationSyncSettlementDesc => '收到战斗结算后更新编队血量和损管消耗。';
+
+  @override
+  String get fleetInformationSyncSaveFailed => '保存失败，请重试。';
+
+  @override
   String get battleEnemyPreviewPosition => '战前敌舰预测位置';
 
   @override
@@ -3455,7 +3473,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get topNoticeEnabledTitle => '顶栏通知';
 
   @override
-  String get topNoticeEnabledSubtitle => '在顶栏「ヤハギ」右侧显示开发、改修、出击检查与任务完成提示';
+  String get topNoticeEnabledSubtitle => '在顶栏「ヤハギ」右侧显示开发、改修、出击/远征检查与任务完成提示';
 
   @override
   String get topNoticeDurationTitle => '提示停留时间';
@@ -3613,6 +3631,11 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get noticeSortieReasonExpansionSlot => '补强增设插槽闲置';
+
+  @override
+  String noticeExpeditionSupplyWarning(String fleets) {
+    return '远征提醒：第 $fleets 舰队尚未补给';
+  }
 
   @override
   String get lockUi => '锁定界面';
@@ -6190,6 +6213,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get battleLastFormationHintDesc => '抵達出擊節點時，在未卜先知中提示該點上次使用的陣形。';
 
   @override
+  String get fleetInformationSyncTitle => '編隊資訊同步';
+
+  @override
+  String get fleetInformationSyncImmediate => '即時同步';
+
+  @override
+  String get fleetInformationSyncSettlement => '結算同步';
+
+  @override
+  String get fleetInformationSyncImmediateDesc => '收到戰鬥資料後更新編隊血量和損管消耗。';
+
+  @override
+  String get fleetInformationSyncSettlementDesc => '收到戰鬥結算後更新編隊血量和損管消耗。';
+
+  @override
+  String get fleetInformationSyncSaveFailed => '儲存失敗，請重試。';
+
+  @override
   String get battleEnemyPreviewPosition => '戰前敵艦預測位置';
 
   @override
@@ -7546,7 +7587,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get topNoticeEnabledTitle => '頂欄通知';
 
   @override
-  String get topNoticeEnabledSubtitle => '在頂欄「ヤハギ」右側顯示開發、改修、出擊檢查與任務完成提示';
+  String get topNoticeEnabledSubtitle => '在頂欄「ヤハギ」右側顯示開發、改修、出擊/遠征檢查與任務完成提示';
 
   @override
   String get topNoticeDurationTitle => '提示停留時間';
@@ -7704,6 +7745,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get noticeSortieReasonExpansionSlot => '補強增設插槽閒置';
+
+  @override
+  String noticeExpeditionSupplyWarning(String fleets) {
+    return '遠征提醒：第 $fleets 艦隊尚未補給';
+  }
 
   @override
   String get lockUi => '鎖定介面';

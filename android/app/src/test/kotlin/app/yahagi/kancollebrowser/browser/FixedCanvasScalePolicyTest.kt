@@ -7,6 +7,15 @@ import org.junit.Test
 
 class FixedCanvasScalePolicyTest {
     @Test
+    fun fitsChangedBoundsEvenWhenIntegerScalePercentDoesNotChange() {
+        val policy = FixedCanvasScalePolicy()
+
+        assertEquals(50, policy.nextScalePercent(600, 360, 1200, 720))
+        assertEquals(50, policy.nextScalePercent(601, 361, 1200, 720))
+        assertNull(policy.nextScalePercent(601, 361, 1200, 720))
+    }
+
+    @Test
     fun forceRecoveryNeverUsesKeyboardBoundsAndResumesAfterKeyboardCloses() {
         val policy = FixedCanvasScalePolicy()
         repeat(100) {

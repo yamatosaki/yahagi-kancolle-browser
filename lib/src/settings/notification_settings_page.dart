@@ -525,6 +525,7 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage>
             width: 154,
             child: DropdownButtonHideUnderline(
               child: DropdownButton<T>(
+                barrierDismissible: false,
                 key: menuKey,
                 value: effectiveSelected,
                 isExpanded: true,

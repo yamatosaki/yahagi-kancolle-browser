@@ -10,6 +10,48 @@ Widget withTopNotice(Widget child) => MaterialApp(
 );
 
 void main() {
+  testWidgets(
+    'version labels are compact while the checker receives the canonical value',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1200, 700);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final checker = _FakeReleaseChecker(
+        const UpdateAvailable(
+          latestVersion: '1.11.0-beta.2',
+          releaseName: '1.11.0-beta.2',
+          releaseNotes: '',
+          releaseUrl: 'https://example.test/releases/v1.11-beta2',
+        ),
+      );
+      await tester.pumpWidget(
+        withTopNotice(
+          AboutContentWidget(
+            currentVersion: '1.10.0-beta.1',
+            releaseChecker: checker,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('1.10 Beta1'), findsOneWidget);
+      expect(find.textContaining('1.10.0-beta.1'), findsNothing);
+
+      await tester.tap(find.text('检查更新'));
+      await tester.pumpAndSettle();
+      expect(checker.currentVersion, '1.10.0-beta.1');
+      expect(find.text('当前版本: 1.10 Beta1'), findsOneWidget);
+      expect(find.text('最新版本: 1.11 Beta2'), findsOneWidget);
+      await tester.tapAt(const Offset(4, 4));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('GitHub button directly launches the repository URL', (
     tester,
   ) async {
@@ -183,11 +225,14 @@ void main() {
 }
 
 final class _FakeReleaseChecker implements ReleaseChecker {
-  const _FakeReleaseChecker(this.result);
+  _FakeReleaseChecker(this.result);
 
   final ReleaseCheckResult result;
+  String? currentVersion;
 
   @override
-  Future<ReleaseCheckResult> check({required String currentVersion}) async =>
-      result;
+  Future<ReleaseCheckResult> check({required String currentVersion}) async {
+    this.currentVersion = currentVersion;
+    return result;
+  }
 }

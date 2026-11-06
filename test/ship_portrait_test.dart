@@ -36,15 +36,17 @@ class _ControlledPortraitCache extends ShipPortraitCache {
          client: http.Client(),
        );
 
-  final List<File> files;
+  final List<File?> files;
   final Map<String, Completer<void>> evictionCompleters;
   final List<Uri> resolvedUris = <Uri>[];
+  final List<String> resolvedKeys = <String>[];
   final List<Uri> evictedUris = <Uri>[];
 
   @override
   Future<File?> resolve({required String cacheKey, required Uri uri}) {
     final index = resolvedUris.length.clamp(0, files.length - 1);
     resolvedUris.add(uri);
+    resolvedKeys.add(cacheKey);
     return SynchronousFuture<File?>(files[index]);
   }
 
@@ -99,6 +101,26 @@ void main() {
       expect(
         uri.toString(),
         'https://w01y.kancolle-server.com/kcs2/resources/ship/banner/1501_2115.png?version=7',
+      );
+    });
+
+    test('damaged portrait uses the remodel_dmg cipher and ship version', () {
+      const ship = MasterShip(
+        id: 163,
+        name: 'まるゆ',
+        shipTypeId: 22,
+        portraitVersion: '7',
+      );
+
+      final uri = ShipPortraitUriBuilder.build(
+        ship: ship,
+        serverOrigin: 'https://example.test',
+        isDamaged: true,
+      );
+
+      expect(
+        uri.toString(),
+        'https://example.test/kcs2/resources/ship/remodel_dmg/0163_2809.png?version=7',
       );
     });
 
@@ -184,6 +206,39 @@ void main() {
     final image = tester.widget<Image>(find.byType(Image));
     expect(image.image, isA<ResizeImage>());
     expect((image.image as ResizeImage).height, 106);
+  });
+
+  testWidgets('missing damaged art uses the separately cached normal art', (
+    tester,
+  ) async {
+    final normal = File('assets/app_icon.png');
+    final cache = _ControlledPortraitCache(files: [null, normal]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ShipPortrait(
+          ship: const MasterShip(
+            id: 163,
+            name: 'まるゆ',
+            shipTypeId: 22,
+            portraitVersion: '7',
+          ),
+          serverOrigin: 'https://example.test',
+          isDamaged: true,
+          cache: cache,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(cache.resolvedKeys, ['163_remodel_dmg', '163_remodel']);
+    expect(cache.resolvedUris.map((uri) => uri.pathSegments[3]), [
+      'remodel_dmg',
+      'remodel',
+    ]);
+    final image = tester.widget<Image>(find.byType(Image));
+    expect(image.image, FileImage(normal));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('decode failure is evicted and retried exactly once', (

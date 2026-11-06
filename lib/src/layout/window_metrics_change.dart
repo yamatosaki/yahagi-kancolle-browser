@@ -3,7 +3,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
-enum WindowMetricsChange { unchanged, imeOnly, geometry }
+enum WindowMetricsChange { unchanged, imeOnly, insetsOnly, geometry }
 
 final class WindowMetricsSnapshot {
   const WindowMetricsSnapshot({
@@ -86,6 +86,9 @@ WindowMetricsChange classifyWindowMetricsChange(
   if (_hasGeometryChanged(previous, current)) {
     return WindowMetricsChange.geometry;
   }
+  if (previous.viewPadding != current.viewPadding) {
+    return WindowMetricsChange.insetsOnly;
+  }
   return WindowMetricsChange.unchanged;
 }
 
@@ -95,7 +98,6 @@ bool _hasGeometryChanged(
 ) {
   return previous.physicalSize != current.physicalSize ||
       previous.devicePixelRatio != current.devicePixelRatio ||
-      previous.viewPadding != current.viewPadding ||
       !setEquals(
         previous.displayFeatures
             .map((f) => (f.bounds, f.type, f.state))

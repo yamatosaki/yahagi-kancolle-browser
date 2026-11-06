@@ -10,6 +10,7 @@ import 'fleet_ui_strings.dart';
 import '../../l10n/app_localizations.dart';
 import '../game_state/game_state.dart';
 import '../browser/game_dialog_presentation_scope.dart';
+import '../browser/game_dialog_style.dart';
 import '../browser/game_reminder_dialog.dart';
 import '../browser/native_game_resource_checklist.dart';
 import '../layout/display_corners.dart';
@@ -1371,91 +1372,108 @@ GameReminderDialogPresentation? _presentResourceChecklist({
     nativePort: native,
     builder: (dialogContext, acknowledge) => Dialog(
       key: key ?? const Key('header-resource-filter-dialog'),
-      backgroundColor: appColor(dialogContext, const Color(0xff102532)),
-      shape: RoundedRectangleBorder(
-        side: BorderSide(
-          color: appColor(dialogContext, const Color(0xff315064)),
-        ),
-        borderRadius: BorderRadius.circular(14),
-      ),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 360, maxHeight: 440),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: TextStyle(
-                        color: appColor(dialogContext, const Color(0xffe0b25c)),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  if (onReset != null)
-                    IconButton(
-                      key: const Key('panel-resource-collapsed-reset'),
-                      visualDensity: VisualDensity.compact,
-                      iconSize: 20,
-                      tooltip: resetLabel,
-                      onPressed: () {
-                        if (canEdit()) applyChange(onReset);
-                      },
-                      icon: Icon(
-                        Icons.restart_alt_rounded,
-                        color: appColor(dialogContext, const Color(0xffe0b25c)),
-                      ),
-                    ),
-                  IconButton(
-                    key: const Key('header-resource-filter-done'),
-                    visualDensity: VisualDensity.compact,
-                    iconSize: 20,
-                    tooltip: l10n.editDone,
-                    onPressed: acknowledge,
-                    icon: Icon(
-                      Icons.check_rounded,
-                      color: appColor(dialogContext, const Color(0xffe0b25c)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Divider(
-              height: 1,
-              color: appColor(dialogContext, const Color(0xff294052)),
-            ),
-            Flexible(
-              child: AnimatedBuilder(
-                animation: revision,
-                builder: (context, _) {
-                  final values = data();
-                  final visible = ids();
-                  final selected = checked();
-                  return ListView.builder(
-                    key: const Key('header-resource-filter-list'),
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    itemCount: visible.length,
-                    itemBuilder: (context, index) {
-                      final id = visible[index];
-                      return values.row(
-                        context,
-                        id,
-                        checked: selected.contains(id),
-                        onChanged: () {
-                          if (canEdit()) applyChange(() => onToggle(id));
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Reserve real dialog space for a scrollable list. If scaled
+            // actions wrap past the remaining height, their own viewport keeps
+            // completion reachable without displacing the list off-screen.
+            final minimumBodyHeight = math.min(48.0, constraints.maxHeight / 2);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: AnimatedBuilder(
+                    animation: revision,
+                    builder: (context, _) {
+                      final values = data();
+                      final visible = ids();
+                      final selected = checked();
+                      return ListView.builder(
+                        key: const Key('header-resource-filter-list'),
+                        padding: EdgeInsets.zero,
+                        itemCount: visible.length + 1,
+                        itemBuilder: (context, index) {
+                          if (index == 0) {
+                            return Column(
+                              children: [
+                                Padding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    24 * gameDialogPaddingScale(context),
+                                    24 * gameDialogPaddingScale(context),
+                                    24 * gameDialogPaddingScale(context),
+                                    16,
+                                  ),
+                                  child: Align(
+                                    alignment: AlignmentDirectional.centerStart,
+                                    child: Text(
+                                      title,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.headlineSmall,
+                                    ),
+                                  ),
+                                ),
+                                Divider(
+                                  height: 1,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.outlineVariant,
+                                ),
+                              ],
+                            );
+                          }
+                          final id = visible[index - 1];
+                          return values.row(
+                            context,
+                            id,
+                            checked: selected.contains(id),
+                            onChanged: () {
+                              if (canEdit()) applyChange(() => onToggle(id));
+                            },
+                          );
                         },
                       );
                     },
-                  );
-                },
-              ),
-            ),
-          ],
+                  ),
+                ),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: constraints.maxHeight - minimumBodyHeight,
+                  ),
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                      child: OverflowBar(
+                        alignment: MainAxisAlignment.end,
+                        overflowAlignment: OverflowBarAlignment.end,
+                        spacing: 8,
+                        children: [
+                          if (onReset != null)
+                            TextButton(
+                              key: const Key('panel-resource-collapsed-reset'),
+                              onPressed: () {
+                                if (canEdit()) applyChange(onReset);
+                              },
+                              child: Text(
+                                resetLabel ??
+                                    l10n.panelResourcesCollapsedItemsReset,
+                              ),
+                            ),
+                          FilledButton(
+                            key: const Key('header-resource-filter-done'),
+                            onPressed: acknowledge,
+                            child: Text(l10n.editDone),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     ),

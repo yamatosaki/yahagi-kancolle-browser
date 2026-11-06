@@ -456,6 +456,7 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
         return;
       }
       final confirmed = await showDialog<bool>(
+        barrierDismissible: false,
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text(l10n.kcwikiReportConfirmTitle),
@@ -660,7 +661,11 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
     );
     final result = accountScoped
         ? _showAccountDialog<bool>(context: context, builder: builder)
-        : showDialog<bool>(context: context, builder: builder);
+        : showDialog<bool>(
+            barrierDismissible: false,
+            context: context,
+            builder: builder,
+          );
     return await result ?? false;
   }
 
@@ -670,7 +675,11 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
   }) async {
     final session = _accountSession;
     final scope = session.current;
-    final route = DialogRoute<T>(context: context, builder: builder);
+    final route = DialogRoute<T>(
+      barrierDismissible: false,
+      context: context,
+      builder: builder,
+    );
     void dismissStaleDialog() {
       if (!session.isCurrent(scope) && route.isActive) {
         route.navigator?.removeRoute(route);

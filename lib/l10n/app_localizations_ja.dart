@@ -2122,6 +2122,26 @@ class AppLocalizationsJa extends AppLocalizations {
       '出撃マス到達時に、そのマスで前回使用した陣形を戦闘予測に表示します。';
 
   @override
+  String get fleetInformationSyncTitle => '艦隊情報の同期';
+
+  @override
+  String get fleetInformationSyncImmediate => '即時同期';
+
+  @override
+  String get fleetInformationSyncSettlement => '戦闘結果で同期';
+
+  @override
+  String get fleetInformationSyncImmediateDesc =>
+      '戦闘データを受信した時点で艦隊の耐久と応急修理要員・女神の消費を反映します。';
+
+  @override
+  String get fleetInformationSyncSettlementDesc =>
+      '戦闘結果を受信した時点で艦隊の耐久と応急修理要員・女神の消費を反映します。';
+
+  @override
+  String get fleetInformationSyncSaveFailed => '保存に失敗しました。もう一度お試しください。';
+
+  @override
   String get battleEnemyPreviewPosition => '戦闘前の敵艦予測の位置';
 
   @override
@@ -3499,7 +3519,8 @@ class AppLocalizationsJa extends AppLocalizations {
   String get topNoticeEnabledTitle => 'トップバー通知';
 
   @override
-  String get topNoticeEnabledSubtitle => '「ヤハギ」アイコン右側に開発、改修、出撃前確認、任務達成通知を表示します';
+  String get topNoticeEnabledSubtitle =>
+      '「ヤハギ」アイコン右側に開発、改修、出撃・遠征確認、任務達成通知を表示します';
 
   @override
   String get topNoticeDurationTitle => '表示時間';
@@ -3658,6 +3679,11 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get noticeSortieReasonExpansionSlot => '増設スロット未装備';
+
+  @override
+  String noticeExpeditionSupplyWarning(String fleets) {
+    return '遠征注意：第 $fleets 艦隊が未補給です';
+  }
 
   @override
   String get lockUi => 'レイアウトをロック';

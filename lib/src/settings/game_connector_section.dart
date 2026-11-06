@@ -115,6 +115,7 @@ class GameConnectorSection extends StatelessWidget {
     final gameWasActive = browserController.isOfficialGamePage;
     if (gameWasActive || target == GameConnector.ooi) {
       final confirmed = await showDialog<bool>(
+        barrierDismissible: false,
         context: context,
         builder: (dialogContext) => AlertDialog(
           key: const Key('game-connector-confirm-dialog'),

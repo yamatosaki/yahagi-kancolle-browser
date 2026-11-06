@@ -59,6 +59,7 @@ Future<bool> confirmGameFullscreenExit({
           ),
           GameSurfaceDialogAction(
             id: 'confirm',
+            variant: 'filled',
             label: l10n.exitFullscreenConfirmAction,
             value: true,
           ),

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/src/bridge/captured_api_event.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
+import 'package:yahagi_kancolle_browser/src/game_state/game_state_reducer.dart';
 import 'package:yahagi_kancolle_browser/src/notice/game_info_notice_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
@@ -2642,6 +2643,503 @@ void main() {
           topNoticeController.current!.tone,
           equals(TopNoticeTone.success),
         );
+      },
+    );
+  });
+
+  group('Expedition supply check (/kcsapi/api_get_member/mission)', () {
+    const ddMaster = MasterShip(
+      id: 1,
+      name: '吹雪',
+      shipTypeId: 2,
+      maxFuel: 15,
+      maxAmmo: 20,
+    );
+
+    OwnedShip supplyShip({
+      required int id,
+      int masterId = 1,
+      int fuel = 15,
+      int ammo = 20,
+    }) {
+      return OwnedShip(
+        id: id,
+        masterId: masterId,
+        level: 90,
+        currentFuel: fuel,
+        currentAmmo: ammo,
+      );
+    }
+
+    GameState buildExpeditionState({
+      bool hasMasterData = true,
+      Map<int, MasterShip>? masterShips,
+      Map<int, OwnedShip>? ships,
+      List<Fleet>? fleets,
+    }) {
+      return state.copyWith(
+        hasMasterData: hasMasterData,
+        masterShips: masterShips ?? const {1: ddMaster},
+        ships:
+            ships ??
+            {
+              1: supplyShip(id: 1),
+              2: supplyShip(id: 2),
+              3: supplyShip(id: 3),
+              4: supplyShip(id: 4),
+            },
+        fleets:
+            fleets ??
+            const [
+              Fleet(id: 1, name: '第1舰队', shipIds: [1]),
+              Fleet(id: 2, name: '第2舰队', shipIds: [2]),
+              Fleet(id: 3, name: '第3舰队', shipIds: [3]),
+              Fleet(id: 4, name: '第4舰队', shipIds: [4]),
+            ],
+      );
+    }
+
+    test('supports /kcsapi/api_get_member/mission path', () {
+      final controller = GameInfoNoticeController(
+        stateProvider: () => state,
+        layoutSettingsController: layoutController,
+        topNoticeController: topNoticeController,
+      );
+      expect(controller.supportsPath('/kcsapi/api_get_member/mission'), isTrue);
+    });
+
+    test(
+      'posts no notice when Fleets 2, 3, and 4 are fully resupplied (even if Fleet 1 is not)',
+      () async {
+        final testState = buildExpeditionState(
+          ships: {
+            1: supplyShip(id: 1, fuel: 0, ammo: 0), // Fleet 1 unresupplied
+            2: supplyShip(id: 2, fuel: 15, ammo: 20),
+            3: supplyShip(id: 3, fuel: 15, ammo: 20),
+            4: supplyShip(id: 4, fuel: 15, ammo: 20),
+          },
+        );
+        final controller = GameInfoNoticeController(
+          stateProvider: () => testState,
+          layoutSettingsController: layoutController,
+          topNoticeController: topNoticeController,
+        );
+
+        controller.accept(
+          createEvent(
+            '/kcsapi/api_get_member/mission',
+            '{"api_result":1,"api_data":{"api_list_items":[]}}',
+          ),
+        );
+        await controller.idle;
+        expect(topNoticeController.current, isNull);
+      },
+    );
+
+    test(
+      'detects single unresupplied fleet (missing fuel only, missing ammo only, or non-flagship ship)',
+      () async {
+        // Case 1: Fleet 2 missing fuel only
+        var testState = buildExpeditionState(
+          ships: {
+            1: supplyShip(id: 1),
+            2: supplyShip(id: 2, fuel: 12, ammo: 20),
+            3: supplyShip(id: 3),
+            4: supplyShip(id: 4),
+          },
+        );
+        final controller = GameInfoNoticeController(
+          stateProvider: () => testState,
+          layoutSettingsController: layoutController,
+          topNoticeController: topNoticeController,
+        );
+
+        controller.accept(
+          createEvent(
+            '/kcsapi/api_get_member/mission',
+            '{"api_result":1,"api_data":{"api_list_items":[]}}',
+          ),
+        );
+        await controller.idle;
+        expect(topNoticeController.current?.message, equals('远征提醒：第 2 舰队尚未补给'));
+        expect(
+          topNoticeController.current?.tone,
+          equals(TopNoticeTone.warning),
+        );
+
+        // Case 2: Fleet 3 missing ammo only
+        topNoticeController.hide();
+        testState = buildExpeditionState(
+          ships: {
+            1: supplyShip(id: 1),
+            2: supplyShip(id: 2),
+            3: supplyShip(id: 3, fuel: 15, ammo: 18),
+            4: supplyShip(id: 4),
+          },
+        );
+        controller.accept(
+          createEvent(
+            '/kcsapi/api_get_member/mission',
+            '{"api_result":1,"api_data":{"api_list_items":[]}}',
+          ),
+        );
+        await controller.idle;
+        expect(topNoticeController.current?.message, equals('远征提醒：第 3 舰队尚未补给'));
+
+        // Case 3: Fleet 4 6th ship missing 1 ammo while first 5 ships are full
+        topNoticeController.hide();
+        testState = buildExpeditionState(
+          ships: {
+            1: supplyShip(id: 1),
+            2: supplyShip(id: 2),
+            3: supplyShip(id: 3),
+            41: supplyShip(id: 41),
+            42: supplyShip(id: 42),
+            43: supplyShip(id: 43),
+            44: supplyShip(id: 44),
+            45: supplyShip(id: 45),
+            46: supplyShip(id: 46, fuel: 15, ammo: 19),
+          },
+          fleets: const [
+            Fleet(id: 1, name: '第1舰队', shipIds: [1]),
+            Fleet(id: 2, name: '第2舰队', shipIds: [2]),
+            Fleet(id: 3, name: '第3舰队', shipIds: [3]),
+            Fleet(id: 4, name: '第4舰队', shipIds: [41, 42, 43, 44, 45, 46]),
+          ],
+        );
+        controller.accept(
+          createEvent(
+            '/kcsapi/api_get_member/mission',
+            '{"api_result":1,"api_data":{"api_list_items":[]}}',
+          ),
+        );
+        await controller.idle;
+        expect(topNoticeController.current?.message, equals('远征提醒：第 4 舰队尚未补给'));
+      },
+    );
+
+    test(
+      'combines multiple unresupplied fleets in ascending order (2, 3, 4)',
+      () async {
+        for (final sample in <({Set<int> unresupplied, String expected})>[
+          (unresupplied: {2, 3}, expected: '远征提醒：第 2、3 舰队尚未补给'),
+          (unresupplied: {2, 4}, expected: '远征提醒：第 2、4 舰队尚未补给'),
+          (unresupplied: {3, 4}, expected: '远征提醒：第 3、4 舰队尚未补给'),
+          (unresupplied: {2, 3, 4}, expected: '远征提醒：第 2、3、4 舰队尚未补给'),
+        ]) {
+          topNoticeController.hide();
+          final testState = buildExpeditionState(
+            ships: {
+              for (final id in [1, 2, 3, 4])
+                id: supplyShip(
+                  id: id,
+                  fuel: sample.unresupplied.contains(id) ? 10 : 15,
+                  ammo: 20,
+                ),
+            },
+            // Intentionally reverse fleet order to verify ascending 2, 3, 4 output
+            fleets: const [
+              Fleet(id: 4, name: '第4舰队', shipIds: [4]),
+              Fleet(id: 2, name: '第2舰队', shipIds: [2]),
+              Fleet(id: 1, name: '第1舰队', shipIds: [1]),
+              Fleet(id: 3, name: '第3舰队', shipIds: [3]),
+            ],
+          );
+          final controller = GameInfoNoticeController(
+            stateProvider: () => testState,
+            layoutSettingsController: layoutController,
+            topNoticeController: topNoticeController,
+          );
+
+          controller.accept(
+            createEvent(
+              '/kcsapi/api_get_member/mission',
+              '{"api_result":1,"api_data":{"api_list_items":[]}}',
+            ),
+          );
+          await controller.idle;
+          expect(topNoticeController.current?.message, equals(sample.expected));
+        }
+      },
+    );
+
+    test(
+      'skips fleets currently on expedition (state 1, 2, or 3) and empty/unlocked fleets',
+      () async {
+        final testState = buildExpeditionState(
+          ships: {
+            1: supplyShip(id: 1, fuel: 0, ammo: 0),
+            2: supplyShip(id: 2, fuel: 5, ammo: 5), // On expedition
+            3: supplyShip(id: 3, fuel: 5, ammo: 5), // In port, unresupplied
+          },
+          fleets: const [
+            Fleet(id: 1, name: '第1舰队', shipIds: [1]),
+            Fleet(
+              id: 2,
+              name: '第2舰队',
+              shipIds: [2],
+              mission: FleetMission(state: 1, missionId: 2),
+            ),
+            Fleet(id: 3, name: '第3舰队', shipIds: [3]),
+            Fleet(id: 4, name: '第4舰队', shipIds: []), // Empty fleet
+          ],
+        );
+        final controller = GameInfoNoticeController(
+          stateProvider: () => testState,
+          layoutSettingsController: layoutController,
+          topNoticeController: topNoticeController,
+        );
+
+        controller.accept(
+          createEvent(
+            '/kcsapi/api_get_member/mission',
+            '{"api_result":1,"api_data":{"api_list_items":[]}}',
+          ),
+        );
+        await controller.idle;
+        expect(topNoticeController.current?.message, equals('远征提醒：第 3 舰队尚未补给'));
+      },
+    );
+
+    test(
+      'does not false-alarm when master data is missing or ship/master records are incomplete',
+      () async {
+        // 1. hasMasterData == false
+        final noMasterState = buildExpeditionState(
+          hasMasterData: false,
+          ships: {2: supplyShip(id: 2, fuel: 0, ammo: 0)},
+        );
+        final controller1 = GameInfoNoticeController(
+          stateProvider: () => noMasterState,
+          layoutSettingsController: layoutController,
+          topNoticeController: topNoticeController,
+        );
+        controller1.accept(
+          createEvent(
+            '/kcsapi/api_get_member/mission',
+            '{"api_result":1,"api_data":{"api_list_items":[]}}',
+          ),
+        );
+        await controller1.idle;
+        expect(topNoticeController.current, isNull);
+
+        // 2. Legacy MasterShip with maxFuel=0, maxAmmo=0 or missing ship/master entry
+        const legacyMaster = MasterShip(
+          id: 99,
+          name: 'Legacy',
+          shipTypeId: 2,
+          maxFuel: 0,
+          maxAmmo: 0,
+        );
+        final incompleteState = buildExpeditionState(
+          masterShips: const {99: legacyMaster},
+          ships: {
+            2: supplyShip(id: 2, masterId: 99, fuel: 0, ammo: 0),
+            3: supplyShip(id: 3, masterId: 999, fuel: 0, ammo: 0),
+          },
+          fleets: const [
+            Fleet(id: 2, name: '第2舰队', shipIds: [2, 888]),
+            Fleet(id: 3, name: '第3舰队', shipIds: [3]),
+          ],
+        );
+        final controller2 = GameInfoNoticeController(
+          stateProvider: () => incompleteState,
+          layoutSettingsController: layoutController,
+          topNoticeController: topNoticeController,
+        );
+        controller2.accept(
+          createEvent(
+            '/kcsapi/api_get_member/mission',
+            '{"api_result":1,"api_data":{"api_list_items":[]}}',
+          ),
+        );
+        await controller2.idle;
+        expect(topNoticeController.current, isNull);
+      },
+    );
+
+    test(
+      'accepts Map, List, or omitted api_data when api_result == 1, and ignores api_result != 1',
+      () async {
+        final testState = buildExpeditionState(
+          ships: {
+            1: supplyShip(id: 1),
+            2: supplyShip(id: 2, fuel: 0, ammo: 20),
+            3: supplyShip(id: 3),
+            4: supplyShip(id: 4),
+          },
+        );
+        final controller = GameInfoNoticeController(
+          stateProvider: () => testState,
+          layoutSettingsController: layoutController,
+          topNoticeController: topNoticeController,
+        );
+
+        for (final payload in <String>[
+          '{"api_result":1,"api_data":{"api_list_items":[{"api_mission_id":1,"api_state":0}],"api_limit_time":[0,0,0]}}',
+          '{"api_result":1,"api_data":[{"api_mission_id":1,"api_state":0}]}',
+          '{"api_result":1,"api_result_msg":"成功"}',
+        ]) {
+          topNoticeController.hide();
+          controller.accept(
+            createEvent('/kcsapi/api_get_member/mission', payload),
+          );
+          await controller.idle;
+          expect(
+            topNoticeController.current?.message,
+            equals('远征提醒：第 2 舰队尚未补给'),
+            reason: 'payload: $payload',
+          );
+        }
+
+        // Failed API response (api_result != 1) must be ignored
+        topNoticeController.hide();
+        controller.accept(
+          createEvent(
+            '/kcsapi/api_get_member/mission',
+            '{"api_result":201,"api_result_msg":"エラー"}',
+          ),
+        );
+        await controller.idle;
+        expect(topNoticeController.current, isNull);
+      },
+    );
+
+    test(
+      'respects topNoticeEnabled, topNoticeDurationSeconds, and preserves simultaneous quest notice',
+      () async {
+        final testState = buildExpeditionState(
+          ships: {
+            1: supplyShip(id: 1),
+            2: supplyShip(id: 2, fuel: 0, ammo: 0),
+            3: supplyShip(id: 3),
+            4: supplyShip(id: 4),
+          },
+        );
+        final controller = GameInfoNoticeController(
+          stateProvider: () => testState,
+          layoutSettingsController: layoutController,
+          topNoticeController: topNoticeController,
+        );
+
+        // Disabled -> no notice
+        await layoutController.setTopNoticeEnabled(false);
+        controller.accept(
+          createEvent(
+            '/kcsapi/api_get_member/mission',
+            '{"api_result":1,"api_data":{"api_list_items":[]}}',
+          ),
+        );
+        await controller.idle;
+        expect(topNoticeController.current, isNull);
+
+        // Re-enabled + simultaneous quest in either order
+        await layoutController.setTopNoticeEnabled(true);
+        for (final questFirst in [true, false]) {
+          topNoticeController.hide();
+          void quest() => topNoticeController.show(
+            message: '任务完成',
+            tone: TopNoticeTone.quest,
+            appendWithin: const Duration(milliseconds: 500),
+          );
+          if (questFirst) quest();
+          controller.accept(
+            createEvent(
+              '/kcsapi/api_get_member/mission',
+              '{"api_result":1,"api_data":{"api_list_items":[]}}',
+            ),
+          );
+          await controller.idle;
+          if (!questFirst) quest();
+          expect(
+            topNoticeController.notices.map((n) => n.message),
+            unorderedEquals(['任务完成', '远征提醒：第 2 舰队尚未补给']),
+          );
+        }
+      },
+    );
+
+    test('multi-language parity across zh, zh_Hant, ja, ko, and en', () async {
+      final testState = buildExpeditionState(
+        ships: {
+          1: supplyShip(id: 1),
+          2: supplyShip(id: 2, fuel: 0, ammo: 20),
+          3: supplyShip(id: 3, fuel: 15, ammo: 0),
+          4: supplyShip(id: 4),
+        },
+      );
+      final controller = GameInfoNoticeController(
+        stateProvider: () => testState,
+        layoutSettingsController: layoutController,
+        topNoticeController: topNoticeController,
+      );
+
+      for (final sample in <(String, String)>[
+        ('zh', '远征提醒：第 2、3 舰队尚未补给'),
+        ('zh_Hant', '遠征提醒：第 2、3 艦隊尚未補給'),
+        ('ja', '遠征注意：第 2、3 艦隊が未補給です'),
+        ('ko', '원정 알림: 제 2, 3 함대가 미보급 상태입니다'),
+        ('en', 'Expedition alert: Fleet 2, 3 not resupplied'),
+      ]) {
+        topNoticeController.hide();
+        await layoutController.setLocaleCode(sample.$1);
+        controller.accept(
+          createEvent(
+            '/kcsapi/api_get_member/mission',
+            '{"api_result":1,"api_data":{"api_list_items":[]}}',
+          ),
+        );
+        await controller.idle;
+        expect(
+          topNoticeController.current?.message,
+          equals(sample.$2),
+          reason: 'locale: ${sample.$1}',
+        );
+      }
+    });
+
+    test(
+      'GameStateReducer keeps state identical on /kcsapi/api_get_member/mission and clears warning after charge',
+      () async {
+        final reducer = GameStateReducer();
+        var currentState = buildExpeditionState(
+          ships: {
+            1: supplyShip(id: 1),
+            2: supplyShip(id: 2, fuel: 10, ammo: 15),
+            3: supplyShip(id: 3),
+            4: supplyShip(id: 4),
+          },
+        );
+        final controller = GameInfoNoticeController(
+          stateProvider: () => currentState,
+          layoutSettingsController: layoutController,
+          topNoticeController: topNoticeController,
+        );
+
+        final missionEvent = createEvent(
+          '/kcsapi/api_get_member/mission',
+          '{"api_result":1,"api_data":{"api_list_items":[{"api_mission_id":1,"api_state":2}]}}',
+        );
+        expect(reducer.supportsPath(missionEvent.path), isTrue);
+        final reducedAfterMission = reducer.reduce(currentState, missionEvent);
+        expect(identical(reducedAfterMission, currentState), isTrue);
+
+        controller.accept(missionEvent);
+        await controller.idle;
+        expect(topNoticeController.current?.message, equals('远征提醒：第 2 舰队尚未补给'));
+
+        // Resupply Fleet 2 via /kcsapi/api_req_hokyu/charge
+        topNoticeController.hide();
+        final chargeEvent = createEvent(
+          '/kcsapi/api_req_hokyu/charge',
+          '{"api_result":1,"api_data":{"api_ship":[{"api_id":2,"api_fuel":15,"api_bull":20,"api_onslot":[0,0,0,0,0]}],"api_material":[1000,1000,1000,1000],"api_use_bou":0}}',
+        );
+        currentState = reducer.reduce(currentState, chargeEvent);
+
+        // Enter expedition screen again -> no warning
+        controller.accept(missionEvent);
+        await controller.idle;
+        expect(topNoticeController.current, isNull);
       },
     );
   });

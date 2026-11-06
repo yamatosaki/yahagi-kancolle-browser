@@ -145,6 +145,8 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
 
     override fun onResume() {
         super.onResume()
+        restoreGameWebViewAudio(force = true)
+        gameWindowLayoutChannel?.refresh()
         nativeGameWarningDialogChannel?.setForeground(true)
         gameSurfacesResumed = true
         gameFrameRateManager?.setForeground(true)
@@ -166,6 +168,14 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
             }
     }
 
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            restoreGameWebViewAudio(force = true)
+            gameWindowLayoutChannel?.refresh()
+        }
+    }
+
     override fun onPause() {
         nativeGameWarningDialogChannel?.setForeground(false)
         gameSurfacesResumed = false
@@ -185,6 +195,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
         newConfig: Configuration,
     ) {
         super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
+        gameWindowLayoutChannel?.refresh()
         gameSurfaceRecoveryTrigger.onMultiWindowModeChanged(isInMultiWindowMode)
     }
 
@@ -193,11 +204,13 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
         newConfig: Configuration,
     ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        gameWindowLayoutChannel?.refresh()
         gameSurfaceRecoveryTrigger.onPictureInPictureModeChanged(isInPictureInPictureMode)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        gameWindowLayoutChannel?.refresh()
         gameSurfaceRecoveryTrigger.onConfigurationChanged()
         applyPreferredUiRefreshRate()
     }
@@ -242,6 +255,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
     private var gameFrameRateManager: GameFrameRateManager? = null
     private var gameMouseWheelChannel: GameMouseWheelChannel? = null
     private var gameFullscreenChannel: GameFullscreenChannel? = null
+    private var gameWindowLayoutChannel: GameWindowLayoutChannel? = null
     private var appNavigationChannel: MethodChannel? = null
     private var displayCornerChannel: MethodChannel? = null
     private var gameFrameReloadManager: GameFrameReloadManager? = null
@@ -306,6 +320,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
     private var nativeWebViewStartupTimeout: Runnable? = null
     private var nativeWebViewStartup: NativeWebViewActivityStartupCoordinator? = null
     private var nativeGameWebViewHost: ActivityWebViewHost? = null
+    private val gameWebViewAudioState = GameWebViewAudioState<WebView>()
     private var nativeGameWarningDialogChannel: NativeGameWarningDialogChannel? = null
     private var activityRestartRequested = false
     private var nativeGameWebViewChannel: NativeGameWebViewChannel? = null
@@ -324,6 +339,9 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
             },
             lifecycleObserver = object : NativeGameWebViewLifecycleObserver {
                 override fun onCreated() {
+                    // The replacement must inherit the last effective audio
+                    // target while it is still blank, before its first load.
+                    restoreGameWebViewAudio()
                     runCatching { shipSubtitleBridge?.ensureInstalled() }
                     // The native host is now discoverable under decorView. Reapply
                     // the existing request client stack to this single WebView.
@@ -336,6 +354,10 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
                 override fun onPageStarted() {
                     // Keep the current canvas binding until the new document is
                     // positively classified as game or web by the injected script.
+                    // Its URL can be unchanged on reload; a fit in the old
+                    // document must not absorb the new document's fit request.
+                    fixedCanvasScaleApplier.cancel()
+                    fixedCanvasScalePolicy.reset()
                 }
 
                 override fun onPageFinished() {
@@ -404,6 +426,8 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
         gameMouseWheelChannel = GameMouseWheelChannel(flutterEngine)
         gameFullscreenChannel?.dispose()
         gameFullscreenChannel = GameFullscreenChannel(this, flutterEngine)
+        gameWindowLayoutChannel?.dispose()
+        gameWindowLayoutChannel = GameWindowLayoutChannel(this, flutterEngine)
         nativeGameWarningDialogChannel?.dispose()
         nativeGameWarningDialogChannel = NativeGameWarningDialogChannel(this, flutterEngine) {
             nativeGameWebViewHost?.currentWebView
@@ -749,6 +773,13 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
                     setFixedCanvasScaling(contentWidth, contentHeight, result)
                 }
                 "releaseFixedCanvas" -> releaseFixedCanvasScaling(result)
+                "cancelPendingFit" -> {
+                    // Navigation invalidates calibration without releasing the
+                    // current game binding or changing its viewport settings.
+                    fixedCanvasScaleApplier.cancel()
+                    fixedCanvasScalePolicy.reset()
+                    result.success(null)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -812,6 +843,8 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
     }
 
     override fun onDestroy() {
+        gameWindowLayoutChannel?.dispose()
+        gameWindowLayoutChannel = null
         nativeGameWarningDialogChannel?.dispose()
         nativeGameWarningDialogChannel = null
         fixedCanvasScaleApplier.cancel()
@@ -882,6 +915,8 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        gameWindowLayoutChannel?.dispose()
+        gameWindowLayoutChannel = null
         nativeGameWarningDialogChannel?.dispose()
         nativeGameWarningDialogChannel = null
         fixedCanvasScaleApplier.cancel()
@@ -1104,8 +1139,11 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
     }
 
     private fun ensureGadgetBypassWrap() {
+        // PlatformView discovery must work even without the request wrapper.
+        // Successful same-view layout callbacks are coalesced by the state.
+        restoreGameWebViewAudio()
         runCatching { shipSubtitleBridge?.ensureInstalled() }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.GET_WEB_VIEW_CLIENT)) return
         val manager = gadgetBypassManager ?: return
         if (!manager.enabled && gameResourceCacheMode == GameResourceCacheMode.NONE && gameModManager == null) return
 
@@ -1119,7 +1157,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
         }
         val webView = webViews.single()
 
-        val current = webView.webViewClient ?: return
+        val current = WebViewCompat.getWebViewClient(webView)
         if (current is GadgetBypassWebViewClient && current.ownerToken === gadgetBypassClientOwner) return
         val originalClient = if (current is GadgetBypassWebViewClient) current.originalClient else current
 
@@ -1150,6 +1188,12 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
                 cookiesIncludedInRequestHeaders = cookieInterceptSupported,
                 modResourceInterceptor = { url, method, headers -> gameModManager?.intercept(url, method, headers) },
                 ownerToken = gadgetBypassClientOwner,
+                onDocumentStarted = { view ->
+                    if (view === boundWebView) {
+                        fixedCanvasScaleApplier.cancel()
+                        fixedCanvasScalePolicy.reset()
+                    }
+                },
             ),
         )
     }
@@ -1166,11 +1210,11 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
     }
 
     private fun restoreGadgetBypassClient() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.GET_WEB_VIEW_CLIENT)) return
         val webViews = mutableListOf<WebView>()
         collectWebViews(window.decorView, webViews)
         for (webView in webViews) {
-            val current = webView.webViewClient
+            val current = WebViewCompat.getWebViewClient(webView)
             if (current is GadgetBypassWebViewClient) {
                 Log.d("GadgetBypass", "restoring original WebViewClient")
                 webView.setWebViewClient(current.originalClient)
@@ -1198,8 +1242,10 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
         muted: Boolean,
         result: MethodChannel.Result,
     ) {
-        val webViews = mutableListOf<WebView>()
-        collectWebViews(window.decorView, webViews)
+        // Keep the request even if the view is temporarily absent. Its next
+        // attached owner will receive this target before game navigation.
+        gameWebViewAudioState.setTarget(muted)
+        val webViews = gameAudioWebViews()
         when (webViews.size) {
             0 -> result.error(
                 "webview_not_found",
@@ -1209,7 +1255,9 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
             1 -> {
                 try {
                     if (WebViewFeature.isFeatureSupported(WebViewFeature.MUTE_AUDIO)) {
-                        WebViewCompat.setAudioMuted(webViews.single(), muted)
+                        gameWebViewAudioState.reconcile(webViews.single(), force = true) { view, desired ->
+                            WebViewCompat.setAudioMuted(view, desired)
+                        }
                         result.success(null)
                     } else {
                         result.error(
@@ -1231,6 +1279,28 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
                 "Expected one game WebView but found ${webViews.size}.",
                 null,
             )
+        }
+    }
+
+    private fun gameAudioWebViews(): List<WebView> {
+        // A native game host is authoritative even while another PlatformView
+        // is retiring. The legacy path still rejects ambiguous view trees.
+        nativeGameWebViewHost?.currentWebView
+            ?.takeIf { it.isAttachedToWindow }
+            ?.let { return listOf(it) }
+        return mutableListOf<WebView>().also { collectWebViews(window.decorView, it) }
+    }
+
+    private fun restoreGameWebViewAudio(force: Boolean = false) {
+        if (!gameWebViewAudioState.hasTarget) return
+        runCatching {
+            val webView = gameAudioWebViews().singleOrNull() ?: return@runCatching
+            if (!WebViewFeature.isFeatureSupported(WebViewFeature.MUTE_AUDIO)) return@runCatching
+            gameWebViewAudioState.reconcile(webView, force) { view, desired ->
+                WebViewCompat.setAudioMuted(view, desired)
+            }
+        }.onFailure { error ->
+            Log.w("YahagiAudio", "Unable to restore the requested game audio state", error)
         }
     }
 
@@ -1721,13 +1791,18 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
                         boundWebView = webView
 
                         val listener = View.OnLayoutChangeListener {
-                                _, left, top, right, bottom, _, _, _, _ ->
-                            applyFixedCanvasScale(
-                                webView,
-                                right - left,
-                                bottom - top,
-                                force = true,
-                            )
+                                _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+                            if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) {
+                                // Even a zero/sliver intermediate size invalidates
+                                // the preceding stable-viewport wait.
+                                fixedCanvasScaleApplier.cancel()
+                                applyFixedCanvasScale(
+                                    webView,
+                                    right - left,
+                                    bottom - top,
+                                    force = true,
+                                )
+                            }
                         }
                         fixedCanvasLayoutListener = listener
                         webView.addOnLayoutChangeListener(listener)
@@ -1901,17 +1976,15 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
         )
         pendingGameSurfaceRecoveryActions.clear()
 
-        for (delayMillis in longArrayOf(50L, 150L, 400L)) {
-            lateinit var action: Runnable
-            action = Runnable {
-                pendingGameSurfaceRecoveryActions.remove(action)
-                if (gameSurfacesResumed && !isFinishing && !isDestroyed) {
-                    recoverGameSurfaces()
-                }
+        lateinit var action: Runnable
+        action = Runnable {
+            pendingGameSurfaceRecoveryActions.remove(action)
+            if (gameSurfacesResumed && !isFinishing && !isDestroyed) {
+                recoverGameSurfaces()
             }
-            pendingGameSurfaceRecoveryActions.add(action)
-            gameSurfaceRecoveryHandler.postDelayed(action, delayMillis)
         }
+        pendingGameSurfaceRecoveryActions.add(action)
+        gameSurfaceRecoveryHandler.postDelayed(action, 200L)
     }
 
     private fun recoverGameSurfaces() {

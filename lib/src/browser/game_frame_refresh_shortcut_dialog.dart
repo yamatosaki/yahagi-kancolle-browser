@@ -18,6 +18,7 @@ Future<bool> confirmGameFrameRefreshShortcut({
         context: context,
         title: l10n.frameRefreshShortcutConfirmTitle,
         message: l10n.frameRefreshShortcutConfirmDescription,
+        postTouchProtectionActions: const {'confirm'},
         checkbox: GameSurfaceDialogCheckbox(
           label: l10n.frameRefreshShortcutSkipConfirmation,
           onChanged: (value) => skipNextTime = value,
@@ -30,6 +31,7 @@ Future<bool> confirmGameFrameRefreshShortcut({
           ),
           GameSurfaceDialogAction(
             id: 'confirm',
+            variant: 'filled',
             label: l10n.frameRefreshShortcutConfirmAction,
             value: true,
           ),

@@ -10,8 +10,10 @@ class FleetDisplaySettingsSection extends StatelessWidget {
     super.key,
     required this.controller,
     this.twoColumns = false,
+    this.dialogPresentation = false,
   });
   final bool twoColumns;
+  final bool dialogPresentation;
   final LayoutSettingsController controller;
 
   @override
@@ -51,10 +53,12 @@ class FleetDisplaySettingsSection extends StatelessWidget {
                 Flexible(
                   child: Text(
                     text(FleetUiKeys.fleetSummaryDisplay),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: dialogPresentation
+                        ? Theme.of(context).textTheme.headlineSmall
+                        : const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -396,8 +400,6 @@ Future<void> showFleetDisplaySettings(
     },
     builder: (context, close) => Dialog(
       key: const Key('fleet-display-settings-dialog'),
-      backgroundColor: appColor(context, const Color(0xff142735)),
-      insetPadding: const EdgeInsets.all(16),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 720),
         child: Column(
@@ -417,6 +419,7 @@ Future<void> showFleetDisplaySettings(
                 child: FleetDisplaySettingsSection(
                   controller: controller,
                   twoColumns: twoColumns,
+                  dialogPresentation: true,
                 ),
               ),
             ),

@@ -34,6 +34,7 @@ class GadgetBypassWebViewClient(
     private val cookiesIncludedInRequestHeaders: Boolean = false,
     private val modResourceInterceptor: ((String, String, Map<String, String>) -> WebResourceResponse?)? = null,
     val ownerToken: Any? = null,
+    private val onDocumentStarted: (WebView?) -> Unit = {},
 ) : WebViewClient() {
 
     private companion object {
@@ -43,6 +44,9 @@ class GadgetBypassWebViewClient(
 
     val originalClient: WebViewClient
         get() = original
+
+    var documentEpoch: Long = 0
+        private set
 
     override fun shouldInterceptRequest(
         view: WebView,
@@ -155,6 +159,8 @@ class GadgetBypassWebViewClient(
     ): Boolean = original.shouldOverrideUrlLoading(view, request)
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+        documentEpoch++
+        onDocumentStarted(view)
         original.onPageStarted(view, url, favicon)
     }
 

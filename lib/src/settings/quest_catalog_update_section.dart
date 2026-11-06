@@ -81,6 +81,7 @@ final class QuestCatalogUpdateSection extends StatelessWidget {
         '${l10n.questCatalogStorageError}\n${l10n.questCatalogDataVersion(current)}',
     };
     await showDialog<void>(
+      barrierDismissible: false,
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.questCatalogDataTitle),

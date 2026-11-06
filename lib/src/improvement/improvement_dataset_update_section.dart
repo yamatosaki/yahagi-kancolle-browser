@@ -81,6 +81,7 @@ class ImprovementDatasetUpdateSection extends StatelessWidget {
         l10n.improvementDatasetStorageError(after),
     };
     await showDialog<void>(
+      barrierDismissible: false,
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.improvementDatasetTitle),

@@ -93,6 +93,7 @@ final class QuestProgressUpdateSection extends StatelessWidget {
         '${l10n.questProgressStorageError}\n${l10n.questProgressDataVersion(version)}',
     };
     await showDialog<void>(
+      barrierDismissible: false,
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.questProgressDataTitle),

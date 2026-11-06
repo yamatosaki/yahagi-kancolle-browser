@@ -2146,6 +2146,26 @@ class AppLocalizationsKo extends AppLocalizations {
       '출격 지점에 도달하면 전투 예측에 해당 지점에서 이전에 사용한 진형을 표시합니다.';
 
   @override
+  String get fleetInformationSyncTitle => '함대 정보 동기화';
+
+  @override
+  String get fleetInformationSyncImmediate => '즉시 동기화';
+
+  @override
+  String get fleetInformationSyncSettlement => '결과에서 동기화';
+
+  @override
+  String get fleetInformationSyncImmediateDesc =>
+      '전투 데이터를 받으면 함대 내구도와 응급수리 아이템 소모를 반영합니다.';
+
+  @override
+  String get fleetInformationSyncSettlementDesc =>
+      '전투 결과를 받으면 함대 내구도와 응급수리 아이템 소모를 반영합니다.';
+
+  @override
+  String get fleetInformationSyncSaveFailed => '저장하지 못했습니다. 다시 시도해 주세요.';
+
+  @override
   String get battleEnemyPreviewPosition => '전투 전 적 함대 예측 위치';
 
   @override
@@ -3524,7 +3544,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get topNoticeEnabledSubtitle =>
-      '상단의 「ヤハギ」 오른쪽에 개발, 개수, 출격 전 점검 및 임무 완료 알림을 표시합니다';
+      '상단의 「ヤハギ」 오른쪽에 개발, 개수, 출격/원정 점검 및 임무 완료 알림을 표시합니다';
 
   @override
   String get topNoticeDurationTitle => '알림 표시 시간';
@@ -3685,6 +3705,11 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get noticeSortieReasonExpansionSlot => '보강증설 슬롯 미사용';
+
+  @override
+  String noticeExpeditionSupplyWarning(String fleets) {
+    return '원정 알림: 제 $fleets 함대가 미보급 상태입니다';
+  }
 
   @override
   String get lockUi => '화면 잠금';

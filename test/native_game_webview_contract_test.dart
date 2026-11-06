@@ -3,6 +3,48 @@ import 'package:yahagi_kancolle_browser/src/browser/native_game_webview_contract
 
 void main() {
   group('NativeGameWebViewBounds', () {
+    test(
+      'serializes a separate optional clip and rejects partial or empty clips',
+      () {
+        NativeGameWebViewBounds bounds({
+          double? left,
+          double? top,
+          double? width,
+          double? height,
+        }) => NativeGameWebViewBounds(
+          left: -100,
+          top: -50,
+          width: 1000,
+          height: 600,
+          devicePixelRatio: 2,
+          clipLeft: left,
+          clipTop: top,
+          clipWidth: width,
+          clipHeight: height,
+        );
+        expect(bounds(left: 40, top: 10, width: 260, height: 470).toMap(), {
+          'left': -100.0,
+          'top': -50.0,
+          'width': 1000.0,
+          'height': 600.0,
+          'devicePixelRatio': 2.0,
+          'clipLeft': 40.0,
+          'clipTop': 10.0,
+          'clipWidth': 260.0,
+          'clipHeight': 470.0,
+        });
+        expect(() => bounds(left: 0), throwsArgumentError);
+        expect(
+          () => bounds(left: 0, top: 0, width: 0, height: 100),
+          throwsArgumentError,
+        );
+        expect(
+          () => bounds(left: 0, top: 0, width: 100, height: double.nan),
+          throwsArgumentError,
+        );
+      },
+    );
+
     test('serializes the exact native bounds schema', () {
       final bounds = NativeGameWebViewBounds(
         left: 1.5,

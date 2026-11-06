@@ -159,6 +159,7 @@ Future<void> _showImprovementSearch(
   BuildContext context,
   ImprovementPlannerController controller,
 ) => showDialog<void>(
+  barrierDismissible: false,
   context: context,
   builder: (_) => _ImprovementSearchDialog(controller: controller),
 );
@@ -226,6 +227,7 @@ Future<void> _showImprovementFilters(
   final content = _ImprovementFilterSheet(controller: controller);
   if (MediaQuery.sizeOf(context).width < 600) {
     return showModalBottomSheet<void>(
+      isDismissible: false,
       context: context,
       isScrollControlled: true,
       backgroundColor: appColor(context, Color(0xff142735)),
@@ -233,6 +235,7 @@ Future<void> _showImprovementFilters(
     );
   }
   return showDialog<void>(
+    barrierDismissible: false,
     context: context,
     builder: (_) => Dialog(child: SizedBox(width: 520, child: content)),
   );

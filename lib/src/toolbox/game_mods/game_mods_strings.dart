@@ -777,6 +777,13 @@ class GameModsStrings {
       'Audio validation failed; the file may be incomplete or use an unsupported encoding',
       '오디오 검증에 실패했습니다. 파일이 불완전하거나 지원하지 않는 인코딩일 수 있습니다',
     ),
+    'hack_overrides_original' => _t(
+      '压缩包同时包含 .hack 与同名原版文件，已优先采用 .hack 魔改文件',
+      '壓縮包同時包含 .hack 與同名原版檔案，已優先採用 .hack 魔改檔案',
+      'ZIP内に .hack と同名の元ファイルが含まれていたため、.hack ファイルを優先しました',
+      'The archive contained both .hack and original files; .hack mod files were used',
+      '압축 파일에 .hack 파일과 원본 파일이 함께 있어 .hack 파일을 우선 적용했습니다',
+    ),
     'png_trailing_data_removed' => _t(
       '部分图片含多余尾部数据，导入时已清理（原压缩包不变）',
       '部分圖片含多餘尾端資料，匯入時已清理（原壓縮檔不變）',
@@ -1020,16 +1027,126 @@ class GameModsStrings {
         'Day battle background',
         '주간전 배경',
       ),
-      'kcs2/img/common/bg_map/bg_n.png' => _t(
-        '夜战背景',
-        '夜戰背景',
-        '夜戦背景',
-        'Night battle background',
-        '야간전 배경',
+      'kcs2/img/common/common_shutter.png' => _t(
+        '过场闸门界面',
+        '過場閘門介面',
+        'シャッター画面',
+        'Shutter transition screen',
+        '셔터 전환 화면',
       ),
+      'kcs2/img/common/bg/011.png' => _t(
+        '编成背景',
+        '編成背景',
+        '編成背景',
+        'Organize background',
+        '편성 배경',
+      ),
+      'kcs2/img/common/bg/012.png' => _t(
+        '补给背景',
+        '補給背景',
+        '補給背景',
+        'Supply background',
+        '보급 배경',
+      ),
+      'kcs2/img/common/bg/013.png' => _t(
+        '改装背景',
+        '改裝背景',
+        '改装背景',
+        'Remodel background',
+        '개장 배경',
+      ),
+      'kcs2/img/common/bg/014.png' => _t(
+        '入渠背景',
+        '入渠背景',
+        '入渠背景',
+        'Repair background',
+        '입거 배경',
+      ),
+      'kcs2/img/common/bg/015.png' => _t(
+        '工厂背景',
+        '工廠背景',
+        '工廠背景',
+        'Arsenal background',
+        '공창 배경',
+      ),
+      'kcs2/img/common/bg/016.png' => _t(
+        '出击背景',
+        '出擊背景',
+        '出撃背景',
+        'Sortie background',
+        '출격 배경',
+      ),
+      'kcs2/img/common/bg/021.png' => _t(
+        '图鉴背景（上）',
+        '圖鑑背景（上）',
+        '図鑑背景（上）',
+        'Album background (upper)',
+        '도감 배경 (상)',
+      ),
+      'kcs2/img/common/bg/022.png' => _t(
+        '图鉴背景（下）',
+        '圖鑑背景（下）',
+        '図鑑背景（下）',
+        'Album background (lower)',
+        '도감 배경 (하)',
+      ),
+      'kcs2/img/common/bg/031.png' => _t(
+        '改修工厂背景',
+        '改修工廠背景',
+        '改修工廠背景',
+        'Akashi\'s Arsenal background',
+        '개수공창 배경',
+      ),
+      'kcs2/img/common/bg/g1.png' => _t(
+        '获得报酬背景',
+        '獲得報酬背景',
+        '報酬獲得背景',
+        'Reward background',
+        '보상 획득 배경',
+      ),
+      'kcs2/img/common/bg/g2.png' => _t(
+        '舰娘掉落背景',
+        '艦娘掉落背景',
+        '艦娘ドロップ背景',
+        'Ship drop background',
+        '함선 드롭 배경',
+      ),
+      'kcs2/img/common/bg_map/bg_n.png' || 'kcs2/img/common/bg_map/bg_y.png' =>
+        _t('夜战背景', '夜戰背景', '夜戦背景', 'Night battle background', '야간전 배경'),
       _ => null,
     };
     if (known != null) return known;
+    if (resource.path.startsWith('kcs2/resources/furniture/')) {
+      final parts = resource.path.split('/');
+      final category = parts.length >= 4 ? parts[3] : '';
+      final file = parts.last.replaceAll(
+        RegExp(r'\.png$', caseSensitive: false),
+        '',
+      );
+      final catLabel = switch (category) {
+        'outside' => _t(
+          '窗外背景家具',
+          '窗外背景家具',
+          '窓外背景家具',
+          'Window view furniture',
+          '창밖 배경 가구',
+        ),
+        'floor' => _t('地板家具', '地板家具', '床家具', 'Floor furniture', '바닥 가구'),
+        'wall' => _t('墙壁家具', '牆壁家具', '壁家具', 'Wall furniture', '벽지 가구'),
+        'window' => _t('窗户家具', '窗戶家具', '窓家具', 'Window furniture', '창문 가구'),
+        'object' => _t(
+          '墙饰家具',
+          '牆飾家具',
+          '装飾家具',
+          'Wall hanging furniture',
+          '벽장식 가구',
+        ),
+        'chest' => _t('家具柜', '家具櫃', '家具棚', 'Chest furniture', '수납장 가구'),
+        'desk' => _t('执务桌家具', '執務桌家具', '執務机家具', 'Desk furniture', '집무책상 가구'),
+        _ => _t('母港家具', '母港家具', '母港家具', 'Port furniture', '모항 가구'),
+      };
+      return '$catLabel · $file';
+    }
     final match = RegExp(
       r'^([0-9]{4}) · ([a-z0-9_]+)$',
     ).firstMatch(resource.label);

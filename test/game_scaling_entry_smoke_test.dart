@@ -40,6 +40,9 @@ void main() {
     bindGate = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       ..setMockMethodCallHandler(scaling, (call) async {
+        // These assertions track binding changes. Navigation cancellation has
+        // its own ordered barrier regression in game_webview_loading_test.
+        if (call.method == 'cancelPendingFit') return null;
         calls.add(call);
         if (call.method == 'bindFixedCanvas') await bindGate?.future;
         return null;

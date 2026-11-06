@@ -1,3 +1,4 @@
+import '../../widgets/app_popup_menu_button.dart';
 import '../../theme/app_palette.dart';
 import 'dart:math' as math;
 
@@ -729,6 +730,7 @@ class _ExpCalcPageState extends State<ExpCalcPage> {
     ),
     child: DropdownButtonHideUnderline(
       child: DropdownButton<T>(
+        barrierDismissible: false,
         key: key,
         value: value,
         items: items,
@@ -1000,7 +1002,7 @@ class _ExpCalcPageState extends State<ExpCalcPage> {
         _compactPoint(l10n, map, _routeNodes[i], i),
       ],
       const SizedBox(height: 8),
-      PopupMenuButton<String>(
+      AppPopupMenuButton<String>(
         key: const Key('exp-calc-add-node-button'),
         tooltip: _strings.addNode,
         color: appColor(context, _ExpCalcPalette.surface),

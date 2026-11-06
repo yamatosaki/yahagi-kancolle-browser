@@ -83,6 +83,7 @@ final class FcdMapUpdateSection extends StatelessWidget {
         '${l10n.fcdMapStorageError}\n${l10n.fcdMapDataVersion(controller.version.toString())}',
     };
     await showDialog<void>(
+      barrierDismissible: false,
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(l10n.fcdMapDataTitle),

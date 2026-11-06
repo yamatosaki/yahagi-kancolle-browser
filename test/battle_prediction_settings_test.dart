@@ -29,6 +29,54 @@ void main() {
     expect(await store.loadEnemyPortraitsEnabled(), isTrue);
   });
 
+  for (final stored in <Object?>[null, 'invalid', true]) {
+    test('fleet information sync defaults to immediate for $stored', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'battle.fleetInformationSyncMode': ?stored,
+      });
+      final controller = await BattlePredictionSettingsController.load(
+        SharedPreferencesBattlePredictionSettingsStore(),
+      );
+      addTearDown(controller.dispose);
+
+      expect(
+        controller.fleetInformationSyncMode,
+        FleetInformationSyncMode.immediate,
+      );
+    });
+  }
+
+  test('fleet information sync saves overlapping choices in order', () async {
+    final store = SharedPreferencesBattlePredictionSettingsStore();
+    final controller = await BattlePredictionSettingsController.load(store);
+    addTearDown(controller.dispose);
+    final modes = <FleetInformationSyncMode>[];
+    controller.addListener(
+      () => modes.add(controller.fleetInformationSyncMode),
+    );
+
+    await Future.wait([
+      controller.setFleetInformationSyncMode(
+        FleetInformationSyncMode.settlement,
+      ),
+      controller.setFleetInformationSyncMode(
+        FleetInformationSyncMode.immediate,
+      ),
+      controller.setFleetInformationSyncMode(
+        FleetInformationSyncMode.immediate,
+      ),
+    ]);
+
+    expect(modes, [
+      FleetInformationSyncMode.settlement,
+      FleetInformationSyncMode.immediate,
+    ]);
+    expect(
+      await store.loadFleetInformationSyncMode(),
+      FleetInformationSyncMode.immediate,
+    );
+  });
+
   for (final stored in <String?>[null, 'unknown-position']) {
     test('enemy preview position defaults above for $stored', () async {
       SharedPreferences.setMockInitialValues(<String, Object>{
@@ -458,6 +506,15 @@ final class _FailingLegacyCleanupStore
   Future<void> saveEnemyPreviewPosition(EnemyPreviewPosition position) async {}
 
   @override
+  Future<FleetInformationSyncMode> loadFleetInformationSyncMode() async =>
+      FleetInformationSyncMode.immediate;
+
+  @override
+  Future<void> saveFleetInformationSyncMode(
+    FleetInformationSyncMode mode,
+  ) async {}
+
+  @override
   Future<List<BattlePredictionSection>?> loadSectionOrder() async => null;
 
   @override
@@ -488,6 +545,15 @@ class _SectionOrderStore implements BattlePredictionSettingsStore {
 
   @override
   Future<void> saveEnemyPreviewPosition(EnemyPreviewPosition position) async {}
+
+  @override
+  Future<FleetInformationSyncMode> loadFleetInformationSyncMode() async =>
+      FleetInformationSyncMode.immediate;
+
+  @override
+  Future<void> saveFleetInformationSyncMode(
+    FleetInformationSyncMode mode,
+  ) async {}
 
   @override
   Future<List<BattlePredictionSection>?> loadSectionOrder() async => order;

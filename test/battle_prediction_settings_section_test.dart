@@ -60,6 +60,29 @@ List<BattlePredictionSection> _visibleOrder(WidgetTester tester) {
 }
 
 void main() {
+  testWidgets('fleet information sync can wait for settlement and reload', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final store = SharedPreferencesBattlePredictionSettingsStore();
+    final controller = await BattlePredictionSettingsController.load(store);
+    addTearDown(controller.dispose);
+
+    await _pumpSettings(tester, controller);
+    expect(find.text('编队信息同步'), findsOneWidget);
+    final immediate = find.text('即时同步');
+    expect(immediate.hitTestable(), findsOneWidget);
+    await tester.tap(immediate.hitTestable());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('结算同步').hitTestable().last);
+    await tester.pumpAndSettle();
+
+    final reloaded = await BattlePredictionSettingsController.load(store);
+    addTearDown(reloaded.dispose);
+    await _pumpSettings(tester, reloaded);
+    expect(find.text('结算同步').hitTestable(), findsOneWidget);
+  });
+
   testWidgets('section order replaces the old position dropdown', (
     tester,
   ) async {
@@ -239,7 +262,7 @@ void main() {
     });
   }
 
-  testWidgets('order sheet supports back and outside-tap dismissal', (
+  testWidgets('order sheet blocks outside taps and preserves Back and drag', (
     tester,
   ) async {
     final controller = await BattlePredictionSettingsController.load(
@@ -253,6 +276,12 @@ void main() {
     expect(find.byKey(const Key('battle-section-order-sheet')), findsNothing);
     await _openOrderSheet(tester);
     await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('battle-section-order-sheet')), findsOneWidget);
+    await tester.drag(
+      find.byKey(const Key('battle-section-order-sheet')),
+      const Offset(0, 600),
+    );
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('battle-section-order-sheet')), findsNothing);
     expect(controller.sectionOrder, defaultBattlePredictionSectionOrder);
@@ -342,6 +371,14 @@ class _ControlledOrderStore implements BattlePredictionSettingsStore {
   @override
   Future<void> saveEnemyPreviewPosition(EnemyPreviewPosition position) =>
       _delegate.saveEnemyPreviewPosition(position);
+
+  @override
+  Future<FleetInformationSyncMode> loadFleetInformationSyncMode() =>
+      _delegate.loadFleetInformationSyncMode();
+
+  @override
+  Future<void> saveFleetInformationSyncMode(FleetInformationSyncMode mode) =>
+      _delegate.saveFleetInformationSyncMode(mode);
 
   @override
   Future<List<BattlePredictionSection>?> loadSectionOrder() =>

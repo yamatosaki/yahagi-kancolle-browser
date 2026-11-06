@@ -23,12 +23,26 @@ final class NativeGameWebViewBounds {
     required this.width,
     required this.height,
     required this.devicePixelRatio,
+    this.clipLeft,
+    this.clipTop,
+    this.clipWidth,
+    this.clipHeight,
   }) {
     _requireFinite('left', left);
     _requireFinite('top', top);
     _requirePositive('width', width);
     _requirePositive('height', height);
     _requirePositive('devicePixelRatio', devicePixelRatio);
+    final clipValues = [clipLeft, clipTop, clipWidth, clipHeight];
+    if (clipValues.any((value) => value != null)) {
+      if (clipValues.any((value) => value == null)) {
+        throw ArgumentError('Clip bounds must contain all four coordinates.');
+      }
+      _requireFinite('clipLeft', clipLeft!);
+      _requireFinite('clipTop', clipTop!);
+      _requirePositive('clipWidth', clipWidth!);
+      _requirePositive('clipHeight', clipHeight!);
+    }
   }
 
   final double left;
@@ -36,6 +50,10 @@ final class NativeGameWebViewBounds {
   final double width;
   final double height;
   final double devicePixelRatio;
+  final double? clipLeft;
+  final double? clipTop;
+  final double? clipWidth;
+  final double? clipHeight;
 
   Map<String, double> toMap() => <String, double>{
     'left': left,
@@ -43,6 +61,12 @@ final class NativeGameWebViewBounds {
     'width': width,
     'height': height,
     'devicePixelRatio': devicePixelRatio,
+    if (clipLeft != null) ...{
+      'clipLeft': clipLeft!,
+      'clipTop': clipTop!,
+      'clipWidth': clipWidth!,
+      'clipHeight': clipHeight!,
+    },
   };
 
   static void _requireFinite(String name, double value) {

@@ -139,7 +139,7 @@ class NativeGameResourceChecklistTest {
         }
     }
 
-    @Test fun resourceChecklistUsesCompactRowsAndAConstrainedScrollableCard() {
+    @Test fun resourceChecklistUsesSharedDialogGeometryAndAccessibleScrollableRows() {
         show(checklist())
         waitForScrollableList()
         onMain { activity ->
@@ -147,10 +147,10 @@ class NativeGameResourceChecklistTest {
             val container = requireView(R.id.native_game_resource_checklist) as ViewGroup
             val card = container.getChildAt(0)
             val row = container.findViewWithTag<View>("row:senka")
-            assertTrue("Resource cards must stay within 360dp", card.width <= 360 * density + 1)
-            assertTrue("The resource list must stay within 360dp", list().height <= 360 * density + 1)
-            assertTrue("Compact rows must retain a 40dp touch target", row.height >= 40 * density - 1)
-            assertTrue("Normal resource rows must fit within 44dp", row.height <= 44 * density + 1)
+            assertTrue("Resource cards must respect the shared safe width", card.width <= container.width - container.paddingLeft - container.paddingRight)
+            assertTrue("The list must leave the dialog actions reachable", list().height < card.height)
+            assertTrue("Material checkbox rows retain a 56dp target", row.height >= 56 * density - 1)
+            assertTrue("Normal one-line resource rows fit within 56dp", row.height <= 56 * density + 1)
             assertTrue("Checkbox artwork must be compact", checkbox("senka").buttonDrawable!!.intrinsicWidth <= 20 * density + 1)
             val icon = container.findViewWithTag<View>("icon:senka")
             assertEquals((20 * density).toInt().toDouble(), icon.width.toDouble(), 1.0)
@@ -328,18 +328,43 @@ class NativeGameResourceChecklistTest {
         assertEquals(0, gameDowns)
     }
 
-    @Test fun anOutsideTapUsesTheSameProtectionAndKeepsAppliedSelections() {
+    @Test fun anOutsideTapDoesNothingAndKeepsAppliedSelections() {
         val result = show(checklist())
         onMain {
             checkbox("senka").performClick()
             dispatch(MotionEvent.ACTION_DOWN, 2f, 2f)
             dispatch(MotionEvent.ACTION_UP, 2f, 2f)
-            assertNotNull(find(R.id.native_game_warning_input_guard))
+            assertNotNull(find(R.id.native_game_resource_checklist))
+            assertNull(find(R.id.native_game_warning_input_guard))
             assertTrue(result.values.isEmpty())
+            assertFalse(checkbox("senka").isChecked)
+            requireView(R.id.native_game_resource_checklist_done).performClick()
         }
         waitResult(result)
         assertEquals(false, changes.single()["checked"])
         assertEquals(0, gameDowns)
+    }
+
+    @Test fun outsideTapsNeverCloseAnyChecklistKindAndDoneStillWorks() {
+        for (kind in NativeGameWarningDialogSpec.checklistKinds) {
+            val result = show(checklist(kind))
+            onMain {
+                repeat(3) {
+                    dispatch(MotionEvent.ACTION_DOWN, 2f, 2f)
+                    dispatch(MotionEvent.ACTION_UP, 2f, 2f)
+                }
+                assertTrue(result.values.isEmpty())
+                assertNotNull(find(R.id.native_game_resource_checklist))
+                assertNull(find(R.id.native_game_warning_input_guard))
+                val stateField = NativeGameWarningDialogChannel::class.java.getDeclaredField("state").apply { isAccessible = true }
+                assertFalse((stateField.get(control) as NativeGameWarningDialogState).actionChosen)
+                val releaseField = NativeGameWarningDialogChannel::class.java.getDeclaredField("release").apply { isAccessible = true }
+                assertNull(releaseField.get(control))
+                assertEquals(0, gameDowns)
+                requireView(R.id.native_game_resource_checklist_done).performClick()
+            }
+            waitResult(result)
+        }
     }
 
     @Test fun staleDartAcknowledgementsCannotFlipRapidNativeSelectionsBackwards() {
@@ -389,7 +414,7 @@ class NativeGameResourceChecklistTest {
         }
     }
 
-    @Test fun screenOffsetBottomCheckboxTogglesAndOnlyTheRealBackdropDismisses() {
+    @Test fun screenOffsetBottomCheckboxAndOutsideTapKeepTheChecklistOpen() {
         val result = show(checklist())
         onMain { activity ->
             val density = activity.resources.displayMetrics.density
@@ -397,7 +422,10 @@ class NativeGameResourceChecklistTest {
             window.setGravity(Gravity.TOP or Gravity.LEFT)
             window.attributes = window.attributes.apply {
                 x = (24 * density).toInt()
-                y = (96 * density).toInt()
+                // The shared Material footer now extends below the final row.
+                // Keep enough real screen offset to exercise the original
+                // root-relative versus screen-relative hit-test regression.
+                y = (144 * density).toInt()
             }
             window.setLayout(activity.resources.displayMetrics.widthPixels - (48 * density).toInt(),
                 activity.resources.displayMetrics.heightPixels - (192 * density).toInt())
@@ -475,8 +503,11 @@ class NativeGameResourceChecklistTest {
         }
         tapScreen(backdropX, backdropY)
         onMain {
-            assertTrue("The real backdrop still has to use the quiet input guard", result.values.isEmpty())
-            assertNotNull(find(R.id.native_game_warning_input_guard))
+            assertTrue("The real backdrop must leave the checklist open", result.values.isEmpty())
+            assertNotNull(find(R.id.native_game_resource_checklist))
+            assertNull(find(R.id.native_game_warning_input_guard))
+            assertFalse(checkbox("material-30").isChecked)
+            requireView(R.id.native_game_resource_checklist_done).performClick()
         }
         waitResult(result)
         assertEquals(1, changes.size)

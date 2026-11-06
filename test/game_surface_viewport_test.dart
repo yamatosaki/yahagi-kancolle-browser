@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_surface_viewport.dart';
+import 'package:yahagi_kancolle_browser/src/layout/window_layout_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/display_mode_store.dart';
 
 const _gameAspectRatio = 1200.0 / 720.0;
@@ -48,6 +49,9 @@ Future<void> _pumpViewport(
   EdgeInsets padding = EdgeInsets.zero,
   double dpr = 1,
   bool isLandscape = true,
+  bool fullscreen = false,
+  bool centerAboveBottomInset = false,
+  GameFitAxis? fullscreenFitAxis,
   DisplayMode displayMode = DisplayMode.auto,
 }) async {
   tester.view.devicePixelRatio = dpr;
@@ -61,12 +65,19 @@ Future<void> _pumpViewport(
       ),
       child: Directionality(
         textDirection: TextDirection.ltr,
-        child: GameSurfaceViewport(
-          aspectRatio: _gameAspectRatio,
-          fullscreen: true,
-          isLandscape: isLandscape,
-          displayMode: displayMode,
-          child: const SizedBox.expand(key: _surfaceKey),
+        child: Padding(
+          padding: (fullscreen || centerAboveBottomInset)
+              ? EdgeInsets.zero
+              : padding,
+          child: GameSurfaceViewport(
+            aspectRatio: _gameAspectRatio,
+            fullscreen: fullscreen,
+            centerAboveBottomInset: centerAboveBottomInset,
+            fullscreenFitAxis: fullscreenFitAxis,
+            isLandscape: isLandscape,
+            displayMode: displayMode,
+            child: const SizedBox.expand(key: _surfaceKey),
+          ),
         ),
       ),
     ),
@@ -75,6 +86,194 @@ Future<void> _pumpViewport(
 }
 
 void main() {
+  testWidgets('short portrait fullscreen keeps every game edge visible', (
+    tester,
+  ) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await _pumpViewport(
+      tester,
+      size: const Size(456, 80),
+      isLandscape: false,
+      fullscreen: true,
+    );
+    final rect = tester.getRect(find.byKey(_surfaceKey));
+    _expectFullyVisible(rect, const Size(456, 80), EdgeInsets.zero);
+    expect(rect.width, closeTo(80 * _gameAspectRatio, 0.001));
+    expect(rect.height, 80);
+    expect(rect.center.dx, closeTo(228, 0.5));
+  });
+
+  testWidgets('narrow landscape fullscreen keeps every game edge visible', (
+    tester,
+  ) async {
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await _pumpViewport(tester, size: const Size(300, 500), fullscreen: true);
+    final rect = tester.getRect(find.byKey(_surfaceKey));
+    _expectFullyVisible(rect, const Size(300, 500), EdgeInsets.zero);
+    expect(rect.height, 180);
+    expect(rect.width, 300);
+    expect(rect.center.dy, 250);
+  });
+
+  testWidgets(
+    'true fullscreen does not reserve inner viewPadding and displays the complete game without clipping',
+    (tester) async {
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      const containerSize = Size(915, 412);
+      const systemPadding = EdgeInsets.only(top: 36, bottom: 24, left: 16);
+      await _pumpViewport(
+        tester,
+        size: containerSize,
+        padding: systemPadding,
+        fullscreen: true,
+        isLandscape: true,
+      );
+      final rect = tester.getRect(find.byKey(_surfaceKey));
+      _expectFullyVisible(rect, containerSize, EdgeInsets.zero);
+      expect(rect.height, 412);
+      expect(rect.width, closeTo(412 * _gameAspectRatio, 0.001));
+      expect(rect.top, 0);
+      expect(rect.bottom, 412);
+      expect(rect.left, closeTo((915 - 412 * _gameAspectRatio) / 2, 0.5));
+    },
+  );
+
+  testWidgets(
+    'non-fullscreen with centerAboveBottomInset applies bottom safe inset',
+    (tester) async {
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      const containerSize = Size(915, 412);
+      const systemPadding = EdgeInsets.only(top: 36, bottom: 24);
+      await _pumpViewport(
+        tester,
+        size: containerSize,
+        padding: systemPadding,
+        fullscreen: false,
+        centerAboveBottomInset: true,
+        isLandscape: true,
+      );
+      final rect = tester.getRect(find.byKey(_surfaceKey));
+      expect(rect.height, 388);
+      expect(rect.width, closeTo(388 * _gameAspectRatio, 0.001));
+      expect(rect.top, 0);
+      expect(rect.bottom, 388);
+    },
+  );
+
+  testWidgets(
+    'both split axes keep the entire game visible and element stable during divider dragging',
+    (tester) async {
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      Element? original;
+      for (final dpr in [1.0, 2.75, 3.5]) {
+        for (final axis in GameFitAxis.values) {
+          for (final size in [
+            const Size(456, 80),
+            const Size(456, 326),
+            const Size(300, 500),
+            const Size(800, 400),
+          ]) {
+            const padding = EdgeInsets.fromLTRB(20, 10, 12, 16);
+            await _pumpViewport(
+              tester,
+              size: size,
+              padding: padding,
+              dpr: dpr,
+              fullscreen: true,
+              fullscreenFitAxis: axis,
+              isLandscape: axis == GameFitAxis.width,
+            );
+            final surface = find.byKey(_surfaceKey);
+            final rect = tester.getRect(surface);
+            expect(
+              rect.width / rect.height,
+              closeTo(_gameAspectRatio, .000001),
+            );
+            expect(
+              rect.left * dpr,
+              closeTo((rect.left * dpr).round(), .000001),
+            );
+            expect(rect.top * dpr, closeTo((rect.top * dpr).round(), .000001));
+            _expectFullyVisible(
+              rect,
+              size,
+              EdgeInsets.zero,
+              reason: '$axis $size $dpr',
+            );
+            final largestWidth = size.width.clamp(
+              0.0,
+              size.height * _gameAspectRatio,
+            );
+            expect(
+              rect.width,
+              closeTo(largestWidth, 2 * _gameAspectRatio / dpr),
+            );
+            original ??= tester.element(surface);
+            expect(tester.element(surface), same(original));
+            expect(
+              find.ancestor(of: surface, matching: find.byType(ClipRect)),
+              findsWidgets,
+            );
+          }
+        }
+      }
+    },
+  );
+
+  test(
+    'fullscreen fits within fractional safe edges at every display density',
+    () {
+      for (final dpr in [1.0, 1.25, 2.75, 3.5]) {
+        for (final axis in GameFitAxis.values) {
+          for (final size in [
+            const Size(456.3, 80.7),
+            const Size(300.2, 500.5),
+            const Size(800.1, 480.4),
+          ]) {
+            const padding = EdgeInsets.fromLTRB(20.3, 10.7, 12.1, 16.4);
+            final rect = GameSurfaceViewport.computeAxisFitGameRect(
+              containerWidth: size.width,
+              containerHeight: size.height,
+              aspectRatio: _gameAspectRatio,
+              axis: axis,
+              padding: padding,
+              devicePixelRatio: dpr,
+            );
+            _expectFullyVisible(
+              rect,
+              size,
+              EdgeInsets.zero,
+              reason: '$axis $size $dpr',
+            );
+            // The platform host rounds physical edges independently. The game
+            // must also remain entirely inside its clip after that conversion.
+            expect(
+              (rect.left * dpr).round(),
+              greaterThanOrEqualTo((padding.left * dpr).round()),
+            );
+            expect(
+              (rect.top * dpr).round(),
+              greaterThanOrEqualTo((padding.top * dpr).round()),
+            );
+            expect(
+              (rect.right * dpr).round(),
+              lessThanOrEqualTo(((size.width - padding.right) * dpr).round()),
+            );
+            expect(
+              (rect.bottom * dpr).round(),
+              lessThanOrEqualTo(((size.height - padding.bottom) * dpr).round()),
+            );
+          }
+        }
+      }
+    },
+  );
+
   group('GameSurfaceViewport decision logic', () {
     test('uses width-priority for vertical layout and mobile split-screen', () {
       // Mobile portrait full-screen (412 x 915)
@@ -292,7 +491,7 @@ void main() {
 
   group('GameSurfaceViewport widget rendering', () {
     testWidgets(
-      'short split-screen fullscreen contains the game inside all safe edges',
+      'short non-fullscreen workspace contains the game inside all safe edges',
       (tester) async {
         const windowSize = Size(456, 326);
         const padding = EdgeInsets.only(top: 48, bottom: 16);
@@ -429,7 +628,7 @@ void main() {
             _expectFullyVisible(
               rect,
               size,
-              padding,
+              EdgeInsets.zero,
               reason: 'DPR $dpr, physical height delta $physicalDelta',
             );
             if (physicalDelta < 0) {

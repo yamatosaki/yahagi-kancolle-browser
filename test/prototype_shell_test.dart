@@ -2279,13 +2279,18 @@ void main() {
     expect(browserPort.fitGameScreenCalls, callsBeforeIme);
 
     tester.view.physicalSize = const Size(1000, 700);
-    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(milliseconds: 199));
+    expect(browserPort.fitGameScreenCalls, callsBeforeIme);
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump();
 
     expect(
       browserPort.fitGameScreenCalls,
-      callsBeforeIme + 4,
-      reason: 'real geometry changes must retain the existing recovery passes',
+      callsBeforeIme + 1,
+      reason: 'real geometry changes refit once after the window settles',
     );
+    await tester.pump(const Duration(seconds: 1));
+    expect(browserPort.fitGameScreenCalls, callsBeforeIme + 1);
   });
 
   testWidgets('auto zoom keeps the information panel compact', (tester) async {
@@ -3633,15 +3638,13 @@ void main() {
 
       // 4. Force Landscape in split-screen (window size stays 400x800!)
       await displayController.setDisplayMode(DisplayMode.landscape);
+      await tester.pump(const Duration(milliseconds: 200));
       await tester.pumpAndSettle();
 
       // Layout switches to landscape layout (VerticalDivider)
       expect(find.byType(VerticalDivider), findsOneWidget);
       expect(find.byType(Divider), findsNothing);
-      expect(
-        browserPort.fitGameScreenCalls,
-        greaterThan(fitCallsBeforeLandscape),
-      );
+      expect(browserPort.fitGameScreenCalls, fitCallsBeforeLandscape + 1);
       expect(
         deactivations,
         0,
@@ -3654,7 +3657,8 @@ void main() {
       );
       expect(tester.element(find.byKey(probeKey)), same(originalElement));
 
-      // 5. Continuous rapid switching in split-screen (portrait -> auto -> landscape -> auto)
+      // 5. Rapid switching should retain the surface and fit only the last mode.
+      final fitCallsBeforeRapidSwitch = browserPort.fitGameScreenCalls;
       for (final mode in [
         DisplayMode.portrait,
         DisplayMode.auto,
@@ -3662,9 +3666,8 @@ void main() {
         DisplayMode.portrait,
         DisplayMode.auto,
       ]) {
-        final previousCalls = browserPort.fitGameScreenCalls;
         await displayController.setDisplayMode(mode);
-        await tester.pumpAndSettle();
+        await tester.pump();
 
         expect(
           deactivations,
@@ -3679,8 +3682,13 @@ void main() {
               'Continuous switching to $mode must never dispose PlatformView',
         );
         expect(tester.element(find.byKey(probeKey)), same(originalElement));
-        expect(browserPort.fitGameScreenCalls, greaterThan(previousCalls));
+        expect(browserPort.fitGameScreenCalls, fitCallsBeforeRapidSwitch);
       }
+      await tester.pump(const Duration(milliseconds: 199));
+      expect(browserPort.fitGameScreenCalls, fitCallsBeforeRapidSwitch);
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pumpAndSettle();
+      expect(browserPort.fitGameScreenCalls, fitCallsBeforeRapidSwitch + 1);
     },
   );
 

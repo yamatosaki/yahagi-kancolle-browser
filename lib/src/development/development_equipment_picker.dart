@@ -15,6 +15,7 @@ Future<void> showDevelopmentEquipmentPicker(
   BuildContext context,
   EquipmentDevelopmentController controller,
 ) => showDialog<void>(
+  barrierDismissible: false,
   context: context,
   builder: (dialogContext) => AnimatedBuilder(
     animation: controller,
@@ -404,6 +405,7 @@ Future<void> _showSearchDialog(
   EquipmentDevelopmentController controller,
 ) async {
   final value = await showDialog<String>(
+    barrierDismissible: false,
     context: context,
     builder: (context) =>
         _DevelopmentSearchDialog(initialValue: controller.equipmentSearch),

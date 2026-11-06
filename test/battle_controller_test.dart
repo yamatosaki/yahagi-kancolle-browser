@@ -16,6 +16,60 @@ import 'package:yahagi_kancolle_browser/src/performance/frame_notification_coale
 import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
+  test(
+    'fleet display starts once and settles on a matching ranked result',
+    () async {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(GameState.empty, start2Event);
+      state = reducer.reduce(state, portEvent);
+      final events = <String>[];
+      final controller = BattleController(
+        gameState: () => state,
+        onFriendlyHpUpdated: (_, _) => events.add('hp'),
+        onFleetBattleDisplayStarted: (shipIds) =>
+            events.add('started ${shipIds.join(',')}'),
+        onFleetBattleDisplaySettled: () => events.add('settled'),
+        predictionExecutor: const ImmediateBattlePredictionExecutor(),
+      );
+      addTearDown(controller.dispose);
+
+      state = reducer.reduce(state, mapStartEvent);
+      controller
+        ..accept(mapStartEvent)
+        ..accept(dayBattleEvent)
+        ..accept(nightBattleEvent);
+      await controller.idle;
+      expect(events, ['started 9001,9002', 'hp', 'hp']);
+
+      controller
+        ..accept(kcsapiEvent(battleResultEvent.path, {}, sequence: 24))
+        ..accept(
+          kcsapiEvent(
+            battleResultEvent.path,
+            {'api_win_rank': 'S'},
+            sequence: 25,
+            requestParams: {'api_deck_id': '2'},
+          ),
+        );
+      await controller.idle;
+      expect(events, ['started 9001,9002', 'hp', 'hp']);
+
+      controller
+        ..accept(
+          kcsapiEvent(battleResultEvent.path, {
+            'api_win_rank': 'A',
+          }, sequence: 26),
+        )
+        ..accept(
+          kcsapiEvent(battleResultEvent.path, {
+            'api_win_rank': 'A',
+          }, sequence: 27),
+        );
+      await controller.idle;
+      expect(events, ['started 9001,9002', 'hp', 'hp', 'settled']);
+    },
+  );
+
   group('formation memory', () {
     late GameState state;
 

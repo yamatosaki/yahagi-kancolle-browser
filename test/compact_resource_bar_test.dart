@@ -11,6 +11,16 @@ import 'package:yahagi_kancolle_browser/src/settings/layout_settings_controller.
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 
+Future<void> _revealChecklistRow(WidgetTester tester, String id) async {
+  final list = find.byKey(const Key('header-resource-filter-list'));
+  await tester.scrollUntilVisible(
+    find.byKey(Key('header-resource-filter-row-$id')),
+    60,
+    scrollable: find.descendant(of: list, matching: find.byType(Scrollable)),
+  );
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('furniture coin is hidden by default and can be enabled', (
     tester,
@@ -667,6 +677,14 @@ void main() {
       find.byKey(const Key('header-resource-visible-equipment-capacity')),
       findsOneWidget,
     );
+    await tester.tap(find.byKey(const Key('header-resource-visible-senka')));
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const Key('header-resource-visible-ship-capacity')),
+    );
+    await tester.pump();
+
+    await _revealChecklistRow(tester, 'material-1');
     final firstFilterRow = find.byKey(
       const Key('header-resource-filter-row-material-1'),
     );
@@ -686,12 +704,6 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.byKey(const Key('header-resource-visible-senka')));
-    await tester.pump();
-    await tester.tap(
-      find.byKey(const Key('header-resource-visible-ship-capacity')),
-    );
-    await tester.pump();
     await tester.tap(find.byKey(const Key('header-resource-filter-done')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('header-resource-edit-done')));
@@ -1669,16 +1681,17 @@ void main() {
           reason: id,
         );
       }
+      for (final id in [headerSenkaId, headerShipCapacityId]) {
+        expect(checked(tester, id), isFalse, reason: id);
+      }
       for (final id in [
         'material-1',
         'material-2',
         'material-3',
         'material-4',
       ]) {
+        await _revealChecklistRow(tester, id);
         expect(checked(tester, id), isTrue, reason: id);
-      }
-      for (final id in [headerSenkaId, headerShipCapacityId]) {
-        expect(checked(tester, id), isFalse, reason: id);
       }
       expect(tester.takeException(), isNull);
     });

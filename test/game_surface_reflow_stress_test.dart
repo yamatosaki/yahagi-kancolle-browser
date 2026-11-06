@@ -25,6 +25,7 @@ void main() {
             Size(960, 540),
           ];
           Rect? initial;
+          Rect? initialWindowed;
           for (var cycle = 0; cycle < 20; cycle++) {
             for (var step = 0; step < sizes.length; step++) {
               final size = sizes[step];
@@ -63,8 +64,14 @@ void main() {
               if (size.width > 0 && size.height > 0) {
                 expect(rect.width / rect.height, closeTo(1200 / 720, 0.0001));
               }
-              if (step == 0) initial ??= rect;
-              if (step == sizes.length - 1) expect(rect, initial);
+              if (step == 0) {
+                initial ??= rect;
+                expect(rect, initial);
+              }
+              if (step == sizes.length - 1) {
+                initialWindowed ??= rect;
+                expect(rect, initialWindowed);
+              }
               expect(
                 creations,
                 1,

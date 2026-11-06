@@ -11,6 +11,7 @@ import '../battle/battle_damage_alert.dart';
 import '../battle/battle_models.dart';
 import '../bridge/captured_api_event.dart';
 import '../browser/game_surface_input_guard.dart';
+import '../browser/game_dialog_style.dart';
 import '../browser/native_game_warning_dialog.dart';
 import '../game_state/game_state.dart';
 import '../settings/safety_settings_controller.dart';
@@ -774,6 +775,7 @@ class _BattleResultWarningOverlayState
         sortieGeneration: _warningSession.generation,
         captureGeneration: widget.gameCaptureController.continuityGeneration,
         refreshFailed: refreshFailed,
+        presentationStyle: resolveGameDialogPresentation(context),
       );
       _nativeWarningPresentation = presentation;
       unawaited(_runNativeWarning(presentation));
@@ -794,7 +796,6 @@ class _BattleResultWarningOverlayState
     late final DialogRoute<void> route;
     route = GameSafetyDialogRoute(
       context: context,
-      barrierDismissible: false,
       builder: (context) {
         return ValueListenableBuilder<List<AdvanceWarningShip>>(
           valueListenable: _warningShips,
@@ -898,19 +899,10 @@ class _BattleResultWarningOverlayState
                   contentPadding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                   actionsPadding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
                   buttonPadding: EdgeInsets.zero,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  backgroundColor: appColor(context, const Color(0xff122431)),
                   title: Text(
                     l10n.postBattleWarningTitle,
-                    style: appTextStyle(
-                      context,
-                      TextStyle(
-                        color: appColor(context, const Color(0xffd4a85f)),
-                        fontSize: 21,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: appColor(context, const Color(0xffd4a85f)),
                     ),
                   ),
                   content: SizedBox(
@@ -1260,6 +1252,13 @@ class _BattleResultWarningOverlayState
     );
     return {
       'id': presentation.id,
+      'presentation': presentation.presentationStyle,
+      'variants': const {
+        'reloadGame': 'outlined',
+        'reloadFrame': 'outlined',
+        'mute': 'filled',
+        'acknowledge': 'filled',
+      },
       'title': l10n.postBattleWarningTitle,
       'headline': allEquipped
           ? l10n.advanceWarningEquippedHeadline
@@ -1329,6 +1328,7 @@ final class _NativeWarningPresentation {
     required this.sortieGeneration,
     required this.captureGeneration,
     required this.refreshFailed,
+    required this.presentationStyle,
   });
 
   final int id;
@@ -1337,6 +1337,7 @@ final class _NativeWarningPresentation {
   final int sortieGeneration;
   final int captureGeneration;
   final bool refreshFailed;
+  final Map<String, Object?> presentationStyle;
 }
 
 String _warningShipName(AdvanceWarningShip ship, AppLocalizations l10n) =>

@@ -159,6 +159,13 @@ void main() {
         );
       } else if (close == 'outside') {
         await tester.tapAt(const Offset(5, 5));
+        await tester.pump();
+        expect(find.byKey(const Key('new-ship-alert-dialog')), findsOneWidget);
+        expect(find.byKey(const Key('game-safety-input-guard')), findsNothing);
+        expect(fixture.controller.currentAlert, isNotNull);
+        await tester.tap(
+          find.byKey(const Key('new-ship-reminder-acknowledge')),
+        );
       } else {
         await tester.binding.handlePopRoute();
       }

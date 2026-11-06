@@ -11,13 +11,13 @@ class GameSafetyDialogRoute extends DialogRoute<void>
   factory GameSafetyDialogRoute({
     required BuildContext context,
     required WidgetBuilder builder,
-    bool barrierDismissible = false,
     bool blocksOtherReminders = true,
   }) {
     late final GameSafetyDialogRoute route;
     route = GameSafetyDialogRoute._(
       context: context,
-      barrierDismissible: barrierDismissible,
+      barrierDismissible: false,
+      barrierColor: DialogTheme.of(context).barrierColor ?? Colors.black54,
       blocksOtherReminders: blocksOtherReminders,
       builder: (context) => Listener(
         behavior: HitTestBehavior.translucent,
@@ -42,6 +42,7 @@ class GameSafetyDialogRoute extends DialogRoute<void>
     required super.context,
     required super.builder,
     required super.barrierDismissible,
+    required super.barrierColor,
     required this.blocksOtherReminders,
   });
 
@@ -145,6 +146,7 @@ class GameSafetyDialogRoute extends DialogRoute<void>
 }
 
 /// Swallows a burst of touches after a safety action, until input is quiet.
+/// Ordinary confirmations can cap extensions while still swallowing held input.
 ///
 /// Its route transition is immediate so the preceding warning can disappear
 /// immediately. A separate navigator-owned animation clocks the quiet period
@@ -191,9 +193,13 @@ class GameSurfaceInputGuardRoute extends RawDialogRoute<void>
   factory GameSurfaceInputGuardRoute({
     required BuildContext context,
     Iterable<int> initialPointers = const <int>[],
+    Duration? maximumProtectionDuration,
+    Future<void>? releaseAfter,
   }) {
     late final GameSurfaceInputGuardRoute route;
     route = GameSurfaceInputGuardRoute._(
+      maximumProtectionDuration: maximumProtectionDuration,
+      releaseAfter: releaseAfter,
       initialPointers: {
         ...initialPointers,
         ...GameSafetyDialogRoute._activePointersFor(
@@ -217,7 +223,10 @@ class GameSurfaceInputGuardRoute extends RawDialogRoute<void>
     required super.pageBuilder,
     required Set<int> initialPointers,
     required String barrierLabel,
+    required this.maximumProtectionDuration,
+    required this.releaseAfter,
   }) : _activePointers = initialPointers,
+       _releaseAfterReady = releaseAfter == null,
        super(
          barrierLabel: barrierLabel,
          barrierColor: Colors.transparent,
@@ -228,9 +237,16 @@ class GameSurfaceInputGuardRoute extends RawDialogRoute<void>
        );
 
   static const protectionDuration = Duration(milliseconds: 600);
+  static const confirmationProtectionLimit = Duration(seconds: 2);
 
   final Set<int> _activePointers;
+  final Duration? maximumProtectionDuration;
+
+  /// A closing route must settle its input-protection waiters before handoff.
+  final Future<void>? releaseAfter;
+  bool _releaseAfterReady;
   AnimationController? _quietController;
+  AnimationController? _maximumController;
   bool _cancelled = false;
   bool _disposed = false;
   int _quietGeneration = 0;
@@ -254,6 +270,9 @@ class GameSurfaceInputGuardRoute extends RawDialogRoute<void>
     }
     if (_activePointers.isNotEmpty) {
       _quietController?.stop();
+    } else if (_maximumController?.isCompleted == true) {
+      _quietController?.stop();
+      _onAnimationStatus(AnimationStatus.completed);
     } else {
       _quietController?.forward(from: 0);
     }
@@ -266,6 +285,7 @@ class GameSurfaceInputGuardRoute extends RawDialogRoute<void>
     _quietGeneration++;
     _activePointers.clear();
     _quietController?.stop();
+    _maximumController?.stop();
   }
 
   void _onPointerEvent(PointerEvent event) {
@@ -281,7 +301,12 @@ class GameSurfaceInputGuardRoute extends RawDialogRoute<void>
   }
 
   void _onAnimationStatus(AnimationStatus status) {
-    if (status != AnimationStatus.completed || _disposed || _cancelled) return;
+    if (status != AnimationStatus.completed ||
+        _disposed ||
+        _cancelled ||
+        !_releaseAfterReady) {
+      return;
+    }
     final generation = _quietGeneration;
     scheduleMicrotask(() {
       if (_disposed ||
@@ -303,9 +328,11 @@ class GameSurfaceInputGuardRoute extends RawDialogRoute<void>
         }
       }
 
-      if (_hasHandoffWaiter) {
+      if (_hasHandoffWaiter || releaseAfter != null) {
         // Drain ready-Future continuations before removal. They synchronously
         // push the next modal, keeping native visibility covered throughout.
+        // A predecessor's completed-Future chain can still be registering its
+        // guard waiter, especially when this guard has no quiet delay.
         scheduleMicrotask(() {
           WidgetsBinding.instance.addPostFrameCallback(
             (_) => removeIfStillQuiet(),
@@ -332,12 +359,32 @@ class GameSurfaceInputGuardRoute extends RawDialogRoute<void>
       duration: protectionDuration,
       debugLabel: 'Game safety input protection',
     )..addStatusListener(_onAnimationStatus);
+    if (maximumProtectionDuration case final duration?) {
+      _maximumController = AnimationController(
+        vsync: navigator!,
+        duration: duration,
+        debugLabel: 'Game confirmation input protection limit',
+      )..addStatusListener(_onAnimationStatus);
+    }
+    if (releaseAfter case final prerequisite?) {
+      unawaited(
+        prerequisite.then((_) {
+          if (_disposed || _cancelled) return;
+          _releaseAfterReady = true;
+          if (_quietController?.isCompleted == true ||
+              _maximumController?.isCompleted == true) {
+            _onAnimationStatus(AnimationStatus.completed);
+          }
+        }),
+      );
+    }
   }
 
   @override
   TickerFuture didPush() {
     final transition = super.didPush();
     if (!_cancelled && _activePointers.isEmpty) _quietController?.forward();
+    if (!_cancelled) _maximumController?.forward();
     return transition;
   }
 
@@ -351,6 +398,10 @@ class GameSurfaceInputGuardRoute extends RawDialogRoute<void>
       ?..removeStatusListener(_onAnimationStatus)
       ..dispose();
     _quietController = null;
+    _maximumController
+      ?..removeStatusListener(_onAnimationStatus)
+      ..dispose();
+    _maximumController = null;
     super.dispose();
   }
 }

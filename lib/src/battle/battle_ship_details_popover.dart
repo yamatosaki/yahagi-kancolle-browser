@@ -187,29 +187,33 @@ class _BattleShipDetailsHostState extends State<BattleShipDetailsHost>
           // Positioning uses overlay coordinates, so use the overlay's safe
           // area too. The panel may sit below a SafeArea that consumed padding.
           final media = MediaQuery.of(Overlay.of(context).context);
-          return CustomSingleChildLayout(
-            delegate: _PopoverPosition(
-              anchor: _anchor,
-              insets: media.padding + media.viewInsets,
-              viewport: _viewport,
-            ),
-            child: TapRegion(
-              groupId: this,
-              onTapOutside: (_) => _close(),
-              child: Focus(
-                focusNode: _focus,
-                onKeyEvent: (_, event) {
-                  if (event is KeyDownEvent &&
-                      event.logicalKey == LogicalKeyboardKey.escape) {
-                    _close();
-                    return KeyEventResult.handled;
-                  }
-                  return KeyEventResult.ignored;
-                },
-                child: _ShipPopover(
-                  key: ValueKey(_identity(ship)),
-                  ship: ship,
-                  onClose: _close,
+          // Keep the card's shadow inside the information panel too.
+          return ClipRect(
+            clipper: _PopoverViewportClipper(_viewport),
+            child: CustomSingleChildLayout(
+              delegate: _PopoverPosition(
+                anchor: _anchor,
+                insets: media.padding + media.viewInsets,
+                viewport: _viewport,
+              ),
+              child: TapRegion(
+                groupId: this,
+                onTapOutside: (_) => _close(),
+                child: Focus(
+                  focusNode: _focus,
+                  onKeyEvent: (_, event) {
+                    if (event is KeyDownEvent &&
+                        event.logicalKey == LogicalKeyboardKey.escape) {
+                      _close();
+                      return KeyEventResult.handled;
+                    }
+                    return KeyEventResult.ignored;
+                  },
+                  child: _ShipPopover(
+                    key: ValueKey(_identity(ship)),
+                    ship: ship,
+                    onClose: _close,
+                  ),
                 ),
               ),
             ),
@@ -286,6 +290,19 @@ class BattleShipDetailsTap extends StatelessWidget {
       ),
     );
   }
+}
+
+class _PopoverViewportClipper extends CustomClipper<Rect> {
+  const _PopoverViewportClipper(this.viewport);
+
+  final Rect? viewport;
+
+  @override
+  Rect getClip(Size size) => viewport ?? (Offset.zero & size);
+
+  @override
+  bool shouldReclip(_PopoverViewportClipper oldClipper) =>
+      viewport != oldClipper.viewport;
 }
 
 class _PopoverPosition extends SingleChildLayoutDelegate {

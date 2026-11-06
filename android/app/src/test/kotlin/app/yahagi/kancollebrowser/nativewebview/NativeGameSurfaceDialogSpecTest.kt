@@ -24,7 +24,7 @@ class NativeGameSurfaceDialogSpecTest {
         assertEquals("", spec.headline)
         assertEquals(emptyList<String>(), spec.rows)
         assertEquals("保持游戏播放", spec.body)
-        assertEquals(true, field(spec, "getDismissible"))
+        assertEquals(false, field(spec, "getDismissible"))
     }
 
     @Test fun confirmationCheckboxIsOptionalAndStrictlyTyped() {
@@ -72,10 +72,50 @@ class NativeGameSurfaceDialogSpecTest {
         reject(payload() + ("choices" to listOf(mapOf("id" to "m1", "label" to "a", "detail" to 5))))
     }
 
-    @Test fun barrierDismissalIsExplicitAndStrict() {
-        val spec = NativeGameWarningDialogSpec.parse(payload() + ("dismissible" to false))
-        assertEquals(false, field(spec, "getDismissible"))
+    @Test fun legacyTrueCannotEnableOutsideDismissal() {
+        for (value in listOf(false, true)) {
+            val spec = NativeGameWarningDialogSpec.parse(payload() + ("dismissible" to value))
+            assertFalse(spec.dismissible)
+        }
         reject(payload() + ("dismissible" to "false"))
+    }
+
+    @Test fun everyNativeDialogKindKeepsOutsideDismissalDisabled() {
+        for (kind in NativeGameWarningDialogSpec.kinds) {
+            val ids = if (kind == "battle") NativeGameWarningDialogSpec.actions else listOf("acknowledge")
+            val value = mapOf(
+                "kind" to kind, "id" to 1L, "title" to "title", "headline" to "headline", "body" to "body",
+                "rows" to emptyList<String>(), "labels" to ids.associateWith { it },
+            )
+            assertFalse("Outside dismissal must remain disabled for $kind", NativeGameWarningDialogSpec.parse(value).dismissible)
+        }
+    }
+
+    @Test fun omittedPostTouchActionsKeepTheExistingProtectionDefault() {
+        assertNull(NativeGameWarningDialogSpec.parse(payload()).postTouchProtectionActions)
+    }
+
+    @Test fun postTouchProtectionCanSelectExistingActionsAndChoices() {
+        val spec = NativeGameWarningDialogSpec.parse(payload() + mapOf(
+            "choices" to listOf(mapOf("id" to "mission_1", "label" to "远征")),
+            "postTouchProtectionActions" to listOf("reloadFrame", "mission_1"),
+        ))
+        assertEquals(setOf("reloadFrame", "mission_1"), spec.postTouchProtectionActions)
+        assertEquals(emptySet<String>(), NativeGameWarningDialogSpec.parse(
+            payload() + ("postTouchProtectionActions" to emptyList<String>()),
+        ).postTouchProtectionActions)
+    }
+
+    @Test fun postTouchProtectionRejectsMalformedDuplicateAndUnknownIds() {
+        for (value in listOf("reloadFrame", 1, setOf("reloadFrame"), listOf(1), listOf(null), listOf("reloadFrame", "reloadFrame"), listOf("missing"))) {
+            reject(payload() + ("postTouchProtectionActions" to value))
+        }
+        reject(payload() + ("postTouchProtectionActions" to listOf("cancel", "missing")))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun explicitNullPostTouchProtectionIsNotAList() {
+        NativeGameWarningDialogSpec.parse(payload() + mapOf("postTouchProtectionActions" to null))
     }
 
     @Test fun oldNoticesCannotAcquireSurfaceDialogControls() {
@@ -84,5 +124,6 @@ class NativeGameSurfaceDialogSpecTest {
         reject(old + ("actions" to listOf("cancel")))
         reject(old + ("choices" to listOf(mapOf("id" to "m1", "label" to "a"))))
         reject(old + ("checkbox" to mapOf("label" to "跳过", "checked" to false)))
+        reject(old + ("postTouchProtectionActions" to listOf("acknowledge")))
     }
 }

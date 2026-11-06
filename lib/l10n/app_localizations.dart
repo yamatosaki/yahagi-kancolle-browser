@@ -4065,6 +4065,42 @@ abstract class AppLocalizations {
   /// **'到达出击节点时，在未卜先知中提示该点上次使用的阵形。'**
   String get battleLastFormationHintDesc;
 
+  /// No description provided for @fleetInformationSyncTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'编队信息同步'**
+  String get fleetInformationSyncTitle;
+
+  /// No description provided for @fleetInformationSyncImmediate.
+  ///
+  /// In zh, this message translates to:
+  /// **'即时同步'**
+  String get fleetInformationSyncImmediate;
+
+  /// No description provided for @fleetInformationSyncSettlement.
+  ///
+  /// In zh, this message translates to:
+  /// **'结算同步'**
+  String get fleetInformationSyncSettlement;
+
+  /// No description provided for @fleetInformationSyncImmediateDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'收到战斗数据后更新编队血量和损管消耗。'**
+  String get fleetInformationSyncImmediateDesc;
+
+  /// No description provided for @fleetInformationSyncSettlementDesc.
+  ///
+  /// In zh, this message translates to:
+  /// **'收到战斗结算后更新编队血量和损管消耗。'**
+  String get fleetInformationSyncSettlementDesc;
+
+  /// No description provided for @fleetInformationSyncSaveFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'保存失败，请重试。'**
+  String get fleetInformationSyncSaveFailed;
+
   /// No description provided for @battleEnemyPreviewPosition.
   ///
   /// In zh, this message translates to:
@@ -6527,7 +6563,7 @@ abstract class AppLocalizations {
   /// No description provided for @topNoticeEnabledSubtitle.
   ///
   /// In zh, this message translates to:
-  /// **'在顶栏「ヤハギ」右侧显示开发、改修、出击检查与任务完成提示'**
+  /// **'在顶栏「ヤハギ」右侧显示开发、改修、出击/远征检查与任务完成提示'**
   String get topNoticeEnabledSubtitle;
 
   /// No description provided for @topNoticeDurationTitle.
@@ -6787,6 +6823,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'补强增设插槽闲置'**
   String get noticeSortieReasonExpansionSlot;
+
+  /// No description provided for @noticeExpeditionSupplyWarning.
+  ///
+  /// In zh, this message translates to:
+  /// **'远征提醒：第 {fleets} 舰队尚未补给'**
+  String noticeExpeditionSupplyWarning(String fleets);
 
   /// No description provided for @lockUi.
   ///

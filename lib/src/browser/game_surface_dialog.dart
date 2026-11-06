@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'game_dialog_presentation_scope.dart';
 import 'game_reminder_dialog.dart';
+import 'game_surface_input_guard.dart';
 import 'native_game_warning_dialog.dart';
 
 class GameSurfaceDialogAction<T> {
@@ -13,12 +14,14 @@ class GameSurfaceDialogAction<T> {
     required this.label,
     required this.value,
     this.enabled = true,
+    this.variant = 'text',
   });
 
   final String id;
   final String label;
   final T value;
   final bool enabled;
+  final String variant;
 }
 
 class GameSurfaceDialogChoice<T> {
@@ -60,8 +63,10 @@ Future<T?> showGameSurfaceDialog<T>({
   List<GameSurfaceDialogChoice<T>> choices = const [],
   String? selectedChoiceId,
   GameSurfaceDialogCheckbox? checkbox,
-  bool barrierDismissible = true,
   bool allowFlutterFallback = true,
+  // When provided, only these choices need a quiet interval after all touches
+  // end. The closing gesture itself is always protected, including dismissal.
+  Set<String>? postTouchProtectionActions,
   required Widget Function(BuildContext, void Function(T? value) close) builder,
 }) async {
   if (!context.mounted) return null;
@@ -94,7 +99,7 @@ Future<T?> showGameSurfaceDialog<T>({
           rows: rows,
           selectedChoiceId: selectedChoiceId,
           checkbox: checkbox,
-          barrierDismissible: barrierDismissible,
+          postTouchProtectionActions: postTouchProtectionActions,
           isCurrent: () => !finished && ownerIsCurrent(),
           onSelected: select,
         )
@@ -104,9 +109,23 @@ Future<T?> showGameSurfaceDialog<T>({
     kind: 'surfaceDialog',
     title: title,
     message: message,
-    barrierDismissible: barrierDismissible,
     allowFlutterFallback: allowFlutterFallback,
     nativePort: native,
+    inputProtectionMaxDuration:
+        GameSurfaceInputGuardRoute.confirmationProtectionLimit,
+    needsPostTouchProtection: () =>
+        postTouchProtectionActions == null ||
+        (selectionMade &&
+            (actions.any(
+                  (action) =>
+                      postTouchProtectionActions.contains(action.id) &&
+                      action.value == selected,
+                ) ||
+                choices.any(
+                  (choice) =>
+                      postTouchProtectionActions.contains(choice.id) &&
+                      choice.value == selected,
+                ))),
     builder: (dialogContext, acknowledge) => builder(dialogContext, (value) {
       if (selectionMade ||
           finished ||
@@ -141,7 +160,7 @@ final class _NativeGameSurfaceDialogAdapter<T>
     required this.rows,
     required this.selectedChoiceId,
     required this.checkbox,
-    required this.barrierDismissible,
+    required this.postTouchProtectionActions,
     required this.isCurrent,
     required this.onSelected,
   });
@@ -154,7 +173,7 @@ final class _NativeGameSurfaceDialogAdapter<T>
   final List<String> rows;
   final String? selectedChoiceId;
   final GameSurfaceDialogCheckbox? checkbox;
-  final bool barrierDismissible;
+  final Set<String>? postTouchProtectionActions;
   final bool Function() isCurrent;
   final ValueChanged<T?> onSelected;
 
@@ -165,7 +184,10 @@ final class _NativeGameSurfaceDialogAdapter<T>
     'actions': actions.map((action) => action.id).toList(),
     'labels': {for (final action in actions) action.id: action.label},
     'enabled': {for (final action in actions) action.id: action.enabled},
-    'dismissible': barrierDismissible,
+    'variants': {for (final action in actions) action.id: action.variant},
+    'dismissible': false,
+    if (postTouchProtectionActions case final actions?)
+      'postTouchProtectionActions': actions.toList(),
     if (selectedChoiceId != null) 'selectedChoiceId': selectedChoiceId,
     if (checkbox case final checkbox?)
       'checkbox': {'label': checkbox.label, 'checked': checkbox.initialValue},

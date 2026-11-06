@@ -47,6 +47,7 @@ class RecordBackupSection extends StatelessWidget with SettingsUIHelpers {
           .where((entry) => entry.key != 'pending_construction_logs')
           .fold<int>(0, (sum, entry) => sum + entry.value.length);
       final confirmed = await showDialog<bool>(
+        barrierDismissible: false,
         context: context,
         builder: (dialog) => AlertDialog(
           title: Text(strings.restoreTitle),
@@ -78,6 +79,7 @@ class RecordBackupSection extends StatelessWidget with SettingsUIHelpers {
     final scope = service.session.current;
     final strings = RecordBackupStrings.of(context);
     final destination = await showDialog<_ExportDestination>(
+      barrierDismissible: false,
       context: context,
       builder: (dialog) => AlertDialog(
         title: Text(strings.export),

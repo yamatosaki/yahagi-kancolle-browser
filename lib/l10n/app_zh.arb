@@ -726,6 +726,12 @@
   "battleEnemyPreviewPortraitsDesc": "在未卜先知中显示战前敌方立绘。",
   "battleLastFormationHint": "显示上次选择的阵形",
   "battleLastFormationHintDesc": "到达出击节点时，在未卜先知中提示该点上次使用的阵形。",
+  "fleetInformationSyncTitle": "编队信息同步",
+  "fleetInformationSyncImmediate": "即时同步",
+  "fleetInformationSyncSettlement": "结算同步",
+  "fleetInformationSyncImmediateDesc": "收到战斗数据后更新编队血量和损管消耗。",
+  "fleetInformationSyncSettlementDesc": "收到战斗结算后更新编队血量和损管消耗。",
+  "fleetInformationSyncSaveFailed": "保存失败，请重试。",
   "battleEnemyPreviewPosition": "战前敌舰预测位置",
   "battleEnemyPreviewPositionDesc": "选择战前敌舰预测显示在我方血条的上方或下方。",
   "battleEnemyPreviewPositionAbove": "上方",
@@ -1188,7 +1194,7 @@
   "menuPositionRight": "右",
   "topNoticeSectionTitle": "顶栏消息通知",
   "topNoticeEnabledTitle": "顶栏通知",
-  "topNoticeEnabledSubtitle": "在顶栏「ヤハギ」右侧显示开发、改修、出击检查与任务完成提示",
+  "topNoticeEnabledSubtitle": "在顶栏「ヤハギ」右侧显示开发、改修、出击/远征检查与任务完成提示",
   "topNoticeDurationTitle": "提示停留时间",
   "topNoticeDurationSubtitle": "消息气泡弹出后无操作自动收起的时长",
   "topNoticeDuration5s": "5 秒 (默认)",
@@ -1339,6 +1345,14 @@
   "noticeSortieReasonFatigue": "舰娘疲劳 (黄脸/红脸)",
   "noticeSortieReasonMainSlot": "主装备槽未装满",
   "noticeSortieReasonExpansionSlot": "补强增设插槽闲置",
+  "noticeExpeditionSupplyWarning": "远征提醒：第 {fleets} 舰队尚未补给",
+  "@noticeExpeditionSupplyWarning": {
+    "placeholders": {
+      "fleets": {
+        "type": "String"
+      }
+    }
+  },
   "lockUi": "锁定界面",
   "unlockUi": "解锁界面",
   "uiLockedToast": "界面已锁定，布局自定义已禁用，功能切换不受影响",

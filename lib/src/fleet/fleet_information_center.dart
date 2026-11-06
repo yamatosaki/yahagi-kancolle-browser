@@ -127,7 +127,9 @@ class _FleetInformationCenterState extends State<FleetInformationCenter> {
               widget.moraleRecoveryTimerController!,
           ]),
           builder: (context, _) {
-            final state = widget.controller.state;
+            final state = widget.page == FleetInformationPage.fleet
+                ? widget.controller.fleetDisplayState
+                : widget.controller.state;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -787,6 +789,7 @@ class _FleetRosterShipCapsule extends StatelessWidget {
                         final portrait = ShipPortrait(
                           ship: state.masterForShip(ship),
                           serverOrigin: state.serverOrigin,
+                          isDamaged: shipUsesDamagedPortrait(ship),
                           width: constraints.maxWidth,
                           height: constraints.maxHeight,
                         );
@@ -883,6 +886,7 @@ class _FleetFocusPanel extends StatelessWidget {
     final equipment = state.equipmentForShip(ship);
     final isRetreat = state.combatState.escapedShipIds.contains(ship.id);
     final hpRatio = _ShipRow._ratio(ship.currentHp, ship.maxHp);
+    final isDamaged = shipUsesDamagedPortrait(ship);
     final fuelRatio = _ShipRow._ratio(ship.currentFuel, master?.maxFuel ?? 0);
     final ammoRatio = _ShipRow._ratio(ship.currentAmmo, master?.maxAmmo ?? 0);
     final mechanisms = detectShipCombatMechanisms(state, ship);
@@ -970,6 +974,7 @@ class _FleetFocusPanel extends StatelessWidget {
                                                       ),
                                                   child: ShipPortrait(
                                                     ship: master,
+                                                    isDamaged: isDamaged,
                                                     serverOrigin:
                                                         state.serverOrigin,
                                                     width: portraitWidth,
@@ -978,6 +983,7 @@ class _FleetFocusPanel extends StatelessWidget {
                                                 )
                                               : ShipPortrait(
                                                   ship: master,
+                                                  isDamaged: isDamaged,
                                                   serverOrigin:
                                                       state.serverOrigin,
                                                   width: portraitWidth,
@@ -1747,6 +1753,7 @@ class _ShipParameterDetails extends StatelessWidget {
     };
 
     return showDialog<void>(
+      barrierDismissible: false,
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: appColor(context, Color(0xff142735)),
@@ -3164,6 +3171,7 @@ class _MechanismChip extends StatelessWidget {
 
   Future<void> _showDetails(BuildContext context) {
     return showDialog<void>(
+      barrierDismissible: false,
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: appColor(context, Color(0xff142735)),

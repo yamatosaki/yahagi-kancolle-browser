@@ -81,7 +81,7 @@ class _FleetSummaryCardState extends State<FleetSummaryCard> {
           widget.moraleRecoveryTimerController!,
       ]),
       builder: (context, _) {
-        final state = widget.controller.state;
+        final state = widget.controller.fleetDisplayState;
         final summaryVisible = HdModuleColumns.of(context) == 2
             ? widget.twoColumnVisible ??
                   {...widget.visible, 'firepower', 'anti-sub'}

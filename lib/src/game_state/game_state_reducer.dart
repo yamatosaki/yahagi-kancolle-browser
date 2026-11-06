@@ -39,6 +39,7 @@ class GameStateReducer {
           event.path == '/kcsapi/api_req_air_corps/set_action' ||
           event.path == '/kcsapi/api_req_air_corps/change_name' ||
           event.path == '/kcsapi/api_port/airCorpsCondRecoveryWithTimer' ||
+          event.path == '/kcsapi/api_get_member/mission' ||
           event.path == '/kcsapi/api_req_quest/clearitemget' ||
           event.path == '/kcsapi/api_req_quest/start' ||
           event.path == '/kcsapi/api_req_quest/stop',
@@ -580,6 +581,63 @@ class GameStateReducer {
 
   int _slotItemCount(Map<int, OwnedSlotItem> items, int masterId) =>
       items.values.where((item) => item.masterSlotItemId == masterId).length;
+
+  GameState projectFleetBattleDisplay(
+    GameState state,
+    GameState baseline,
+    Set<int> shipIds,
+  ) {
+    Map<int, OwnedShip>? displayShips;
+    Map<int, OwnedSlotItem>? displayItems;
+
+    int restoreDamageControl(int beforeId, int currentId) {
+      if (currentId > 0 && currentId != beforeId) return currentId;
+      final item = baseline.slotItems[beforeId];
+      if (item == null ||
+          (item.masterSlotItemId != 42 && item.masterSlotItemId != 43)) {
+        return currentId;
+      }
+      if (!state.slotItems.containsKey(beforeId)) {
+        displayItems ??= Map<int, OwnedSlotItem>.of(state.slotItems);
+        displayItems![beforeId] = item;
+      }
+      return beforeId;
+    }
+
+    for (final shipId in shipIds) {
+      final ship = state.ships[shipId];
+      final before = baseline.ships[shipId];
+      if (ship == null || before == null || ship.masterId != before.masterId) {
+        continue;
+      }
+      List<int>? slots;
+      for (
+        var i = 0;
+        i < ship.slotIds.length && i < before.slotIds.length;
+        i++
+      ) {
+        final slotId = restoreDamageControl(before.slotIds[i], ship.slotIds[i]);
+        if (slotId != ship.slotIds[i]) {
+          slots ??= List<int>.of(ship.slotIds);
+          slots[i] = slotId;
+        }
+      }
+      final extra = restoreDamageControl(before.extraSlotId, ship.extraSlotId);
+      if (ship.currentHp != before.currentHp ||
+          slots != null ||
+          extra != ship.extraSlotId) {
+        displayShips ??= Map<int, OwnedShip>.of(state.ships);
+        displayShips[shipId] = _copyShip(
+          ship,
+          currentHp: before.currentHp,
+          slotIds: slots == null ? null : List<int>.unmodifiable(slots),
+          extraSlotId: extra,
+        );
+      }
+    }
+    if (displayShips == null && displayItems == null) return state;
+    return state.copyWith(ships: displayShips, slotItems: displayItems);
+  }
 
   GameState applyFriendlyBattleHp(
     GameState state,

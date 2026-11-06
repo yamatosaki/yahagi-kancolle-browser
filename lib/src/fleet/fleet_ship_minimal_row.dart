@@ -282,6 +282,7 @@ class FleetShipMinimalRow extends StatelessWidget {
     final image = ShipPortrait(
       ship: master,
       serverOrigin: state.serverOrigin,
+      isDamaged: shipUsesDamagedPortrait(ship),
       width: width,
       height: height,
     );

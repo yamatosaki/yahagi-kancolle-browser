@@ -136,6 +136,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(requests.single['kind'], 'surfaceDialog');
       expect(requests.single['checkbox'], containsPair('checked', false));
+      expect(requests.single['postTouchProtectionActions'], ['confirm']);
       expect(find.byType(AlertDialog), findsNothing);
       response.complete(
         action == null ? null : {'action': action, 'checked': true},

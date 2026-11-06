@@ -4,6 +4,35 @@ import 'package:yahagi_kancolle_browser/src/settings/release_check_service.dart'
 import 'package:yahagi_kancolle_browser/src/settings/startup_update_notice.dart';
 
 void main() {
+  testWidgets(
+    'startup update uses a compact label and retains the canonical current version',
+    (tester) async {
+      final checker = _FakeReleaseChecker(
+        const UpdateAvailable(
+          latestVersion: '1.11.0-beta.1',
+          releaseName: '1.11.0-beta.1',
+          releaseNotes: '',
+          releaseUrl: 'https://example.test/releases/v1.11-beta1',
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StartupUpdateNotice(
+            checker: checker,
+            currentVersion: '1.10.0-beta.1',
+            child: const Scaffold(body: Text('ready')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('ヤハギ 1.11 Beta1 已发布。'), findsOneWidget);
+      expect(find.textContaining('1.11.0-beta.1'), findsNothing);
+      expect(checker.currentVersion, '1.10.0-beta.1');
+      await tester.tap(find.text('确定'));
+      await tester.pumpAndSettle();
+    },
+  );
+
   testWidgets('shows one confirm-only dialog for a newer release', (
     tester,
   ) async {
@@ -68,10 +97,12 @@ final class _FakeReleaseChecker implements ReleaseChecker {
 
   final ReleaseCheckResult result;
   int calls = 0;
+  String? currentVersion;
 
   @override
   Future<ReleaseCheckResult> check({required String currentVersion}) async {
     calls += 1;
+    this.currentVersion = currentVersion;
     return result;
   }
 }

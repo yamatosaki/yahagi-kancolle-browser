@@ -14,6 +14,7 @@ abstract final class GameCapturePathCatalog {
     '/kcsapi/api_get_member/ndock',
     '/kcsapi/api_get_member/kdock',
     '/kcsapi/api_get_member/questlist',
+    '/kcsapi/api_get_member/mission',
     '/kcsapi/api_get_member/mapinfo',
     '/kcsapi/api_req_air_corps/set_plane',
     '/kcsapi/api_req_air_corps/expand_base',

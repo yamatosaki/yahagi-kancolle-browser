@@ -3,7 +3,8 @@ package app.yahagi.kancollebrowser.browser
 import kotlin.math.min
 
 class FixedCanvasScalePolicy {
-    private var previousScalePercent: Int? = null
+    private data class FitBounds(val width: Int, val height: Int, val contentWidth: Int, val contentHeight: Int)
+    private var previousBounds: FitBounds? = null
 
     fun nextScalePercent(
         viewportWidth: Int,
@@ -34,14 +35,15 @@ class FixedCanvasScalePolicy {
         // Ignore transitional slivers and wait for a usable layout instead.
         if (scalePercent <= 0) return null
 
-        if (!force && scalePercent == previousScalePercent) {
+        val bounds = FitBounds(viewportWidth, viewportHeight, contentWidth, contentHeight)
+        if (!force && bounds == previousBounds) {
             return null
         }
-        previousScalePercent = scalePercent
+        previousBounds = bounds
         return scalePercent
     }
 
     fun reset() {
-        previousScalePercent = null
+        previousBounds = null
     }
 }

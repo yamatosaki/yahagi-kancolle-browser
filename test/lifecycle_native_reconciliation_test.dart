@@ -49,25 +49,31 @@ void main() {
     },
   );
 
-  test('audio failed preference rollback uses the latest lifecycle', () async {
-    final store = _AudioStore()..muteWriteGate = _Gate();
-    final native = _NativeFlag();
-    final controller = await GameAudioController.load(store);
-    addTearDown(controller.dispose);
-    await controller.attachPort(_AudioPort(native));
-    final toggle = controller.toggleMuted();
-    await store.muteWriteGate!.started.future;
-    await controller.handleLifecycleState(AppLifecycleState.paused);
-    store.muteWriteGate!.release.completeError(StateError('save failed'));
-    await toggle;
-    expect(controller.isMuted, isFalse);
-    expect(controller.errorMessage, isNotNull);
-    expect(
-      native.value,
-      isTrue,
-      reason: 'background policy still requires mute',
-    );
-  });
+  test(
+    'audio preference failure keeps manual mute through lifecycle changes',
+    () async {
+      final store = _AudioStore()..muteWriteGate = _Gate();
+      final native = _NativeFlag();
+      final controller = await GameAudioController.load(store);
+      addTearDown(controller.dispose);
+      await controller.attachPort(_AudioPort(native));
+      final toggle = controller.toggleMuted();
+      await store.muteWriteGate!.started.future;
+      await controller.handleLifecycleState(AppLifecycleState.paused);
+      store.muteWriteGate!.release.completeError(StateError('save failed'));
+      await toggle;
+      expect(controller.isMuted, isTrue);
+      expect(controller.errorMessage, isNotNull);
+      expect(
+        native.value,
+        isTrue,
+        reason: 'failed persistence must not erase the manual mute target',
+      );
+      await controller.handleLifecycleState(AppLifecycleState.resumed);
+      expect(native.value, isTrue);
+      expect(controller.errorMessage, isNotNull);
+    },
+  );
 
   test(
     'audio rapid background policy changes retain the newest preference',

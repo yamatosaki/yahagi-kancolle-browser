@@ -197,6 +197,12 @@ void main() {
           await tester.tap(find.text('关闭'));
         } else if (close == 'outside') {
           await tester.tapAt(const Offset(3, 3));
+          await tester.pump();
+          expect(find.byType(Dialog), findsOneWidget);
+          expect(find.byKey(_guard), findsNothing);
+          expect(completed, isFalse);
+          expect(gameTouches, 0);
+          await tester.tap(find.text('关闭'));
         } else {
           await tester.binding.handlePopRoute();
         }

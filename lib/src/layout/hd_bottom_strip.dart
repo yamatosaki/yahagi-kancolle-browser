@@ -1,3 +1,4 @@
+import '../widgets/app_popup_menu_button.dart';
 import '../theme/app_palette.dart';
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
@@ -96,7 +97,7 @@ class HdBottomStrip extends StatelessWidget {
                                     ),
                                     onToggle: () => controller
                                         .toggleHdModuleHidden(modules[i].id),
-                                    action: PopupMenuButton<int>(
+                                    action: AppPopupMenuButton<int>(
                                       key: Key('hd-width-${modules[i].id}'),
                                       child: Padding(
                                         padding: const EdgeInsets.all(8),

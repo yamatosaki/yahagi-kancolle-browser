@@ -48,7 +48,7 @@ Future<void> showGameBrowserMenu(
 ) {
   return showGeneralDialog<void>(
     context: context,
-    barrierDismissible: true,
+    barrierDismissible: false,
     barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
     barrierColor: Colors.black.withValues(alpha: 0.7),
     transitionDuration: const Duration(milliseconds: 150),

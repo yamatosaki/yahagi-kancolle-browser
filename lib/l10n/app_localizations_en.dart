@@ -2202,6 +2202,27 @@ class AppLocalizationsEn extends AppLocalizations {
       'When reaching a sortie node, show the formation last used there in the prediction panel.';
 
   @override
+  String get fleetInformationSyncTitle => 'Fleet information sync';
+
+  @override
+  String get fleetInformationSyncImmediate => 'Immediate';
+
+  @override
+  String get fleetInformationSyncSettlement => 'At battle result';
+
+  @override
+  String get fleetInformationSyncImmediateDesc =>
+      'Update fleet HP and damage control usage when battle data arrives.';
+
+  @override
+  String get fleetInformationSyncSettlementDesc =>
+      'Update fleet HP and damage control usage when the battle result arrives.';
+
+  @override
+  String get fleetInformationSyncSaveFailed =>
+      'Could not save. Please try again.';
+
+  @override
   String get battleEnemyPreviewPosition => 'Pre-battle enemy preview position';
 
   @override
@@ -3611,7 +3632,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get topNoticeEnabledSubtitle =>
-      'Show development, improvement, pre-sortie check, and quest completion alerts to the right of 「ヤハギ」 in the top bar';
+      'Show development, improvement, sortie/expedition check, and quest completion alerts to the right of 「ヤハギ」 in the top bar';
 
   @override
   String get topNoticeDurationTitle => 'Alert duration';
@@ -3775,6 +3796,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noticeSortieReasonExpansionSlot => 'Expansion slots unused';
+
+  @override
+  String noticeExpeditionSupplyWarning(String fleets) {
+    return 'Expedition alert: Fleet $fleets not resupplied';
+  }
 
   @override
   String get lockUi => 'Lock interface';

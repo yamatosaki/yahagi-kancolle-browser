@@ -3,9 +3,14 @@ import 'dart:ui' show FlutterView;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../layout/camera_avoidance.dart';
+import '../layout/window_metrics_change.dart';
+import '../layout/window_metrics_recovery_scheduler.dart';
+import '../layout/window_layout_controller.dart';
 import 'game_surface_input_guard.dart';
+import 'game_surface_viewport.dart';
 import 'game_workspace_visibility.dart';
 import 'native_game_surface_visibility.dart';
 import 'native_game_webview_contract.dart';
@@ -17,10 +22,27 @@ NativeGameWebViewBounds? readNativeGameSurfaceBounds(
   if (renderObject is! RenderBox || !renderObject.attached) {
     return null;
   }
+  Rect? clip;
+  RenderObject? ancestor = renderObject.parent;
+  while (ancestor != null) {
+    if (ancestor is RenderClipRect && ancestor.clipBehavior != Clip.none) {
+      final localClip =
+          ancestor.clipper?.getClip(ancestor.size) ??
+          (Offset.zero & ancestor.size);
+      final globalClip = MatrixUtils.transformRect(
+        ancestor.getTransformTo(null),
+        localClip,
+      );
+      clip = clip == null ? globalClip : clip.intersect(globalClip);
+    }
+    ancestor = ancestor.parent;
+  }
+  if (clip?.isEmpty ?? false) return null;
   return nativeGameSurfaceBoundsFromMetrics(
     size: renderObject.size,
     offset: renderObject.localToGlobal(Offset.zero),
     devicePixelRatio: devicePixelRatio,
+    clipRect: clip,
   );
 }
 
@@ -28,6 +50,7 @@ NativeGameWebViewBounds? nativeGameSurfaceBoundsFromMetrics({
   required Size size,
   required Offset offset,
   required double devicePixelRatio,
+  Rect? clipRect,
 }) {
   if (!size.width.isFinite ||
       !size.height.isFinite ||
@@ -45,6 +68,10 @@ NativeGameWebViewBounds? nativeGameSurfaceBoundsFromMetrics({
     width: size.width,
     height: size.height,
     devicePixelRatio: devicePixelRatio,
+    clipLeft: clipRect?.left,
+    clipTop: clipRect?.top,
+    clipWidth: clipRect?.width,
+    clipHeight: clipRect?.height,
   );
 }
 
@@ -75,10 +102,10 @@ final class NativeGameSurfaceSlot extends StatefulWidget {
   final int boundsRetryLimit;
 
   @override
-  State<NativeGameSurfaceSlot> createState() => _NativeGameSurfaceSlotState();
+  NativeGameSurfaceSlotState createState() => NativeGameSurfaceSlotState();
 }
 
-final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
+final class NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
     with WidgetsBindingObserver, RouteAware {
   late final NativeGameSurfaceVisibility _visibility;
   RouteObserver<ModalRoute<dynamic>>? _subscribedObserver;
@@ -86,6 +113,7 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
   Set<CameraAvoidanceEdge> _cameraEdges = const <CameraAvoidanceEdge>{};
   bool _cameraEnabled = false;
   bool _cameraGeometryKnown = false;
+  double? _cameraRequestedDistance;
   bool _forceBoundsSyncForCamera = false;
   ModalRoute<dynamic>? _subscribedRoute;
   NativeGameWebViewBounds? _lastBounds;
@@ -97,10 +125,17 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
   bool _boundsRetryExhausted = false;
   int _boundsRetryAttempts = 0;
   int _boundsGeneration = 0;
+  int? _cameraBoundsGeneration;
   bool _resendCurrentBoundsToNewSink = false;
   bool _measureScheduled = false;
   bool _boundsSyncDeferredForIme = false;
+  final _windowBoundsRecoveryScheduler = WindowMetricsRecoveryScheduler();
+  WindowMetricsChangeTracker? _windowMetricsChangeTracker;
+  bool _windowBoundsUnstable = false;
+  final _windowLayoutController = WindowLayoutController.acquire();
+  int _synchronizationRevision = 0;
   FlutterView? _view;
+  bool _fullscreen = true;
   bool _synchronizingRouteSubscription = false;
   bool? _workspaceActive;
   bool _popupRouteCoverActive = false;
@@ -120,6 +155,7 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
     super.initState();
     _visibility = NativeGameSurfaceVisibility(widget.onVisibilityChanged);
     WidgetsBinding.instance.addObserver(this);
+    _windowLayoutController.addListener(_onNativeWindowLayoutChanged);
     _ignoreErrors(
       _visibility.setAppVisible(
         _isAppVisibleForLifecycle(WidgetsBinding.instance.lifecycleState),
@@ -132,11 +168,29 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _view = View.of(context);
+    final fullscreen = GameSurfaceViewport.fullscreenOf(context) ?? true;
+    if (fullscreen != _fullscreen) {
+      _fullscreen = fullscreen;
+      // A mode change revokes pending callbacks even when its Rect is the same.
+      // Keep the metrics quiet period and IME restrictions in force.
+      _synchronizationRevision++;
+      _boundsGeneration++;
+      _queuedBounds = null;
+      _cameraBoundsGeneration = null;
+      _lastBounds = null;
+      _resendCurrentBoundsToNewSink = true;
+      _restartBoundsRetries();
+      _scheduleMeasurement();
+    }
+    _windowMetricsChangeTracker ??= WindowMetricsChangeTracker(
+      WindowMetricsSnapshot.fromView(_view!),
+    );
     final camera = CameraAvoidanceScope.maybeOf(context);
     final insets =
         camera?.synchronizationInsets ?? camera?.insets ?? EdgeInsets.zero;
     final edges = camera?.cutoutEdges ?? const <CameraAvoidanceEdge>{};
     final enabled = camera?.enabled ?? false;
+    final requestedDistance = camera?.requestedDistance;
     final cameraGeometryChanged =
         _cameraGeometryKnown &&
         (insets != _cameraInsets ||
@@ -144,14 +198,25 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
                 (_cameraEdges.isNotEmpty || edges.isNotEmpty) &&
                 (!setEquals(_cameraEdges, edges) ||
                     _cameraEnabled != enabled)));
+    final cameraSettingChanged =
+        _cameraGeometryKnown &&
+        (enabled != _cameraEnabled ||
+            (requestedDistance != null
+                ? requestedDistance != _cameraRequestedDistance
+                : cameraGeometryChanged));
     _cameraInsets = insets;
     _cameraEdges = edges;
     _cameraEnabled = enabled;
+    _cameraRequestedDistance = requestedDistance;
     _cameraGeometryKnown = true;
-    if (cameraGeometryChanged) {
+    if (cameraGeometryChanged || cameraSettingChanged) {
       // A deliberate camera viewport change must reach the native WebView
       // even while the IME is visible. Pure keyboard changes remain deferred.
-      _forceBoundsSyncForCamera = true;
+      // A rotation can move the cutout without changing the user's setting.
+      // That geometry waits for window settling just like the game bounds.
+      if (!_windowBoundsUnstable || cameraSettingChanged) {
+        _forceBoundsSyncForCamera = true;
+      }
       _scheduleMeasurement();
     }
     final workspaceActive = GameWorkspaceActive.of(context);
@@ -172,7 +237,10 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
         oldWidget.boundsSinkIdentity ?? oldWidget.onBoundsChanged;
     if (oldBoundsSinkIdentity != _effectiveBoundsSinkIdentity &&
         _currentBounds != null) {
+      final cameraOverrideIsCurrent =
+          _cameraBoundsGeneration == _boundsGeneration;
       _boundsGeneration++;
+      if (cameraOverrideIsCurrent) _cameraBoundsGeneration = _boundsGeneration;
       _lastBounds = null;
       _resendCurrentBoundsToNewSink = false;
       _queuedBounds = _currentBounds;
@@ -190,8 +258,37 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
 
   @override
   void didChangeMetrics() {
+    final view = _view;
+    final change = view == null
+        ? WindowMetricsChange.unchanged
+        : _windowMetricsChangeTracker?.update(
+                WindowMetricsSnapshot.fromView(view),
+              ) ??
+              WindowMetricsChange.unchanged;
     if (_isImeVisible && !_forceBoundsSyncForCamera) {
+      _synchronizationRevision++;
+      _boundsGeneration++;
+      _queuedBounds = null;
+      _windowBoundsRecoveryScheduler.cancel();
+      _windowBoundsUnstable = false;
       _boundsSyncDeferredForIme = true;
+      return;
+    }
+    // Transient system bars do not resize the game or restart a real resize
+    // already waiting for its quiet period.
+    if (change == WindowMetricsChange.insetsOnly) return;
+    if (change == WindowMetricsChange.geometry && _currentBounds != null) {
+      _synchronizationRevision++;
+      _boundsGeneration++;
+      _queuedBounds = null;
+      _windowBoundsUnstable = true;
+      _windowBoundsRecoveryScheduler.schedule(() {
+        _windowBoundsUnstable = false;
+        _windowMetricsChangeTracker?.markCurrentGeometryStable();
+        _restartBoundsRetries();
+        _scheduleMeasurement();
+        WidgetsBinding.instance.scheduleFrame();
+      });
       return;
     }
     if (_boundsSyncDeferredForIme) {
@@ -275,6 +372,9 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
 
   @override
   void dispose() {
+    _windowLayoutController.removeListener(_onNativeWindowLayoutChanged);
+    WindowLayoutController.release(_windowLayoutController);
+    _windowBoundsRecoveryScheduler.dispose();
     _routeCoverGeneration++;
     _boundsGeneration++;
     _currentBounds = null;
@@ -358,6 +458,8 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
   }
 
   void _scheduleMeasurement() {
+    if (!_nativeWindowPermitsBounds) return;
+    if (_windowBoundsUnstable && !_forceBoundsSyncForCamera) return;
     if (_isImeVisible && !_forceBoundsSyncForCamera) {
       _boundsSyncDeferredForIme = true;
       return;
@@ -375,11 +477,16 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
   }
 
   void _measureAndReport() {
+    if (!_nativeWindowPermitsBounds) return;
+    // Dependency and widget rebuilds can queue a post-frame measurement before
+    // Android publishes its next size. Do not let that bypass the quiet period.
+    if (_windowBoundsUnstable && !_forceBoundsSyncForCamera) return;
     if (_isImeVisible && !_forceBoundsSyncForCamera) {
       _boundsSyncDeferredForIme = true;
       return;
     }
     _boundsSyncDeferredForIme = false;
+    final forceForCamera = _forceBoundsSyncForCamera;
     _forceBoundsSyncForCamera = false;
     final bounds = readNativeGameSurfaceBounds(
       context.findRenderObject(),
@@ -397,6 +504,9 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
       _restartBoundsRetries();
       _resendCurrentBoundsToNewSink = false;
     }
+    // A deliberate camera setting may synchronize during the IME, but only
+    // for the geometry it measured. A later metrics generation revokes it.
+    _cameraBoundsGeneration = forceForCamera ? _boundsGeneration : null;
     if (_sameBounds(bounds, _lastBounds) &&
         !_boundsDrainRunning &&
         _queuedBounds == null &&
@@ -407,7 +517,10 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
     if (_boundsRetryExhausted && !changed) {
       return;
     }
-    if (!changed && _boundsDrainRunning && _queuedBounds == null) {
+    if (!changed &&
+        _boundsDrainRunning &&
+        _queuedBounds == null &&
+        !_resendCurrentBoundsToNewSink) {
       return;
     }
     _resendCurrentBoundsToNewSink = false;
@@ -418,7 +531,45 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
 
   bool get _isImeVisible => (_view?.viewInsets.bottom ?? 0) > 0;
 
+  bool get _nativeWindowPermitsBounds => _windowLayoutController.canSynchronize(
+    _view?.physicalSize,
+    requireMatchingPhysicalSize: _fullscreen,
+  );
+
+  bool get _boundsDeliveryPermitted =>
+      _nativeWindowPermitsBounds &&
+      ((!_windowBoundsUnstable && !_isImeVisible) ||
+          _cameraBoundsGeneration == _boundsGeneration);
+
+  /// Manual fits must use the same window permission as automatic bounds.
+  int get synchronizationRevision => _synchronizationRevision;
+  bool get canSynchronizeBounds =>
+      mounted &&
+      _nativeWindowPermitsBounds &&
+      !_windowBoundsUnstable &&
+      !_isImeVisible;
+
+  NativeGameWebViewBounds? readStableBounds() => !canSynchronizeBounds
+      ? null
+      : readNativeGameSurfaceBounds(
+          context.findRenderObject(),
+          devicePixelRatio: _view!.devicePixelRatio,
+        );
+
+  void _onNativeWindowLayoutChanged() {
+    if (!mounted) return;
+    _synchronizationRevision++;
+    _boundsGeneration++;
+    if (!_nativeWindowPermitsBounds) _queuedBounds = null;
+    if (_nativeWindowPermitsBounds) {
+      _resendCurrentBoundsToNewSink = true;
+      _scheduleMeasurement();
+      WidgetsBinding.instance.scheduleFrame();
+    }
+  }
+
   void _drainBounds() {
+    if (!_boundsDeliveryPermitted) return;
     if (_boundsDrainRunning) {
       return;
     }
@@ -429,6 +580,7 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
   Future<void> _runBoundsDrain() async {
     try {
       while (mounted && _queuedBounds != null) {
+        if (!_boundsDeliveryPermitted) return;
         final bounds = _queuedBounds!;
         final generation = _boundsGeneration;
         _queuedBounds = null;
@@ -459,6 +611,7 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
         _retryBounds = null;
         _boundsRetryAttempts = 0;
         if (generation == _boundsGeneration &&
+            _boundsDeliveryPermitted &&
             _sameBounds(bounds, _currentBounds) &&
             _queuedBounds == null) {
           _lastBounds = bounds;
@@ -467,7 +620,7 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
       }
     } finally {
       _boundsDrainRunning = false;
-      if (mounted && _queuedBounds != null) {
+      if (mounted && _queuedBounds != null && _boundsDeliveryPermitted) {
         _drainBounds();
       }
     }
@@ -478,10 +631,15 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
       return;
     }
     _boundsRetryScheduled = true;
+    final generation = _boundsGeneration;
     WidgetsBinding.instance.scheduleFrame();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _boundsRetryScheduled = false;
-      if (!mounted || _boundsRetryExhausted || _currentBounds == null) {
+      if (!mounted ||
+          _boundsRetryExhausted ||
+          _currentBounds == null ||
+          generation != _boundsGeneration ||
+          !_boundsDeliveryPermitted) {
         return;
       }
       _queuedBounds = _currentBounds;
@@ -508,11 +666,37 @@ final class _NativeGameSurfaceSlotState extends State<NativeGameSurfaceSlot>
     NativeGameWebViewBounds? second,
   ) {
     return second != null &&
-        first.left == second.left &&
-        first.top == second.top &&
-        first.width == second.width &&
-        first.height == second.height &&
-        first.devicePixelRatio == second.devicePixelRatio;
+        first.devicePixelRatio == second.devicePixelRatio &&
+        _physicalEdges(first) == _physicalEdges(second) &&
+        _physicalClipEdges(first) == _physicalClipEdges(second);
+  }
+
+  static (int, int, int, int)? _physicalClipEdges(
+    NativeGameWebViewBounds bounds,
+  ) {
+    if (bounds.clipLeft == null) return null;
+    int physical(double value) =>
+        (value * bounds.devicePixelRatio + .5).floor();
+    return (
+      physical(bounds.clipLeft!),
+      physical(bounds.clipTop!),
+      physical(bounds.clipLeft! + bounds.clipWidth!),
+      physical(bounds.clipTop! + bounds.clipHeight!),
+    );
+  }
+
+  // Match Android's independent edge rounding (including negative overflow
+  // coordinates). Logical floating point noise must not hide and reattach a
+  // WebView whose physical rectangle has not changed.
+  static (int, int, int, int) _physicalEdges(NativeGameWebViewBounds bounds) {
+    int physical(double value) =>
+        (value * bounds.devicePixelRatio + .5).floor();
+    return (
+      physical(bounds.left),
+      physical(bounds.top),
+      physical(bounds.left + bounds.width),
+      physical(bounds.top + bounds.height),
+    );
   }
 
   void _ignoreErrors(Future<void> future) {

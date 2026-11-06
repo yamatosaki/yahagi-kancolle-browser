@@ -37,6 +37,44 @@ class BattlePredictionSettingsSection extends StatelessWidget
           ),
           Divider(color: appColor(context, Color(0xff294052)), height: 1),
           buildActionTile(
+            title: l10n.fleetInformationSyncTitle,
+            subtitle:
+                controller.fleetInformationSyncMode ==
+                    FleetInformationSyncMode.immediate
+                ? l10n.fleetInformationSyncImmediateDesc
+                : l10n.fleetInformationSyncSettlementDesc,
+            trailing: DropdownButton<FleetInformationSyncMode>(
+              key: const Key('fleet-information-sync-mode'),
+              barrierDismissible: false,
+              value: controller.fleetInformationSyncMode,
+              underline: const SizedBox.shrink(),
+              items: [
+                DropdownMenuItem(
+                  value: FleetInformationSyncMode.immediate,
+                  child: Text(l10n.fleetInformationSyncImmediate),
+                ),
+                DropdownMenuItem(
+                  value: FleetInformationSyncMode.settlement,
+                  child: Text(l10n.fleetInformationSyncSettlement),
+                ),
+              ],
+              onChanged: (mode) async {
+                if (mode == null) return;
+                try {
+                  await controller.setFleetInformationSyncMode(mode);
+                } catch (_) {
+                  if (!context.mounted) return;
+                  TopNotice.show(
+                    context,
+                    message: l10n.fleetInformationSyncSaveFailed,
+                    tone: TopNoticeTone.error,
+                  );
+                }
+              },
+            ),
+          ),
+          Divider(color: appColor(context, Color(0xff294052)), height: 1),
+          buildActionTile(
             key: const Key('battle-section-order'),
             title: l10n.battleSectionOrder,
             subtitle: l10n.battleSectionOrderDescription,
@@ -71,6 +109,7 @@ class BattlePredictionSettingsSection extends StatelessWidget
 
   void _showOrderSheet(BuildContext context) {
     showModalBottomSheet<void>(
+      isDismissible: false,
       context: context,
       isScrollControlled: true,
       useSafeArea: true,

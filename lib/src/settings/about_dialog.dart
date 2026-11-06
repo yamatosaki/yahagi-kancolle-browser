@@ -5,6 +5,7 @@ import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import '../widgets/top_notice.dart';
 import 'release_check_service.dart';
+import 'release_version.dart';
 
 typedef ExternalUrlLauncher = Future<bool> Function(Uri uri);
 
@@ -80,6 +81,7 @@ class AboutContentWidget extends StatelessWidget {
         AppLocalizations.of(context) ??
         lookupAppLocalizations(const Locale('zh'));
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Row(
@@ -96,11 +98,11 @@ class AboutContentWidget extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '${l10n.currentVersionLabel}: $currentVersion',
+                '${l10n.currentVersionLabel}: ${displayReleaseVersion(currentVersion)}',
                 style: TextStyle(color: appColor(context, Color(0xff8197a5))),
               ),
               Text(
-                '${l10n.latestVersionLabel}: $newVersionName',
+                '${l10n.latestVersionLabel}: ${displayReleaseVersion(newVersionName)}',
                 style: TextStyle(
                   color: appColor(context, Color(0xffd4a85f)),
                   fontWeight: FontWeight.bold,
@@ -162,6 +164,7 @@ class AboutContentWidget extends StatelessWidget {
         AppLocalizations.of(context) ??
         lookupAppLocalizations(const Locale('zh'));
     showDialog(
+      barrierDismissible: false,
       context: context,
       builder: (context) => AlertDialog(
         title: Text(title, style: const TextStyle(fontSize: 18)),
@@ -270,7 +273,7 @@ class AboutContentWidget extends StatelessWidget {
                             child: Text(
                               l10n.version.replaceFirst(
                                 RegExp(r'\d+(?:\.\d+){1,2}'),
-                                currentVersion,
+                                displayReleaseVersion(currentVersion),
                               ),
                               style: TextStyle(
                                 fontSize: 12,

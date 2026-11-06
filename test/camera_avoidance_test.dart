@@ -441,19 +441,16 @@ void main() {
             ),
           ),
         );
-        final expected = GameSurfaceViewport.computeContainGameRect(
-          containerWidth: 900 - distance,
-          containerHeight: 400,
-          aspectRatio: 5 / 3,
-          padding: const EdgeInsets.only(right: 20),
-        );
+        final expectedWidth = 400 * 5 / 3;
+        final expectedLeft = ((900 - distance - expectedWidth) / 2)
+            .roundToDouble();
         expect(
           tester.getTopLeft(find.byKey(const Key('game'))).dx,
-          closeTo(distance + expected.left, .001),
+          closeTo(distance + expectedLeft, .001),
         );
         expect(
           tester.getSize(find.byKey(const Key('game'))).width,
-          closeTo(expected.width, .001),
+          closeTo(expectedWidth, .001),
         );
       }
     },
@@ -508,6 +505,8 @@ void main() {
         reason: 'a vendor IME fluctuation must not resize the native game',
       );
       await pump(420, 0);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump();
       expect(reports.last.height, 420);
     });
   }
@@ -630,7 +629,7 @@ void main() {
           builder: (context, child) => MediaQuery(
             data: MediaQueryData(
               size: const Size(456, 60),
-              viewPadding: const EdgeInsets.only(top: 30, bottom: 40),
+              viewPadding: const EdgeInsets.only(top: 30, bottom: 70),
               displayFeatures: [feature(const Rect.fromLTWH(4, 20, 24, 24))],
             ),
             child: CameraAvoidanceViewport(
@@ -640,7 +639,7 @@ void main() {
             ),
           ),
           home: const GameSurfaceViewport(
-            fullscreen: true,
+            centerAboveBottomInset: true,
             isLandscape: true,
             child: SizedBox.expand(key: Key('exhausted-game')),
           ),

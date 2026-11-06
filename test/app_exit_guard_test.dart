@@ -155,11 +155,17 @@ void main() {
     expect(find.byKey(_game), findsOneWidget);
   });
 
-  testWidgets('tapping the barrier cancels leaving', (tester) async {
+  testWidgets('tapping the barrier keeps exit confirmation open', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host());
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(find.byKey(_dialog), findsOneWidget);
+    expect(navigationCalls, isEmpty);
+    await tester.tap(find.byKey(_stay));
     await tester.pumpAndSettle();
     expect(find.byKey(_dialog), findsNothing);
     expect(navigationCalls, isEmpty);

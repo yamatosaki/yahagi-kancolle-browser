@@ -44,6 +44,8 @@ final class BattleController extends ChangeNotifier
       DateTime capturedAt,
     )?
     onDamageControlConsumed,
+    this.onFleetBattleDisplayStarted,
+    this.onFleetBattleDisplaySettled,
     this.damageAlertPort,
     this.battleStatusEffectSettings,
     this.poiEngineFactory,
@@ -79,6 +81,8 @@ final class BattleController extends ChangeNotifier
     DateTime capturedAt,
   )?
   _damageControlUpdater;
+  final void Function(Iterable<int> shipIds)? onFleetBattleDisplayStarted;
+  final VoidCallback? onFleetBattleDisplaySettled;
   final FrameNotificationCoalescer _captureNotifications;
   final BattlePredictionExecutor _predictionExecutor;
   final BattleDamageAlertPort? damageAlertPort;
@@ -112,6 +116,7 @@ final class BattleController extends ChangeNotifier
     _current = null;
     _session = null;
     _predictionEngine = null;
+    _fleetBattleDisplayPending = false;
     _lastBattleCapturedAt = null;
     _lastError = null;
     _sortieDamageControls.endSortie();
@@ -152,6 +157,7 @@ final class BattleController extends ChangeNotifier
   CombatState? _sortieMapResetCombat;
   DateTime? _lastBattleCapturedAt;
   String? _lastError;
+  bool _fleetBattleDisplayPending = false;
   bool _disposed = false;
 
   LiveBattle? get current {
@@ -232,6 +238,7 @@ final class BattleController extends ChangeNotifier
     if (_disposed) return;
     _generation++;
     _acceptedSequences.clear();
+    _fleetBattleDisplayPending = false;
     _lastBattleCapturedAt = null;
     _hasTrustedDamageControlBaseline = false;
     _sortieDamageControls.beginSortie(
@@ -245,6 +252,8 @@ final class BattleController extends ChangeNotifier
   void bindFriendlyHpUpdater(
     void Function(Map<int, int> hpByShipId, DateTime capturedAt) updater,
   ) {
+    // A rebuild must not replay an old prediction over a newer ship snapshot.
+    if (_friendlyHpUpdater == updater) return;
     _friendlyHpUpdater = updater;
     final current = _current;
     if (current == null ||
@@ -385,6 +394,7 @@ final class BattleController extends ChangeNotifier
       _archiveSession();
       _session = null;
       _predictionEngine = null;
+      _fleetBattleDisplayPending = false;
       _sortieDamageControls.endSortie();
       warningSession.endSortie();
       _clearSortieMapProgress();
@@ -460,6 +470,7 @@ final class BattleController extends ChangeNotifier
       );
       _archiveSession();
       _predictionEngine = null;
+      _fleetBattleDisplayPending = false;
       _session = BattleSession(
         id: '${event.sequence}:${_context.mapAreaId}-${_context.mapInfoNo}-${_context.node}',
         context: _context,
@@ -964,12 +975,39 @@ final class BattleController extends ChangeNotifier
     );
     _lastBattleCapturedAt = event.capturedAt;
     if (!practice) {
+      if (onFleetBattleDisplayStarted case final started?) {
+        if ((previous == null ||
+                previous.displayStage == BattleDisplayStage.navigation) &&
+            _matchesFleetBattleDisplayContext(_context, state.combatState)) {
+          final shipIds = <int>[
+            for (final ship in _current!.friendShips) ?ship.ownedShipId,
+          ];
+          if (shipIds.isNotEmpty) {
+            _fleetBattleDisplayPending = true;
+            started(shipIds);
+          }
+        }
+      }
       _emitFriendlyHp(_current!, event.capturedAt);
       if (!hasUntrustedPoiLedger) {
         _emitDamageControlConsumption(event.capturedAt);
       }
     }
   }
+
+  bool _matchesFleetBattleDisplayContext(
+    BattleContext context,
+    CombatState combat,
+  ) =>
+      !context.practice &&
+      combat.isActive &&
+      context.mapAreaId > 0 &&
+      context.mapInfoNo > 0 &&
+      context.node > 0 &&
+      context.mapAreaId == combat.mapArea &&
+      context.mapInfoNo == combat.mapInfo &&
+      context.node == combat.currentNode &&
+      context.deckId == combat.sortieFleetId;
 
   void _emitFriendlyHp(LiveBattle battle, DateTime capturedAt) {
     final hpByShipId = <int, int>{};
@@ -1149,6 +1187,22 @@ final class BattleController extends ChangeNotifier
     }
     if (!confirmed.context.practice && !_hasUntrustedPoiLedger) {
       _emitDamageControlConsumption(event.capturedAt);
+    }
+    if (_fleetBattleDisplayPending &&
+        rank != BattleRank.unknown &&
+        event.path != '/kcsapi/api_req_practice/battle_result' &&
+        _matchesFleetBattleDisplayContext(
+          confirmed.context,
+          state.combatState,
+        )) {
+      final resultDeckId = _positive(
+        data['api_deck_id'],
+        _positive(event.requestParams['api_deck_id'], confirmed.context.deckId),
+      );
+      if (resultDeckId == confirmed.context.deckId) {
+        _fleetBattleDisplayPending = false;
+        onFleetBattleDisplaySettled?.call();
+      }
     }
 
     // Log to persistent database

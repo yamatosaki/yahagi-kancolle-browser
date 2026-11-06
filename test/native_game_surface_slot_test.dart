@@ -1,12 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_workspace_visibility.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_surface_input_guard.dart';
 import 'package:yahagi_kancolle_browser/src/browser/native_game_surface_slot.dart';
 import 'package:yahagi_kancolle_browser/src/browser/native_game_surface_visibility.dart';
 import 'package:yahagi_kancolle_browser/src/browser/native_game_webview_contract.dart';
+import 'package:yahagi_kancolle_browser/src/browser/game_surface_viewport.dart';
+import 'package:yahagi_kancolle_browser/src/layout/window_layout_controller.dart';
+import 'package:yahagi_kancolle_browser/src/layout/camera_avoidance.dart';
 
 void main() {
   group('NativeGameSurfaceVisibility', () {
@@ -227,6 +231,223 @@ void main() {
 
   group('NativeGameSurfaceSlot', () {
     testWidgets(
+      'an in-flight bounds reply cannot drain a queued plane after native permission is revoked',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(800, 600);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        const channel = MethodChannel(
+          'app.yahagi.kancollebrowser/window_layout',
+        );
+        final messenger =
+            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+        messenger.setMockMethodCallHandler(
+          channel,
+          (_) async => {'mode': 'single', 'isLandscape': true},
+        );
+        addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+        final pending = Completer<void>();
+        addTearDown(() async {
+          if (!pending.isCompleted) pending.complete();
+          await tester.pumpWidget(const SizedBox.shrink());
+        });
+        Future<void> publish(bool stable) => messenger.handlePlatformMessage(
+          channel.name,
+          const StandardMethodCodec().encodeMethodCall(
+            MethodCall('windowLayoutChanged', {
+              'mode': 'single',
+              'isLandscape': true,
+              'stable': stable,
+              'windowWidth': 800,
+              'windowHeight': 600,
+            }),
+          ),
+          (_) {},
+        );
+        final started = <double>[];
+        Future<void> onBounds(NativeGameWebViewBounds value) async {
+          started.add(value.width);
+          if (value.width == 120) await pending.future;
+        }
+
+        await tester.pumpWidget(_slotApp(onBoundsChanged: onBounds));
+        await tester.pump();
+        await tester.pumpWidget(
+          _slotApp(width: 120, onBoundsChanged: onBounds),
+        );
+        await tester.pump();
+        await tester.pumpWidget(
+          _slotApp(width: 140, onBoundsChanged: onBounds),
+        );
+        await tester.pump();
+        await publish(false);
+        pending.complete();
+        await tester.pump();
+        await tester.pump();
+        expect(started, [100, 120]);
+        await publish(true);
+        await tester.pump();
+        await tester.pump();
+        expect(started, [100, 120, 140]);
+      },
+    );
+
+    testWidgets(
+      'clip changes synchronize independently of an unchanged plane and deduplicate physical noise',
+      (tester) async {
+        tester.view.devicePixelRatio = 2.75;
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final bounds = <NativeGameWebViewBounds>[];
+        final visibility = <bool>[];
+        Future<void> onBounds(NativeGameWebViewBounds value) async =>
+            bounds.add(value);
+        Future<void> onVisible(bool value) async => visibility.add(value);
+        Widget host(double top) => ClipRect(
+          clipper: _TestRectClipper(Rect.fromLTWH(0, top, 200, 100 - top)),
+          child: _slotApp(
+            onBoundsChanged: onBounds,
+            onVisibilityChanged: onVisible,
+          ),
+        );
+        await tester.pumpWidget(host(10.1));
+        await tester.pump();
+        await tester.pumpWidget(host(10.100001));
+        await tester.pump();
+        expect(bounds, hasLength(1));
+        expect(visibility, [true]);
+        await tester.pumpWidget(host(11.1));
+        await tester.pump();
+        expect(bounds, hasLength(2));
+        expect(bounds.first.left, bounds.last.left);
+        expect(bounds.first.width, bounds.last.width);
+        expect(bounds.last.clipTop, 11.1);
+        expect(visibility, [true, false, true]);
+      },
+    );
+
+    testWidgets(
+      'native stable permission must match the current Flutter window before submitting bounds',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(800, 600);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        const channel = MethodChannel(
+          'app.yahagi.kancollebrowser/window_layout',
+        );
+        final messenger =
+            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+        messenger.setMockMethodCallHandler(
+          channel,
+          (_) async => {
+            'mode': 'sideBySide',
+            'isLandscape': true,
+            'stable': false,
+            'windowWidth': 800,
+            'windowHeight': 600,
+          },
+        );
+        addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+        addTearDown(() async => tester.pumpWidget(const SizedBox.shrink()));
+        Future<void> publish(bool stable, int width) =>
+            messenger.handlePlatformMessage(
+              channel.name,
+              const StandardMethodCodec().encodeMethodCall(
+                MethodCall('windowLayoutChanged', {
+                  'mode': 'stacked',
+                  'isLandscape': true,
+                  'stable': stable,
+                  'windowWidth': width,
+                  'windowHeight': 600,
+                }),
+              ),
+              (_) {},
+            );
+        final bounds = <NativeGameWebViewBounds>[];
+        final visibility = <bool>[];
+        Future<void> onBounds(NativeGameWebViewBounds value) async =>
+            bounds.add(value);
+        Future<void> onVisible(bool value) async => visibility.add(value);
+        await tester.pumpWidget(
+          _slotApp(onBoundsChanged: onBounds, onVisibilityChanged: onVisible),
+        );
+        await tester.pump();
+        expect(bounds, isEmpty);
+        await publish(true, 800);
+        await tester.pump();
+        await tester.pump();
+        await publish(false, 720);
+        tester.view.physicalSize = const Size(720, 600);
+        await tester.pumpWidget(
+          _slotApp(
+            width: 140,
+            onBoundsChanged: onBounds,
+            onVisibilityChanged: onVisible,
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 200));
+        await tester.pump();
+        expect(bounds, hasLength(1));
+        expect(visibility, [true]);
+        await publish(true, 700);
+        await tester.pump(const Duration(milliseconds: 250));
+        expect(bounds, hasLength(1));
+        await publish(true, 720);
+        await tester.pump();
+        await tester.pump();
+        expect(bounds.map((value) => value.width), [100, 140]);
+        expect(visibility, [true, false, true]);
+      },
+    );
+
+    testWidgets(
+      'complete game plane fits inside the camera and system safe clip',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(300, 500);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        final bounds = <NativeGameWebViewBounds>[];
+        await tester.pumpWidget(
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: MediaQuery(
+              data: const MediaQueryData(size: Size(300, 500)),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 40),
+                child: GameSurfaceViewport(
+                  fullscreen: true,
+                  fullscreenFitAxis: GameFitAxis.height,
+                  viewPadding: const EdgeInsets.only(top: 10, bottom: 20),
+                  child: NativeGameSurfaceSlot(
+                    onBoundsChanged: (value) async => bounds.add(value),
+                    onVisibilityChanged: _ignoreVisibility,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        final state = tester.state<NativeGameSurfaceSlotState>(
+          find.byType(NativeGameSurfaceSlot),
+        );
+        expect(state.canSynchronizeBounds, isTrue);
+        expect(state.readStableBounds(), isNotNull);
+        final value = bounds.single.toMap();
+        expect(value['left'], 40);
+        expect(value['top'], 172);
+        expect(value['width'], 260);
+        expect(value['height'], 156);
+        expect(value['clipLeft'], 40);
+        expect(value['clipTop'], 0);
+        expect(value['clipWidth'], 260);
+        expect(value['clipHeight'], 500);
+      },
+    );
+
+    testWidgets(
       'reports logical bounds and the Flutter view DPR once attached',
       (tester) async {
         tester.view.devicePixelRatio = 2;
@@ -287,6 +508,7 @@ void main() {
             AppLifecycleState.resumed,
           );
           await tester.pump();
+          await tester.pump();
           expect(visibility, <bool>[true]);
           await tester.pumpWidget(const SizedBox.shrink());
           await tester.pump();
@@ -306,6 +528,7 @@ void main() {
             useCurrentLifecycle: true,
           ),
         );
+        await tester.pump();
         await tester.pump();
         expect(inactiveVisibility, <bool>[
           true,
@@ -346,6 +569,7 @@ void main() {
         );
         await tester.pump();
         tester.view.devicePixelRatio = 2;
+        await tester.pump(const Duration(milliseconds: 200));
         await tester.pump();
 
         expect(bounds.map((value) => value.toMap()), <Map<String, double>>[
@@ -374,6 +598,259 @@ void main() {
       },
     );
 
+    testWidgets(
+      'subpixel changes with identical physical edges keep the surface visible',
+      (tester) async {
+        tester.view.devicePixelRatio = 2.75;
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final bounds = <NativeGameWebViewBounds>[];
+        final visibility = <bool>[];
+        Future<void> onBounds(NativeGameWebViewBounds value) async =>
+            bounds.add(value);
+        Future<void> onVisibility(bool value) async => visibility.add(value);
+
+        await tester.pumpWidget(
+          _slotApp(
+            left: 10.1,
+            top: 20.1,
+            onBoundsChanged: onBounds,
+            onVisibilityChanged: onVisibility,
+          ),
+        );
+        await tester.pump();
+        final originalVisibility = List<bool>.of(visibility);
+        for (final delta in [0.000001, -0.000001, 0.01]) {
+          await tester.pumpWidget(
+            _slotApp(
+              width: 100 + delta,
+              height: 50 + delta,
+              left: 10.1 + delta,
+              top: 20.1 + delta,
+              onBoundsChanged: onBounds,
+              onVisibilityChanged: onVisibility,
+            ),
+          );
+          await tester.pump();
+        }
+        expect(bounds, hasLength(1));
+        expect(visibility, originalVisibility);
+
+        await tester.pumpWidget(
+          _slotApp(
+            width: 101,
+            left: 10,
+            top: 20,
+            onBoundsChanged: onBounds,
+            onVisibilityChanged: onVisibility,
+          ),
+        );
+        await tester.pump();
+        expect(bounds, hasLength(2));
+        expect(visibility.last, isTrue);
+      },
+    );
+
+    testWidgets(
+      'window resizing keeps the visible surface until 200ms after final metrics',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(800, 600);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        final bounds = <NativeGameWebViewBounds>[];
+        final visibility = <bool>[];
+        Future<void> onBounds(NativeGameWebViewBounds value) async =>
+            bounds.add(value);
+        Future<void> onVisibility(bool value) async => visibility.add(value);
+        await tester.pumpWidget(
+          _slotApp(
+            onBoundsChanged: onBounds,
+            onVisibilityChanged: onVisibility,
+          ),
+        );
+        await tester.pump();
+        expect(visibility, [true]);
+        for (var step = 1; step <= 4; step++) {
+          tester.view.physicalSize = Size(800 - step * 20, 600);
+          await tester.pumpWidget(
+            _slotApp(
+              width: 100 + step * 10,
+              onBoundsChanged: onBounds,
+              onVisibilityChanged: onVisibility,
+            ),
+          );
+          await tester.pump(const Duration(milliseconds: 50));
+          expect(
+            bounds,
+            hasLength(1),
+            reason: 'intermediate resize step $step',
+          );
+          expect(visibility, [true]);
+        }
+        await tester.pump(const Duration(milliseconds: 149));
+        expect(bounds, hasLength(1));
+        expect(visibility, [true]);
+        await tester.pump(const Duration(milliseconds: 1));
+        await tester.pump();
+        expect(bounds.map((value) => value.width), [100, 140]);
+        expect(visibility, [true, false, true]);
+        await tester.pump(const Duration(seconds: 1));
+        expect(bounds, hasLength(2));
+      },
+    );
+
+    testWidgets(
+      'disposing during a pending window resize cancels its bounds update',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(800, 600);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        final bounds = <NativeGameWebViewBounds>[];
+        Future<void> onBounds(NativeGameWebViewBounds value) async =>
+            bounds.add(value);
+        await tester.pumpWidget(_slotApp(onBoundsChanged: onBounds));
+        await tester.pump();
+        tester.view.physicalSize = const Size(780, 600);
+        await tester.pumpWidget(
+          _slotApp(width: 120, onBoundsChanged: onBounds),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(seconds: 1));
+        expect(bounds.map((value) => value.width), [100]);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'an already queued measurement cannot bypass a new window quiet period',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(800, 600);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        final bounds = <NativeGameWebViewBounds>[];
+        Future<void> onBounds(NativeGameWebViewBounds value) async =>
+            bounds.add(value);
+        await tester.pumpWidget(_slotApp(onBoundsChanged: onBounds));
+        await tester.pump();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          tester.view.physicalSize = const Size(780, 600);
+        });
+        await tester.pumpWidget(
+          _slotApp(width: 120, onBoundsChanged: onBounds),
+        );
+        await tester.pump();
+        expect(bounds.map((value) => value.width), [100]);
+        await tester.pump(const Duration(milliseconds: 200));
+        await tester.pump();
+        expect(bounds.map((value) => value.width), [100, 120]);
+      },
+    );
+
+    testWidgets(
+      'camera adjustment and sink replacement remain immediate during window settling',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(800, 600);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        final first = <NativeGameWebViewBounds>[];
+        final second = <NativeGameWebViewBounds>[];
+        Widget host(double distance, {bool newSink = false}) =>
+            CameraAvoidanceScope(
+              insets: EdgeInsets.only(left: distance),
+              windowSize: const Size(800, 600),
+              enabled: true,
+              cutoutEdges: const {CameraAvoidanceEdge.left},
+              child: _slotApp(
+                width: distance == 0 ? 100 : 120,
+                left: distance,
+                boundsSinkIdentity: newSink ? second : first,
+                onBoundsChanged: (value) async =>
+                    (newSink ? second : first).add(value),
+              ),
+            );
+        await tester.pumpWidget(host(0));
+        await tester.pump();
+        tester.view.physicalSize = const Size(780, 600);
+        await tester.pumpWidget(host(0));
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pumpWidget(host(20));
+        await tester.pump();
+        expect(first.map((value) => value.left), [0, 20]);
+        await tester.pumpWidget(host(20, newSink: true));
+        await tester.pump();
+        expect(second.single.left, 20);
+        await tester.pump(const Duration(milliseconds: 200));
+        await tester.pump();
+        expect(second, hasLength(1));
+      },
+    );
+
+    testWidgets('IME cancels a pending resize until keyboard exit settles', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(800, 600);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetViewInsets);
+      final bounds = <NativeGameWebViewBounds>[];
+      Future<void> onBounds(NativeGameWebViewBounds value) async =>
+          bounds.add(value);
+      await tester.pumpWidget(_slotApp(onBoundsChanged: onBounds));
+      await tester.pump();
+      tester.view.physicalSize = const Size(780, 600);
+      await tester.pumpWidget(_slotApp(width: 120, onBoundsChanged: onBounds));
+      await tester.pump(const Duration(milliseconds: 50));
+      tester.view.viewInsets = const FakeViewPadding(bottom: 200);
+      await tester.pump(const Duration(seconds: 1));
+      expect(bounds, hasLength(1));
+      tester.view.resetViewInsets();
+      await tester.pump(const Duration(milliseconds: 199));
+      expect(bounds, hasLength(1));
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump();
+      expect(bounds.map((value) => value.width), [100, 120]);
+    });
+
+    testWidgets(
+      'route safety hiding remains immediate during window settling',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(800, 600);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        final navigator = GlobalKey<NavigatorState>();
+        final observer = YahagiGameRouteObserver();
+        final visibility = <bool>[];
+        Future<void> onVisibility(bool value) async => visibility.add(value);
+        await tester.pumpWidget(
+          _slotApp(
+            navigatorKey: navigator,
+            observer: observer,
+            onVisibilityChanged: onVisibility,
+          ),
+        );
+        await tester.pump();
+        tester.view.physicalSize = const Size(780, 600);
+        await tester.pump();
+        expect(visibility, [true]);
+        unawaited(
+          navigator.currentState!.push<void>(
+            MaterialPageRoute(builder: (_) => const SizedBox.expand()),
+          ),
+        );
+        await tester.pump();
+        expect(visibility, [true, false]);
+        await tester.pump(const Duration(milliseconds: 200));
+        await tester.pump();
+        expect(visibility.last, isFalse);
+      },
+    );
+
     testWidgets('coalesces repeated metrics changes in one frame', (
       tester,
     ) async {
@@ -389,7 +866,9 @@ void main() {
       tester.binding.handleMetricsChanged();
       tester.binding.handleMetricsChanged();
       await tester.pump();
-
+      expect(bounds, hasLength(1));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump();
       expect(bounds, hasLength(2));
     });
 
@@ -427,6 +906,98 @@ void main() {
 
       expect(bounds.map((value) => value.width), <double>[100, 120]);
     });
+
+    testWidgets(
+      'a queued bounds retry waits for window settling before applying fresh bounds',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(800, 600);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        final attempts = <NativeGameWebViewBounds>[];
+        final visibility = <bool>[];
+        Future<void> onBounds(NativeGameWebViewBounds value) async {
+          attempts.add(value);
+          if (attempts.length == 1) {
+            throw StateError('expected first bounds failure');
+          }
+        }
+
+        await tester.pumpWidget(
+          _slotApp(
+            onBoundsChanged: onBounds,
+            onVisibilityChanged: (value) async => visibility.add(value),
+          ),
+        );
+        await tester.pump();
+        expect(attempts.map((value) => value.width), [100]);
+        expect(visibility, isEmpty);
+
+        // The missing-plugin fallback leaves Flutter responsible for the quiet
+        // period. A retry already queued for this frame must respect it too.
+        tester.view.physicalSize = const Size(780, 600);
+        await tester.pumpWidget(
+          _slotApp(
+            width: 120,
+            onBoundsChanged: onBounds,
+            onVisibilityChanged: (value) async => visibility.add(value),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 199));
+        expect(attempts.map((value) => value.width), [100]);
+        expect(visibility, isEmpty);
+
+        await tester.pump(const Duration(milliseconds: 1));
+        await tester.pump();
+        expect(attempts.map((value) => value.width), [100, 120]);
+        expect(visibility, [true]);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'a queued bounds retry waits for IME exit before applying fresh bounds',
+      (tester) async {
+        addTearDown(tester.view.resetViewInsets);
+        final attempts = <NativeGameWebViewBounds>[];
+        final visibility = <bool>[];
+        Future<void> onBounds(NativeGameWebViewBounds value) async {
+          attempts.add(value);
+          if (attempts.length == 1) {
+            throw StateError('expected first bounds failure');
+          }
+        }
+
+        await tester.pumpWidget(
+          _slotApp(
+            onBoundsChanged: onBounds,
+            onVisibilityChanged: (value) async => visibility.add(value),
+          ),
+        );
+        await tester.pump();
+        expect(attempts.map((value) => value.width), [100]);
+        expect(visibility, isEmpty);
+
+        tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+        await tester.pumpWidget(
+          _slotApp(
+            width: 120,
+            onBoundsChanged: onBounds,
+            onVisibilityChanged: (value) async => visibility.add(value),
+          ),
+        );
+        await tester.pump(const Duration(seconds: 1));
+        expect(attempts.map((value) => value.width), [100]);
+        expect(visibility, isEmpty);
+
+        tester.view.resetViewInsets();
+        await tester.pump();
+        await tester.pump();
+        expect(attempts.map((value) => value.width), [100, 120]);
+        expect(visibility, [true]);
+        expect(tester.takeException(), isNull);
+      },
+    );
 
     testWidgets('retries failed static bounds on a later frame', (
       tester,
@@ -481,6 +1052,61 @@ void main() {
     });
 
     testWidgets(
+      'an in-flight bounds acknowledgement cannot drain its queue during IME input',
+      (tester) async {
+        addTearDown(tester.view.resetViewInsets);
+        final pending = Completer<void>();
+        addTearDown(() async {
+          if (!pending.isCompleted) pending.complete();
+          await tester.pumpWidget(const SizedBox.shrink());
+        });
+        final started = <double>[];
+        final visibility = <bool>[];
+        Future<void> onBounds(NativeGameWebViewBounds value) async {
+          started.add(value.width);
+          if (started.length == 1) await pending.future;
+        }
+
+        Future<void> onVisible(bool value) async => visibility.add(value);
+
+        await tester.pumpWidget(
+          _slotApp(onBoundsChanged: onBounds, onVisibilityChanged: onVisible),
+        );
+        await tester.pump();
+        await tester.pumpWidget(
+          _slotApp(
+            width: 120,
+            onBoundsChanged: onBounds,
+            onVisibilityChanged: onVisible,
+          ),
+        );
+        await tester.pump();
+        expect(started, [100]);
+
+        tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+        await tester.pumpWidget(
+          _slotApp(
+            width: 140,
+            onBoundsChanged: onBounds,
+            onVisibilityChanged: onVisible,
+          ),
+        );
+        pending.complete();
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+        expect(started, [100]);
+        expect(visibility, isEmpty);
+
+        tester.view.resetViewInsets();
+        await tester.pump();
+        await tester.pump();
+        expect(started, [100, 140]);
+        expect(visibility, [true]);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
       'serializes bounds reports and applies only the latest update',
       (tester) async {
         final firstCompletes = Completer<void>();
@@ -518,6 +1144,47 @@ void main() {
         expect(started, <double>[100, 140]);
         expect(applied, <double>[100, 140]);
         expect(maxActive, 1);
+      },
+    );
+
+    testWidgets(
+      'a replacement bounds sink waits for window settling before receiving fresh bounds',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(800, 600);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        final first = <NativeGameWebViewBounds>[];
+        final replacement = <NativeGameWebViewBounds>[];
+        final visibility = <bool>[];
+        Future<void> onVisible(bool value) async => visibility.add(value);
+        await tester.pumpWidget(
+          _slotApp(
+            boundsSinkIdentity: first,
+            onBoundsChanged: (value) async => first.add(value),
+            onVisibilityChanged: onVisible,
+          ),
+        );
+        await tester.pump();
+        expect(first.map((value) => value.width), [100]);
+
+        tester.view.physicalSize = const Size(780, 600);
+        await tester.pumpWidget(
+          _slotApp(
+            width: 120,
+            boundsSinkIdentity: replacement,
+            onBoundsChanged: (value) async => replacement.add(value),
+            onVisibilityChanged: onVisible,
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 199));
+        expect(replacement, isEmpty);
+
+        await tester.pump(const Duration(milliseconds: 1));
+        await tester.pump();
+        expect(replacement.map((value) => value.width), [120]);
+        expect(visibility.last, isTrue);
+        expect(tester.takeException(), isNull);
       },
     );
 
@@ -1357,6 +2024,15 @@ Future<void> _ignoreVisibility(bool _) async {}
 Future<void> _ignoreBounds(NativeGameWebViewBounds _) async {}
 
 final Object _defaultBoundsSinkIdentity = Object();
+
+final class _TestRectClipper extends CustomClipper<Rect> {
+  const _TestRectClipper(this.rect);
+  final Rect rect;
+  @override
+  Rect getClip(Size size) => rect;
+  @override
+  bool shouldReclip(_TestRectClipper oldClipper) => rect != oldClipper.rect;
+}
 
 final class _TestNonModalPopupRoute extends PopupRoute<void> {
   @override

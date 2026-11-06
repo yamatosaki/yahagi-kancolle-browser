@@ -727,6 +727,7 @@ class _GameModsPageState extends State<GameModsPage> {
     if (scan == null) return;
     final s = GameModsStrings.of(context);
     final confirmed = await showDialog<bool>(
+      barrierDismissible: false,
       context: context,
       builder: (context) => AlertDialog(
         title: Text(s.libraryReview),
@@ -1388,6 +1389,7 @@ class _GameModsPageState extends State<GameModsPage> {
     BuildContext context,
     String id,
   ) => showModalBottomSheet<void>(
+    isDismissible: false,
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
@@ -1957,6 +1959,7 @@ class _GameModsPageState extends State<GameModsPage> {
   }
 
   Future<void> _help(BuildContext context) => showDialog<void>(
+    barrierDismissible: false,
     context: context,
     builder: (context) {
       final s = GameModsStrings.of(context);
@@ -1983,6 +1986,7 @@ class _GameModsPageState extends State<GameModsPage> {
     String action,
   ) async =>
       await showDialog<bool>(
+        barrierDismissible: false,
         context: context,
         builder: (context) {
           final s = GameModsStrings.of(context);
@@ -2056,6 +2060,7 @@ class _GameModsPageState extends State<GameModsPage> {
     if (c.preflight == null) return;
     final s = GameModsStrings.of(context), candidate = c.preflight!;
     final confirmed = await showDialog<bool>(
+      barrierDismissible: false,
       context: context,
       builder: (context) => AlertDialog(
         title: Text(s.preflight),

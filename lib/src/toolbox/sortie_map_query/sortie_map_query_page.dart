@@ -556,6 +556,7 @@ class _OverviewPanel extends StatelessWidget {
                       _PanelHeading(strings.selectMap, compact: compact),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
+                        barrierDismissible: false,
                         key: const Key('sortie-map-selector'),
                         initialValue: map.id,
                         isExpanded: true,
@@ -677,6 +678,7 @@ class _OverviewPanel extends StatelessWidget {
           _PanelHeading(strings.selectMap, compact: compact),
           SizedBox(height: compact ? 6 : 10),
           DropdownButtonFormField<String>(
+            barrierDismissible: false,
             key: const Key('sortie-map-selector'),
             initialValue: map.id,
             isExpanded: true,

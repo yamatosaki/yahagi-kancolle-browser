@@ -5,18 +5,14 @@ import 'package:flutter/widgets.dart';
 
 import '../layout/adaptive_layout.dart';
 import '../layout/camera_avoidance.dart';
+import '../layout/window_layout_controller.dart';
 import '../settings/display_mode_store.dart';
 
 /// Displays the platform game surface while strictly maintaining the
 /// KanColle 1200:720 aspect ratio.
 ///
-/// In split-screen, vertical, or compact workspaces, width alignment is
-/// prioritized when the complete game fits in the available height. Shorter
-/// windows use height-constrained scaling so all four edges remain visible.
-///
-/// In widescreen landscape displays (e.g. standard phone landscape gaming),
-/// contain behavior is preserved with safe edge padding to avoid camera
-/// notches and vertical cropping.
+/// Fullscreen and windowed workspaces keep the complete game visible, leaving
+/// space around it when the available window has a different aspect ratio.
 ///
 /// Uses [CustomSingleChildLayout] so that the widget subtree hierarchy above
 /// the game surface remains completely stable across fullscreen toggles,
@@ -29,6 +25,7 @@ class GameSurfaceViewport extends StatelessWidget {
     this.aspectRatio = 1200 / 720,
     this.fullscreen = false,
     this.isLandscape = false,
+    this.fullscreenFitAxis,
     this.displayMode = DisplayMode.auto,
     this.fitWithinBounds = false,
     this.centerAboveBottomInset = false,
@@ -40,6 +37,7 @@ class GameSurfaceViewport extends StatelessWidget {
   final double aspectRatio;
   final bool fullscreen;
   final bool isLandscape;
+  final GameFitAxis? fullscreenFitAxis;
   final DisplayMode displayMode;
   final bool fitWithinBounds;
 
@@ -49,6 +47,12 @@ class GameSurfaceViewport extends StatelessWidget {
   final bool centerAboveBottomInset;
   final EdgeInsets? viewPadding;
   final Color backgroundColor;
+
+  /// The native slot uses the actual workspace mode for window permission.
+  /// A missing viewport leaves callers on the conservative fullscreen policy.
+  static bool? fullscreenOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<_GameSurfaceViewportMode>()
+      ?.fullscreen;
 
   /// Determines whether width-first alignment should be used.
   ///
@@ -134,39 +138,123 @@ class GameSurfaceViewport extends StatelessWidget {
     return Rect.fromLTWH(left, top, gameWidth, gameHeight);
   }
 
+  /// Fits the preferred window axis as far as both safe dimensions permit.
+  /// Complete content takes precedence over filling that axis. Preserve the
+  /// game ratio and align the safe bounds and origin to physical pixels.
+  static Rect computeAxisFitGameRect({
+    required double containerWidth,
+    required double containerHeight,
+    required double aspectRatio,
+    required GameFitAxis axis,
+    EdgeInsets padding = EdgeInsets.zero,
+    double devicePixelRatio = 1,
+  }) {
+    final availW = math.max(0.0, containerWidth - padding.horizontal);
+    final availH = math.max(0.0, containerHeight - padding.vertical);
+    if (availW <= 0 || availH <= 0 || aspectRatio <= 0) {
+      return computeContainGameRect(
+        containerWidth: containerWidth,
+        containerHeight: containerHeight,
+        aspectRatio: aspectRatio,
+        padding: padding,
+      );
+    }
+    final dpr = devicePixelRatio > 0 && devicePixelRatio.isFinite
+        ? devicePixelRatio
+        : 1.0;
+    double snap(double value) => (value * dpr + .5).floorToDouble() / dpr;
+    final safeLeft = (padding.left * dpr).ceilToDouble() / dpr;
+    final safeTop = (padding.top * dpr).ceilToDouble() / dpr;
+    final safeRight =
+        ((containerWidth - padding.right) * dpr).floorToDouble() / dpr;
+    final safeBottom =
+        ((containerHeight - padding.bottom) * dpr).floorToDouble() / dpr;
+    final safeWidth = math.max(0.0, safeRight - safeLeft);
+    final safeHeight = math.max(0.0, safeBottom - safeTop);
+    final double width;
+    final double height;
+    if (axis == GameFitAxis.width) {
+      width = math.min(safeWidth, safeHeight * aspectRatio);
+      height = width / aspectRatio;
+    } else {
+      height = math.min(safeHeight, safeWidth / aspectRatio);
+      width = height * aspectRatio;
+    }
+    return Rect.fromLTWH(
+      snap(safeLeft + (safeWidth - width) / 2),
+      snap(safeTop + (safeHeight - height) / 2),
+      width,
+      height,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final padding = viewPadding ?? MediaQuery.viewPaddingOf(context);
     final centerAbove = centerAboveBottomInset && !fullscreen;
     final camera = CameraAvoidanceScope.maybeOf(context);
-    final effectivePadding = fullscreen
-        ? camera?.gameViewPadding(padding) ?? padding
-        : centerAbove
+    final effectivePadding = centerAbove
         ? EdgeInsets.only(bottom: padding.bottom)
         : EdgeInsets.zero;
 
-    return ColoredBox(
-      color: appColor(context, backgroundColor),
-      child: ClipRect(
-        child: CustomSingleChildLayout(
-          delegate: _GameSurfaceLayoutDelegate(
-            aspectRatio: aspectRatio,
-            fullscreen: fullscreen,
-            isLandscape: isLandscape,
-            displayMode: displayMode,
-            fitWithinBounds:
-                fitWithinBounds ||
-                centerAbove ||
-                (camera != null &&
-                    camera.enabled &&
-                    camera.cutoutEdges.isNotEmpty),
-            padding: effectivePadding,
+    return _GameSurfaceViewportMode(
+      fullscreen: fullscreen,
+      child: ColoredBox(
+        color: appColor(context, backgroundColor),
+        child: ClipRect(
+          clipper: fullscreen ? _GameSafeAreaClipper(effectivePadding) : null,
+          child: CustomSingleChildLayout(
+            delegate: _GameSurfaceLayoutDelegate(
+              aspectRatio: aspectRatio,
+              fullscreen: fullscreen,
+              isLandscape: isLandscape,
+              fullscreenFitAxis: fullscreenFitAxis,
+              devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+              displayMode: displayMode,
+              fitWithinBounds:
+                  fitWithinBounds ||
+                  centerAbove ||
+                  (camera != null &&
+                      camera.enabled &&
+                      camera.cutoutEdges.isNotEmpty),
+              padding: effectivePadding,
+            ),
+            child: child,
           ),
-          child: child,
         ),
       ),
     );
   }
+}
+
+final class _GameSurfaceViewportMode extends InheritedWidget {
+  const _GameSurfaceViewportMode({
+    required this.fullscreen,
+    required super.child,
+  });
+
+  final bool fullscreen;
+
+  @override
+  bool updateShouldNotify(_GameSurfaceViewportMode oldWidget) =>
+      fullscreen != oldWidget.fullscreen;
+}
+
+final class _GameSafeAreaClipper extends CustomClipper<Rect> {
+  const _GameSafeAreaClipper(this.padding);
+  final EdgeInsets padding;
+
+  @override
+  Rect getClip(Size size) => Rect.fromLTWH(
+    padding.left.clamp(0.0, size.width),
+    padding.top.clamp(0.0, size.height),
+    math.max(0.0, size.width - padding.horizontal),
+    math.max(0.0, size.height - padding.vertical),
+  );
+
+  @override
+  bool shouldReclip(_GameSafeAreaClipper oldClipper) =>
+      padding != oldClipper.padding;
 }
 
 class _GameSurfaceLayoutDelegate extends SingleChildLayoutDelegate {
@@ -174,6 +262,8 @@ class _GameSurfaceLayoutDelegate extends SingleChildLayoutDelegate {
     required this.aspectRatio,
     required this.fullscreen,
     required this.isLandscape,
+    required this.fullscreenFitAxis,
+    required this.devicePixelRatio,
     required this.displayMode,
     required this.fitWithinBounds,
     required this.padding,
@@ -182,6 +272,8 @@ class _GameSurfaceLayoutDelegate extends SingleChildLayoutDelegate {
   final double aspectRatio;
   final bool fullscreen;
   final bool isLandscape;
+  final GameFitAxis? fullscreenFitAxis;
+  final double devicePixelRatio;
   final DisplayMode displayMode;
   final bool fitWithinBounds;
   final EdgeInsets padding;
@@ -189,6 +281,19 @@ class _GameSurfaceLayoutDelegate extends SingleChildLayoutDelegate {
   Rect _calculateRect(Size size) {
     if (size.width <= 0 || size.height <= 0) {
       return Rect.zero;
+    }
+
+    if (fullscreen) {
+      return GameSurfaceViewport.computeAxisFitGameRect(
+        containerWidth: size.width,
+        containerHeight: size.height,
+        aspectRatio: aspectRatio,
+        axis:
+            fullscreenFitAxis ??
+            (isLandscape ? GameFitAxis.height : GameFitAxis.width),
+        padding: padding,
+        devicePixelRatio: devicePixelRatio,
+      );
     }
 
     final isWidthPriority = GameSurfaceViewport.shouldUseWidthPriority(
@@ -233,6 +338,8 @@ class _GameSurfaceLayoutDelegate extends SingleChildLayoutDelegate {
     return oldDelegate.aspectRatio != aspectRatio ||
         oldDelegate.fullscreen != fullscreen ||
         oldDelegate.isLandscape != isLandscape ||
+        oldDelegate.fullscreenFitAxis != fullscreenFitAxis ||
+        oldDelegate.devicePixelRatio != devicePixelRatio ||
         oldDelegate.displayMode != displayMode ||
         oldDelegate.fitWithinBounds != fitWithinBounds ||
         oldDelegate.padding != padding;

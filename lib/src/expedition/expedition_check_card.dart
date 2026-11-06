@@ -1,3 +1,4 @@
+import '../widgets/app_popup_menu_button.dart';
 import '../widgets/app_segmented_style.dart';
 import '../theme/app_palette.dart';
 import 'package:flutter/material.dart';
@@ -390,7 +391,7 @@ class _ExpeditionCheckContentState extends State<ExpeditionCheckContent> {
     ),
   );
 
-  Widget _targetMenu() => PopupMenuButton<int>(
+  Widget _targetMenu() => AppPopupMenuButton<int>(
     initialValue: _target,
     onSelected: (value) => setState(() => _target = value),
     color: appColor(context, const Color(0xff1b263b)),

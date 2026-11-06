@@ -40,6 +40,7 @@ class ExpCalcShipPicker extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
         onTap: () async {
           final id = await showDialog<int>(
+            barrierDismissible: false,
             context: context,
             builder: (_) =>
                 _ShipDialog(state: state, ships: ships, selectedId: selectedId),

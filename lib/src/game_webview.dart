@@ -87,6 +87,11 @@ abstract interface class GameSurfaceStartupOrchestrator {
   FutureOr<void> dispose();
 }
 
+/// Optional pre-navigation wait added by an orchestrator, separate from cleanup.
+abstract interface class GameSurfaceAudioStartupBudget {
+  Duration get audioStartupWaitBudget;
+}
+
 @visibleForTesting
 final class SharedGameNetworkSettingsArbiter {
   SharedGameNetworkSettingsArbiter._();
@@ -230,7 +235,13 @@ final class _NetworkConfigurationCommand {
 }
 
 final class DefaultGameSurfaceStartupOrchestrator
-    implements GameSurfaceStartupOrchestrator {
+    implements GameSurfaceStartupOrchestrator, GameSurfaceAudioStartupBudget {
+  static const _audioStartupWait = Duration(milliseconds: 750);
+
+  /// Extra startup time spent on the optional pre-navigation audio binding.
+  @override
+  Duration get audioStartupWaitBudget => _audioStartupWait;
+
   DefaultGameSurfaceStartupOrchestrator({
     required this.networkSettingsController,
     required this.captureModeController,
@@ -275,6 +286,7 @@ final class DefaultGameSurfaceStartupOrchestrator
   bool _disposed = false;
   int _captureRevision = 0;
   int _captureEpoch = 0;
+  int _audioEpoch = 0;
   Future<void>? _captureInFlight;
   Future<void>? _audioAttachInFlight;
 
@@ -312,10 +324,20 @@ final class DefaultGameSurfaceStartupOrchestrator
           _captureEpoch += 1;
           _captureRebindRequired = true;
           _captureInFlight = null;
+          // Audio mute belongs to a WebView instance as well. Retire its
+          // previous binding before capture preparation can await anything.
+          _audioEpoch += 1;
+          _audioPortAttached = false;
+          _audioAttachInFlight = null;
           if (_gameCapturePort case final GameCaptureRebindPort port) {
             port.rebindWebView();
           }
           await prepareCapture();
+          if (!_disposed && isActive()) {
+            // Apply saved mute while the new view is still blank. A stalled
+            // audio provider remains tracked, but cannot strand navigation.
+            await attachAudioPortOnce();
+          }
         }
       },
       navigate: navigate,
@@ -372,21 +394,26 @@ final class DefaultGameSurfaceStartupOrchestrator
 
   @override
   Future<void> attachAudioPortOnce() {
-    if (_audioPortAttached) return Future<void>.value();
+    if (_disposed || _audioPortAttached) return Future<void>.value();
     final inFlight = _audioAttachInFlight;
-    if (inFlight != null) return inFlight;
-    final operation = _attachAudioPort();
-    _audioAttachInFlight = operation;
-    return operation.whenComplete(() {
-      if (identical(_audioAttachInFlight, operation)) {
+    if (inFlight != null) return _waitForAudioAttachment(inFlight);
+    final operation = _attachAudioPort(_audioEpoch);
+    late final Future<void> tracked;
+    tracked = operation.whenComplete(() {
+      if (identical(_audioAttachInFlight, tracked)) {
         _audioAttachInFlight = null;
       }
     });
+    _audioAttachInFlight = tracked;
+    return _waitForAudioAttachment(tracked);
   }
 
-  Future<void> _attachAudioPort() async {
+  Future<void> _waitForAudioAttachment(Future<void> operation) =>
+      operation.timeout(_audioStartupWait, onTimeout: () {});
+
+  Future<void> _attachAudioPort(int epoch) async {
     await audioController.attachPort(_audioPortFactory());
-    if (_disposed) return;
+    if (_disposed || epoch != _audioEpoch) return;
     _audioPortAttached =
         audioController.availability == GameAudioAvailability.available;
   }
@@ -782,6 +809,7 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
   );
 
   int _navigationEpoch = 0;
+  Future<void> _pendingFitCancellation = Future<void>.value();
   int _startupEpoch = 0;
   int _bindingEpoch = 0;
   int _frameRateBindingGeneration = 0;
@@ -1351,6 +1379,7 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
     required bool runRuntime,
     required bool forceNativeFit,
   }) async {
+    if (!await _awaitFitCancellation(navigationEpoch)) return;
     final gameSurfaceResult = await _startupCoordinator.waitForStage(
       _webViewController.runJavaScriptReturningResult(
         runRuntime ? gamePageAlignmentScript : _readPresentationScript,
@@ -1396,6 +1425,7 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
     if (_webViewController.platform is AndroidWebViewController &&
         (state != _appliedPresentationState ||
             (forceNativeFit && state == GamePresentationState.game))) {
+      if (!await _awaitFitCancellation(navigationEpoch)) return;
       switch (action) {
         case GamePresentationPlatformAction.bind:
           await _startupCoordinator.waitForStage(
@@ -1415,6 +1445,7 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
     }
     if (state == GamePresentationState.game &&
         (state != _appliedPresentationState || forceNativeFit)) {
+      if (!await _awaitFitCancellation(navigationEpoch)) return;
       await _startupCoordinator.waitForStage(
         _webViewController.runJavaScript('''
           if (window.__yahagiMobileAlignGame) window.__yahagiMobileAlignGame();
@@ -1430,6 +1461,14 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
     if (!mounted || _disposed) return;
     _hasNavigated = true;
     _navigationEpoch += 1;
+    if (_webViewController.platform is AndroidWebViewController) {
+      final previous = _pendingFitCancellation;
+      final current = _cancelPendingNativeFit();
+      _pendingFitCancellation = Future.wait<void>([
+        previous,
+        current,
+      ]).then<void>((_) {});
+    }
     _navigationUri = uri ?? _navigationUri;
     _navigationStartedAt = DateTime.now();
     _failedNavigationEpoch = null;
@@ -1447,6 +1486,21 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
       _startupState = GameStartupState.loadingGame;
       _startupErrorMessage = '';
     });
+  }
+
+  Future<void> _cancelPendingNativeFit() async {
+    try {
+      await _scaleChannel.invokeMethod<void>('cancelPendingFit');
+    } on MissingPluginException {
+      // Other platforms and older Android providers have no native barrier.
+    } on PlatformException {
+      // Navigation must remain usable if native cancellation is unavailable.
+    }
+  }
+
+  Future<bool> _awaitFitCancellation(int navigationEpoch) async {
+    await _pendingFitCancellation;
+    return _isUsableNavigation(navigationEpoch);
   }
 
   void _emitLoadEvent(

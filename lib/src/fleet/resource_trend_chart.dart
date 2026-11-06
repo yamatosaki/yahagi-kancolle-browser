@@ -167,9 +167,22 @@ class _ResourceTrendChartState extends State<ResourceTrendChart> {
             padding: const EdgeInsets.only(left: 14, right: 6, top: 2),
             child: Row(
               children: [
+                if (widget.expanded) ...[
+                  Image.asset(
+                    'assets/images/material/${widget.iconId}.png',
+                    width: 18,
+                    height: 18,
+                    excludeFromSemantics: true,
+                  ),
+                  const SizedBox(width: 7),
+                ],
                 Expanded(
                   child: Text(
-                    l10n.resourceTrendInventoryTitle,
+                    widget.expanded
+                        ? '${widget.label} · ${l10n.resourceTrendInventoryTitle}'
+                        : l10n.resourceTrendInventoryTitle,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                     style: appTextStyle(
                       context,
                       TextStyle(
@@ -180,6 +193,55 @@ class _ResourceTrendChartState extends State<ResourceTrendChart> {
                     ),
                   ),
                 ),
+                if (short) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    '${l10n.resourceTrendLatest} ',
+                    style: appTextStyle(
+                      context,
+                      TextStyle(color: appColor(context, _muted), fontSize: 11),
+                    ),
+                  ),
+                  Text(
+                    resourceTrendNumber(current),
+                    style: appTextStyle(
+                      context,
+                      TextStyle(
+                        color: appColor(context, const Color(0xffeff5f8)),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    '${l10n.resourceTrendChange} ',
+                    style: appTextStyle(
+                      context,
+                      TextStyle(color: appColor(context, _muted), fontSize: 11),
+                    ),
+                  ),
+                  Text(
+                    delta == null
+                        ? '—'
+                        : '${delta > 0 ? '+' : ''}${resourceTrendNumber(delta)}',
+                    style: appTextStyle(
+                      context,
+                      TextStyle(
+                        color: delta == null || delta == 0
+                            ? appColor(context, _muted)
+                            : delta > 0
+                            ? const Color(0xff70d7b2)
+                            : const Color(0xffff7464),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                ],
                 IconButton(
                   key: ValueKey(
                     widget.expanded
@@ -211,15 +273,19 @@ class _ResourceTrendChartState extends State<ResourceTrendChart> {
                       children: [
                         Row(
                           children: [
-                            Image.asset(
-                              'assets/images/material/${widget.iconId}.png',
-                              width: 18,
-                              height: 18,
-                            ),
-                            const SizedBox(width: 7),
+                            if (!widget.expanded) ...[
+                              Image.asset(
+                                'assets/images/material/${widget.iconId}.png',
+                                width: 18,
+                                height: 18,
+                              ),
+                              const SizedBox(width: 7),
+                            ],
                             Flexible(
                               child: Text(
-                                '${widget.label} · ${l10n.resourceTrendLatest}',
+                                widget.expanded
+                                    ? l10n.resourceTrendLatest
+                                    : '${widget.label} · ${l10n.resourceTrendLatest}',
                                 style: appTextStyle(
                                   context,
                                   TextStyle(

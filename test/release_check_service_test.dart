@@ -6,6 +6,56 @@ import 'package:http/testing.dart';
 import 'package:yahagi_kancolle_browser/src/settings/release_check_service.dart';
 
 void main() {
+  test(
+    'new two-part releases upgrade old versions and canonical betas',
+    () async {
+      final checker = GitHubReleaseChecker(
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'tag_name': 'v1.10',
+              'html_url': 'https://example.test/releases/v1.10',
+            }),
+            200,
+          ),
+        ),
+      );
+      for (final current in ['1.0.9', '1.10.0-beta.1', '1.10-beta10']) {
+        final result = await checker.check(currentVersion: current);
+        expect(result, isA<UpdateAvailable>(), reason: current);
+        expect((result as UpdateAvailable).latestVersion, '1.10');
+      }
+      expect(
+        await checker.check(currentVersion: '1.10.0'),
+        isA<AlreadyLatest>(),
+      );
+    },
+  );
+
+  test(
+    'compact beta release numbering upgrades canonical betas numerically',
+    () async {
+      final checker = GitHubReleaseChecker(
+        client: MockClient(
+          (_) async => http.Response(
+            jsonEncode({
+              'tag_name': 'v1.10-beta10',
+              'html_url': 'https://example.test/releases/v1.10-beta10',
+            }),
+            200,
+          ),
+        ),
+      );
+      final result = await checker.check(currentVersion: '1.10.0-beta.2');
+      expect(result, isA<UpdateAvailable>());
+      expect((result as UpdateAvailable).latestVersion, '1.10-beta10');
+      expect(
+        await checker.check(currentVersion: '1.10.0-beta.10'),
+        isA<AlreadyLatest>(),
+      );
+    },
+  );
+
   test('1.0.9 stable is offered to every published 1.0.9 beta', () async {
     final checker = GitHubReleaseChecker(
       client: MockClient(

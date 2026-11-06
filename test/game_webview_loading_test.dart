@@ -83,6 +83,78 @@ void main() {
   }
 
   testWidgets(
+    'same URL navigation waits for every immediate fit cancellation and keeps binding',
+    (tester) async {
+      platform.useAndroidController = true;
+      const channel = MethodChannel('app.webview/fixed_canvas_scaling');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final calls = <String>[];
+      final pending = <Completer<void>>[];
+      var block = false;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call.method);
+        if (call.method == 'cancelPendingFit' && block) {
+          final reply = Completer<void>();
+          pending.add(reply);
+          await reply.future;
+        }
+        return null;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+      final fixture = await _Fixture.create();
+      addTearDown(() async {
+        for (final reply in pending) {
+          if (!reply.isCompleted) reply.complete();
+        }
+        await tester.pumpWidget(const SizedBox());
+        fixture.dispose();
+      });
+      await tester.pumpWidget(MaterialApp(home: fixture.view));
+      for (var i = 0; i < 8; i++) {
+        await tester.pump();
+      }
+      const url = 'https://game.example/same';
+      platform.controller.presentation = 'game';
+      platform.delegate.started(url);
+      platform.delegate.finished(url);
+      for (var i = 0; i < 8; i++) {
+        await tester.pump();
+      }
+      expect(calls, contains('bindFixedCanvas'));
+      calls.clear();
+      final scriptsBeforeCancellation = platform.controller.scripts.length;
+      block = true;
+      platform.delegate.started(url);
+      final oldFit = fixture.browser.fitGameScreen();
+      await tester.pump();
+      platform.delegate.started(url);
+      final newFit = fixture.browser.fitGameScreen();
+      await tester.pump();
+      expect(calls, ['cancelPendingFit', 'cancelPendingFit']);
+      expect(pending, hasLength(2));
+      expect(platform.controller.scripts, hasLength(scriptsBeforeCancellation));
+      pending.last.complete();
+      for (var i = 0; i < 4; i++) {
+        await tester.pump();
+      }
+      expect(calls, ['cancelPendingFit', 'cancelPendingFit']);
+      expect(platform.controller.scripts, hasLength(scriptsBeforeCancellation));
+      pending.first.complete();
+      for (var i = 0; i < 8; i++) {
+        await tester.pump();
+      }
+      await Future.wait([oldFit, newFit]);
+      expect(calls, [
+        'cancelPendingFit',
+        'cancelPendingFit',
+        'bindFixedCanvas',
+      ]);
+      expect(calls, isNot(contains('releaseFixedCanvas')));
+    },
+  );
+
+  testWidgets(
     'native installation acknowledgement gates frame bridge and navigation',
     (tester) async {
       final reply = Completer<void>();
@@ -681,6 +753,7 @@ class _WebViewPlatform extends WebViewPlatform {
 class _Controller extends PlatformWebViewController {
   _Controller(super.params) : super.implementation();
   final List<Uri> loads = [];
+  final scripts = <String>[];
   int reloads = 0;
   int backs = 0;
   String presentation = 'web';
@@ -720,10 +793,16 @@ class _Controller extends PlatformWebViewController {
   }
 
   @override
-  Future<void> runJavaScript(String script) async {}
+  Future<void> runJavaScript(String script) async {
+    scripts.add(script);
+  }
+
   @override
-  Future<Object> runJavaScriptReturningResult(String script) async =>
-      probe == null ? presentation : probe!.future;
+  Future<Object> runJavaScriptReturningResult(String script) async {
+    scripts.add(script);
+    return probe == null ? presentation : probe!.future;
+  }
+
   @override
   Future<void> loadHtmlString(String html, {String? baseUrl}) async {}
 }

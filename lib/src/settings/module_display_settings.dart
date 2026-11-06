@@ -181,8 +181,6 @@ Future<void> showModuleDisplaySettings(
     ],
     builder: (context, close) => Dialog(
       key: Key('module-display-settings-$module'),
-      backgroundColor: appColor(context, const Color(0xff142735)),
-      insetPadding: const EdgeInsets.all(16),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 720),
         child: AnimatedBuilder(
@@ -194,7 +192,7 @@ Future<void> showModuleDisplaySettings(
             final hasOptions = options.isNotEmpty;
             return SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,10 +206,7 @@ Future<void> showModuleDisplaySettings(
                               moduleDisplayTitles[module] ??
                                   FleetUiKeys.displayContent,
                             ),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: Theme.of(context).textTheme.headlineSmall,
                           ),
                         ),
                         IconButton(
@@ -237,7 +232,7 @@ Future<void> showModuleDisplaySettings(
                     Text(
                       fleetText(context, FleetUiKeys.capsuleAppearance),
                       style: TextStyle(
-                        color: appColor(context, Color(0xffd8ad60)),
+                        color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -270,13 +265,13 @@ Future<void> showModuleDisplaySettings(
                       const SizedBox(height: 12),
                       Divider(
                         height: 1,
-                        color: appColor(context, Color(0xff294052)),
+                        color: Theme.of(context).colorScheme.outlineVariant,
                       ),
                       const SizedBox(height: 8),
                       Text(
                         fleetText(context, FleetUiKeys.displayContent),
                         style: TextStyle(
-                          color: appColor(context, Color(0xffd8ad60)),
+                          color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -306,13 +301,13 @@ Future<void> showModuleDisplaySettings(
                       const SizedBox(height: 12),
                       Divider(
                         height: 1,
-                        color: appColor(context, Color(0xff294052)),
+                        color: Theme.of(context).colorScheme.outlineVariant,
                       ),
                       const SizedBox(height: 8),
                       Text(
                         fleetText(context, FleetUiKeys.fleetSelectorName),
                         style: TextStyle(
-                          color: appColor(context, Color(0xffd8ad60)),
+                          color: Theme.of(context).colorScheme.primary,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

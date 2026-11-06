@@ -940,6 +940,12 @@
   "battleEnemyPreviewPortraitsDesc": "Show enemy portraits before battle in the prediction panel.",
   "battleLastFormationHint": "Show last formation",
   "battleLastFormationHintDesc": "When reaching a sortie node, show the formation last used there in the prediction panel.",
+  "fleetInformationSyncTitle": "Fleet information sync",
+  "fleetInformationSyncImmediate": "Immediate",
+  "fleetInformationSyncSettlement": "At battle result",
+  "fleetInformationSyncImmediateDesc": "Update fleet HP and damage control usage when battle data arrives.",
+  "fleetInformationSyncSettlementDesc": "Update fleet HP and damage control usage when the battle result arrives.",
+  "fleetInformationSyncSaveFailed": "Could not save. Please try again.",
   "battleEnemyPreviewPosition": "Pre-battle enemy preview position",
   "battleEnemyPreviewPositionDesc": "Show the pre-battle enemy preview above or below friendly HP bars.",
   "battleEnemyPreviewPositionAbove": "Above",
@@ -1770,7 +1776,7 @@
   "menuPositionRight": "Right",
   "topNoticeSectionTitle": "Top bar messages",
   "topNoticeEnabledTitle": "Top bar notifications",
-  "topNoticeEnabledSubtitle": "Show development, improvement, pre-sortie check, and quest completion alerts to the right of 「ヤハギ」 in the top bar",
+  "topNoticeEnabledSubtitle": "Show development, improvement, sortie/expedition check, and quest completion alerts to the right of 「ヤハギ」 in the top bar",
   "topNoticeDurationTitle": "Alert duration",
   "topNoticeDurationSubtitle": "Time before an alert bubble closes automatically when left untouched",
   "topNoticeDuration5s": "5 seconds (default)",
@@ -1933,6 +1939,14 @@
   "noticeSortieReasonFatigue": "Low ship morale (yellow/red faces)",
   "noticeSortieReasonMainSlot": "Normal equipment slots not filled",
   "noticeSortieReasonExpansionSlot": "Expansion slots unused",
+  "noticeExpeditionSupplyWarning": "Expedition alert: Fleet {fleets} not resupplied",
+  "@noticeExpeditionSupplyWarning": {
+    "placeholders": {
+      "fleets": {
+        "type": "String"
+      }
+    }
+  },
   "lockUi": "Lock interface",
   "unlockUi": "Unlock interface",
   "uiLockedToast": "Interface locked. Layout editing is disabled; feature switching remains available",

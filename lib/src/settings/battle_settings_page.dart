@@ -172,6 +172,7 @@ class BattleSettingsPage extends StatelessWidget with SettingsUIHelpers {
                         subtitle: l10n.battleEffectDisplayScopeDesc,
                         enabled: childrenEnabled,
                         trailing: DropdownButton<BattleEffectDisplayScope>(
+                          barrierDismissible: false,
                           key: const Key('battleEffectScopeDropdown'),
                           value: settings.displayScope,
                           underline: const SizedBox(),
@@ -209,6 +210,7 @@ class BattleSettingsPage extends StatelessWidget with SettingsUIHelpers {
                         subtitle: l10n.battleDamagePulseDesc,
                         enabled: childrenEnabled,
                         trailing: DropdownButton<DamagePulseFilter>(
+                          barrierDismissible: false,
                           key: const Key('damagePulseFilterDropdown'),
                           value: settings.damagePulseFilter,
                           underline: const SizedBox(),
@@ -246,6 +248,7 @@ class BattleSettingsPage extends StatelessWidget with SettingsUIHelpers {
                         subtitle: l10n.battleDamageVibrationEffectDesc,
                         enabled: childrenEnabled,
                         trailing: DropdownButton<DamageVibrationFilter>(
+                          barrierDismissible: false,
                           key: const Key('damageVibrationFilterDropdown'),
                           value: settings.damageVibrationFilter,
                           underline: const SizedBox(),
@@ -283,6 +286,7 @@ class BattleSettingsPage extends StatelessWidget with SettingsUIHelpers {
                         subtitle: l10n.battleMoraleSparkleDesc,
                         enabled: childrenEnabled,
                         trailing: DropdownButton<MoraleSparkleMode>(
+                          barrierDismissible: false,
                           key: const Key('moraleSparkleModeDropdown'),
                           value: settings.moraleSparkleMode,
                           underline: const SizedBox(),
@@ -420,6 +424,7 @@ class _WarningDropdownRow<T> extends StatelessWidget {
       subtitle: subtitle,
       enabled: true,
       trailing: DropdownButton<T>(
+        barrierDismissible: false,
         key: dropdownKey,
         value: value,
         underline: const SizedBox(),

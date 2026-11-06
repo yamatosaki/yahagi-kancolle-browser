@@ -155,7 +155,11 @@ class NetworkSettingsPageNew extends StatelessWidget with SettingsUIHelpers {
   }) async {
     final session = _accountSession;
     final scope = session.current;
-    final route = DialogRoute<T>(context: context, builder: builder);
+    final route = DialogRoute<T>(
+      barrierDismissible: false,
+      context: context,
+      builder: builder,
+    );
     void dismissStaleDialog() {
       if (!session.isCurrent(scope) && route.isActive) {
         route.navigator?.removeRoute(route);

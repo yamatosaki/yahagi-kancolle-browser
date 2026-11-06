@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
 import '../audio/game_audio_controller.dart';
+import '../audio/game_audio_feedback.dart';
 import 'settings_ui_helpers.dart';
 
 class SoundSettingsPage extends StatelessWidget with SettingsUIHelpers {
@@ -32,11 +33,13 @@ class SoundSettingsPage extends StatelessWidget with SettingsUIHelpers {
                     buildSwitchTile(
                       title: l10n.gameSound,
                       value: !audioController.isMuted,
-                      onChanged: (v) {
-                        if (audioController.canToggle) {
-                          audioController.toggleMuted();
-                        }
+                      subtitle: switch (audioController.errorMessage) {
+                        final error? => gameAudioErrorText(context, error),
+                        null => null,
                       },
+                      onChanged: audioController.canToggle
+                          ? (_) => audioController.toggleMuted()
+                          : null,
                     ),
                   ],
                 ),

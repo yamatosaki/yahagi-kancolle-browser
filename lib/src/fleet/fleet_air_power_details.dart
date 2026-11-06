@@ -27,11 +27,7 @@ Future<void> showFleetAirPowerDetails(
       GameSurfaceDialogAction(id: 'close', label: l10n.close, value: true),
     ],
     builder: (context, close) => AlertDialog(
-      backgroundColor: appColor(context, Color(0xff142735)),
-      title: Text(
-        l10n.airPowerDetails,
-        style: const TextStyle(fontWeight: FontWeight.w800),
-      ),
+      title: Text(l10n.airPowerDetails),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

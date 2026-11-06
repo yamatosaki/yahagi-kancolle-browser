@@ -51,6 +51,99 @@ class _MechanismStore extends GameStateStore {
 }
 
 void main() {
+  for (final showBars in [true, false]) {
+    testWidgets(
+      'hp and fuel keep their slots across avatar, width and data changes, bars=$showBars',
+      (tester) async {
+        final initialState = demoState();
+        final refreshedState = initialState.copyWith(
+          ships: {
+            ...initialState.ships,
+            1: const OwnedShip(
+              id: 1,
+              masterId: 1,
+              level: 85,
+              currentHp: 15,
+              maxHp: 49,
+              condition: 85,
+              currentFuel: 3,
+              currentAmmo: 7,
+            ),
+          },
+        );
+        Element? original;
+        var refresh = false;
+        for (final layout in [
+          (width: 280.0, portrait: true),
+          (width: 280.0, portrait: false),
+          (width: 310.0, portrait: false),
+          (width: 311.0, portrait: false),
+          (width: 360.0, portrait: false),
+          (width: 560.0, portrait: false),
+          (width: 280.0, portrait: false),
+          (width: 280.0, portrait: true),
+        ]) {
+          final state = refresh ? refreshedState : initialState;
+          final fields = defaultFields.difference({
+            if (!layout.portrait) 'portrait',
+            if (!showBars) 'bars',
+          });
+          await tester.pumpWidget(
+            MaterialApp(
+              home: Scaffold(
+                body: Align(
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(
+                    width: layout.width,
+                    child: FleetShipStatusCapsule(
+                      state: state,
+                      ship: state.ships[1]!,
+                      visible: fields,
+                      damagePulseFilter: DamagePulseFilter.off,
+                      moraleSparkleMode: MoraleSparkleMode.off,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+          Rect meterRect(String field) => tester.getRect(
+            find.ancestor(
+              of: find.byKey(Key('fleet-focus-$field-value-1')),
+              matching: find.byType(CompactStatusMeter),
+            ),
+          );
+          final hp = meterRect('hp');
+          final fuel = meterRect('fuel');
+          final ammo = meterRect('ammo');
+          expect(hp.left, lessThan(fuel.left), reason: '$layout');
+          expect(hp.top, greaterThan(fuel.top), reason: '$layout');
+          expect(hp.top, closeTo(ammo.top, .01), reason: '$layout');
+          expect(fuel.left, closeTo(ammo.left, .01), reason: '$layout');
+          for (final field in ['hp', 'fuel', 'ammo']) {
+            final expected = switch (field) {
+              'hp' => refresh ? '15/49' : '49/49',
+              'fuel' => refresh ? '3/40' : '40/40',
+              _ => refresh ? '7/45' : '45/45',
+            };
+            expect(
+              tester
+                  .widget<Text>(find.byKey(Key('fleet-focus-$field-value-1')))
+                  .data,
+              expected,
+            );
+          }
+          final element = tester.element(find.byType(FleetShipStatusCapsule));
+          original ??= element;
+          expect(element, same(original));
+          expect(tester.takeException(), isNull, reason: '$layout');
+          refresh = !refresh;
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
+
   testWidgets('right aligned meters keep the same icon gap as fuel', (
     tester,
   ) async {
@@ -293,15 +386,28 @@ void main() {
     final hpRight = tester
         .getRect(find.byKey(const Key('fleet-focus-hp-value-1')))
         .right;
-    final ammoRight = tester
-        .getRect(find.byKey(const Key('fleet-focus-ammo-value-1')))
-        .right;
-    expect(hpRight, closeTo(ammoRight, 0.1));
+    final hpRect = tester.getRect(
+      find.byKey(const Key('fleet-focus-hp-value-1')),
+    );
+    final fuelRect = tester.getRect(
+      find.byKey(const Key('fleet-focus-fuel-value-1')),
+    );
+    final ammoRect = tester.getRect(
+      find.byKey(const Key('fleet-focus-ammo-value-1')),
+    );
+    expect(hpRect.left, lessThan(fuelRect.left));
+    expect(hpRect.center.dy, closeTo(ammoRect.center.dy, .1));
+    expect(fuelRect.bottom, lessThan(hpRect.top));
     final hpMeter = find.ancestor(
       of: find.byKey(const Key('fleet-focus-hp-value-1')),
       matching: find.byType(CompactStatusMeter),
     );
     expect(hpRight, closeTo(tester.getRect(hpMeter).right, 0.1));
+    final ammoMeter = find.ancestor(
+      of: find.byKey(const Key('fleet-focus-ammo-value-1')),
+      matching: find.byType(CompactStatusMeter),
+    );
+    expect(ammoRect.right, closeTo(tester.getRect(ammoMeter).right, .1));
     await show(compactFields, 360);
     final initial = tester
         .getSize(find.byKey(const Key('text-identity-1')))

@@ -212,22 +212,33 @@ class ActivityWebViewHost internal constructor(
         if (!state.accepts(generation)) {
             return false
         }
-        val physicalBounds = bounds?.toPhysicalBounds(contentRoot.width, contentRoot.height)
-        if (physicalBounds == null) {
+        val viewport = bounds?.toPhysicalBounds(contentRoot.width, contentRoot.height)
+        val plane = bounds?.toLayoutBounds(contentRoot.width, contentRoot.height)
+        if (viewport == null || plane == null) {
             hasValidBounds = false
             ownedResources?.overlay?.visibility = View.INVISIBLE
             return false
         }
         val activeOverlay = ownedResources?.overlay ?: return false
-        activeOverlay.layoutParams = FrameLayout.LayoutParams(
-            physicalBounds.width,
-            physicalBounds.height,
-        ).apply {
-            leftMargin = physicalBounds.left
-            topMargin = physicalBounds.top
-        }
+        val webView = ownedResources?.webView ?: return false
+        // Native overlays do not inherit Flutter's ClipRect. Keep that clip
+        // as the outer container and the complete game plane as its child.
+        // Camera/system padding therefore stays empty without refitting the
+        // full canvas into the cropped visible rectangle.
+        updateFrame(activeOverlay, viewport.left, viewport.top, viewport.width, viewport.height)
+        updateFrame(webView, plane.left - viewport.left, plane.top - viewport.top, plane.width, plane.height)
         hasValidBounds = true
         return true
+    }
+
+    private fun updateFrame(view: View, left: Int, top: Int, width: Int, height: Int) {
+        val previous = view.layoutParams as? FrameLayout.LayoutParams
+        if (previous != null && previous.width == width && previous.height == height &&
+            previous.leftMargin == left && previous.topMargin == top) return
+        view.layoutParams = FrameLayout.LayoutParams(width, height).apply {
+            leftMargin = left
+            topMargin = top
+        }
     }
 
     fun setVisible(generation: Long, visible: Boolean): Boolean {

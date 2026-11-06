@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
+import '../localization/runtime_message_text.dart';
 import 'game_audio_port.dart';
 import 'game_audio_store.dart';
 
@@ -43,6 +44,7 @@ final class GameAudioController extends ChangeNotifier {
   bool _isBusy = false;
   GameAudioAvailability _availability = GameAudioAvailability.checking;
   String? _errorMessage;
+  String? _mutePreferenceErrorMessage;
 
   bool get isMuted => _isMuted;
   bool get backgroundPlaybackEnabled => _backgroundPlaybackEnabled;
@@ -51,7 +53,11 @@ final class GameAudioController extends ChangeNotifier {
       (_isBackgrounded && !_backgroundPlaybackEnabled);
   bool get isBusy => _isBusy;
   GameAudioAvailability get availability => _availability;
-  String? get errorMessage => _errorMessage;
+  String? get errorMessage {
+    final errors = <String>[?_errorMessage, ?_mutePreferenceErrorMessage];
+    return errors.isEmpty ? null : errors.join('\n');
+  }
+
   bool get canToggle =>
       _availability == GameAudioAvailability.available && !_isBusy;
 
@@ -79,7 +85,7 @@ final class GameAudioController extends ChangeNotifier {
     } catch (error) {
       if (_disposed || generation != _portGeneration) return;
       _availability = GameAudioAvailability.unavailable;
-      _errorMessage = '当前设备无法控制游戏声音：$error';
+      _errorMessage = '$gameAudioUnavailablePrefix$error';
     }
     if (generation == _portGeneration) _notify();
   }
@@ -99,16 +105,39 @@ final class GameAudioController extends ChangeNotifier {
     await _enqueueSettings(() async {
       try {
         if (_disposed) return;
-        await _applyEffectiveMuted();
-        await _store.writeMuted(next);
-        _isMuted = next;
-      } catch (error) {
-        _isMuted = previous;
-        _pendingMuted = null;
+        Object? nativeError;
         try {
           await _applyEffectiveMuted();
-        } catch (_) {}
-        _errorMessage = '游戏声音切换失败：$error';
+        } catch (error) {
+          nativeError = error;
+        }
+        if (_disposed) return;
+        // A failed mute must retain the user's quiet target so a replacement
+        // WebView or a later lifecycle retry can still apply it. A successful
+        // native change is not undone merely because preference saving fails.
+        if (nativeError == null || next) {
+          _isMuted = next;
+          _pendingMuted = null;
+          try {
+            await _store.writeMuted(next);
+            _mutePreferenceErrorMessage = null;
+          } catch (error) {
+            _mutePreferenceErrorMessage = '$gameAudioSaveFailedPrefix$error';
+          }
+        } else {
+          // An unmute that fails after a partial native effect must restore
+          // the existing mute rather than opening audio on an error path.
+          _isMuted = previous;
+          _pendingMuted = null;
+          try {
+            await _applyEffectiveMuted();
+          } catch (_) {}
+        }
+        if (nativeError != null) {
+          _errorMessage = next
+              ? '$gameAudioMutePendingPrefix$nativeError'
+              : '$gameAudioToggleFailedPrefix$nativeError';
+        }
       } finally {
         _pendingMuted = null;
         _isBusy = false;
@@ -143,7 +172,7 @@ final class GameAudioController extends ChangeNotifier {
           await _applyEffectiveMuted();
         } catch (_) {}
         if (_disposed || revision != _backgroundRevision) return;
-        _errorMessage = '后台声音设置失败：$error';
+        _errorMessage = '$gameAudioBackgroundSettingFailedPrefix$error';
         _notify();
       }
     });
@@ -163,7 +192,7 @@ final class GameAudioController extends ChangeNotifier {
     try {
       await _applyEffectiveMuted();
     } catch (error) {
-      _errorMessage = '当前设备无法控制游戏声音：$error';
+      _errorMessage = '$gameAudioUnavailablePrefix$error';
       _notify();
     }
   }

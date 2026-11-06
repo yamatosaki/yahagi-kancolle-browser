@@ -1,3 +1,4 @@
+import '../widgets/app_popup_menu_button.dart';
 import '../theme/app_palette.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -48,7 +49,7 @@ class HdPortraitGrid extends StatelessWidget {
             id: item.id,
             hidden: settings.portraitHidden.contains(item.id),
             onToggle: () => controller.toggleHdPortraitHidden(item.id),
-            action: PopupMenuButton<int>(
+            action: AppPopupMenuButton<int>(
               key: Key('hd-portrait-width-${item.id}'),
               onSelected: (span) =>
                   controller.setHdPortraitSize(item.id, span ~/ 10, span % 10),

@@ -119,6 +119,7 @@ class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
       widget.shipTypeLabelMode,
     );
     final hpRatio = _ratio(ship.currentHp, ship.maxHp);
+    final isDamaged = shipUsesDamagedPortrait(ship);
     final fuelRatio = _ratio(ship.currentFuel, master?.maxFuel ?? 0);
     final ammoRatio = _ratio(ship.currentAmmo, master?.maxAmmo ?? 0);
     final equipment = state.equipmentForShip(ship);
@@ -267,11 +268,7 @@ class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
                             ],
                             // Text-only mode reuses space instead of reserving an avatar column.
                             if (!show('portrait'))
-                              _textIdentity(
-                                ship,
-                                master,
-                                identityConstraints.maxWidth,
-                              )
+                              _textIdentity(ship, master)
                             else
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -299,6 +296,7 @@ class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
                                                           shipRetreatGrayscale,
                                                       child: ShipPortrait(
                                                         ship: master,
+                                                        isDamaged: isDamaged,
                                                         serverOrigin:
                                                             state.serverOrigin,
                                                         width: portraitWidth,
@@ -307,6 +305,7 @@ class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
                                                     )
                                                   : ShipPortrait(
                                                       ship: master,
+                                                      isDamaged: isDamaged,
                                                       serverOrigin:
                                                           state.serverOrigin,
                                                       width: portraitWidth,
@@ -482,10 +481,13 @@ class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
                                                       'fleet-focus-hp-track-${ship.id}',
                                                     ),
                                                   ),
+                                                )
+                                              else
+                                                const Expanded(
+                                                  child: SizedBox.shrink(),
                                                 ),
+                                              SizedBox(width: sectionGap),
                                               if (show('ammo')) ...[
-                                                if (show('hp'))
-                                                  SizedBox(width: sectionGap),
                                                 Expanded(
                                                   child: CompactStatusMeter(
                                                     alignRight: !show('bars'),
@@ -515,7 +517,10 @@ class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
                                                     ),
                                                   ),
                                                 ),
-                                              ],
+                                              ] else
+                                                const Expanded(
+                                                  child: SizedBox.shrink(),
+                                                ),
                                             ],
                                           ),
                                         ],
@@ -554,11 +559,7 @@ class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
     );
   }
 
-  Widget _textIdentity(
-    OwnedShip ship,
-    MasterShip? master,
-    double availableWidth,
-  ) {
+  Widget _textIdentity(OwnedShip ship, MasterShip? master) {
     final name = Row(
       key: Key('text-identity-${ship.id}'),
       children: [
@@ -639,61 +640,39 @@ class _FleetShipStatusCapsuleState extends State<FleetShipStatusCapsule>
       );
     }
 
-    final hp = meter('hp', ship.currentHp, ship.maxHp);
-    final supply = <Widget>[
-      if (show('fuel')) meter('fuel', ship.currentFuel, master?.maxFuel ?? 0),
-      if (show('ammo')) meter('ammo', ship.currentAmmo, master?.maxAmmo ?? 0),
-    ];
-    if (show('hp') && availableWidth < 300 && supply.length == 2) {
-      return Column(
-        children: [
-          Row(
-            children: [
-              Expanded(child: name),
-              const SizedBox(width: 8),
-              Expanded(child: hp),
-            ],
-          ),
-          const SizedBox(height: 3),
-          Row(
-            children: [
-              Expanded(child: supply[0]),
-              const SizedBox(width: 8),
-              Expanded(child: supply[1]),
-            ],
-          ),
-        ],
-      );
-    }
-    if (!show('hp') && supply.isEmpty) return name;
-    if (!show('bars')) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
+    final hp = show('hp') ? meter('hp', ship.currentHp, ship.maxHp) : null;
+    final fuel = show('fuel')
+        ? meter('fuel', ship.currentFuel, master?.maxFuel ?? 0)
+        : null;
+    final ammo = show('ammo')
+        ? meter('ammo', ship.currentAmmo, master?.maxAmmo ?? 0)
+        : null;
+    if (hp == null && fuel == null && ammo == null) return name;
+
+    // Keep the portrait layout's slots at every width: name/fuel, HP/ammo.
+    // Empty lower cells must not move the remaining meter into another slot.
+    return Column(
+      children: [
+        Row(
           children: [
             Expanded(child: name),
-            for (final item in [if (show('hp')) hp, ...supply]) ...[
-              const SizedBox(width: 6),
-              SizedBox(width: 56, child: item),
+            if (fuel != null) ...[
+              const SizedBox(width: 8),
+              Expanded(child: fuel),
             ],
           ],
         ),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        children: [
-          SizedBox(
-            width: (availableWidth * .25).clamp(65.0, 120.0),
-            child: name,
+        if (hp != null || ammo != null) ...[
+          const SizedBox(height: 3),
+          Row(
+            children: [
+              Expanded(child: hp ?? const SizedBox.shrink()),
+              const SizedBox(width: 8),
+              Expanded(child: ammo ?? const SizedBox.shrink()),
+            ],
           ),
-          for (final item in [if (show('hp')) hp, ...supply]) ...[
-            const SizedBox(width: 6),
-            Expanded(child: item),
-          ],
         ],
-      ),
+      ],
     );
   }
 

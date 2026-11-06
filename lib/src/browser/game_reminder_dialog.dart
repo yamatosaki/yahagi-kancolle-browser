@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../../l10n/app_localizations.dart';
 import 'game_surface_input_guard.dart';
+import 'game_dialog_style.dart';
 import 'native_game_warning_dialog.dart';
 
 /// An owned reminder. Successful acknowledgement waits for input protection.
@@ -16,12 +17,14 @@ class GameReminderDialogPresentation {
     required this.title,
     required this.message,
     required this.detail,
-    required this.barrierDismissible,
     required this.allowFlutterFallback,
     required this._builder,
     required this._nativePort,
+    required this.inputProtectionMaxDuration,
+    required this.needsPostTouchProtection,
   }) : _context = context,
        _navigator = Navigator.of(context, rootNavigator: true),
+       _presentationStyle = resolveGameDialogPresentation(context),
        _id = ++_nextId;
 
   static int _nextId = 0;
@@ -29,13 +32,15 @@ class GameReminderDialogPresentation {
   final NavigatorState _navigator;
   final Widget Function(BuildContext, VoidCallback acknowledge) _builder;
   final NativeGameWarningDialogPort? _nativePort;
+  final Map<String, Object?> _presentationStyle;
   final int _id;
   final String kind;
   final String title;
   final String message;
   final String? detail;
-  final bool barrierDismissible;
   final bool allowFlutterFallback;
+  final Duration? inputProtectionMaxDuration;
+  final bool Function()? needsPostTouchProtection;
   final _completion = Completer<bool>();
   GameSafetyDialogRoute? _route;
   bool _active = true;
@@ -60,12 +65,14 @@ class GameReminderDialogPresentation {
     try {
       final l10n = AppLocalizations.of(_context);
       final action = await port.show({
+        'presentation': _presentationStyle,
         'id': _id,
         'title': title,
         'headline': '',
         'body': [message, if (detail?.isNotEmpty == true) detail!].join('\n\n'),
         'rows': const <String>[],
         'actions': const ['acknowledge'],
+        'variants': const {'acknowledge': 'filled'},
         'labels': {
           'acknowledge':
               l10n?.acknowledge ??
@@ -122,7 +129,6 @@ class GameReminderDialogPresentation {
           }
           final route = GameSafetyDialogRoute(
             context: _context,
-            barrierDismissible: barrierDismissible,
             blocksOtherReminders: false,
             builder: (context) => PopScope<void>(
               canPop: false,
@@ -177,9 +183,16 @@ class GameReminderDialogPresentation {
         unawaited(_handoffProtection(route));
         return;
       }
+      final needsQuiet = needsPostTouchProtection?.call() != false;
       final guard = GameSurfaceInputGuardRoute(
         context: _navigator.overlay!.context,
         initialPointers: route.activePointers,
+        // Even without a quiet delay, retain the guard's covered handoff to a
+        // queued warning. All original contacts have already ended above.
+        maximumProtectionDuration: needsQuiet
+            ? inputProtectionMaxDuration
+            : Duration.zero,
+        releaseAfter: needsQuiet ? null : route.completed,
       );
       // Cover before removing exactly this dialog, never another modal. The
       // navigator's overlay survives the original reminder owner's disposal.
@@ -249,18 +262,20 @@ GameReminderDialogPresentation showGameReminderDialog({
   required String title,
   required String message,
   String? detail,
-  bool barrierDismissible = true,
   bool allowFlutterFallback = true,
   required Widget Function(BuildContext, VoidCallback acknowledge) builder,
   NativeGameWarningDialogPort? nativePort,
+  Duration? inputProtectionMaxDuration,
+  bool Function()? needsPostTouchProtection,
 }) => GameReminderDialogPresentation._(
   context: context,
   kind: kind,
   title: title,
   message: message,
   detail: detail,
-  barrierDismissible: barrierDismissible,
   allowFlutterFallback: allowFlutterFallback,
   builder: builder,
   nativePort: nativePort,
+  inputProtectionMaxDuration: inputProtectionMaxDuration,
+  needsPostTouchProtection: needsPostTouchProtection,
 ).._start();

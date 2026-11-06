@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../game_state/game_state.dart';
+import 'ship_damage_level.dart';
 import 'ship_portrait_cache.dart';
 import 'game_mod_portraits.dart';
 
@@ -15,7 +16,17 @@ double shipCardPortraitWidth(BuildContext context) {
   return (MediaQuery.sizeOf(context).width * 0.16).clamp(100.0, 180.0);
 }
 
-enum ShipPortraitResourceType { remodel, banner }
+bool shipUsesDamagedPortrait(OwnedShip ship) {
+  final level = shipDamageLevel(currentHp: ship.currentHp, maxHp: ship.maxHp);
+  return level == ShipDamageLevel.moderate || level == ShipDamageLevel.heavy;
+}
+
+enum ShipPortraitResourceType {
+  remodel,
+  banner;
+
+  String _nameFor(bool isDamaged) => isDamaged ? '${name}_dmg' : name;
+}
 
 typedef ShipPortraitFileImageProviderBuilder =
     ImageProvider<Object> Function(File file, int? decodeHeight);
@@ -128,6 +139,7 @@ abstract final class ShipPortraitUriBuilder {
     required MasterShip ship,
     required String serverOrigin,
     ShipPortraitResourceType resourceType = ShipPortraitResourceType.remodel,
+    bool isDamaged = false,
   }) {
     if (ship.portraitVersion == null) {
       return null;
@@ -144,7 +156,7 @@ abstract final class ShipPortraitUriBuilder {
       port: origin.hasPort ? origin.port : null,
     );
     final paddedId = ship.id.toString().padLeft(4, '0');
-    final resourceName = resourceType.name;
+    final resourceName = resourceType._nameFor(isDamaged);
     final cipher = createCipher(ship.id, 'ship_$resourceName');
     final version = int.tryParse(ship.portraitVersion!);
     return server.replace(
@@ -174,6 +186,7 @@ class ShipPortrait extends StatelessWidget {
     this.height = 56,
     this.decodeHeight,
     this.resourceType = ShipPortraitResourceType.remodel,
+    this.isDamaged = false,
     this.cache,
     this.fileImageProviderBuilder,
   });
@@ -184,6 +197,7 @@ class ShipPortrait extends StatelessWidget {
   final double height;
   final int? decodeHeight;
   final ShipPortraitResourceType resourceType;
+  final bool isDamaged;
   final ShipPortraitCache? cache;
   final ShipPortraitFileImageProviderBuilder? fileImageProviderBuilder;
 
@@ -195,7 +209,7 @@ class ShipPortrait extends StatelessWidget {
       return official;
     }
     return FutureBuilder<GameModPortraitImage?>(
-      future: portraits.resolve(ship!),
+      future: portraits.resolve(ship!, isDamaged: isDamaged),
       builder: (context, snapshot) {
         final mod = snapshot.connectionState == ConnectionState.done
             ? snapshot.data
@@ -240,6 +254,27 @@ class ShipPortrait extends StatelessWidget {
     final imageHeight = (height / 176) * 182;
     final horizontalOffset = height * (enemyBanner ? 1.6 : 0.555);
     final verticalOffset = (height / 176) * 3;
+    Widget cachedImage(Uri imageUri, bool damaged, Widget fallback) =>
+        _PersistentPortraitImage(
+          uri: imageUri,
+          cacheKey: '${ship!.id}_${resourceType._nameFor(damaged)}',
+          cache: cache ?? ShipPortraitCache.shared,
+          imageProviderBuilder: fileImageProviderBuilder,
+          height: imageHeight,
+          decodeHeight: decodeHeight,
+          fit: BoxFit.fitHeight,
+          placeholder: fallback,
+        );
+
+    final normal = cachedImage(uri, false, placeholder);
+    final damagedUri = isDamaged
+        ? ShipPortraitUriBuilder.build(
+            ship: ship!,
+            serverOrigin: serverOrigin,
+            resourceType: resourceType,
+            isDamaged: true,
+          )
+        : null;
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: ShaderMask(
@@ -266,16 +301,9 @@ class ShipPortrait extends StatelessWidget {
                 Positioned(
                   left: -horizontalOffset,
                   top: -verticalOffset,
-                  child: _PersistentPortraitImage(
-                    uri: uri,
-                    cacheKey: '${ship!.id}_${resourceType.name}',
-                    cache: cache ?? ShipPortraitCache.shared,
-                    imageProviderBuilder: fileImageProviderBuilder,
-                    height: imageHeight,
-                    decodeHeight: decodeHeight,
-                    fit: BoxFit.fitHeight,
-                    placeholder: placeholder,
-                  ),
+                  child: damagedUri == null
+                      ? normal
+                      : cachedImage(damagedUri, true, normal),
                 ),
               ],
             ),

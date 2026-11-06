@@ -420,6 +420,7 @@ Future<void> _showQuestQuery(
   QuestFilterController filters,
   QuestCenterMode mode,
 ) => showDialog<void>(
+  barrierDismissible: false,
   context: context,
   requestFocus: false,
   builder: (context) => _QuestQueryDialog(filters: filters, mode: mode),

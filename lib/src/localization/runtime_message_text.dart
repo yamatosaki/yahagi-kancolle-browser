@@ -338,7 +338,43 @@ const runtimeMessageTranslations = <String, (String, String, String, String)>{
   '未知页面': ('未知頁面', '不明なページ', '알 수 없는 페이지', 'Unknown page'),
 };
 
+const gameAudioMutePendingPrefix = '游戏静音暂未生效，已保留静音设置：';
+const gameAudioSaveFailedPrefix = '游戏声音设置保存失败，当前状态已保留：';
+const gameAudioToggleFailedPrefix = '游戏声音切换失败：';
+const gameAudioUnavailablePrefix = '当前设备无法控制游戏声音：';
+const gameAudioBackgroundSettingFailedPrefix = '后台声音设置失败：';
+
 const _prefixes = <String, (String, String, String, String)>{
+  gameAudioMutePendingPrefix: (
+    '遊戲靜音暫未生效，已保留靜音設定：',
+    'ゲームの消音はまだ適用されていません。消音設定は保持されています：',
+    '게임 음소거가 아직 적용되지 않았습니다. 음소거 설정은 유지됩니다: ',
+    'Game mute has not taken effect yet; the mute setting is retained: ',
+  ),
+  gameAudioSaveFailedPrefix: (
+    '遊戲聲音設定儲存失敗，目前狀態已保留：',
+    'ゲーム音声設定を保存できませんでした。現在の状態は保持されています：',
+    '게임 소리 설정을 저장하지 못했습니다. 현재 상태는 유지됩니다: ',
+    'Could not save the game audio setting; the current state is retained: ',
+  ),
+  gameAudioToggleFailedPrefix: (
+    '遊戲聲音切換失敗：',
+    'ゲーム音声の切り替えに失敗：',
+    '게임 소리 전환 실패: ',
+    'Failed to change game audio: ',
+  ),
+  gameAudioUnavailablePrefix: (
+    '目前裝置無法控制遊戲聲音：',
+    'この端末ではゲーム音声を制御できません：',
+    '현재 기기에서 게임 소리를 제어할 수 없습니다: ',
+    'Game audio could not be controlled on this device: ',
+  ),
+  gameAudioBackgroundSettingFailedPrefix: (
+    '背景聲音設定失敗：',
+    'バックグラウンド音声の設定に失敗：',
+    '백그라운드 소리 설정 실패: ',
+    'Failed to configure background audio: ',
+  ),
   '后台保活状态同步失败：': (
     '背景保活狀態同步失敗：',
     'バックグラウンド動作の状態同期に失敗：',
