@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'diagnostic_event.dart';
 import 'diagnostic_privacy_policy.dart';
@@ -43,16 +44,42 @@ final class DiagnosticStorage implements DiagnosticSink {
   Future<void> appendAll(List<DiagnosticEvent> events) async {
     if (events.isEmpty) return;
     await directory.create(recursive: true);
-    for (final event in events) {
-      final json = event.toJson();
-      _policy.validateRecord(json);
-      final line = '${jsonEncode(json)}\n';
-      var file = await _currentSegment();
-      if (await file.exists() &&
-          await file.length() + utf8.encode(line).length > maxSegmentBytes) {
-        file = _newSegment();
+    File? file;
+    var segmentBytes = 0;
+    var segmentExists = false;
+    final pending = BytesBuilder(copy: false);
+
+    Future<void> writePending() async {
+      if (pending.isEmpty) return;
+      await file!.writeAsBytes(
+        pending.takeBytes(),
+        mode: FileMode.append,
+        flush: false,
+      );
+    }
+
+    try {
+      for (final event in events) {
+        final json = event.toJson();
+        _policy.validateRecord(json);
+        final bytes = utf8.encode('${jsonEncode(json)}\n');
+        if (file == null) {
+          file = await _currentSegment();
+          segmentExists = await file.exists();
+          if (segmentExists) segmentBytes = await file.length();
+        }
+        if (segmentExists && segmentBytes + bytes.length > maxSegmentBytes) {
+          await writePending();
+          file = _newSegment();
+          segmentBytes = 0;
+        }
+        pending.add(bytes);
+        segmentBytes += bytes.length;
+        segmentExists = true;
       }
-      await file.writeAsString(line, mode: FileMode.append, flush: false);
+    } finally {
+      // Preserve the valid prefix if validation of a later event fails.
+      await writePending();
     }
     await prune();
   }
