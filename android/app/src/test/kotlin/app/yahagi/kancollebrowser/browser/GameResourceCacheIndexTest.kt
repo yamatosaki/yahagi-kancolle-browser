@@ -13,6 +13,46 @@ class GameResourceCacheIndexTest {
     val temporaryFolder = TemporaryFolder()
 
     @Test
+    fun `entry count tracks insert replacement removal and clear`() {
+        val indexFile = temporaryFolder.newFolder().resolve("index.json")
+        val index = GameResourceCacheIndex(indexFile)
+        assertEquals(0, index.entryCount())
+
+        index.put(entry(1))
+        assertEquals(1, index.entryCount())
+        index.put(entry(1).copy(byteLength = 2))
+        assertEquals(1, index.entryCount())
+        index.put(entry(2))
+        assertEquals(2, index.entryCount())
+
+        index.remove(GameResourceCacheKey(entry(1).key))
+        assertEquals(1, index.entryCount())
+        index.remove(GameResourceCacheKey(entry(1).key))
+        assertEquals(1, index.entryCount())
+        assertEquals(1, GameResourceCacheIndex(indexFile).entryCount())
+
+        index.clear()
+        assertEquals(0, index.entryCount())
+        assertEquals(0, GameResourceCacheIndex(indexFile).entryCount())
+    }
+
+    @Test
+    fun `entry count loads snapshot and replays journal on first access`() {
+        val root = temporaryFolder.newFolder()
+        val indexFile = root.resolve("index.json")
+        val index = GameResourceCacheIndex(indexFile)
+        indexFile.writeText("{\"version\":2}\n${entry(1).toSnapshotLine()}\n")
+        root.resolve("index.json.journal").writeText(
+            "{\"op\":\"put\",\"entry\":${entry(2).toSnapshotLine()}}\n",
+        )
+
+        assertEquals(2, index.entryCount())
+        index.removePrefix("/kcs2/resources/")
+        assertEquals(0, index.entryCount())
+        assertEquals(0, GameResourceCacheIndex(indexFile).entryCount())
+    }
+
+    @Test
     fun `updates use an append journal and survive reload`() {
         val root = temporaryFolder.newFolder()
         val indexFile = root.resolve("index.json")
@@ -112,6 +152,7 @@ class GameResourceCacheIndexTest {
         val index = GameResourceCacheIndex(root.resolve("index.json"))
 
         assertTrue(runCatching { index.put(entry(1)) }.isFailure)
+        assertEquals(0, index.entryCount())
         assertTrue(index.snapshot().isEmpty())
         assertEquals(0L, index.totalBytes())
     }
@@ -230,7 +271,7 @@ class GameResourceCacheIndexTest {
         val journal = root.resolve("index.json.journal")
         journal.writeText("{\"op\":\"put\",\"entry\":${entry(1).toSnapshotLine()}}\n")
 
-        assertTrue(GameResourceCacheIndex(file).snapshot().isEmpty())
+        assertEquals(0, GameResourceCacheIndex(file).entryCount())
         assertFalse(file.exists())
         assertFalse(journal.exists())
     }

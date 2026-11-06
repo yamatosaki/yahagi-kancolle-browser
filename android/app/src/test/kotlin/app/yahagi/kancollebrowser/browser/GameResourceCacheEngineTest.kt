@@ -21,6 +21,35 @@ class GameResourceCacheEngineTest {
     val temporaryFolder = TemporaryFolder()
 
     @Test
+    fun `status snapshot counts persisted entries without enforcing idle expiry`() {
+        val root = temporaryFolder.newFolder()
+        val indexFile = root.resolve("index.json")
+        var now = 1L
+        fun store() = GameResourceCacheStore(
+            root,
+            GameResourceCacheIndex(indexFile),
+            clock = { now },
+            policyProvider = { GameResourceCachePolicy(10_000, maxIdleAgeMs = 100) },
+        )
+        store().commit(
+            GameResourceCacheKey(official("/kcs2/resources/a.png")),
+            byteArrayOf(1, 2),
+            mimeType = "image/png",
+        )
+        now = 102L
+        val engine = GameResourceCacheEngine(store(), QueueFetcher(), { now }) {
+            GameResourceCacheMode.TEMPORARY
+        }
+
+        val snapshot = engine.statusSnapshot()
+        assertEquals(1, snapshot.fileCount)
+        assertEquals(2L, snapshot.usedBytes)
+        assertEquals(10_000L, snapshot.maxBytes)
+        assertEquals(0, engine.status().fileCount)
+        assertEquals(0, engine.statusSnapshot().fileCount)
+    }
+
+    @Test
     fun `same key queue wait consumes the request budget`() {
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)

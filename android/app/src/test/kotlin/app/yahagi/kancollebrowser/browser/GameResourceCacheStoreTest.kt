@@ -23,6 +23,25 @@ class GameResourceCacheStoreTest {
     val temporaryFolder = TemporaryFolder()
 
     @Test
+    fun `entry count loads persisted entries and follows store mutations`() {
+        val root = temporaryFolder.newFolder()
+        val indexFile = root.resolve("index.json")
+        val key = GameResourceCacheKey("/kcs2/resources/a.png")
+        val first = GameResourceCacheStore(root, GameResourceCacheIndex(indexFile))
+        first.commit(key, byteArrayOf(1), mimeType = "image/png")
+        val restarted = GameResourceCacheStore(root, GameResourceCacheIndex(indexFile))
+
+        assertEquals(1, restarted.entryCount())
+        restarted.commit(key, byteArrayOf(2), mimeType = "image/png")
+        assertEquals(1, restarted.entryCount())
+        assertTrue(restarted.remove(key))
+        assertEquals(0, restarted.entryCount())
+        restarted.commit(key, byteArrayOf(3), mimeType = "image/png")
+        restarted.clear()
+        assertEquals(0, restarted.entryCount())
+    }
+
+    @Test
     fun `unreliable file identity rehashes valid files before reusing validation`() {
         val root = temporaryFolder.newFolder("unreliable-identity-valid")
         var checksums = 0

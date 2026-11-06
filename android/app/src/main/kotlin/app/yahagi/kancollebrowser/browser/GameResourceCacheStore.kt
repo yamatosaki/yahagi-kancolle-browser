@@ -481,6 +481,8 @@ class GameResourceCacheStore(
 
     fun entries(): List<GameResourceCacheEntry> = index.snapshot()
 
+    fun entryCount(): Int = index.entryCount()
+
     @Synchronized
     fun inspect(key: GameResourceCacheKey): GameResourceStoredInspection {
         val metadata = inspectMetadata(key)

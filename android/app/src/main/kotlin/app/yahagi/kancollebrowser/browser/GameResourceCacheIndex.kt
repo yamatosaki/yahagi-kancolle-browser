@@ -52,6 +52,12 @@ class GameResourceCacheIndex(
     }
 
     @Synchronized
+    fun entryCount(): Int {
+        ensureLoaded()
+        return entries.size
+    }
+
+    @Synchronized
     fun isFull(): Boolean {
         ensureLoaded()
         return entries.size >= MAX_ENTRIES || cachedMetadataBytes >= maxMetadataBytes

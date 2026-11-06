@@ -243,7 +243,7 @@ class GameResourceCacheEngine(
         return GameResourceCacheStatus(
             usedBytes = store.totalBytes(),
             maxBytes = store.maxBytes,
-            fileCount = store.entries().size,
+            fileCount = store.entryCount(),
         )
     }
 
