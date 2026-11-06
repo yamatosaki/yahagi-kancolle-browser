@@ -150,14 +150,22 @@ internal class GameWindowLayoutChannel(
     private fun readLegacyStableInsets(): GameWindowStableInsets? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return null
         val insets = decor.rootWindowInsets ?: return null
-        val cutout = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) insets.displayCutout else null
+        val cutoutInsets = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val cutout = insets.displayCutout
+            if (cutout == null) null else GameWindowStableInsets(
+                cutout.safeInsetLeft,
+                cutout.safeInsetTop,
+                cutout.safeInsetRight,
+                cutout.safeInsetBottom,
+            )
+        } else null
         // MainActivity lays out its decor edge to edge. Root stable insets are
         // independent of bar visibility and never use the IME/visible frame.
         return GameWindowStableInsets(
-            maxOf(0, insets.stableInsetLeft, cutout?.safeInsetLeft ?: 0),
-            maxOf(0, insets.stableInsetTop, cutout?.safeInsetTop ?: 0),
-            maxOf(0, insets.stableInsetRight, cutout?.safeInsetRight ?: 0),
-            maxOf(0, insets.stableInsetBottom, cutout?.safeInsetBottom ?: 0),
+            maxOf(0, insets.stableInsetLeft, cutoutInsets?.left ?: 0),
+            maxOf(0, insets.stableInsetTop, cutoutInsets?.top ?: 0),
+            maxOf(0, insets.stableInsetRight, cutoutInsets?.right ?: 0),
+            maxOf(0, insets.stableInsetBottom, cutoutInsets?.bottom ?: 0),
         )
     }
 
