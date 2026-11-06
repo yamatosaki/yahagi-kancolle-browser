@@ -685,6 +685,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get preSortieCheck => 'Pre-sortie checks';
 
   @override
+  String get sortieExperience => 'Sortie EXP';
+
+  @override
   String get sortieCheckShipsMode => 'Ships';
 
   @override

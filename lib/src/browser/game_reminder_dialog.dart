@@ -22,6 +22,7 @@ class GameReminderDialogPresentation {
     required this._nativePort,
     required this.inputProtectionMaxDuration,
     required this.needsPostTouchProtection,
+    required this.backCancels,
   }) : _context = context,
        _navigator = Navigator.of(context, rootNavigator: true),
        _presentationStyle = resolveGameDialogPresentation(context),
@@ -41,6 +42,7 @@ class GameReminderDialogPresentation {
   final bool allowFlutterFallback;
   final Duration? inputProtectionMaxDuration;
   final bool Function()? needsPostTouchProtection;
+  final bool backCancels;
   final _completion = Completer<bool>();
   GameSafetyDialogRoute? _route;
   bool _active = true;
@@ -72,6 +74,7 @@ class GameReminderDialogPresentation {
         'body': [message, if (detail?.isNotEmpty == true) detail!].join('\n\n'),
         'rows': const <String>[],
         'actions': const ['acknowledge'],
+        if (backCancels) 'backCancels': true,
         'variants': const {'acknowledge': 'filled'},
         'labels': {
           'acknowledge':
@@ -133,7 +136,7 @@ class GameReminderDialogPresentation {
             builder: (context) => PopScope<void>(
               canPop: false,
               onPopInvokedWithResult: (didPop, _) {
-                if (!didPop) _acknowledge();
+                if (!didPop) _acknowledge(accepted: !backCancels);
               },
               child: _builder(context, _acknowledge),
             ),
@@ -150,7 +153,7 @@ class GameReminderDialogPresentation {
     );
   }
 
-  void _acknowledge() {
+  void _acknowledge({bool accepted = true}) {
     final route = _route;
     if (!_active ||
         _acknowledging ||
@@ -161,26 +164,29 @@ class GameReminderDialogPresentation {
       return;
     }
     _acknowledging = true;
-    _beginProtection(route);
+    _beginProtection(route, accepted: accepted);
   }
 
-  void _beginProtection(GameSafetyDialogRoute route) {
+  void _beginProtection(GameSafetyDialogRoute route, {required bool accepted}) {
     // Navigator.push synthesizes Cancel for held pointers and discards their
     // hit-test paths. Preserve this route until their real Up/Cancel arrives.
     route.reserveInputProtection();
     _mutateNavigator(() {
       if (!_navigator.mounted || !route.isActive) return;
       route.showReservedInputProtection();
-      unawaited(_handoffProtection(route));
+      unawaited(_handoffProtection(route, accepted));
     });
   }
 
-  Future<void> _handoffProtection(GameSafetyDialogRoute route) async {
+  Future<void> _handoffProtection(
+    GameSafetyDialogRoute route,
+    bool accepted,
+  ) async {
     await route.waitForPointersReleased();
     _mutateNavigator(() {
       if (!_navigator.mounted || !route.isActive) return;
       if (route.activePointers.isNotEmpty) {
-        unawaited(_handoffProtection(route));
+        unawaited(_handoffProtection(route, accepted));
         return;
       }
       final needsQuiet = needsPostTouchProtection?.call() != false;
@@ -198,16 +204,17 @@ class GameReminderDialogPresentation {
       // navigator's overlay survives the original reminder owner's disposal.
       unawaited(_navigator.push<void>(guard));
       _navigator.removeRoute(route);
-      unawaited(_waitForProtection(route, guard));
+      unawaited(_waitForProtection(route, guard, accepted));
     });
   }
 
   Future<void> _waitForProtection(
     GameSafetyDialogRoute route,
     GameSurfaceInputGuardRoute guard,
+    bool accepted,
   ) async {
     await Future.wait<void>([route.completed, guard.completed]);
-    if (_active) _finish(_context.mounted && _navigator.mounted);
+    if (_active) _finish(accepted && _context.mounted && _navigator.mounted);
   }
 
   /// Cancels only this request and never claims that its reminder was read.
@@ -220,7 +227,7 @@ class GameReminderDialogPresentation {
     // the read result must not release a held pointer into the game.
     if (_acknowledging) return;
     if (route?.isActive == true && route!.activePointers.isNotEmpty) {
-      _beginProtection(route);
+      _beginProtection(route, accepted: false);
       return;
     }
     _mutateNavigator(() {
@@ -267,6 +274,7 @@ GameReminderDialogPresentation showGameReminderDialog({
   NativeGameWarningDialogPort? nativePort,
   Duration? inputProtectionMaxDuration,
   bool Function()? needsPostTouchProtection,
+  bool backCancels = false,
 }) => GameReminderDialogPresentation._(
   context: context,
   kind: kind,
@@ -278,4 +286,5 @@ GameReminderDialogPresentation showGameReminderDialog({
   nativePort: nativePort,
   inputProtectionMaxDuration: inputProtectionMaxDuration,
   needsPostTouchProtection: needsPostTouchProtection,
+  backCancels: backCancels,
 ).._start();

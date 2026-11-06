@@ -31,7 +31,7 @@ Uint8List _v2(String raw, {int owner = 1001}) {
     utf8.encode(
       jsonEncode({
         'memberId': owner,
-        'logbookSchema': 12,
+        'logbookSchema': BackupArchive.logbookArchiveSchema,
         'tables': _tables(),
         'compositions': [],
         'senkaSchema': 1,

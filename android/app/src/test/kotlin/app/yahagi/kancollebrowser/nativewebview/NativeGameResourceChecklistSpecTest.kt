@@ -56,6 +56,13 @@ class NativeGameResourceChecklistSpecTest {
         assertEquals("完成", spec.labels["acknowledge"])
     }
 
+    @Test fun checklistsCanOptIntoBackCancellationWithoutChangingExistingEditors() {
+        assertFalse(valid(payload("moduleDisplay")).backCancels)
+        assertTrue(valid(payload("moduleDisplay") + ("backCancels" to true)).backCancels)
+        reject(payload("moduleDisplay") + ("backCancels" to "true"))
+        reject((payload("debuff") - "items") + ("backCancels" to true))
+    }
+
     @Test fun itemIdsMustBeUniqueAndNonempty() {
         val original = (payload()["items"] as List<*>).single()!!
         reject(payload() + ("items" to listOf(original, original)))

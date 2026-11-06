@@ -55,6 +55,7 @@ abstract class LayoutSettingsStore {
     'construction',
     'quests',
     'pre_sortie',
+    'sortie_experience',
   ];
 
   Future<List<String>> loadDashboardCardCollapsed();
@@ -670,6 +671,8 @@ class SharedPreferencesLayoutSettingsStore
         if (list.contains(key)) continue;
         if (key == 'land_base' && list.contains('fleet')) {
           list.insert(list.indexOf('fleet') + 1, key);
+        } else if (key == 'sortie_experience' && list.contains('pre_sortie')) {
+          list.insert(list.indexOf('pre_sortie') + 1, key);
         } else {
           list.add(key);
         }

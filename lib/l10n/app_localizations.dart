@@ -1321,6 +1321,12 @@ abstract class AppLocalizations {
   /// **'出击前检查'**
   String get preSortieCheck;
 
+  /// No description provided for @sortieExperience.
+  ///
+  /// In zh, this message translates to:
+  /// **'出击经验'**
+  String get sortieExperience;
+
   /// No description provided for @sortieCheckShipsMode.
   ///
   /// In zh, this message translates to:

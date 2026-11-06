@@ -31,11 +31,13 @@ void main() {
           'repair',
           'quests',
           'pre_sortie',
+          'sortie_experience',
         ],
         [
           'pre_sortie',
           'construction',
           'battle',
+          'sortie_experience',
           'fleet',
           'land_base',
           'expedition',
@@ -43,6 +45,7 @@ void main() {
           'quests',
         ],
         [
+          'sortie_experience',
           'pre_sortie',
           'construction',
           'battle',
@@ -122,6 +125,7 @@ void main() {
         'repair',
         'construction',
         'pre_sortie',
+        'sortie_experience',
       ]);
       expect(restored.dashboardDisplayMode, DashboardDisplayMode.tabs);
       await restored.setDashboardCardOrder(restored.dashboardCardOrder);

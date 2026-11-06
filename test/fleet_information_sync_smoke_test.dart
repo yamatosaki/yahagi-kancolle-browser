@@ -9,6 +9,7 @@ import 'package:yahagi_kancolle_browser/src/fleet/equipment_type_icon.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/fleet_information_center.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/fleet_ship_status_capsule.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/fleet_summary_card.dart';
+import 'package:yahagi_kancolle_browser/src/fleet/ship_portrait.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_api_event_pipeline.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
@@ -280,6 +281,30 @@ void _expectFleetDisplay(
     reason: 'briefing equipment',
   );
   final detail = find.byType(FleetInformationCenter);
+  final portraitSurfaces = {
+    'briefing': find.byWidget(summaryShip),
+    'detail roster': find.descendant(
+      of: detail,
+      matching: find.byKey(const Key('fleet-roster-portrait-$_targetId')),
+    ),
+    'detail focus': find.descendant(
+      of: detail,
+      matching: find.byKey(const Key('fleet-focus-portrait-$_targetId')),
+    ),
+  };
+  for (final entry in portraitSurfaces.entries) {
+    final portrait = find.descendant(
+      of: entry.value,
+      matching: find.byType(ShipPortrait),
+    );
+    final reason = '${entry.key} portrait at $hp/30 HP';
+    expect(portrait, findsOneWidget, reason: reason);
+    expect(
+      tester.widget<ShipPortrait>(portrait).isDamaged,
+      hp > 0 && hp <= 15,
+      reason: reason,
+    );
+  }
   expect(
     tester
         .widget<Text>(

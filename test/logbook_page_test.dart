@@ -187,7 +187,7 @@ void main() {
     expect(sortieStatusLabel(''), '旧版记录');
   });
 
-  testWidgets('top switcher exposes six separate Poi categories', (
+  testWidgets('top switcher places experience immediately after sortie', (
     tester,
   ) async {
     var selected = 0;
@@ -205,9 +205,20 @@ void main() {
       ),
     );
 
-    for (final label in ['出击', '远征', '建造', '开发', '除籍', '资源']) {
+    final labels = ['出击', '经验', '远征', '建造', '开发', '除籍', '资源'];
+    for (final label in labels) {
       expect(find.text(label), findsOneWidget);
     }
+    for (var index = 1; index < labels.length; index++) {
+      expect(
+        tester.getTopLeft(find.text(labels[index])).dx,
+        greaterThan(tester.getTopLeft(find.text(labels[index - 1])).dx),
+      );
+    }
+    await tester.tap(find.text('远征'));
+    expect(selected, 1);
+    await tester.tap(find.text('经验'));
+    expect(selected, 6);
     expect(find.text('本次出击'), findsNothing);
     expect(find.text('历史战果'), findsNothing);
   });

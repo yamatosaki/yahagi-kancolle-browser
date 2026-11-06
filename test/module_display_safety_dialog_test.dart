@@ -9,6 +9,7 @@ import 'package:yahagi_kancolle_browser/src/browser/native_game_resource_checkli
 import 'package:yahagi_kancolle_browser/src/browser/native_game_warning_dialog.dart';
 import 'package:yahagi_kancolle_browser/src/settings/fleet_display_options.dart';
 import 'package:yahagi_kancolle_browser/src/settings/fleet_display_settings_section.dart';
+import 'package:yahagi_kancolle_browser/src/settings/game_display_settings_dialog.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/module_display_settings.dart';
@@ -241,6 +242,74 @@ void main() {
     expect(h.port.shown, isEmpty);
     expect(find.byType(Dialog), findsNothing);
   });
+
+  testWidgets(
+    'custom checklist refreshes and rejects edits after owner changes',
+    (tester) async {
+      final port = _Port();
+      final display = ValueNotifier((active: true, checked: true));
+      addTearDown(display.dispose);
+      addTearDown(port.source.close);
+      var toggles = 0;
+      var completed = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GameDialogPresentationScope(
+            nativeActivity: true,
+            nativeChecklistPort: port,
+            child: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () async {
+                    await showGameDisplaySettingsDialog(
+                      context: context,
+                      changes: display,
+                      ownerIsCurrent: () => display.value.active,
+                      kind: 'moduleDisplay',
+                      title: 'Choose ships',
+                      items: () => [
+                        {
+                          'id': '101',
+                          'label': 'Ship',
+                          'value': '',
+                          'checked': display.value.checked,
+                        },
+                      ],
+                      onToggle: (_) {
+                        toggles++;
+                      },
+                      onReset: () {},
+                      resetLabel: 'Reset',
+                      doneLabel: 'Finish editing',
+                      builder: (_, _) => const Dialog(),
+                    );
+                    completed = true;
+                  },
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(port.shown.single['labels'], {'acknowledge': 'Finish editing'});
+      display.value = (active: true, checked: false);
+      expect((port.current['items'] as List).single['checked'], isFalse);
+      port.toggle('101', true);
+      expect(toggles, 1);
+      display.value = (active: false, checked: false);
+      port.toggle('101', true);
+      await tester.pumpAndSettle();
+      expect(toggles, 1);
+      expect(port.dismissed, hasLength(1));
+      expect(completed, isTrue);
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(port.shown, hasLength(1));
+    },
+  );
 }
 
 class _Harness {

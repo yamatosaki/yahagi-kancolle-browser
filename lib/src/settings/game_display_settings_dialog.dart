@@ -10,18 +10,28 @@ import 'layout_settings_controller.dart';
 /// Keeps the native game live and uses the same dismissal protection as alerts.
 Future<void> showGameDisplaySettingsDialog({
   required BuildContext context,
-  required LayoutSettingsController controller,
+  LayoutSettingsController? controller,
+  Listenable? changes,
+  bool Function()? ownerIsCurrent,
+  bool allowNative = true,
   required String kind,
   required String title,
   required List<Map<String, Object?>> Function() items,
   required FutureOr<void> Function(String id) onToggle,
   required FutureOr<void> Function() onReset,
+  FutureOr<void> Function()? onDone,
   required String resetLabel,
+  String? doneLabel,
   required Widget Function(BuildContext context, VoidCallback close) builder,
 }) {
-  if (!context.mounted) return Future<void>.value();
+  bool ownerCanEdit() =>
+      context.mounted &&
+      controller?.uiLocked != true &&
+      ownerIsCurrent?.call() != false;
+
+  if (!ownerCanEdit()) return Future<void>.value();
   final scope = GameDialogPresentationScope.maybeOf(context);
-  if (controller.uiLocked || scope?.presentationEnabled == false) {
+  if (scope?.presentationEnabled == false) {
     return Future<void>.value();
   }
   final nativeActivity = scope?.nativeActivity ?? false;
@@ -29,18 +39,16 @@ Future<void> showGameDisplaySettingsDialog({
   NativeGameResourceChecklistAdapter? native;
   var disposed = false;
 
-  bool isCurrent() {
-    if (disposed ||
-        !context.mounted ||
-        controller.uiLocked ||
-        presentation?.isActive != true) {
-      return false;
-    }
+  bool hasCurrentOwner() {
+    if (!ownerCanEdit()) return false;
     final current = context
         .getInheritedWidgetOfExactType<GameDialogPresentationScope>();
     return current?.presentationEnabled != false &&
         (current?.nativeActivity ?? false) == nativeActivity;
   }
+
+  bool isCurrent() =>
+      !disposed && presentation?.isActive == true && hasCurrentOwner();
 
   void refresh() {
     if (disposed) return;
@@ -51,7 +59,7 @@ Future<void> showGameDisplaySettingsDialog({
     native?.updateCurrent();
   }
 
-  if (nativeActivity) {
+  if (nativeActivity && allowNative) {
     native = NativeGameResourceChecklistAdapter(
       kind: kind,
       port:
@@ -62,10 +70,15 @@ Future<void> showGameDisplaySettingsDialog({
       onToggle: onToggle,
       onReset: onReset,
       resetLabel: resetLabel,
-      doneLabel: MaterialLocalizations.of(context).closeButtonTooltip,
+      doneLabel:
+          doneLabel ?? MaterialLocalizations.of(context).closeButtonTooltip,
     );
   }
-  controller.addListener(refresh);
+  final refreshSources = Listenable.merge([
+    controller,
+    if (!identical(controller, changes)) changes,
+  ]);
+  refreshSources.addListener(refresh);
   // Native windows have no Flutter dialog widget whose dispose can own them.
   final ownerCheck = Timer.periodic(
     const Duration(seconds: 1),
@@ -78,11 +91,16 @@ Future<void> showGameDisplaySettingsDialog({
     message: '',
     nativePort: native,
     builder: builder,
+    backCancels: onDone != null,
   );
-  return presentation.completed.then<void>((_) {}).whenComplete(() {
-    disposed = true;
-    ownerCheck.cancel();
-    controller.removeListener(refresh);
-    native?.dispose();
-  });
+  return presentation.completed
+      .then<void>((accepted) async {
+        if (accepted && onDone != null && hasCurrentOwner()) await onDone();
+      })
+      .whenComplete(() {
+        disposed = true;
+        ownerCheck.cancel();
+        refreshSources.removeListener(refresh);
+        native?.dispose();
+      });
 }

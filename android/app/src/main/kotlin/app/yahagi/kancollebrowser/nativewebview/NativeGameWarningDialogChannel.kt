@@ -356,7 +356,7 @@ internal class NativeGameWarningDialogChannel(
     /** Back cancels a choice or confirmation without accepting its primary action. */
     private fun dismissFromUser(key: NativeGameDialogKey, version: Long = renderVersion) {
         val request = requests[key] ?: return
-        if (!request.spec.isSurfaceDialog) {
+        if (!request.spec.isSurfaceDialog && !request.spec.backCancels) {
             choose(key, "acknowledge", version)
             return
         }

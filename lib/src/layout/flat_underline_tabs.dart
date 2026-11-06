@@ -9,11 +9,13 @@ import 'flat_text_toggle.dart';
 class FlatUnderlineTabs extends StatelessWidget {
   const FlatUnderlineTabs({super.key, required this.options});
 
+  static const height = 22.0;
+
   final List<FlatTextToggleOption> options;
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 22,
+    height: height,
     // 自带透明 Material：否则按下高亮画在整屏 Material 上，被信息栏底色盖住。
     child: Material(
       type: MaterialType.transparency,

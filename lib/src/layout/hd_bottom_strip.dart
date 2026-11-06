@@ -36,7 +36,8 @@ class HdBottomStrip extends StatelessWidget {
                 module.id == 'repair' ||
                 module.id == 'quests' ||
                 module.id == 'expedition' ||
-                module.id == 'pre_sortie'
+                module.id == 'pre_sortie' ||
+                module.id == 'sortie_experience'
             ? HdModuleColumns(columns: module.span, child: child)
             : child;
       }

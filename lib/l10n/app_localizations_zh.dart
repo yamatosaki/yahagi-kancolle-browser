@@ -649,6 +649,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get preSortieCheck => '出击前检查';
 
   @override
+  String get sortieExperience => '出击经验';
+
+  @override
   String get sortieCheckShipsMode => '舰娘';
 
   @override
@@ -4760,6 +4763,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get preSortieCheck => '出擊前檢查';
+
+  @override
+  String get sortieExperience => '出擊經驗';
 
   @override
   String get sortieCheckShipsMode => '艦娘';

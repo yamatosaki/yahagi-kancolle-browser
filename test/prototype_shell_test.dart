@@ -469,7 +469,9 @@ void main() {
         await layout.toggleDashboardCardCollapsed('fleet');
         final hidden = [...layout.dashboardCardHidden];
         final collapsed = [...layout.dashboardCardCollapsed];
-        final visibleOrder = order.where((id) => !hidden.contains(id)).toList();
+        final visibleOrder = order
+            .where((id) => id != 'sortie_experience' && !hidden.contains(id))
+            .toList();
         await tester.pumpAndSettle();
 
         void expectLiveGame() {

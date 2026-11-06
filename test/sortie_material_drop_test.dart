@@ -23,6 +23,7 @@ void main() {
       final path = '${directory.path}/logbook.db';
       final legacy = await LogbookDatabase.openForTesting(path: path);
       final raw = await legacy.database;
+      await raw.execute('DROP TABLE ${LogbookDatabase.experienceTable}');
       await raw.execute('DROP TABLE map_resource_logs');
       await raw.execute('''
       CREATE TABLE map_resource_logs (

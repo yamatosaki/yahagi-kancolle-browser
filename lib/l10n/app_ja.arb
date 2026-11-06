@@ -216,6 +216,7 @@
   "constructionBrief": "建造情報",
   "questBrief": "任務情報",
   "preSortieCheck": "出撃前検査",
+  "sortieExperience": "出撃経験値",
   "sortieCheckShipsMode": "艦娘",
   "sortieCheckMapsMode": "海域",
   "mapHpGauges": "海域ゲージ",

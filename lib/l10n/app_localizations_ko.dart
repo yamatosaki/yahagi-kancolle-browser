@@ -663,6 +663,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get preSortieCheck => '출격 전 점검';
 
   @override
+  String get sortieExperience => '출격 경험치';
+
+  @override
   String get sortieCheckShipsMode => '칸무스';
 
   @override

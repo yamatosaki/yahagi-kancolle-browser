@@ -17,6 +17,7 @@ const _tabIds = [
   'development',
   'retirement',
   'resource',
+  'experience',
 ];
 
 void _expectReadableTab(WidgetTester tester, int index, String label) {
@@ -42,13 +43,13 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   for (final (locale, labels) in [
-    (const Locale('zh'), ['出击', '远征', '建造', '开发', '除籍', '资源']),
+    (const Locale('zh'), ['出击', '远征', '建造', '开发', '除籍', '资源', '经验']),
     (
       const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
-      ['出擊', '遠征', '建造', '開發', '除籍', '資源'],
+      ['出擊', '遠征', '建造', '開發', '除籍', '資源', '經驗'],
     ),
-    (const Locale('ja'), ['出撃', '遠征', '建造', '開発', '除籍', '資源']),
-    (const Locale('ko'), ['출격', '원정', '건조', '개발', '제적', '자원']),
+    (const Locale('ja'), ['出撃', '遠征', '建造', '開発', '除籍', '資源', '経験値']),
+    (const Locale('ko'), ['출격', '원정', '건조', '개발', '제적', '자원', '경험치']),
     (
       const Locale('en'),
       [
@@ -58,6 +59,7 @@ void main() {
         'Development',
         'Removal',
         'Resources',
+        'EXP',
       ],
     ),
   ]) {
@@ -148,7 +150,7 @@ void main() {
             findsOneWidget,
           );
         }
-        const selections = [0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0];
+        const selections = [0, 6, 1, 2, 3, 4, 5, 4, 3, 2, 1, 6, 0];
         for (final index in selections) {
           final tab = find.byKey(Key('logbook-tab-${_tabIds[index]}'));
           await tester.ensureVisible(tab);

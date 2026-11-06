@@ -1,9 +1,11 @@
 import '../theme/app_palette.dart';
 import '../widgets/app_segmented_style.dart';
 import '../localization/game_name_localizations.dart';
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../localization/ui_text.dart';
 import '../battle/battle_detail_strings.dart';
@@ -17,12 +19,19 @@ import '../fleet/header_resource_catalog.dart';
 import '../fleet/resource_trend_page.dart';
 import '../game_state/combat_state.dart';
 import '../game_state/game_state.dart';
+import '../sortie_experience/sortie_experience_controller.dart';
+import '../sortie_experience/sortie_experience_row.dart';
+import '../sortie_experience/sortie_experience_strings.dart';
 import '../widgets/filter_controls.dart';
 import '../widgets/frozen_data_table.dart';
 import 'expedition_log_catalog.dart';
 import 'battle_detail_page.dart';
 import 'logbook_database.dart';
+import 'logbook_experience_record.dart';
+import 'logbook_experience_strings.dart';
 import 'logbook_filter_panel.dart';
+
+part 'logbook_experience_page.dart';
 
 enum _LogbookCategory {
   sortie('出击'),
@@ -36,6 +45,15 @@ enum _LogbookCategory {
   final String label;
 }
 
+// Retain the indices used by existing logbook routes. The header presents the
+// new page next to Sortie even though it is last in the page controller.
+final _experienceTabIndex = _LogbookCategory.values.length;
+final _logbookTabOrder = [
+  _LogbookCategory.sortie.index,
+  _experienceTabIndex,
+  for (final category in _LogbookCategory.values.skip(1)) category.index,
+];
+
 const _heavyDamageColumnWidth = 166.0;
 const _heavyDamageHorizontalPadding = 6.0;
 
@@ -44,12 +62,14 @@ class LogbookPage extends StatefulWidget {
     super.key,
     required this.battleController,
     this.database,
+    this.sortieExperienceController,
     this.selectedTabIndex = 0,
     this.onTabChanged,
   });
 
   final BattleController battleController;
   final LogbookDatabase? database;
+  final SortieExperienceController? sortieExperienceController;
   final int selectedTabIndex;
   final ValueChanged<int>? onTabChanged;
 
@@ -67,10 +87,10 @@ class _LogbookPageState extends State<LogbookPage>
     super.initState();
     _reportedTabIndex = widget.selectedTabIndex.clamp(
       0,
-      _LogbookCategory.values.length - 1,
+      _logbookTabOrder.length - 1,
     );
     _tabController = TabController(
-      length: _LogbookCategory.values.length,
+      length: _logbookTabOrder.length,
       initialIndex: _reportedTabIndex,
       vsync: this,
     )..addListener(_reportTabChange);
@@ -81,7 +101,7 @@ class _LogbookPageState extends State<LogbookPage>
     super.didUpdateWidget(oldWidget);
     final nextIndex = widget.selectedTabIndex.clamp(
       0,
-      _LogbookCategory.values.length - 1,
+      _logbookTabOrder.length - 1,
     );
     if (_tabController.index != nextIndex) {
       _reportedTabIndex = nextIndex;
@@ -149,6 +169,14 @@ class _LogbookPageState extends State<LogbookPage>
               battleController: widget.battleController,
             ),
             ResourceTrendPage(database: database),
+            _LogbookExperiencePage(
+              database: database,
+              memberId: scope.memberId,
+              sortieExperienceController:
+                  scope.isKnown && identical(database, LogbookDatabase.instance)
+                  ? widget.sortieExperienceController
+                  : null,
+            ),
           ],
         ),
       ),
@@ -174,7 +202,7 @@ const _logbookTabStyle = TextStyle(fontSize: 12, fontWeight: FontWeight.w800);
 
 class _LogbookSegmentedState extends State<LogbookSegmented> {
   final _scrollController = ScrollController();
-  final _tabKeys = [for (final _ in _LogbookCategory.values) GlobalKey()];
+  final _tabKeys = [for (final _ in _logbookTabOrder) GlobalKey()];
   double? _viewportWidth;
 
   @override
@@ -207,8 +235,11 @@ class _LogbookSegmentedState extends State<LogbookSegmented> {
   @override
   Widget build(BuildContext context) {
     final labels = [
-      for (final category in _LogbookCategory.values)
-        uiText(context, category.label),
+      for (final index in _logbookTabOrder)
+        if (index == _experienceTabIndex)
+          LogbookExperienceStrings.of(context).tab
+        else
+          uiText(context, _LogbookCategory.values[index].label),
     ];
     final textWidths = [
       for (final label in labels) _tabTextWidth(context, label),
@@ -216,15 +247,22 @@ class _LogbookSegmentedState extends State<LogbookSegmented> {
     final widths = [
       for (final width in textWidths) (width + 16).clamp(48.0, double.infinity),
     ];
-    Widget button(int index) => KeyedSubtree(
-      key: _tabKeys[index],
-      child: _LogbookSegmentButton(
-        key: Key('logbook-tab-${_LogbookCategory.values[index].name}'),
-        selected: index == widget.selectedIndex,
-        label: labels[index],
-        onTap: () => widget.onChanged(index),
-      ),
-    );
+    Widget button(int position) {
+      final index = _logbookTabOrder[position];
+      final id = index == _experienceTabIndex
+          ? 'experience'
+          : _LogbookCategory.values[index].name;
+      return KeyedSubtree(
+        key: _tabKeys[index],
+        child: _LogbookSegmentButton(
+          key: Key('logbook-tab-$id'),
+          selected: index == widget.selectedIndex,
+          label: labels[position],
+          onTap: () => widget.onChanged(index),
+        ),
+      );
+    }
+
     return Align(
       alignment: Alignment.centerRight,
       child: ConstrainedBox(

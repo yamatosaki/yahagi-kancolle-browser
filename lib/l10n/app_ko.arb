@@ -277,6 +277,7 @@
   "constructionBrief": "건조 요약",
   "questBrief": "임무 요약",
   "preSortieCheck": "출격 전 점검",
+  "sortieExperience": "출격 경험치",
   "sortieCheckShipsMode": "칸무스",
   "sortieCheckMapsMode": "해역",
   "mapHpGauges": "해역 게이지",

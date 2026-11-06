@@ -10,6 +10,7 @@ import '../account/account_session.dart';
 import '../battle/battle_models.dart';
 import '../battle/battle_detail_models.dart';
 import '../game_state/game_state.dart';
+import 'logbook_experience_record.dart';
 
 const String _unknownAirSuperiority = '未知';
 const String sortieResourceStatusToken = 'resource';
@@ -30,6 +31,7 @@ final class _BackupSnapshotValidation {
 
 enum LogbookChangeCategory {
   battle,
+  experience,
   resource,
   expedition,
   construction,
@@ -207,7 +209,8 @@ final class RetirementLogEntry {
 }
 
 class LogbookDatabase extends ChangeNotifier {
-  static const int schemaVersion = 12;
+  static const int schemaVersion = 13;
+  static const String experienceTable = 'experience_logs';
   static const backupTables = <String>[
     'battle_logs',
     'map_resource_logs',
@@ -217,6 +220,7 @@ class LogbookDatabase extends ChangeNotifier {
     'construction_logs',
     'development_logs',
     'retirement_logs',
+    experienceTable,
   ];
   static AccountSession _accountSession = AccountSession.shared;
   static final Map<int, LogbookDatabase> _accountDatabases = {};
@@ -249,6 +253,7 @@ class LogbookDatabase extends ChangeNotifier {
   Database? _database;
   Future<Database>? _openingDatabase;
   Future<void>? _resourceWriteQueue;
+  Future<void>? _experienceWriteQueue;
   _ResourceSnapshotValues? _lastResourceValues;
   bool _resourceBaselineLoaded = false;
   final ValueNotifier<int> backupWrites = ValueNotifier<int>(0);
@@ -284,6 +289,7 @@ class LogbookDatabase extends ChangeNotifier {
   }
 
   Future<void> close() async {
+    await _experienceWriteQueue;
     final pendingResourceWrite = _resourceWriteQueue;
     try {
       await pendingResourceWrite;
@@ -302,6 +308,7 @@ class LogbookDatabase extends ChangeNotifier {
     _database = null;
     _openingDatabase = null;
     _resourceWriteQueue = null;
+    _experienceWriteQueue = null;
     _lastResourceValues = null;
     _resourceBaselineLoaded = false;
     await current?.close();
@@ -372,10 +379,11 @@ class LogbookDatabase extends ChangeNotifier {
     backupWrites.value += 1;
   }
 
-  /// A complete, consistent logical snapshot. Pending resource writes are
+  /// A complete, consistent logical snapshot. Pending log writes are
   /// drained before reading so export and cleanup cannot race them.
   Future<Map<String, List<Map<String, Object?>>>> backupSnapshot() async {
     await _resourceWriteQueue;
+    await _experienceWriteQueue;
     final db = await database;
     final result = <String, List<Map<String, Object?>>>{};
     await db.transaction((txn) async {
@@ -397,6 +405,7 @@ class LogbookDatabase extends ChangeNotifier {
     Map<String, List<Map<String, Object?>>> expected,
   ) async {
     await _resourceWriteQueue;
+    await _experienceWriteQueue;
     if (expected.keys.toSet().difference(backupTables.toSet()).isNotEmpty ||
         backupTables.any((table) => !expected.containsKey(table))) {
       throw const FormatException('Invalid logbook tables');
@@ -545,6 +554,9 @@ class LogbookDatabase extends ChangeNotifier {
             throw FormatException('Invalid row ID in $table');
           }
         }
+        if (table == experienceTable) {
+          LogbookExperienceRecord.fromRow(row);
+        }
       }
       for (final columns in request.schemas[table]!.uniqueKeys) {
         final seen = <String>{};
@@ -573,6 +585,7 @@ class LogbookDatabase extends ChangeNotifier {
     Map<String, List<Map<String, Object?>>> tables,
   ) async {
     await _resourceWriteQueue;
+    await _experienceWriteQueue;
     final db = await database;
     await db.transaction((txn) async {
       await _validateBackupSnapshot(txn, tables);
@@ -662,6 +675,7 @@ class LogbookDatabase extends ChangeNotifier {
     ''');
 
     await _createMapResourceTable(db);
+    await _createExperienceTable(db);
 
     // Resource Logs
     await db.execute('''
@@ -812,6 +826,27 @@ class LogbookDatabase extends ChangeNotifier {
     }
   }
 
+  Future<void> _createExperienceTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE $experienceTable (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_key TEXT NOT NULL UNIQUE,
+        timestamp INTEGER NOT NULL,
+        is_practice INTEGER NOT NULL,
+        map_area INTEGER NOT NULL,
+        map_no INTEGER NOT NULL,
+        deck_id INTEGER NOT NULL,
+        battle_count INTEGER NOT NULL,
+        incomplete INTEGER NOT NULL,
+        ships_json TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE INDEX idx_experience_logs_timestamp
+      ON $experienceTable(timestamp DESC, id DESC)
+    ''');
+  }
+
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       await db.execute('''
@@ -924,6 +959,49 @@ class LogbookDatabase extends ChangeNotifier {
         }
       }
     }
+    if (oldVersion < 13) {
+      await _createExperienceTable(db);
+    }
+  }
+
+  Future<void> insertExperienceRecord(LogbookExperienceRecord record) {
+    final row = record.toRow();
+    final write = (_experienceWriteQueue ?? Future<void>.value()).then((
+      _,
+    ) async {
+      LogbookExperienceRecord.fromRow(row);
+      final db = await database;
+      final inserted = await db.transaction((transaction) async {
+        final existing = await transaction.query(
+          experienceTable,
+          columns: ['id'],
+          where: 'event_key = ?',
+          whereArgs: [record.eventKey],
+          limit: 1,
+        );
+        if (existing.isNotEmpty) return false;
+        await transaction.insert(experienceTable, row);
+        return true;
+      });
+      if (inserted) _notifyChange(LogbookChangeCategory.experience);
+    });
+    _experienceWriteQueue = write.then<void>((_) {}, onError: (Object _) {});
+    return write;
+  }
+
+  Future<List<LogbookExperienceRecord>> getExperienceRecords({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    await _experienceWriteQueue;
+    final db = await database;
+    final rows = await db.query(
+      experienceTable,
+      orderBy: 'timestamp DESC, id DESC',
+      limit: limit,
+      offset: offset,
+    );
+    return rows.map(LogbookExperienceRecord.fromRow).toList();
   }
 
   /// Add a battle record to the log
@@ -1915,6 +1993,7 @@ class LogbookDatabase extends ChangeNotifier {
   Future<void> clearAll() async {
     final pendingResourceWrite = _resourceWriteQueue;
     if (pendingResourceWrite != null) await pendingResourceWrite;
+    await _experienceWriteQueue;
     final db = await database;
     await db.transaction((transaction) async {
       await transaction.delete('battle_logs');
@@ -1925,6 +2004,7 @@ class LogbookDatabase extends ChangeNotifier {
       await transaction.delete('construction_logs');
       await transaction.delete('development_logs');
       await transaction.delete('retirement_logs');
+      await transaction.delete(experienceTable);
     });
     _resourceWriteQueue = null;
     _lastResourceValues = null;

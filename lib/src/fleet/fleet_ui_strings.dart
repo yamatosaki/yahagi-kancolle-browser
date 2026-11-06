@@ -84,6 +84,7 @@ abstract final class FleetUiKeys {
     },
     'battle': <String, String>{},
     'pre_sortie': <String, String>{},
+    'sortie_experience': <String, String>{},
   };
 
   static const moduleDisplayTitles = <String, String>{
@@ -94,6 +95,7 @@ abstract final class FleetUiKeys {
     'quests': '任务简报显示内容',
     'battle': '战斗简报显示内容',
     'pre_sortie': '出击准备显示内容',
+    'sortie_experience': '出击经验显示内容',
   };
 }
 
@@ -173,6 +175,13 @@ String fleetText(BuildContext context, String source) {
       "出撃準備の表示内容",
       "출격 준비 표시 항목",
       "Sortie preparation display",
+    ),
+    "出击经验显示内容": (
+      "出击经验显示内容",
+      "出擊經驗顯示內容",
+      "出撃経験値の表示内容",
+      "출격 경험치 표시 항목",
+      "Sortie EXP display",
     ),
     "胶囊外观": ("胶囊外观", "膠囊外觀", "カプセルの外観", "캡슐 모양", "Capsule appearance"),
     "胶囊外观设置": (

@@ -79,6 +79,7 @@ internal data class NativeGameWarningDialogSpec(
     val presentation: NativeGameDialogPresentation = NativeGameDialogPresentation(),
     val variants: Map<String, String> = emptyMap(),
     val postTouchProtectionActions: Set<String>? = null,
+    val backCancels: Boolean = false,
 ) {
     val key: NativeGameDialogKey get() = NativeGameDialogKey(kind, id)
     val isNotice: Boolean get() = kind != "battle"
@@ -137,6 +138,11 @@ internal data class NativeGameWarningDialogSpec(
             val applied = values["appliedChangeId"] ?: 0L
             require(applied is Number && applied.toDouble().isFinite() && applied.toLong() >= 0 &&
                 applied.toDouble() == applied.toLong().toDouble()) { "Invalid applied checklist change id" }
+            val backCancels = if (values.containsKey("backCancels")) {
+                val value = values["backCancels"]
+                require(checklist && value is Boolean) { "Back cancellation requires a checklist boolean" }
+                value
+            } else false
             require(surface || listOf("choices", "checkbox", "selectedChoiceId", "dismissible", "postTouchProtectionActions").none { values.containsKey(it) }) {
                 "Surface dialog controls require a surface dialog"
             }
@@ -182,7 +188,7 @@ internal data class NativeGameWarningDialogSpec(
                 },
                 (values["refreshFailed"] as? String)?.takeIf { it.isNotEmpty() },
                 kind, displayActions, items, resetLabel, applied.toLong(), false, checkbox, choices, selectedChoiceId,
-                NativeGameDialogPresentation.parse(values["presentation"]), variants, postTouchProtectionActions,
+                NativeGameDialogPresentation.parse(values["presentation"]), variants, postTouchProtectionActions, backCancels,
             )
         }
     }

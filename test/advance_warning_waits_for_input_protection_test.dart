@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_damage_alert.dart';
 import 'package:yahagi_kancolle_browser/src/bridge/captured_api_event.dart';
@@ -15,16 +16,160 @@ import 'package:yahagi_kancolle_browser/src/capture/game_capture_port.dart';
 import 'package:yahagi_kancolle_browser/src/capture/sortie_warning_session.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/combat_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
+import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_store.dart';
+import 'package:yahagi_kancolle_browser/src/sortie_experience/sortie_experience_card.dart';
+import 'package:yahagi_kancolle_browser/src/sortie_experience/sortie_experience_controller.dart';
 
 import 'fixtures/kcsapi_fixtures.dart';
 
 const _guard = Key('game-safety-input-guard');
 const _battle = Key('acknowledgeAdvanceWarning');
 const _headerDone = Key('test-header-done');
+const _clearDialog = Key('sortie-exp-clear-dialog');
+const _gamePoint = Offset(20, 100);
 
 void main() {
+  setUp(() => GameStateController.disableTimerForTest = true);
+  tearDown(() => GameStateController.disableTimerForTest = false);
+
+  for (final confirm in [false, true]) {
+    testWidgets(
+      'clear total ${confirm ? 'confirm' : 'cancel'} hands off a held touch to a queued battle warning',
+      (tester) async {
+        final fixture = await _Fixture.mount(tester, withExperienceCard: true);
+        final experience = fixture.experience!;
+        final dialog = find.byKey(_clearDialog);
+        await tester.tap(find.byKey(const Key('sortie-exp-tab-total')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('sortie-exp-clear-total')));
+        await tester.pumpAndSettle();
+        expect(
+          ModalRoute.of(tester.element(dialog)),
+          isA<GameSafetyDialogRoute>(),
+        );
+        await tester.tapAt(_gamePoint);
+        await tester.pump();
+        expect(dialog, findsOneWidget);
+        expect(fixture.gameTouches, 0);
+        expect(experience.totalSorties, 1);
+
+        final heldPoint = confirm ? _gamePoint : tester.getCenter(dialog);
+        final held = _Held(await tester.startGesture(heldPoint, pointer: 43));
+        addTearDown(held.cancelIfHeld);
+        await tester.tap(
+          find.byKey(Key('sortie-exp-clear-${confirm ? 'confirm' : 'cancel'}')),
+        );
+        await tester.pump();
+        await fixture.warn(tester);
+        await tester.pump(const Duration(seconds: 3));
+        expect(find.byKey(_guard), findsOneWidget);
+        expect(find.byKey(_battle), findsNothing);
+        expect(experience.totalSorties, 1);
+        expect(fixture.gameTouches, 0);
+
+        await held.up();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 599));
+        expect(find.byKey(_battle), findsNothing);
+        await tester.pumpAndSettle(
+          const Duration(milliseconds: 16),
+          EnginePhase.sendSemanticsUpdate,
+          const Duration(seconds: 2),
+        );
+        final warning = find.byKey(_battle);
+        expect(warning, findsOneWidget);
+        expect(
+          ModalRoute.of(tester.element(warning)),
+          isA<GameSafetyDialogRoute>(),
+        );
+        await experience.idle;
+        expect(experience.totalSorties, confirm ? 0 : 1);
+
+        await tester.tapAt(_gamePoint);
+        await tester.pump();
+        expect(warning, findsOneWidget);
+        expect(fixture.gameTouches, 0);
+        await tester.tap(warning);
+        await tester.pumpAndSettle(
+          const Duration(milliseconds: 16),
+          EnginePhase.sendSemanticsUpdate,
+          const Duration(seconds: 2),
+        );
+        expect(find.byKey(_guard), findsNothing);
+        await tester.tapAt(_gamePoint);
+        expect(fixture.gameTouches, 1);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'ship filter hands off a held outside touch to a queued battle warning',
+    (tester) async {
+      final fixture = await _Fixture.mount(tester, withExperienceCard: true);
+      final dialog = find.byKey(const Key('sortie-exp-filter-dialog'));
+      final warning = find.byKey(_battle);
+      await tester.tap(find.byKey(const Key('sortie-exp-tab-total')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('sortie-exp-filter-total')));
+      await tester.pumpAndSettle();
+      expect(
+        ModalRoute.of(tester.element(dialog)),
+        isA<GameSafetyDialogRoute>(),
+      );
+
+      await tester.tap(find.byKey(const Key('sortie-exp-filter-ship-101')));
+      await tester.pump();
+      expect(fixture.experience!.hiddenTotalShipIds, isEmpty);
+      expect(fixture.experience!.totalSorties, 1);
+      final held = _Held(await tester.startGesture(_gamePoint, pointer: 43));
+      addTearDown(held.cancelIfHeld);
+      await tester.tap(find.byKey(const Key('sortie-exp-filter-done')));
+      await tester.pump();
+      await fixture.warn(tester);
+      await tester.pump(const Duration(seconds: 3));
+      expect(find.byKey(_guard), findsOneWidget);
+      expect(warning, findsNothing);
+      expect(fixture.gameTouches, 0);
+      expect(fixture.experience!.hiddenTotalShipIds, isEmpty);
+
+      await held.up();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 599));
+      expect(warning, findsNothing);
+      await tester.pumpAndSettle(
+        const Duration(milliseconds: 16),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(seconds: 2),
+      );
+      expect(dialog, findsNothing);
+      expect(warning, findsOneWidget);
+      expect(fixture.experience!.hiddenTotalShipIds, {101});
+      expect(
+        ModalRoute.of(tester.element(warning)),
+        isA<GameSafetyDialogRoute>(),
+      );
+      expect(fixture.experience!.totalSorties, 1);
+
+      await tester.tapAt(_gamePoint);
+      await tester.pump();
+      expect(warning, findsOneWidget);
+      expect(fixture.gameTouches, 0);
+      await tester.tap(warning);
+      await tester.pumpAndSettle(
+        const Duration(milliseconds: 16),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(seconds: 2),
+      );
+      expect(find.byKey(_guard), findsNothing);
+      await tester.tapAt(_gamePoint);
+      expect(fixture.gameTouches, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'the ready guard stays installed until the queued battle is pushed',
     (tester) async {
@@ -257,6 +402,7 @@ class _Fixture {
   late BuildContext context;
   GameState state = _sortie;
   GameReminderDialogPresentation? header;
+  SortieExperienceController? experience;
   int gameTouches = 0;
   int sequence = 0;
   NativeGameWarningDialogPort? native;
@@ -264,6 +410,7 @@ class _Fixture {
   static Future<_Fixture> mount(
     WidgetTester tester, {
     NativeGameWarningDialogPort? native,
+    bool withExperienceCard = false,
   }) async {
     final fixture = _Fixture();
     fixture.native = native;
@@ -274,6 +421,12 @@ class _Fixture {
       AdvanceWarningTimingSettings.battleAndAdvance,
     );
     await fixture.capture.attach(fixture.port, enabled: true);
+    GameStateController? gameState;
+    if (withExperienceCard) {
+      SharedPreferences.setMockInitialValues({});
+      gameState = GameStateController(initialState: fixture.state);
+      await fixture.seedExperience();
+    }
     addTearDown(() async {
       fixture.header?.cancel();
       await tester.pumpWidget(const SizedBox.shrink());
@@ -282,6 +435,8 @@ class _Fixture {
       fixture.port.dispose();
       fixture.settings.dispose();
       fixture.session.dispose();
+      fixture.experience?.dispose();
+      gameState?.dispose();
       fixture.account.dispose();
       fixture.visible.dispose();
     });
@@ -308,7 +463,27 @@ class _Fixture {
               child: Builder(
                 builder: (context) {
                   fixture.context = context;
-                  return game;
+                  final experience = fixture.experience;
+                  if (experience == null) return game;
+                  return Scaffold(
+                    body: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        game,
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          width: 320,
+                          child: SortieExperienceCard(
+                            controller: experience,
+                            gameState: gameState!,
+                            collapsed: false,
+                            onToggleCollapse: () {},
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
                 },
               ),
             );
@@ -318,6 +493,43 @@ class _Fixture {
     );
     await tester.pumpAndSettle();
     return fixture;
+  }
+
+  Future<void> seedExperience() async {
+    final controller = experience = SortieExperienceController(
+      accountSession: account,
+      gameState: () => state,
+    );
+    await controller.initialize();
+    await controller.setTrackingEnabled(true);
+    for (final (path, data) in <(String, Map<String, Object?>)>[
+      (
+        '/kcsapi/api_req_map/start',
+        {
+          'api_maparea_id': 5,
+          'api_mapinfo_no': 3,
+          'api_no': 1,
+          'api_deck_id': 1,
+        },
+      ),
+      ('/kcsapi/api_req_sortie/battle', {'api_deck_id': 1}),
+      (
+        '/kcsapi/api_req_sortie/battleresult',
+        {
+          'api_get_ship_exp': [-1, 240, 720],
+        },
+      ),
+      (
+        '/kcsapi/api_port/port',
+        {
+          'api_basic': {'api_member_id': account.current.memberId},
+        },
+      ),
+    ]) {
+      controller.accept(kcsapiEvent(path, data, sequence: ++sequence));
+    }
+    await controller.idle;
+    expect(controller.totalSorties, 1);
   }
 
   Future<_Held> protectHeader(

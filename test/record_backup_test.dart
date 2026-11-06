@@ -11,6 +11,7 @@ import 'package:yahagi_kancolle_browser/src/backup/record_backup.dart';
 import 'package:yahagi_kancolle_browser/src/bridge/captured_api_event.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/logbook/logbook_database.dart';
+import 'package:yahagi_kancolle_browser/src/logbook/logbook_experience_record.dart';
 import 'package:yahagi_kancolle_browser/src/settings/record_backup_section.dart';
 import 'package:yahagi_kancolle_browser/src/toolbox/composition_record_snapshot.dart';
 import 'package:yahagi_kancolle_browser/src/toolbox/composition_record_store.dart';
@@ -503,6 +504,126 @@ void main() {
     expect(name, endsWith('.yhb'));
     expect(port.lastExportBytes, port.live[owner]);
     expect(BackupArchive.decode(port.lastExportBytes!).memberId, owner);
+  });
+
+  for (final saveLocally in [false, true]) {
+    test(
+      'manual ${saveLocally ? 'save' : 'share'} snapshot includes pending experience',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        const owner = 914003;
+        final root = await Directory.systemTemp.createTemp(
+          'yahagi-manual-exp-',
+        );
+        final db = await LogbookDatabase.openForTesting();
+        final session = AccountSession(initialMemberId: owner);
+        final port = _MemoryDocumentPort();
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        final record = LogbookExperienceRecord(
+          eventKey: 'completed-practice',
+          completedAt: DateTime.utc(2026, 11, 7),
+          isPractice: true,
+          mapAreaId: 0,
+          mapInfoNo: 0,
+          deckId: 1,
+          battles: 1,
+          ships: const [
+            LogbookExperienceShip(
+              ownedShipId: 123,
+              masterShipId: 1,
+              name: 'Yahagi',
+              fleetId: 1,
+              experience: 504,
+            ),
+          ],
+        );
+        final service = RecordBackupService(
+          enabledStore: _EnabledStore(),
+          session: session,
+          port: port,
+          compositionStore: FileCompositionRecordStore(
+            rootDirectory: () async => root,
+          ),
+          databaseFor: (_) => db,
+          installationId: 'manual-exp-test',
+          beforeManualSnapshot: () async {
+            entered.complete();
+            await release.future;
+            await db.insertExperienceRecord(record);
+          },
+        );
+        addTearDown(() async {
+          service.dispose();
+          session.dispose();
+          await db.close();
+          await root.delete(recursive: true);
+        });
+
+        final Future<Object> exported = saveLocally
+            ? service.saveExport()
+            : service.export();
+        try {
+          expect(
+            await Future.any([
+              entered.future.then((_) => true),
+              exported.then((_) => false),
+            ]),
+            isTrue,
+          );
+          expect(port.pendingShareBytes, isNull);
+          expect(port.pendingSavedBytes, isNull);
+        } finally {
+          release.complete();
+        }
+
+        final result = await exported;
+        if (saveLocally) expect(result, isTrue);
+        final bytes = saveLocally ? port.lastSavedBytes : port.lastExportBytes;
+        final archive = BackupArchive.decode(bytes!);
+        expect(archive.memberId, owner);
+        final archived =
+            archive.tables[LogbookDatabase.experienceTable]!.single;
+        expect(
+          LogbookExperienceRecord.fromRow(archived).toRow(),
+          record.toRow(),
+        );
+      },
+    );
+  }
+
+  test('manual snapshot rejects an account switch while waiting', () async {
+    SharedPreferences.setMockInitialValues({});
+    const owner = 914003;
+    final root = await Directory.systemTemp.createTemp('yahagi-manual-scope-');
+    final db = await LogbookDatabase.openForTesting();
+    final session = AccountSession(initialMemberId: owner);
+    final port = _MemoryDocumentPort();
+    final service = RecordBackupService(
+      enabledStore: _EnabledStore(),
+      session: session,
+      port: port,
+      compositionStore: FileCompositionRecordStore(
+        rootDirectory: () async => root,
+      ),
+      databaseFor: (_) => db,
+      installationId: 'manual-scope-test',
+      beforeManualSnapshot: () async {
+        session.selectMember(owner + 1);
+      },
+    );
+    addTearDown(() async {
+      service.dispose();
+      session.dispose();
+      await db.close();
+      await root.delete(recursive: true);
+    });
+
+    await service.flush();
+    port.liveNames.remove(owner);
+    await expectLater(service.export(), throwsStateError);
+    expect(port.liveNames, isNot(contains(owner)));
+    expect(port.lastExportName, isNull);
   });
 
   test(
@@ -1097,7 +1218,12 @@ void main() {
       expect(archive.memberId, 812345);
       expect(archive.writerId, 'fixture-writer');
       expect(archive.tables.keys.toSet(), LogbookDatabase.backupTables.toSet());
-      expect(BackupArchive.logbookArchiveSchema, 12);
+      expect(archive.tables[LogbookDatabase.experienceTable], isEmpty);
+      expect(BackupArchive.logbookArchiveSchema, 13);
+      final database = await LogbookDatabase.openForTesting();
+      addTearDown(database.close);
+      await database.restoreSnapshot(archive.tables);
+      expect(await database.getExperienceRecords(), isEmpty);
     },
   );
   test('Android live recovery validates pending before older copies', () async {
@@ -2730,6 +2856,7 @@ void main() {
   });
 
   test('committed restore is not replayed if journal deletion fails', () async {
+    SharedPreferences.setMockInitialValues({});
     const owner = 903217;
     final root = await Directory.systemTemp.createTemp('yahagi-commit-marker-');
     final sourceDb = await LogbookDatabase.openForTesting(

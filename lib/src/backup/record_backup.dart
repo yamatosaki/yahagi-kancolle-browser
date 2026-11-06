@@ -190,7 +190,7 @@ final class BackupArchive {
   // Archive data has its own compatibility version. Bumping the SQLite schema
   // alone must not make already exported v12 files unreadable. Before changing
   // the table contract, add a migrator in _tablesForArchiveSchema.
-  static const int logbookArchiveSchema = 12;
+  static const int logbookArchiveSchema = 13;
   static const List<String> _v12Tables = [
     'battle_logs',
     'map_resource_logs',
@@ -201,10 +201,15 @@ final class BackupArchive {
     'development_logs',
     'retirement_logs',
   ];
+  static const List<String> _v13Tables = [
+    ..._v12Tables,
+    LogbookDatabase.experienceTable,
+  ];
 
   static List<String> _tablesForArchiveSchema(Object? schema) =>
       switch (schema) {
         12 => _v12Tables,
+        13 => _v13Tables,
         _ => throw const FormatException('Unsupported logbook archive schema'),
       };
 
@@ -261,12 +266,18 @@ final class BackupArchive {
       for (final row in tables[table]!) {
         rows[row['id']] = row;
       }
-      final ids = Map<String, int>.from(
-        allWriterRowIds[writerId]?[table] ??
-            (this.writerId == writerId ? rowIds[table] : null) ??
-            const {},
-      );
-      final eventIds = table == 'map_resource_logs'
+      // Experience events keep their identity even if a restore assigns a
+      // different local row ID. Do not carry writer row mappings for them.
+      final experience = table == LogbookDatabase.experienceTable;
+      final ids = experience
+          ? <String, int>{}
+          : Map<String, int>.from(
+              allWriterRowIds[writerId]?[table] ??
+                  (this.writerId == writerId ? rowIds[table] : null) ??
+                  const {},
+            );
+      final hasEventKey = table == 'map_resource_logs' || experience;
+      final eventIds = hasEventKey
           ? <Object?, int>{
               for (final entry in rows.entries)
                 if (entry.key is int)
@@ -292,12 +303,12 @@ final class BackupArchive {
             targetId = nextId++;
           }
         }
-        ids['$sourceId'] = targetId;
+        if (!experience) ids['$sourceId'] = targetId;
         rows[targetId] = {...row, 'id': targetId};
-        if (table == 'map_resource_logs') eventIds[row['event_key']] = targetId;
+        if (hasEventKey) eventIds[row['event_key']] = targetId;
       }
       mergedTables[table] = rows.values.toList();
-      mergedRowIds[table] = ids;
+      if (!experience) mergedRowIds[table] = ids;
     }
     final constructionIds = mergedRowIds['construction_logs'] ?? const {};
     final currentConstructionIds = <int>{
@@ -528,15 +539,8 @@ final class BackupArchive {
         value['compositions'] is! List) {
       throw const FormatException('Invalid backup content');
     }
-    final archiveTables = _tablesForArchiveSchema(value['logbookSchema']);
-    if (!setEquals(
-      archiveTables.toSet(),
-      LogbookDatabase.backupTables.toSet(),
-    )) {
-      // Future DB schemas must explicitly translate the old archive tables
-      // before restore or merge; silently dropping a table loses history.
-      throw const FormatException('Logbook archive migration is required');
-    }
+    final schema = value['logbookSchema'];
+    final archiveTables = _tablesForArchiveSchema(schema);
     final rawTables = value['tables'] as Map;
     if (!setEquals(rawTables.keys.toSet(), archiveTables.toSet())) {
       throw const FormatException('Invalid logbook table list');
@@ -562,6 +566,10 @@ final class BackupArchive {
           throw FormatException('Invalid $table IDs');
         }
       }
+    }
+    if (schema == 12) tables[LogbookDatabase.experienceTable] = const [];
+    if (!setEquals(tables.keys.toSet(), LogbookDatabase.backupTables.toSet())) {
+      throw const FormatException('Logbook archive migration is required');
     }
     final memberId = value['memberId'] as int;
     final String? senkaRaw;
@@ -606,9 +614,7 @@ final class BackupArchive {
     }
     final rowIds = <String, Map<String, int>>{};
     if (rawIds is Map) {
-      if (rawIds.keys.any(
-        (key) => !LogbookDatabase.backupTables.contains(key),
-      )) {
+      if (rawIds.keys.any((key) => !archiveTables.contains(key))) {
         throw const FormatException('Invalid backup row mapping');
       }
       for (final table in LogbookDatabase.backupTables) {
@@ -927,6 +933,7 @@ final class RecordBackupService extends ChangeNotifier {
     this.deleteAdoptedBaseline,
     this.afterJournalWritten,
     this.afterRestoreStage,
+    this.beforeManualSnapshot,
     this.senkaStore,
     this.senkaController,
     this.worker = const BackupArchiveWorker(),
@@ -952,6 +959,9 @@ final class RecordBackupService extends ChangeNotifier {
   final Future<void> Function(File file)? deleteAdoptedBaseline;
   final Future<void> Function(File file)? afterJournalWritten;
   final Future<void> Function(String stage)? afterRestoreStage;
+
+  /// Drains game records that are still queued before reaching the database.
+  final Future<void> Function()? beforeManualSnapshot;
   final SenkaBackupStore? senkaStore;
   final SenkaController? senkaController;
   Future<void> _queue = Future<void>.value();
@@ -1907,13 +1917,23 @@ final class RecordBackupService extends ChangeNotifier {
     return '${_name(memberId)}-$timestamp.yhb';
   }
 
+  Future<BackupArchiveResult> _manualExportPayload(AccountScope scope) async {
+    if (!session.isCurrent(scope)) throw StateError('Game account changed');
+    final waitForRecords = beforeManualSnapshot;
+    if (waitForRecords != null) {
+      await waitForRecords();
+      if (!session.isCurrent(scope)) throw StateError('Game account changed');
+    }
+    final result = await _syncPayloadFor(scope.memberId);
+    if (!session.isCurrent(scope)) throw StateError('Game account changed');
+    return result;
+  }
+
   Future<String> export({AccountScope? expectedScope}) => _withExportScope((
     scope,
   ) async {
     final payload = await _enqueue(() async {
-      if (!session.isCurrent(scope)) throw StateError('Game account changed');
-      final result = await _syncPayloadFor(scope.memberId);
-      if (!session.isCurrent(scope)) throw StateError('Game account changed');
+      final result = await _manualExportPayload(scope);
       return (name: _exportName(scope.memberId), bytes: result.bytes);
     }, replacesAutomaticFor: scope.memberId);
     if (!session.isCurrent(scope)) throw StateError('Game account changed');
@@ -1938,12 +1958,10 @@ final class RecordBackupService extends ChangeNotifier {
     // Prepare before a provider can create an empty document. Once the picker
     // opens Android owns the staged bytes and can finish through backgrounding
     // or process recreation without another Dart write callback.
-    final bytes = await _enqueue(() async {
-      if (!session.isCurrent(scope)) throw StateError('Game account changed');
-      final result = await _syncPayloadFor(scope.memberId);
-      if (!session.isCurrent(scope)) throw StateError('Game account changed');
-      return result.bytes;
-    }, replacesAutomaticFor: scope.memberId);
+    final bytes = await _enqueue(
+      () async => (await _manualExportPayload(scope)).bytes,
+      replacesAutomaticFor: scope.memberId,
+    );
     if (!session.isCurrent(scope)) throw StateError('Game account changed');
     final token = await port.saveFile(_exportName(scope.memberId), bytes);
     if (token == null) return false;
@@ -2012,7 +2030,8 @@ final class RecordBackupService extends ChangeNotifier {
           writerRowIds: archive._allWriterRowIds(),
           rowIds: {
             for (final table in LogbookDatabase.backupTables)
-              if (table != 'pending_construction_logs')
+              if (table != 'pending_construction_logs' &&
+                  table != LogbookDatabase.experienceTable)
                 table: {
                   for (final row in archive.tables[table]!)
                     '${row['id']}': row['id'] as int,

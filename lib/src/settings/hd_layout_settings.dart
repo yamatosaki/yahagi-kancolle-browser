@@ -39,6 +39,7 @@ class HdLayoutSettings {
     'battle',
     'land_base',
     'pre_sortie',
+    'sortie_experience',
   ];
   static const defaultSidebarOrder = [
     'battle',
@@ -49,6 +50,7 @@ class HdLayoutSettings {
     'construction',
     'quests',
     'pre_sortie',
+    'sortie_experience',
   ];
   final List<HdBottomModule>? portraitModules;
   final List<String>? portraitHiddenModules;
@@ -60,8 +62,13 @@ class HdLayoutSettings {
       }
     }
     for (final id in defaultSidebarOrder) {
-      if (!result.any((e) => e.id == id)) {
-        result.add(HdBottomModule(id, 1));
+      if (result.any((e) => e.id == id)) continue;
+      final module = HdBottomModule(id, 1);
+      if (id == 'sortie_experience') {
+        final checks = result.indexWhere((entry) => entry.id == 'pre_sortie');
+        result.insert(checks + 1, module);
+      } else {
+        result.add(module);
       }
     }
     return List.unmodifiable(result);
@@ -94,10 +101,18 @@ class HdLayoutSettings {
   }
 
   int get usedColumns => bottom.fold(0, (sum, item) => sum + item.span);
-  List<String> get orderedModules => List.unmodifiable({
-    ...?sidebarOrder?.where(moduleIds.contains),
-    ...defaultSidebarOrder,
-  });
+  List<String> get orderedModules {
+    final order = {
+      ...?sidebarOrder?.where(moduleIds.contains),
+      ...defaultSidebarOrder,
+    }.toList();
+    if (sidebarOrder?.contains('sortie_experience') != true) {
+      order.remove('sortie_experience');
+      order.insert(order.indexOf('pre_sortie') + 1, 'sortie_experience');
+    }
+    return List.unmodifiable(order);
+  }
+
   Set<String> get hidden => Set.unmodifiable(hiddenModules ?? const <String>[]);
   final bool enabled;
   final String? extensionPosition;

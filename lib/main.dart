@@ -204,6 +204,8 @@ import 'src/notification/notification_timer_anchor_store.dart';
 import 'src/senka/senka_controller.dart';
 import 'src/senka/senka_page.dart';
 import 'src/senka/senka_store.dart';
+import 'src/sortie_experience/sortie_experience_card.dart';
+import 'src/sortie_experience/sortie_experience_controller.dart';
 import 'src/widgets/top_notice.dart';
 
 Future<void> main() async {
@@ -585,6 +587,15 @@ Future<void> main() async {
   final debuffReminderController = DebuffReminderController(
     accountSession: accountSession,
   );
+  final sortieExperienceController = SortieExperienceController(
+    accountSession: accountSession,
+    gameState: () => gameStateController.state,
+    gameStateChanges: gameStateController,
+    recordExperience: (scope, record) => LogbookDatabase.forAccount(
+      scope.memberId,
+    ).insertExperienceRecord(record),
+  );
+  await sortieExperienceController.initialize();
   gameApiEventPipeline = GameApiEventPipeline(
     settleGameState: () async {
       await gameStateController.idle;
@@ -594,6 +605,7 @@ Future<void> main() async {
     consumers: <GameApiEventConsumer>[
       accountSession,
       gameStateController,
+      sortieExperienceController,
       kcwikiReportConsumer,
       gameResourceManifestConsumer,
       senkaController,
@@ -772,6 +784,10 @@ Future<void> main() async {
     backupService = RecordBackupService(
       session: accountSession,
       port: const AndroidBackupDocumentPort(),
+      beforeManualSnapshot: () async {
+        await gameApiEventPipeline.dispatchIdle;
+        await sortieExperienceController.idle;
+      },
       senkaStore: senkaController.store as SenkaBackupStore,
       senkaController: senkaController,
     );
@@ -809,6 +825,7 @@ Future<void> main() async {
     kcwikiReportController: kcwikiReportController,
     kcwikiReportConsumer: kcwikiReportConsumer,
     gameStateController: gameStateController,
+    sortieExperienceController: sortieExperienceController,
     newShipReminderController: newShipReminderController,
     debuffReminderController: debuffReminderController,
     moraleRecoveryTimerController:
@@ -1107,6 +1124,7 @@ class YahagiApp extends StatelessWidget {
     this.kcwikiReportController,
     this.kcwikiReportConsumer,
     required this.gameStateController,
+    this.sortieExperienceController,
     this.moraleRecoveryTimerController,
     this.gameResourceCacheController,
     this.senkaController,
@@ -1162,6 +1180,7 @@ class YahagiApp extends StatelessWidget {
   final KcwikiReportController? kcwikiReportController;
   final KcwikiReportConsumer? kcwikiReportConsumer;
   final GameStateController gameStateController;
+  final SortieExperienceController? sortieExperienceController;
   final MoraleRecoveryTimerController? moraleRecoveryTimerController;
   final GameResourceCacheController? gameResourceCacheController;
   final SenkaController? senkaController;
@@ -1292,6 +1311,7 @@ class YahagiApp extends StatelessWidget {
                     kcwikiReportController: kcwikiReportController,
                     kcwikiReportConsumer: kcwikiReportConsumer,
                     gameStateController: gameStateController,
+                    sortieExperienceController: sortieExperienceController,
                     newShipReminderController: newShipReminderController,
                     moraleRecoveryTimerController:
                         moraleRecoveryTimerController,
@@ -1578,6 +1598,7 @@ class YahagiShell extends StatefulWidget {
     this.kcwikiReportController,
     this.kcwikiReportConsumer,
     required this.gameStateController,
+    this.sortieExperienceController,
     this.newShipReminderController,
     this.moraleRecoveryTimerController,
     this.gameResourceCacheController,
@@ -1629,6 +1650,7 @@ class YahagiShell extends StatefulWidget {
   final KcwikiReportController? kcwikiReportController;
   final KcwikiReportConsumer? kcwikiReportConsumer;
   final GameStateController gameStateController;
+  final SortieExperienceController? sortieExperienceController;
   final NewShipReminderController? newShipReminderController;
   final MoraleRecoveryTimerController? moraleRecoveryTimerController;
   final GameResourceCacheController? gameResourceCacheController;
@@ -3069,6 +3091,8 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                                 widget.gameCaptureController,
                                             gameStateController:
                                                 widget.gameStateController,
+                                            sortieExperienceController: widget
+                                                .sortieExperienceController,
                                             moraleRecoveryTimerController: widget
                                                 .moraleRecoveryTimerController,
                                             battleController:
@@ -3577,6 +3601,8 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                         LogbookPage(
                                           battleController:
                                               widget.battleController,
+                                          sortieExperienceController:
+                                              widget.sortieExperienceController,
                                           selectedTabIndex: _logbookTabIndex,
                                           onTabChanged: (value) {
                                             setState(
@@ -4202,6 +4228,7 @@ class _InformationPanel extends StatefulWidget {
     required this.captureModeController,
     required this.gameCaptureController,
     required this.gameStateController,
+    required this.sortieExperienceController,
     required this.moraleRecoveryTimerController,
     required this.battleController,
     required this.battlePredictionSettingsController,
@@ -4235,6 +4262,7 @@ class _InformationPanel extends StatefulWidget {
   final CaptureModeController captureModeController;
   final GameCaptureController gameCaptureController;
   final GameStateController gameStateController;
+  final SortieExperienceController? sortieExperienceController;
   final MoraleRecoveryTimerController? moraleRecoveryTimerController;
   final BattleController battleController;
   final BattlePredictionSettingsController? battlePredictionSettingsController;
@@ -4274,6 +4302,7 @@ class _InformationPanelState extends State<_InformationPanel> {
     'construction' => Icons.handyman_outlined,
     'quests' => Icons.assignment_outlined,
     'pre_sortie' => Icons.security_outlined,
+    'sortie_experience' => Icons.trending_up,
     _ => Icons.dashboard_outlined,
   };
 
@@ -4394,7 +4423,12 @@ class _InformationPanelState extends State<_InformationPanel> {
                       .contains(id),
                 )
                 .toList();
-            final visibleOrder = validCards
+            final availableCards = validCards.where(
+              (id) =>
+                  id != 'sortie_experience' ||
+                  widget.sortieExperienceController != null,
+            );
+            final visibleOrder = availableCards
                 .where(
                   (id) =>
                       !widget.excludedModules.contains(id) &&
@@ -4634,6 +4668,27 @@ class _InformationPanelState extends State<_InformationPanel> {
                   onToggleCollapse: editing ? () {} : toggle,
                   onOpenFleet: widget.onOpenFleet,
                 ),
+                'sortie_experience'
+                    when widget.sortieExperienceController != null =>
+                  SortieExperienceCard(
+                    controller: widget.sortieExperienceController!,
+                    gameState: widget.gameStateController,
+                    showLogo: widget.layoutSettingsController.moduleShowLogo(
+                      id,
+                    ),
+                    showTitle: widget.layoutSettingsController.moduleShowName(
+                      id,
+                    ),
+                    onOpenDisplaySettings: editing
+                        ? () => showModuleDisplaySettings(
+                            context,
+                            widget.layoutSettingsController,
+                            id,
+                          )
+                        : null,
+                    collapsed: isCollapsed,
+                    onToggleCollapse: editing ? () {} : toggle,
+                  ),
                 _ => const SizedBox.shrink(),
               };
 
@@ -4665,7 +4720,7 @@ class _InformationPanelState extends State<_InformationPanel> {
 
             if (widget.singleModule == null && editing) {
               final controller = widget.layoutSettingsController;
-              final modules = validCards
+              final modules = availableCards
                   .where((id) => !widget.excludedModules.contains(id))
                   .toList();
               return PanelStyleScope(
@@ -4781,6 +4836,8 @@ class _InformationPanelState extends State<_InformationPanel> {
                                         'quests' => l10n.briefingTabQuests,
                                         'pre_sortie' =>
                                           l10n.briefingTabPreSortie,
+                                        'sortie_experience' =>
+                                          l10n.sortieExperience,
                                         _ => id,
                                       },
                                 icon:
@@ -4799,6 +4856,7 @@ class _InformationPanelState extends State<_InformationPanel> {
                                   'construction' => l10n.constructionBrief,
                                   'quests' => l10n.questBrief,
                                   'pre_sortie' => l10n.preSortieCheck,
+                                  'sortie_experience' => l10n.sortieExperience,
                                   _ => id,
                                 },
                               ),

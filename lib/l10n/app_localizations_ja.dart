@@ -658,6 +658,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get preSortieCheck => '出撃前検査';
 
   @override
+  String get sortieExperience => '出撃経験値';
+
+  @override
   String get sortieCheckShipsMode => '艦娘';
 
   @override
