@@ -218,13 +218,24 @@ void main() {
             scenario.color,
           );
         }
-        expect(
-          find.descendant(
-            of: find.byKey(const Key('quest-detail-status-912')),
-            matching: find.text(scenario.state == 3 ? '待领取' : '进行中'),
-          ),
-          findsOneWidget,
-        );
+        final status = scenario.state == 3
+            ? '待领取'
+            : switch (scenario.flag) {
+                1 => '50%+',
+                2 => '80%+',
+                _ => '进行中',
+              };
+        for (final key in [
+          'quest-card-status-912',
+          'quest-detail-status-912',
+        ]) {
+          final badge = _progressText(tester, Key(key), status);
+          if (status == '50%+') {
+            expect(badge.style?.color, const Color(0xffd4a85f));
+          } else if (status == '80%+') {
+            expect(badge.style?.color, const Color(0xff8ec6e8));
+          }
+        }
         expect(tester.takeException(), isNull);
       });
     }
@@ -282,7 +293,7 @@ void main() {
             tester.view.physicalSize = const Size(1180, 900);
             addTearDown(tester.view.resetDevicePixelRatio);
             addTearDown(tester.view.resetPhysicalSize);
-            final initial = _quest(flag: 2, current: 4, total: 10);
+            final initial = _quest(flag: 0, current: 4, total: 10);
             final reducer = _QuestSnapshotReducer(initial);
             final controller = _controller(initial, reducer: reducer);
             addTearDown(controller.dispose);
@@ -325,18 +336,22 @@ void main() {
             for (final progress in [
               (
                 current: 4,
+                flag: 0,
                 color: palette.isDark ? const Color(0xff8197a5) : palette.muted,
               ),
               (
                 current: 5,
+                flag: 1,
                 color: palette.isDark ? const Color(0xffd4a85f) : palette.gold,
               ),
               (
                 current: 8,
+                flag: 2,
                 color: palette.isDark ? const Color(0xff8ec6e8) : palette.info,
               ),
               (
                 current: 10,
+                flag: 2,
                 color: palette.isDark
                     ? const Color(0xff67d6a3)
                     : palette.success,
@@ -344,7 +359,7 @@ void main() {
             ]) {
               if (progress.current != 4) {
                 reducer.nextQuest = _quest(
-                  flag: 2,
+                  flag: progress.flag,
                   current: progress.current,
                   total: 10,
                 );
@@ -385,13 +400,28 @@ void main() {
               expect(controller.state.quests[912]!.state, 2);
               expect(controller.state.quests[912]!.isServerCompleted, isFalse);
               expect(controller.state.quests[912]!.isLocallyCompleted, isFalse);
-              expect(
-                find.descendant(
-                  of: find.byKey(const Key('quest-detail-status-912')),
-                  matching: find.text('进行中'),
-                ),
-                findsOneWidget,
+              final status = switch (progress.flag) {
+                1 => '50%+',
+                2 => '80%+',
+                _ => '进行中',
+              };
+              final badge = _progressText(
+                tester,
+                const Key('quest-detail-status-912'),
+                status,
               );
+              if (progress.flag != 0) {
+                expect(
+                  badge.style?.color,
+                  progress.flag == 1
+                      ? (palette.isDark
+                            ? const Color(0xffd4a85f)
+                            : palette.gold)
+                      : (palette.isDark
+                            ? const Color(0xff8ec6e8)
+                            : palette.info),
+                );
+              }
               expect(find.text('待领取'), findsNothing);
               expect(tester.takeException(), isNull);
             }

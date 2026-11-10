@@ -350,7 +350,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const Key('quest-card-status-201')),
-        matching: find.text('进行中'),
+        matching: find.text('50%+'),
       ),
       findsOneWidget,
     );
@@ -716,7 +716,7 @@ void main() {
       expect(
         find.descendant(
           of: find.byKey(const Key('quest-detail-status-503')),
-          matching: find.text('进行中'),
+          matching: find.text('80%+'),
         ),
         findsOneWidget,
       );

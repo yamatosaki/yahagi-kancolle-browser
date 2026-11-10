@@ -179,7 +179,11 @@ void main() {
             ? '推算完成'
             : scenario.state == 3
             ? '待领取'
-            : '进行中';
+            : switch (scenario.flag) {
+                1 => '50%+',
+                2 => '80%+',
+                _ => '进行中',
+              };
         expect(
           find.descendant(
             of: find.byKey(Key('quest-detail-status-${scenario.id}')),
@@ -224,6 +228,7 @@ Future<void> _expectRestoredObjectiveBands(
     ),
   ]);
   for (final (count, band) in const [(4, 0), (5, 1), (8, 2), (10, 3)]) {
+    final serverFlag = count < 8 ? 1 : 2;
     final now = DateTime.now().toUtc();
     final engine = QuestProgressEngine(
       goals: {663: goal},
@@ -248,7 +253,7 @@ Future<void> _expectRestoredObjectiveBands(
               'category': 6,
               'type': 5,
               'state': 2,
-              'flag': 2,
+              'flag': serverFlag,
               'updated': now.toIso8601String(),
             },
           ],
@@ -287,6 +292,12 @@ Future<void> _expectRestoredObjectiveBands(
       for (final text in tester.widgetList<Text>(labels)) {
         expect(text.style?.color, _bandColor(scene.theme, band));
       }
+      final serverLabel = serverFlag == 1 ? '50%+' : '80%+';
+      final serverProgress = tester.widget<Text>(
+        find.descendant(of: detail, matching: find.text('服务器进度：$serverLabel')),
+      );
+      expect(serverProgress.style?.fontSize, greaterThan(13));
+      expect(serverProgress.style?.color, _bandColor(scene.theme, serverFlag));
       expect(find.text('廃棄'), findsOneWidget);
       await tester.ensureVisible(labels.last);
       await tester.pumpAndSettle();

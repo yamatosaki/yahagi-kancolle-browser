@@ -323,11 +323,7 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
                 title: _questTitle(selected),
                 detail: _questDescription(selected),
                 translationEnabled: _translationEnabled,
-                serverProgress: widget
-                    .controller
-                    .state
-                    .quests[selected.id]
-                    ?.serverProgressPercentLabel,
+                serverQuest: widget.controller.state.quests[selected.id],
                 steps:
                     widget.controller.questProgress?.stepsFor(selected.id) ??
                     const [],
@@ -785,12 +781,13 @@ class _QuestCard extends StatelessWidget {
                       key: Key('quest-card-status-${entry.id}'),
                       entry: entry,
                     ),
-                    _SmallTag(
-                      key: Key('quest-card-progress-${entry.id}'),
-                      label: entry.progressLabel,
-                      color: entry.progressColor(context),
-                      pill: true,
-                    ),
+                    if (entry.hasSeparateProgress)
+                      _SmallTag(
+                        key: Key('quest-card-progress-${entry.id}'),
+                        label: entry.progressLabel,
+                        color: entry.progressColor(context),
+                        pill: true,
+                      ),
                   ],
                 );
                 if (constraints.maxWidth <
@@ -864,7 +861,7 @@ class _QuestDetail extends StatelessWidget {
     this.onBack,
     this.onReturnToTarget,
     this.steps = const [],
-    this.serverProgress,
+    this.serverQuest,
   });
   final _QuestViewEntry entry;
   final String title, detail;
@@ -876,7 +873,7 @@ class _QuestDetail extends StatelessWidget {
   final QuestCatalog? catalog;
   final VoidCallback? onBack, onReturnToTarget;
   final List<QuestStepProgress> steps;
-  final String? serverProgress;
+  final GameQuest? serverQuest;
 
   @override
   Widget build(BuildContext context) {
@@ -972,7 +969,8 @@ class _QuestDetail extends StatelessWidget {
                         key: Key('quest-detail-status-${entry.id}'),
                         entry: entry,
                       ),
-                      if (entry.progressLabel != '—')
+                      if (entry.progressLabel != '—' &&
+                          entry.hasSeparateProgress)
                         _SmallTag(
                           key: entry.progressLabel == entry.exactProgress
                               ? Key('quest-detail-exact-progress-${entry.id}')
@@ -1048,20 +1046,17 @@ class _QuestDetail extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            if (serverProgress != null)
+                            if (serverQuest case final quest?)
                               Padding(
                                 padding: const EdgeInsets.only(bottom: 8),
                                 child: Text(
-                                  l10n.questServerProgress(serverProgress!),
-                                  style: appTextStyle(
-                                    context,
-                                    TextStyle(
-                                      fontSize: 12,
-                                      color: appColor(
-                                        context,
-                                        Color(0xff9fb3bf),
-                                      ),
-                                    ),
+                                  l10n.questServerProgress(
+                                    quest.serverProgressPercentLabel,
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: quest.serverProgressColor(context),
                                   ),
                                 ),
                               ),
@@ -1440,31 +1435,39 @@ class _StatusBadge extends StatelessWidget {
     final positive =
         entry.status != QuestStatus.locked &&
         entry.status != QuestStatus.unknown;
-    final color = positive ? const Color(0xff67d2a6) : const Color(0xffe0ad4f);
+    final milestone = entry.serverMilestone;
+    final color =
+        milestone?.serverProgressColor(context) ??
+        appColor<Color>(
+          context,
+          positive ? const Color(0xff67d2a6) : const Color(0xffe0ad4f),
+        );
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: appColor(
-          context,
-          positive ? const Color(0xff173a31) : const Color(0xff3b3020),
-        ),
+        color: milestone != null
+            ? color.withValues(alpha: 0.14)
+            : appColor(
+                context,
+                positive ? const Color(0xff173a31) : const Color(0xff3b3020),
+              ),
         borderRadius: BorderRadius.circular(5),
-        border: Border.all(
-          color: appColor(context, color.withValues(alpha: 0.75)),
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.75)),
       ),
       child: Text(
         switch (entry.status) {
           QuestStatus.available => l10n.questAvailable,
-          QuestStatus.inProgress => l10n.inProgress,
+          QuestStatus.inProgress =>
+            milestone?.serverProgressPercentLabel ?? l10n.inProgress,
           QuestStatus.claimable => l10n.questClaimable,
           QuestStatus.locked => l10n.questLocked,
           QuestStatus.completed => l10n.questInferredCompleted,
           QuestStatus.unknown => l10n.questStateUnknown,
         },
-        style: appTextStyle(
-          context,
-          TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.w800),
+        style: TextStyle(
+          color: color,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
@@ -1779,6 +1782,18 @@ class _QuestViewEntry {
   final String? exactProgress;
   final List<QuestCatalogEntry> prerequisites;
   final List<QuestCatalogEntry> successors;
+
+  GameQuest? get serverMilestone {
+    final quest = liveQuest;
+    if (status == QuestStatus.inProgress &&
+        (quest?.progressFlag == 1 || quest?.progressFlag == 2)) {
+      return quest;
+    }
+    return null;
+  }
+
+  bool get hasSeparateProgress =>
+      progressLabel != serverMilestone?.serverProgressPercentLabel;
 
   String categoryLabel(BuildContext context) {
     final l10n =

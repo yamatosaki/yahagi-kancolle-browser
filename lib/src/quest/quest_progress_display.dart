@@ -36,6 +36,12 @@ Color questProgressColor(
 }
 
 extension GameQuestProgressColors on GameQuest {
+  Color serverProgressColor(BuildContext context) => questProgressColor(
+    context,
+    progressFlag: progressFlag,
+    completed: isServerCompleted,
+  );
+
   Color progressColor(BuildContext context) => questProgressColor(
     context,
     current: progressCurrent,
