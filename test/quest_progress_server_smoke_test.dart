@@ -244,7 +244,7 @@ void main() {
           findsOneWidget,
         );
         expect(detailText('0/5'), findsOneWidget);
-        expect(detailText('服务器进度：80%+'), findsOneWidget);
+        expect(detailText('服务器进度：80%'), findsOneWidget);
         expect(
           find.byKey(const Key('quest-detail-exact-progress-912')),
           findsOneWidget,

@@ -57,7 +57,7 @@ void main() {
       isNot(QuestUnlockState.unlocked),
     );
     expect(projection.byGameId(101).progressLabel, '100%');
-    expect(projection.byGameId(201).progressLabel, '50%+');
+    expect(projection.byGameId(201).progressLabel, '50%');
     expect(projection.byGameId(202).unlockState, QuestUnlockState.locked);
     expect(projection.byGameId(202).progressLabel, '—');
   });

@@ -33,8 +33,8 @@ const _verifiedPoiBands = <int, String>{
 
 const _fallback = [
   (flag: 0, poiLabel: 'In progress', appLabel: '＜50%', band: 'n'),
-  (flag: 1, poiLabel: '50%', appLabel: '50%+', band: 'w'),
-  (flag: 2, poiLabel: '80%', appLabel: '80%+', band: 'p'),
+  (flag: 1, poiLabel: '50%', appLabel: '50%', band: 'w'),
+  (flag: 2, poiLabel: '80%', appLabel: '80%', band: 'p'),
 ];
 
 // Source-verified composite outputs. Uneven 62/78 must stay warning even

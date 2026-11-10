@@ -170,7 +170,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(label), findsOneWidget);
-      expect(find.text(flag == 1 ? '50%+' : '80%+'), findsNothing);
+      expect(find.text(flag == 1 ? '50%' : '80%'), findsNothing);
       expect(tester.takeException(), isNull);
     });
   }
@@ -221,8 +221,8 @@ void main() {
         final status = scenario.state == 3
             ? '待领取'
             : switch (scenario.flag) {
-                1 => '50%+',
-                2 => '80%+',
+                1 => '50%',
+                2 => '80%',
                 _ => '进行中',
               };
         for (final key in [
@@ -230,9 +230,9 @@ void main() {
           'quest-detail-status-912',
         ]) {
           final badge = _progressText(tester, Key(key), status);
-          if (status == '50%+') {
+          if (status == '50%') {
             expect(badge.style?.color, const Color(0xffd4a85f));
-          } else if (status == '80%+') {
+          } else if (status == '80%') {
             expect(badge.style?.color, const Color(0xff8ec6e8));
           }
         }
@@ -401,8 +401,8 @@ void main() {
               expect(controller.state.quests[912]!.isServerCompleted, isFalse);
               expect(controller.state.quests[912]!.isLocallyCompleted, isFalse);
               final status = switch (progress.flag) {
-                1 => '50%+',
-                2 => '80%+',
+                1 => '50%',
+                2 => '80%',
                 _ => '进行中',
               };
               final badge = _progressText(
@@ -447,8 +447,8 @@ const _smokeScenarios = [
     flag: 1,
     current: null,
     total: null,
-    label: '50%+',
-    summary: '50%+',
+    label: '50%',
+    summary: '50%',
     color: Color(0xffd4a85f),
   ),
   _ProgressScenario(
@@ -456,8 +456,8 @@ const _smokeScenarios = [
     flag: 2,
     current: null,
     total: null,
-    label: '80%+',
-    summary: '80%+',
+    label: '80%',
+    summary: '80%',
     color: Color(0xff8ec6e8),
   ),
   _ProgressScenario(

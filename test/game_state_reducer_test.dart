@@ -1620,7 +1620,7 @@ void main() {
 
       expect(state.quests, hasLength(2));
       expect(state.quests[201]?.progressLabel, '服务器进度 50% 以上');
-      expect(state.quests[201]?.progressPercentLabel, '50%+');
+      expect(state.quests[201]?.progressPercentLabel, '50%');
       expect(state.quests[402]?.isCompleted, isTrue);
       expect(state.quests[402]?.progressLabel, '已完成');
       expect(state.quests[402]?.progressPercentLabel, '100%');
@@ -1652,7 +1652,7 @@ void main() {
 
       expect(state.quests.keys, containsAll(<int>[201, 402, 303]));
       expect(state.quests[303]?.progressLabel, '服务器进度 80% 以上');
-      expect(state.quests[303]?.progressPercentLabel, '80%+');
+      expect(state.quests[303]?.progressPercentLabel, '80%');
       expect(
         const GameQuest(
           id: 1,

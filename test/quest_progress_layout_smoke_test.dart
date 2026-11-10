@@ -38,8 +38,8 @@ const _cases = [
   _Case(9003, '本地八成', '8/10', '8/10', 2, current: 8, flag: 1),
   _Case(9004, '满数等待服务器确认', '10/10', '10/10 · 已达成（待确认）', 3, current: 10),
   _Case(9005, '服务器已完成', '100%', '完成', 3, current: 0, state: 3),
-  _Case(9006, '无本地计数服务器五成', '50%+', '50%+', 1, flag: 1),
-  _Case(9007, '无本地计数服务器八成', '80%+', '80%+', 2, flag: 2),
+  _Case(9006, '无本地计数服务器五成', '50%', '50%', 1, flag: 1),
+  _Case(9007, '无本地计数服务器八成', '80%', '80%', 2, flag: 2),
   _Case(9008, '仅有静态目录', '—', '', 0, live: false),
   _Case(9009, '前置关系推算完成', '100%', '', 3, live: false),
 ];
@@ -180,8 +180,8 @@ void main() {
             : scenario.state == 3
             ? '待领取'
             : switch (scenario.flag) {
-                1 => '50%+',
-                2 => '80%+',
+                1 => '50%',
+                2 => '80%',
                 _ => '进行中',
               };
         expect(
@@ -292,7 +292,7 @@ Future<void> _expectRestoredObjectiveBands(
       for (final text in tester.widgetList<Text>(labels)) {
         expect(text.style?.color, _bandColor(scene.theme, band));
       }
-      final serverLabel = serverFlag == 1 ? '50%+' : '80%+';
+      final serverLabel = serverFlag == 1 ? '50%' : '80%';
       final serverProgress = tester.widget<Text>(
         find.descendant(of: detail, matching: find.text('服务器进度：$serverLabel')),
       );
