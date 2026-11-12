@@ -5,10 +5,13 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
+import android.os.ParcelFileDescriptor
+import android.os.SystemClock
 import android.provider.DocumentsContract
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.filters.SdkSuppress
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.UUID
@@ -292,7 +295,89 @@ class GameModLibraryDocumentsTest {
         Log.i("ModLibraryDocuments", "real provider default-directory rename preserves all bytes and rejects conflicts: OK")
     }
 
-    private fun isolated(block: (GameModDocumentLibraryStore, File, ContentResolver) -> Unit) {
+    @SdkSuppress(minSdkVersion = 29)
+    @Test fun newAndExistingModImagesStayOutOfGallery() = isolated(visible = true) { parent, privateRoot, resolver ->
+        parent.createDirectory("Mods")
+        val store = GameModDocumentLibraryStore(resolver, parent.treeUri, "${parent.rootDocumentId}/Mods")
+        val repository = GameModRepository(File(privateRoot, "repository"))
+        val workspace = File(privateRoot, "library")
+        val coordinatorWorkspace = File(privateRoot, "coordinator")
+        val library = GameModLibrary(store, workspace)
+        val testRoot = parent.rootDocumentId.substringAfterLast('/')
+        val oldImageName = imagePath.substringAfterLast('/')
+        val oldBytes = png(Color.CYAN)
+        val newBytes = png(Color.BLUE)
+        val photoBytes = png(Color.GREEN)
+
+        val oldPath = GameModLibraryCoordinator(repository, library, coordinatorWorkspace).let { coordinator ->
+            try {
+                importToLibrary(repository, coordinator, library, "Old", imagePath, oldBytes)
+            } finally { coordinator.dispose() }
+        }
+        // Reproduce an old app's public package and let Android index its image.
+        assertTrue(store.delete("$oldPath/.nomedia"))
+        write(store, "$oldPath/$imagePath", oldBytes)
+        write(parent, "Photos/personal.png", photoBytes)
+        awaitGalleryImages(testRoot, setOf(oldImageName, "personal.png"))
+
+        val restoredLibrary = GameModLibrary(store, workspace)
+        assertTrue(store.list(oldPath).any { it.name == ".nomedia" && !it.isDirectory })
+        awaitGalleryImages(testRoot, setOf("personal.png"))
+
+        val coordinator = GameModLibraryCoordinator(repository, restoredLibrary, coordinatorWorkspace)
+        try {
+            val newPath = importToLibrary(repository, coordinator, restoredLibrary, "New", extraPath, newBytes)
+            assertTrue(store.list(newPath).any { it.name == ".nomedia" && !it.isDirectory })
+            // A later unrelated photo confirms the gallery's scanner has processed a new write.
+            write(parent, "Photos/later.png", photoBytes)
+            awaitGalleryImages(testRoot, setOf("personal.png", "later.png"))
+            assertArrayEquals(oldBytes, read(store, "$oldPath/$imagePath"))
+            assertArrayEquals(newBytes, read(store, "$newPath/$extraPath"))
+            assertArrayEquals(photoBytes, read(parent, "Photos/personal.png"))
+            assertTrue(parent.list().none { it.name == ".nomedia" })
+            assertTrue(store.list().none { it.name == ".nomedia" })
+        } finally { coordinator.dispose() }
+    }
+
+    private fun importToLibrary(
+        repository: GameModRepository,
+        coordinator: GameModLibraryCoordinator,
+        library: GameModLibrary,
+        name: String,
+        path: String,
+        bytes: ByteArray,
+    ): String {
+        val preview = repository.preflight(zipBytes(mapOf(path to bytes)).inputStream(), "$name.zip")
+        val imported = coordinator.commitImport(preview["token"] as String)
+        val records = library.status()["packages"] as List<Map<String, Any?>>
+        return records.single { it["id"] == imported["id"] }["path"] as String
+    }
+
+    private fun awaitGalleryImages(testRoot: String, expected: Set<String>) {
+        val deadline = SystemClock.elapsedRealtime() + 10_000
+        var actual = galleryImages(testRoot)
+        while (actual != expected && SystemClock.elapsedRealtime() < deadline) {
+            SystemClock.sleep(100)
+            actual = galleryImages(testRoot)
+        }
+        assertEquals("Unexpected gallery images in $testRoot", expected, actual)
+    }
+
+    private fun galleryImages(testRoot: String): Set<String> {
+        // Query as a separate reader. The app itself needs only its SAF tree grant.
+        // UiAutomation splits arguments at whitespace without processing shell quotes.
+        val command = "content query --uri content://media/external/images/media " +
+            "--projection _display_name --where (relative_path)LIKE('%/$testRoot/%')"
+        val output = ParcelFileDescriptor.AutoCloseInputStream(
+            InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(command)
+        ).bufferedReader().use { it.readText().trim() }
+        if (output == "No result found.") return emptySet()
+        val rows = output.lineSequence().toList()
+        assertTrue("MediaStore query failed: $output", rows.all { it.startsWith("Row: ") && "_display_name=" in it })
+        return rows.mapTo(mutableSetOf()) { it.substringAfter("_display_name=") }
+    }
+
+    private fun isolated(visible: Boolean = false, block: (GameModDocumentLibraryStore, File, ContentResolver) -> Unit) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val resolver = context.contentResolver
@@ -312,7 +397,8 @@ class GameModLibraryDocumentsTest {
         assertTrue(rootId == grantedRoot || rootId.startsWith("$grantedRoot/"))
         GameModLibraryDirectoryPolicy.selectDocumentId(treeUri.authority.orEmpty(), rootId)
         val parent = DocumentsContract.buildDocumentUriUsingTree(treeUri, rootId)
-        val unique = ".yahagi-saf-test-${UUID.randomUUID()}"
+        val prefix = if (visible) "yahagi-gallery-test" else ".yahagi-saf-test"
+        val unique = "$prefix-${UUID.randomUUID()}"
         val privateRoot = File(context.cacheDir, unique)
         assertTrue(privateRoot.mkdir())
         var created: Uri? = null

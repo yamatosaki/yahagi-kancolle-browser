@@ -17,6 +17,7 @@ import java.util.zip.ZipOutputStream
 
 /** Applied configurations and synchronization journals share the private index budget. */
 internal const val GAME_MOD_LIBRARY_STATE_LIMIT = 64L * 1024 * 1024
+internal const val GAME_MOD_MEDIA_MARKER = ".nomedia"
 
 /** A user-owned document tree. Paths are relative and never refer outside its root. */
 interface GameModLibraryStore {
@@ -26,6 +27,7 @@ interface GameModLibraryStore {
     fun openRead(relative: String): InputStream
     fun openWrite(relative: String): OutputStream
     fun createDirectory(relative: String)
+    fun createMediaMarker(packageDirectory: String) = openWrite("$packageDirectory/$GAME_MOD_MEDIA_MARKER").close()
     fun delete(relative: String): Boolean
     fun rename(from: String, to: String): Boolean
     /** Reuse provider lookups within one read pass; never across a source recheck. */
@@ -57,6 +59,7 @@ class GameModLibrary @JvmOverloads constructor(
     init {
         if (!workspace.isDirectory && !workspace.mkdirs()) fail("storage_error", "无法创建魔改库检查目录。")
         state = readState()
+        restoreMediaMarkers()
     }
 
     @Synchronized fun status(): Map<String, Any?> = linkedMapOf(
@@ -112,7 +115,8 @@ class GameModLibrary @JvmOverloads constructor(
                 }
                 val local = File(directory, "${itemNumber++}").apply { mkdirs() }
                 val tree = File(local, "tree").apply { mkdirs() }
-                val hash = copyTree(path, tree)
+                val previousHash = previous?.contentHash ?: marker?.contentHash
+                val (hash, unchanged) = copyTree(path, tree, previousHash)
                 if (hashTree(path) != hash) fail("library_changed", "扫描期间文件发生变化，请复制完成后重试。")
                 if (markerHash(path) != markerHash) fail("library_changed", "扫描期间魔改包标记发生变化，请重新扫描。")
                 val archive = File(local, "package.zip")
@@ -122,8 +126,7 @@ class GameModLibrary @JvmOverloads constructor(
                 val record = PackageRecord(id, marker?.name ?: previous?.name ?: entry.name, path, hash,
                     marker?.sourceZip ?: previous?.sourceZip, marker?.sourceHash ?: previous?.sourceHash,
                     sourceConsumed = marker?.sourceConsumed == true || previous?.sourceConsumed == true)
-                val kind = if ((previous?.contentHash ?: marker?.contentHash) == hash) "unchanged"
-                    else if (previous != null || marker != null) "updated" else "new"
+                val kind = if (unchanged) "unchanged" else if (previousHash != null) "updated" else "new"
                 val row = item(id, record.name, path, kind, hash).apply {
                     put("resourceCount", checked.resourceCount); put("supportedCount", checked.supportedCount)
                 }
@@ -234,6 +237,7 @@ class GameModLibrary @JvmOverloads constructor(
         preview.prepared.forEachIndexed { index, candidate ->
             progress?.startPackage("save", candidate.record.name, index, preview.prepared.size)
             val record = if (candidate.zip) saveTree(candidate.record, candidate.tree, candidate.replaced) else {
+                ensureMediaMarker(candidate.record.path)
                 writeMarker(candidate.record)
                 updateRecord(candidate.record)
                 candidate.record
@@ -339,6 +343,7 @@ class GameModLibrary @JvmOverloads constructor(
         val previous = state.packages.firstOrNull { it.id == record.id }
         val ownsPrevious = previous != null && exists(previous.path) && runCatching { readMarker(previous.path)?.id == previous.id }.getOrDefault(false)
         if (replaced == null && previous != null && ownsPrevious && previous.contentHash == record.contentHash && hashTree(previous.path) == record.contentHash) {
+            ensureMediaMarker(previous.path)
             val same = record.copy(path = previous.path); writeMarker(same); updateRecord(same); return same
         }
         val safeName = record.name.replace(Regex("[\\\\/:*?%#\"<>|\\p{Cntrl}]"), "_").trim().take(64).ifEmpty { "魔改包" }
@@ -348,6 +353,7 @@ class GameModLibrary @JvmOverloads constructor(
         store.createDirectory(temporary)
         var incompleteDestination: String? = null
         try {
+            store.createMediaMarker(temporary)
             copyLocalToStore(tree, temporary)
             val staged = record.copy(path = temporary)
             if (hashTree(temporary) != record.contentHash) fail("storage_error", "魔改库写入校验失败。")
@@ -359,6 +365,7 @@ class GameModLibrary @JvmOverloads constructor(
                 // An unsupported marker version keeps a failed partial copy unimportable,
                 // even when the provider also refuses cleanup or the process is interrupted.
                 writeMarker(record.copy(path = destination, schemaVersion = 0))
+                store.createMediaMarker(destination)
                 copyLocalToStore(tree, destination)
                 if (hashTree(destination) != record.contentHash) fail("storage_error", "魔改库写入校验失败。")
                 writeMarker(record.copy(path = destination))
@@ -411,12 +418,12 @@ class GameModLibrary @JvmOverloads constructor(
 
     private fun discardIncompleteTree(path: String) {
         runCatching {
-            // Recursive provider deletes may remove the marker before a locked resource.
-            // Keep that guard until every resource has been removed successfully.
-            for (entry in store.list(path).filter { it.name != MARKER }) {
+            // Keep the import guard and media marker in place while resources remain.
+            val markers = setOf(MARKER, GAME_MOD_MEDIA_MARKER)
+            for (entry in store.list(path).filterNot { it.name in markers }) {
                 if (!store.delete("$path/${safe(entry.name)}")) return@runCatching
             }
-            if (store.list(path).all { it.name == MARKER }) store.delete(path)
+            if (store.list(path).all { it.name in markers }) store.delete(path)
         }
     }
 
@@ -429,8 +436,29 @@ class GameModLibrary @JvmOverloads constructor(
         writeBytes("${safe(record.path)}/$MARKER", gson.toJson(recordMetadata(record)).toByteArray(Charsets.UTF_8))
     }
 
-    private fun readMarker(directory: String): PackageRecord? {
-        val entry = store.list(directory).firstOrNull { it.name == MARKER } ?: return null
+    private fun ensureMediaMarker(path: String) {
+        if (store.list(path).none { it.isMediaMarker() }) store.createMediaMarker(path)
+    }
+
+    private fun restoreMediaMarkers() = store.withReadSession {
+        for (record in state.packages) {
+            try {
+                val path = safeEntryName(record.path)
+                val entries = store.list(path)
+                // Only touch an existing package whose own marker agrees with the index.
+                if (entries.none { it.isMediaMarker() } && readMarker(path, entries)?.id == record.id) {
+                    store.createMediaMarker(path)
+                }
+            } catch (_: Exception) {
+                // A missing or inaccessible package must not block the rest of the library.
+            }
+        }
+    }
+
+    private fun GameModLibraryEntry.isMediaMarker() = name == GAME_MOD_MEDIA_MARKER && !isDirectory
+
+    private fun readMarker(directory: String, entries: List<GameModLibraryEntry> = store.list(directory)): PackageRecord? {
+        val entry = entries.firstOrNull { it.name == MARKER } ?: return null
         if (entry.isDirectory || entry.size > MAX_METADATA) fail("library_metadata_invalid", "魔改包标记文件无效。")
         try {
             val value = readRecordMetadata(JsonParser.parseString(readText("$directory/$MARKER")).asJsonObject, optionalVersion = false)
@@ -574,8 +602,10 @@ class GameModLibrary @JvmOverloads constructor(
         if (!HASH.matches(it)) fail("library_metadata_invalid", "魔改包来源校验无效。")
     }
 
-    private fun copyTree(path: String, destination: File): String = store.withReadSession {
-        val files = treeFiles(path)
+    private fun copyTree(path: String, destination: File, previousHash: String?): Pair<String, Boolean> = store.withReadSession {
+        val mediaMarkers = if (previousHash != null) mutableListOf<String>() else null
+        val files = treeFiles(path, mediaMarkers)
+        val legacyDigests = if (!mediaMarkers.isNullOrEmpty()) mutableMapOf<String, ByteArray>() else null
         val digest = MessageDigest.getInstance("SHA-256")
         var total = 0L
         progress?.files(0, files.size, null, 0, null)
@@ -591,11 +621,49 @@ class GameModLibrary @JvmOverloads constructor(
                 }; total += size
                 if (total > MAX_TREE) fail("quota_exceeded", "魔改包总大小不能超过 1 GiB。")
             } }
-            digest.update(fileDigest.digest())
+            val bytes = fileDigest.digest()
+            legacyDigests?.put(relative, bytes)
+            digest.update(bytes)
             digest.update(0)
             progress?.files(index + 1, files.size, relative, total, null)
         }
-        hex(digest.digest())
+        val hash = hex(digest.digest())
+        val unchanged = hash == previousHash || previousHash != null && legacyDigests != null &&
+            matchesLegacyMediaHash(path, previousHash, mediaMarkers.orEmpty(), legacyDigests, total)
+        hash to unchanged
+    }
+
+    private fun matchesLegacyMediaHash(
+        path: String, previousHash: String, mediaMarkers: List<String>, fileDigests: MutableMap<String, ByteArray>,
+        contentBytes: Long,
+    ): Boolean {
+        try {
+            var total = contentBytes
+            for (relative in mediaMarkers) {
+                val digest = MessageDigest.getInstance("SHA-256")
+                store.openRead("$path/$relative").use { total += copyDigest(it, null, digest, MAX_FILE) }
+                if (total > MAX_TREE) return false
+                fileDigests[relative] = digest.digest()
+            }
+            val ordered = fileDigests.toSortedMap()
+            fun fingerprint(includeRootMarker: Boolean): String {
+                val digest = MessageDigest.getInstance("SHA-256")
+                ordered.forEach { (relative, bytes) ->
+                    if (includeRootMarker || relative != GAME_MOD_MEDIA_MARKER) {
+                        digestName(digest, relative)
+                        digest.update(bytes)
+                        digest.update(0)
+                    }
+                }
+                return hex(digest.digest())
+            }
+            // A restored root marker may be new even when nested markers were present in the old tree.
+            return fingerprint(includeRootMarker = true) == previousHash ||
+                GAME_MOD_MEDIA_MARKER in fileDigests && mediaMarkers.size > 1 && fingerprint(includeRootMarker = false) == previousHash
+        } catch (_: Exception) {
+            // Excluded media markers cannot make a package unreadable.
+            return false
+        }
     }
 
     private fun hashTree(path: String): String = store.withReadSession {
@@ -619,12 +687,14 @@ class GameModLibrary @JvmOverloads constructor(
         hex(digest.digest())
     }
 
-    private fun treeFiles(path: String): List<String> {
+    private fun treeFiles(path: String, mediaMarkers: MutableList<String>? = null): List<String> {
         val files = mutableListOf<String>()
         var count = 0
         fun walk(directory: String, prefix: String, depth: Int) {
             if (depth > 64) fail("quota_exceeded", "魔改目录层级过多。")
-            val entries = store.list(directory)
+            val entries = store.list(directory).filterNot { entry ->
+                entry.isMediaMarker().also { if (it) mediaMarkers?.add(prefix + entry.name) }
+            }
             count += entries.size
             if (count > MAX_ENTRIES) fail("quota_exceeded", "魔改目录条目数量不能超过 20000。")
             if (entries.map { it.name }.distinct().size != entries.size) fail("duplicate_resource", "魔改目录含同名文件。")
@@ -651,7 +721,7 @@ class GameModLibrary @JvmOverloads constructor(
         var total = 0L
         fun visit(path: String, depth: Int) {
             if (depth > 64) fail("quota_exceeded", "魔改目录层级过多。")
-            val entries = fileStore.list(path).sortedBy { it.name }
+            val entries = fileStore.list(path).filterNot { it.isMediaMarker() }.sortedBy { it.name }
             count += entries.size
             if (count > MAX_ENTRIES) fail("quota_exceeded", "魔改目录条目数量不能超过 20000。")
             entries.forEach { entry ->
@@ -725,6 +795,7 @@ class GameModLibrary @JvmOverloads constructor(
                 val parsed = GameModArchive.parseEntryPath(entry.name, wrapper)
                 if (!parsed.isHack && parsed.strippedRaw in hackTargets) continue
                 val normalized = safe(parsed.normalizedPath)
+                if (normalized.substringAfterLast('/') == GAME_MOD_MEDIA_MARKER) continue
                 if (normalized == MARKER) fail("unsafe_path", "ZIP 不能覆盖魔改包标记。")
                 val destination = File(tree, normalized).apply { parentFile?.mkdirs() }
                 zip.getInputStream(entry).use { source -> destination.outputStream().use { total += copyDigest(source, it, null, MAX_FILE) } }

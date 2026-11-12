@@ -2,6 +2,7 @@ package app.yahagi.kancollebrowser.mods
 
 import android.content.ContentResolver
 import android.net.Uri
+import android.os.Build
 import android.provider.DocumentsContract
 import java.io.FilterOutputStream
 import java.io.InputStream
@@ -58,6 +59,22 @@ internal class GameModDocumentLibraryStore(
             override fun close() {
                 try { super.close() } finally { readSessions.invalidate() }
             }
+        }
+    }
+
+    override fun createMediaMarker(packageDirectory: String) = mutate {
+        checkPath(packageDirectory)
+        val parentId = resolve(packageDirectory, directory = true)
+        // The system external-storage provider rescans the package when it creates .nomedia.
+        val marker = DocumentsContract.createDocument(
+            resolver, uri(parentId), "application/octet-stream", GAME_MOD_MEDIA_MARKER,
+        ) ?: throw GameModException("library_write_failed", "Cannot create the media exclusion marker")
+        if (DocumentsContract.getDocumentId(marker) != "$parentId/$GAME_MOD_MEDIA_MARKER") {
+            throw GameModException("library_write_failed", "The provider renamed the media exclusion marker")
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            // Older providers notify the media scanner when a write descriptor closes.
+            resolver.openOutputStream(marker, "wa")?.close()
         }
     }
 

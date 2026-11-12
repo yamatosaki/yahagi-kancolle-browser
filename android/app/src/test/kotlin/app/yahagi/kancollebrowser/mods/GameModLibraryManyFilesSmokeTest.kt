@@ -82,6 +82,7 @@ class GameModLibraryManyFilesSmokeTest {
             val expectedHashes = expected.mapValues { sha256(it.value) }
             val record = publicPackages.single { it["id"] == pack["id"] }
             val tree = public.resolve(record["path"] as String)
+            assertTrue(tree.resolve(".nomedia").isFile)
             assertEquals(expectedHashes, treeHashes(tree, omitMarker = true))
             val export = temporary.newFolder()
             repository.exportPackageTree(pack["id"] as String, export)
@@ -187,7 +188,7 @@ class GameModLibraryManyFilesSmokeTest {
     private fun resources(pack: Map<*, *>) = (pack["resources"] as List<*>).filterIsInstance<Map<*, *>>()
     private fun config(status: Map<String, Any?>, key: String) = status[key] as Map<*, *>
     private fun treeHashes(directory: File, omitMarker: Boolean = false): Map<String, String> = directory.walkTopDown()
-        .filter { it.isFile && !(omitMarker && it.parentFile == directory && it.name == ".yahagi-package.json") }
+        .filter { it.isFile && !(omitMarker && it.parentFile == directory && it.name in setOf(".yahagi-package.json", ".nomedia")) }
         .associate { it.relativeTo(directory).invariantSeparatorsPath to sha256(it.readBytes()) }
     private fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes)
         .joinToString("") { "%02x".format(it.toInt() and 255) }

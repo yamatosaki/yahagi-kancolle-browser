@@ -8,10 +8,13 @@ import org.junit.rules.TemporaryFolder
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.io.File
+import java.io.OutputStream
+import java.security.MessageDigest
 import java.util.UUID
 import java.util.zip.CRC32
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 
 class GameModLibraryTest {
@@ -59,6 +62,100 @@ class GameModLibraryTest {
         assertTrue(root.resolve("cache.zip").isFile)
     }
 
+    @Test fun `legacy media markers do not block an updated retained ZIP`() {
+        for (markerPath in listOf(".nomedia", "kcs2/.nomedia")) {
+            val root = temporary.newFolder()
+            val workspace = temporary.newFolder()
+            val source = root.resolve("cache.zip")
+            source.writeBytes(zip(path to png()))
+            val store = GameModFileLibraryStore(root)
+            val library = GameModLibrary(store, workspace)
+            val first = library.acceptScan(library.scan().token).single()
+            val packageRoot = root.resolve(first.path)
+            assertTrue(packageRoot.resolve(".nomedia").delete())
+            packageRoot.resolve(markerPath).writeBytes(byteArrayOf())
+
+            // Recreate the fingerprint saved by builds that hashed .nomedia as content.
+            val legacy = MessageDigest.getInstance("SHA-256")
+            for (name in listOf(markerPath, path).sorted()) {
+                legacy.update(name.toByteArray(Charsets.UTF_8))
+                legacy.update(0)
+                legacy.update(MessageDigest.getInstance("SHA-256").digest(packageRoot.resolve(name).readBytes()))
+                legacy.update(0)
+            }
+            val oldHash = legacy.digest().joinToString("") { "%02x".format(it.toInt() and 255) }
+            val markerFile = packageRoot.resolve(".yahagi-package.json")
+            val marker = JsonParser.parseString(markerFile.readText()).asJsonObject
+            marker.addProperty("contentHash", oldHash)
+            markerFile.writeText(marker.toString())
+            val index = root.resolve("library.json")
+            val envelope = JsonParser.parseString(index.readText()).asJsonObject
+            val state = envelope.getAsJsonObject("state")
+            state.getAsJsonArray("packages").single().asJsonObject.addProperty("contentHash", oldHash)
+            val checksum = MessageDigest.getInstance("SHA-256").digest(state.toString().toByteArray(Charsets.UTF_8))
+            envelope.addProperty("sha256", checksum.joinToString("") { "%02x".format(it.toInt() and 255) })
+            index.writeText(envelope.toString())
+
+            source.writeBytes(zip(path to png(1)))
+            val restored = GameModLibrary(store, workspace)
+            val scan = restored.scan()
+            assertEquals("updated", scan.items.single()["status"])
+            val candidate = restored.acceptScan(scan.token).single()
+            assertEquals(first.id, candidate.id)
+            assertArrayEquals(png(1), root.resolve("${candidate.path}/$path").readBytes())
+        }
+    }
+
+    @Test fun `public ZIP import hides assets before writing with or without directory rename`() {
+        for (allowRename in listOf(true, false)) {
+            val root = temporary.newFolder()
+            root.resolve("cache.zip").writeBytes(zip(path to png()))
+            val files = GameModFileLibraryStore(root)
+            val store = object : GameModLibraryStore by files {
+                override fun openWrite(relative: String): OutputStream {
+                    if (relative.endsWith("/$path")) {
+                        assertTrue(root.resolve("${relative.substringBefore('/')}/.nomedia").isFile)
+                    }
+                    return files.openWrite(relative)
+                }
+
+                override fun rename(from: String, to: String) = allowRename && files.rename(from, to)
+            }
+            val library = GameModLibrary(store, temporary.newFolder())
+            val scan = library.scan()
+            val candidate = library.acceptScan(scan.token).single()
+            assertTrue(root.resolve("${candidate.path}/.nomedia").isFile)
+            assertArrayEquals(png(), root.resolve("${candidate.path}/$path").readBytes())
+            assertFalse(root.resolve(".nomedia").exists())
+        }
+    }
+
+    @Test fun `opening an existing library hides only tracked packages and preserves their fingerprints`() {
+        val root = temporary.newFolder()
+        val tree = temporary.newFolder()
+        tree.resolve(path).apply { parentFile.mkdirs(); writeBytes(png()) }
+        val files = GameModFileLibraryStore(root)
+        val library = GameModLibrary(files, temporary.newFolder())
+        val id = UUID.randomUUID().toString()
+        val saved = library.savePackage(id, "Ship", tree)
+        val marker = root.resolve("${saved["path"]}/.nomedia")
+        marker.delete() // Simulate a library written before media hiding was added.
+        val unrelated = root.resolve("photos").apply { mkdir() }
+        unrelated.resolve("family.png").writeBytes(png(1))
+
+        val restored = GameModLibrary(files, temporary.newFolder())
+
+        assertTrue(marker.isFile)
+        assertFalse(root.resolve(".nomedia").exists())
+        assertFalse(unrelated.resolve(".nomedia").exists())
+        val scan = restored.scan()
+        val candidate = restored.acceptScan(scan.token).single()
+        assertEquals(id, candidate.id)
+        assertEquals("unchanged", candidate.status)
+        assertEquals(saved["contentHash"], candidate.contentHash)
+        ZipFile(candidate.archive).use { assertNull(it.getEntry(".nomedia")) }
+    }
+
     @Test fun `invalid edited image is reported and old package and applied settings stay intact`() {
         val root = temporary.newFolder(); val tree = temporary.newFolder()
         tree.resolve(path).apply { parentFile.mkdirs(); writeBytes(png()) }
@@ -104,8 +201,10 @@ class GameModLibraryTest {
         val preview = library.scan()
         assertEquals("new", preview.items.single()["status"])
         assertFalse(root.resolve("my ship/.yahagi-package.json").exists())
+        assertFalse(root.resolve("my ship/.nomedia").exists())
         val imported = library.acceptScan(preview.token).single()
         assertTrue(root.resolve("my ship/.yahagi-package.json").exists())
+        assertTrue(root.resolve("my ship/.nomedia").isFile)
         root.resolve("my ship").deleteRecursively()
         assertEquals(imported.id, library.scan().items.single()["id"])
         assertEquals("missing", library.scan().items.single()["status"])
