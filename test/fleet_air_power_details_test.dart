@@ -34,10 +34,13 @@ void main() {
           GlobalCupertinoLocalizations.delegate,
         ],
         supportedLocales: AppLocalizations.supportedLocales,
-        home: Builder(
-          builder: (context) => TextButton(
-            onPressed: () => showFleetAirPowerDetails(context, metrics),
-            child: const Text('打开'),
+        home: Scaffold(
+          body: Center(
+            child: FleetAirPowerDetails(
+              metrics: metrics,
+              builder: (toggle) =>
+                  TextButton(onPressed: toggle, child: const Text('打开')),
+            ),
           ),
         ),
       ),
@@ -59,7 +62,7 @@ void main() {
     expect(minimumTop, lessThan(maximumTop));
     expect(maximumTop, lessThan(withoutBonusTop));
 
-    await tester.tap(find.text('关闭'));
+    await tester.tap(find.byKey(const Key('fleet-air-power-details-close')));
     await tester.pumpAndSettle();
     expect(find.text('制空详情'), findsNothing);
   });

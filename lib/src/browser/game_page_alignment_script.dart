@@ -1,6 +1,6 @@
 const String gamePageAlignmentScript = r'''
 (() => {
-  const runtimeVersion = 7;
+  const runtimeVersion = 8;
   if (
     window.__yahagiMobilePresentationRuntimeVersion === runtimeVersion &&
     typeof window.__yahagiMobileSyncPresentation === 'function' &&
@@ -18,12 +18,14 @@ const String gamePageAlignmentScript = r'''
   const ooiBrowserFrameHeight = 800;
   const ooiBrowserGameWidth = 1200;
   const ooiBrowserGameHeight = 720;
+  const wrappedOoiBrowserFrame = '#ooi-page #ooi-game > div.ooi-frame-wrap > iframe#externalswf';
   const ooiBrowserSurfaceSelector =
     '#ooi-page #ooi-game > iframe#externalswf, ' +
     '#ooi-page #ooi-game > embed#externalswf, ' +
     '#ooi-page #ooi-game > iframe#htmlWrap, ' +
     '#flashWrap > iframe#externalswf, #flashWrap > embed#externalswf, ' +
-    '#flashWrap > iframe#htmlWrap, #ooi-game > iframe#htmlWrap';
+    '#flashWrap > iframe#htmlWrap, #ooi-game > iframe#htmlWrap, ' +
+    wrappedOoiBrowserFrame;
   const ooiFrameScrolling = new Map();
   const gameViewportMetas = new Map();
   let hadOoiGameSurface = false;
@@ -116,7 +118,7 @@ const String gamePageAlignmentScript = r'''
     #ooi-header,
     #ooi-footer,
     #spacing_top,
-    #ooi-game > :not(iframe#externalswf):not(embed#externalswf):not(iframe#htmlWrap):not(#flashWrap):not(dialog):not(:has(dialog[open], input[type="password"], input[name="password"], input[autocomplete="current-password"], input[autocomplete="new-password"])),
+    #ooi-game > :not(iframe#externalswf):not(embed#externalswf):not(iframe#htmlWrap):not(#flashWrap):not(div.ooi-frame-wrap:has(> iframe#externalswf)):not(dialog):not(:has(dialog[open], input[type="password"], input[name="password"], input[autocomplete="current-password"], input[autocomplete="new-password"])),
     #flashWrap > :not(iframe#externalswf):not(embed#externalswf):not(iframe#htmlWrap):not(dialog):not(:has(dialog[open], input[type="password"], input[name="password"], input[autocomplete="current-password"], input[autocomplete="new-password"])) {
       display: none !important;
     }
@@ -126,7 +128,8 @@ const String gamePageAlignmentScript = r'''
     #ooi-game > iframe#htmlWrap,
     #flashWrap > iframe#externalswf,
     #flashWrap > embed#externalswf,
-    #flashWrap > iframe#htmlWrap {
+    #flashWrap > iframe#htmlWrap,
+    ${wrappedOoiBrowserFrame} {
       position: fixed !important;
       left: 0 !important;
       top: 0 !important;

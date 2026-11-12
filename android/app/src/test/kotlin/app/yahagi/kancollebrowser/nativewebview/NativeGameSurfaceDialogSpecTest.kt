@@ -95,6 +95,17 @@ class NativeGameSurfaceDialogSpecTest {
         assertNull(NativeGameWarningDialogSpec.parse(payload()).postTouchProtectionActions)
     }
 
+    @Test fun surfaceDialogsCanOptOutOfDismissalProtection() {
+        assertTrue(NativeGameWarningDialogSpec.parse(payload()).protectInputOnDismiss)
+        assertTrue(NativeGameWarningDialogSpec.parse(
+            payload() + ("protectInputOnDismiss" to true),
+        ).protectInputOnDismiss)
+        assertFalse(NativeGameWarningDialogSpec.parse(
+            payload() + ("protectInputOnDismiss" to false),
+        ).protectInputOnDismiss)
+        reject(payload() + ("protectInputOnDismiss" to "false"))
+    }
+
     @Test fun postTouchProtectionCanSelectExistingActionsAndChoices() {
         val spec = NativeGameWarningDialogSpec.parse(payload() + mapOf(
             "choices" to listOf(mapOf("id" to "mission_1", "label" to "远征")),
@@ -125,5 +136,16 @@ class NativeGameSurfaceDialogSpecTest {
         reject(old + ("choices" to listOf(mapOf("id" to "m1", "label" to "a"))))
         reject(old + ("checkbox" to mapOf("label" to "跳过", "checked" to false)))
         reject(old + ("postTouchProtectionActions" to listOf("acknowledge")))
+        reject(old + ("protectInputOnDismiss" to false))
+    }
+
+    @Test fun battleWarningsCannotOptOutOfDismissalProtection() {
+        val battle = mapOf(
+            "kind" to "battle", "id" to 17L, "title" to "大破警告",
+            "headline" to "有舰船大破", "body" to "谨慎进击", "rows" to emptyList<String>(),
+            "labels" to NativeGameWarningDialogSpec.actions.associateWith { it },
+        )
+        assertTrue(NativeGameWarningDialogSpec.parse(battle).protectInputOnDismiss)
+        reject(battle + ("protectInputOnDismiss" to false))
     }
 }

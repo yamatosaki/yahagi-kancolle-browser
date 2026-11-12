@@ -88,6 +88,28 @@ class BattleDetailStrings {
   String sideAttack(BattleDetailSide side) => locale.languageCode == 'en'
       ? '${sideName(side)} attack'
       : '${sideName(side)}${locale.languageCode == 'ko' ? ' ' : ''}$attack';
+  String? attackCutIn(String typeCode) {
+    final label = switch (typeCode) {
+      'PTCI' => '主炮·鱼雷 CI',
+      'TTCI' => '鱼雷 CI',
+      'PSCI' => '主炮·副炮 CI',
+      'PrCI' => '主炮·主炮 CI',
+      'PRCI' => '主炮·电探 CI',
+      'PACI' => '主炮·彻甲弹 CI',
+      'CVCI' => '战爆联合 CI',
+      'NightCarrierCI' => '空母夜袭 CI',
+      'DestroyerGunTorpedoRadarCI' => '主炮·鱼雷·电探 CI',
+      'DestroyerTorpedoRadarLookoutCI' => '鱼雷·电探·见张员 CI',
+      'DestroyerTorpedoLookoutCI' => '双鱼雷·水雷见张员 CI',
+      'DestroyerTorpedoDrumCI' => '鱼雷·运输桶·水雷见张员 CI',
+      'Zuiyun_Night_Attack' => '夜间瑞云 CI',
+      'ZuiunMultiAngle' => '瑞云立体攻击',
+      'SeaAirMultiAngle' => '海空立体攻击',
+      _ => null,
+    };
+    return label == null ? null : localize(label);
+  }
+
   String dealt(int damage) => _text(
     '造成 $damage',
     '造成 $damage',
@@ -466,6 +488,41 @@ class BattleDetailStrings {
       '전폭 연합 컷인',
       'Fighter / bomber cut-in',
     ),
+    '主炮·鱼雷 CI': ('主砲·魚雷 CI', '主砲・魚雷 CI', '주포·어뢰 CI', 'Gun/Torpedo CI'),
+    '鱼雷 CI': ('魚雷 CI', '魚雷 CI', '어뢰 CI', 'Torpedo CI'),
+    '主炮·副炮 CI': ('主砲·副砲 CI', '主砲・副砲 CI', '주포·부포 CI', 'Gun/Secondary CI'),
+    '主炮·主炮 CI': ('主砲·主砲 CI', '主砲・主砲 CI', '주포·주포 CI', 'Main Gun CI'),
+    '主炮·电探 CI': ('主砲·電探 CI', '主砲・電探 CI', '주포·전탐 CI', 'Gun/Radar CI'),
+    '主炮·彻甲弹 CI': ('主砲·徹甲彈 CI', '主砲・徹甲弾 CI', '주포·철갑탄 CI', 'Gun/AP Shell CI'),
+    '战爆联合 CI': ('戰爆聯合 CI', '戦爆連合 CI', '전폭 연합 CI', 'Fighter/Bomber CI'),
+    '空母夜袭 CI': ('空母夜襲 CI', '空母夜襲 CI', '항모 야습 CI', 'Night Carrier CI'),
+    '主炮·鱼雷·电探 CI': (
+      '主砲·魚雷·電探 CI',
+      '主砲・魚雷・電探 CI',
+      '주포·어뢰·전탐 CI',
+      'Gun/Torpedo/Radar CI',
+    ),
+    '鱼雷·电探·见张员 CI': (
+      '魚雷·電探·見張員 CI',
+      '魚雷・電探・見張員 CI',
+      '어뢰·전탐·견시원 CI',
+      'Torpedo/Radar/Lookout CI',
+    ),
+    '双鱼雷·水雷见张员 CI': (
+      '雙魚雷·水雷見張員 CI',
+      '魚雷×2・水雷見張員 CI',
+      '어뢰 2개·수뢰견시원 CI',
+      'Twin Torpedo/Skilled Lookout CI',
+    ),
+    '鱼雷·运输桶·水雷见张员 CI': (
+      '魚雷·運輸桶·水雷見張員 CI',
+      '魚雷・ドラム缶・水雷見張員 CI',
+      '어뢰·드럼통·수뢰견시원 CI',
+      'Torpedo/Drum/Skilled Lookout CI',
+    ),
+    '夜间瑞云 CI': ('夜間瑞雲 CI', '夜間瑞雲 CI', '야간 즈이운 CI', 'Night Zuiun CI'),
+    '瑞云立体攻击': ('瑞雲立體攻擊', '瑞雲立体攻撃', '즈이운 입체 공격', 'Zuiun Multi-Angle Attack'),
+    '海空立体攻击': ('海空立體攻擊', '海空立体攻撃', '해공 입체 공격', 'Sea/Air Multi-Angle Attack'),
     '炮击': ('砲擊', '砲撃', '포격', 'Shelling'),
   };
 }

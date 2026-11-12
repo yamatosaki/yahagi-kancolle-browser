@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
+import 'package:yahagi_kancolle_browser/src/bridge/captured_api_event.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/combat_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/logbook/logbook_experience_record.dart';
@@ -15,6 +16,578 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test(
+    'lost ships are removed by instance ID and the archive survives restart',
+    () async {
+      final store = _MemoryStore();
+      final fixture = _Fixture(store: store);
+      addTearDown(fixture.dispose);
+      await fixture.recordTotals();
+      final controller = fixture.controller;
+      final snapshot = controller.sortie;
+      expect(controller.totalExperience, 100);
+      expect(fixture.totalMvp, {10: 0, 11: 1, 12: 1, 13: 0});
+      await controller.setHiddenTotalShipIds({
+        11,
+        12,
+      }, expectedAccount: fixture.session.current);
+      expect(controller.totalExperiencePercentage(10), 40);
+      expect(controller.totalExperiencePercentage(11), 20);
+
+      await fixture.send(
+        '/kcsapi/api_req_kousyou/destroyship',
+        {
+          'api_material': [100, 200, 300, 400],
+        },
+        request: {'api_ship_id': '11'},
+      );
+      expect(fixture.totalExperience, {10: 40, 12: 30, 13: 10});
+      expect(fixture.totalMvp, {10: 0, 12: 1, 13: 0});
+      expect(controller.totalExperience, 80);
+      expect(controller.totalExperiencePercentage(10), 50);
+      expect(controller.totalExperiencePercentage(12), 37.5);
+      expect(controller.totalExperiencePercentage(13), 12.5);
+      expect(controller.totalExperiencePercentage(11), 0);
+      expect(controller.hiddenTotalShipIds, {12});
+      expect(controller.totalSorties, 2);
+      expect(controller.sortie, same(snapshot));
+
+      final reopened = _Fixture(store: store);
+      addTearDown(reopened.dispose);
+      await reopened.controller.initialize();
+      expect(reopened.totalExperience, fixture.totalExperience);
+      expect(reopened.totalMvp, fixture.totalMvp);
+      expect(reopened.controller.hiddenTotalShipIds, {12});
+      expect(reopened.controller.totalExperience, 80);
+      expect(reopened.controller.totalSorties, 2);
+    },
+  );
+
+  test(
+    'batch destruction is idempotent and preserves same-name survivors',
+    () async {
+      final fixture = _Fixture();
+      addTearDown(fixture.dispose);
+      await fixture.recordTotals();
+      expect(
+        fixture.controller.totals.map((ship) => ship.masterShipId).toSet(),
+        {101},
+      );
+      expect(fixture.controller.totals.map((ship) => ship.name).toSet(), {
+        '夕張',
+      });
+      final event = kcsapiEvent(
+        '/kcsapi/api_req_kousyou/destroyship',
+        {
+          'api_material': [100, 200, 300, 400],
+        },
+        requestParams: {'api_ship_id': '11,12'},
+        sequence: ++fixture.sequence,
+      );
+      fixture.controller.accept(event);
+      fixture.controller.accept(event);
+      await fixture.controller.idle;
+      expect(fixture.totalExperience, {10: 40, 13: 10});
+      await fixture.send(event.path, {
+        'api_material': [100, 200, 300, 400],
+      }, request: event.requestParams);
+      expect(fixture.totalExperience, {10: 40, 13: 10});
+      expect(fixture.controller.totalExperience, 50);
+      expect(fixture.controller.totalSorties, 2);
+    },
+  );
+
+  for (final materials in ['11', '11,12']) {
+    for (final flag in [0, 1]) {
+      test(
+        'powerup flag $flag consumes $materials and retains its target',
+        () async {
+          final fixture = _Fixture();
+          addTearDown(fixture.dispose);
+          await fixture.recordTotals();
+          await fixture.send(
+            '/kcsapi/api_req_kaisou/powerup',
+            {'api_powerup_flag': flag, 'api_ship': _rosterShip(10)},
+            request: {'api_id': '10', 'api_id_items': materials},
+          );
+          expect(
+            fixture.totalExperience,
+            materials == '11' ? {10: 40, 12: 30, 13: 10} : {10: 40, 13: 10},
+          );
+          expect(fixture.controller.totalSorties, 2);
+        },
+      );
+    }
+  }
+
+  test(
+    'failed or malformed loss operations preserve every accumulated record',
+    () async {
+      final store = _MemoryStore();
+      final fixture = _Fixture(store: store);
+      addTearDown(fixture.dispose);
+      await fixture.recordTotals();
+      final before = store._saved[1];
+      final cases = [
+        (
+          path: '/kcsapi/api_req_kousyou/destroyship',
+          data: null,
+          request: <String, Object?>{'api_ship_id': '11'},
+          result: 1,
+        ),
+        (
+          path: '/kcsapi/api_req_kousyou/destroyship',
+          data: <Object?>[],
+          request: <String, Object?>{'api_ship_id': '11'},
+          result: 1,
+        ),
+        (
+          path: '/kcsapi/api_req_kousyou/destroyship',
+          data: <String, Object?>{},
+          request: <String, Object?>{'api_ship_id': '11'},
+          result: 0,
+        ),
+        for (final ids in ['', '11,bad', '11,,12', '0', '-1', '11.5', true])
+          (
+            path: '/kcsapi/api_req_kousyou/destroyship',
+            data: <String, Object?>{
+              'api_material': [100, 200, 300, 400],
+            },
+            request: <String, Object?>{'api_ship_id': ids},
+            result: 1,
+          ),
+        (
+          path: '/kcsapi/api_req_kaisou/powerup',
+          data: <String, Object?>{
+            'api_powerup_flag': 1,
+            'api_ship': _rosterShip(10),
+          },
+          request: <String, Object?>{'api_id': '10', 'api_id_items': '11'},
+          result: 0,
+        ),
+        (
+          path: '/kcsapi/api_req_kaisou/powerup',
+          data: null,
+          request: <String, Object?>{'api_id': '10', 'api_id_items': '11'},
+          result: 1,
+        ),
+        (
+          path: '/kcsapi/api_req_kaisou/powerup',
+          data: <Object?>[],
+          request: <String, Object?>{'api_id': '10', 'api_id_items': '11'},
+          result: 1,
+        ),
+        (
+          path: '/kcsapi/api_req_kaisou/powerup',
+          data: <String, Object?>{},
+          request: <String, Object?>{'api_id': '10', 'api_id_items': '11'},
+          result: 1,
+        ),
+        (
+          path: '/kcsapi/api_req_kaisou/powerup',
+          data: <String, Object?>{
+            'api_powerup_flag': 1,
+            'api_ship': _rosterShip(12),
+          },
+          request: <String, Object?>{'api_id': '10', 'api_id_items': '11'},
+          result: 1,
+        ),
+        (
+          path: '/kcsapi/api_req_kaisou/powerup',
+          data: <String, Object?>{
+            'api_powerup_flag': 1,
+            'api_ship': _rosterShip(10),
+          },
+          request: <String, Object?>{
+            'api_id': '10',
+            'api_id_items': '11,broken',
+          },
+          result: 1,
+        ),
+      ];
+      for (final (index, sample) in cases.indexed) {
+        await fixture.send(
+          sample.path,
+          sample.data,
+          request: sample.request,
+          apiResult: sample.result,
+        );
+        expect(fixture.totalExperience, {
+          10: 40,
+          11: 20,
+          12: 30,
+          13: 10,
+        }, reason: 'invalid case $index');
+        expect(store._saved[1], before, reason: 'invalid case $index');
+      }
+      fixture.controller.accept(
+        CapturedApiEvent(
+          path: '/kcsapi/api_req_kousyou/destroyship',
+          requestParams: {'api_ship_id': '11'},
+          responseBody: jsonEncode({
+            'api_result': 1,
+            'api_data': {
+              'api_material': [100, 200, 300, 400],
+            },
+          }),
+          source: CaptureSource.xhr,
+          capturedAt: DateTime.utc(2026, 7, 30, 9, 30),
+          statusCode: 503,
+          sequence: ++fixture.sequence,
+        ),
+      );
+      await fixture.controller.idle;
+      expect(fixture.totalExperience, {10: 40, 11: 20, 12: 30, 13: 10});
+    },
+  );
+
+  test(
+    'only a complete valid current-account port reconciles historical totals',
+    () async {
+      final fixture = _Fixture();
+      addTearDown(fixture.dispose);
+      await fixture.recordTotals();
+      final cases = <Object?>[
+        null,
+        {},
+        {
+          'api_basic': {'api_member_id': 1},
+        },
+        {
+          'api_basic': {'api_member_id': 2},
+          'api_ship': [_rosterShip(10)],
+        },
+        {
+          'api_ship': [_rosterShip(10)],
+        },
+        for (final rows in <Object?>[
+          null,
+          {},
+          [_rosterShip(10), null],
+          [_rosterShip(10), _rosterShip(10)],
+          [
+            _rosterShip(10),
+            {'api_id': 0},
+          ],
+          [
+            _rosterShip(10),
+            {'api_id': 11.5},
+          ],
+          [
+            _rosterShip(10),
+            {'api_id': 'invalid'},
+          ],
+          [
+            {'api_id': 10, 'api_ship_id': 'invalid'},
+          ],
+          [
+            {'api_id': 10, 'api_lv': -1},
+          ],
+          [
+            {'api_id': 10, 'api_exp': 'loading'},
+          ],
+          [
+            {
+              'api_id': 10,
+              'api_exp': [0, -1],
+            },
+          ],
+        ])
+          {
+            'api_basic': {'api_member_id': 1},
+            'api_ship': rows,
+          },
+      ];
+      for (final (index, data) in cases.indexed) {
+        await fixture.send('/kcsapi/api_port/port', data);
+        expect(fixture.totalExperience, {
+          10: 40,
+          11: 20,
+          12: 30,
+          13: 10,
+        }, reason: 'invalid roster $index');
+      }
+      for (final path in ['ship2', 'ship3', 'ship_deck']) {
+        await fixture.send(
+          '/kcsapi/api_get_member/$path',
+          path == 'ship2'
+              ? [_rosterShip(10)]
+              : {
+                  'api_ship_data': [_rosterShip(10)],
+                },
+        );
+        expect(fixture.totalExperience, {10: 40, 11: 20, 12: 30, 13: 10});
+      }
+      await fixture.fullPort([10, 13]);
+      expect(fixture.totalExperience, {10: 40, 13: 10});
+      expect(fixture.controller.totalSorties, 2);
+    },
+  );
+
+  test(
+    'relogin roster removes losses while tracking is off and persists an empty total',
+    () async {
+      final store = _MemoryStore();
+      final fixture = _Fixture(store: store);
+      addTearDown(fixture.dispose);
+      await fixture.recordTotals();
+      await fixture.controller.setTrackingEnabled(false);
+      await fixture.controller.setHiddenTotalShipIds({
+        10,
+        11,
+      }, expectedAccount: fixture.session.current);
+      final reopened = _Fixture(store: store);
+      addTearDown(reopened.dispose);
+      await reopened.controller.initialize();
+      await reopened.fullPort([11, 12]);
+      expect(reopened.totalExperience, {11: 20, 12: 30});
+      expect(reopened.controller.hiddenTotalShipIds, {11});
+      await reopened.fullPort([]);
+      expect(reopened.totalExperience, isEmpty);
+      expect(reopened.controller.totalExperience, 0);
+      expect(reopened.controller.totalExperiencePercentage(11), 0);
+      expect(reopened.controller.hiddenTotalShipIds, isEmpty);
+      expect(reopened.controller.totalSorties, 2);
+      final emptyReopen = _Fixture(store: store);
+      addTearDown(emptyReopen.dispose);
+      await emptyReopen.controller.initialize();
+      expect(emptyReopen.totalExperience, isEmpty);
+      expect(emptyReopen.controller.totalSorties, 2);
+      expect(emptyReopen.controller.storageUnavailable, isFalse);
+    },
+  );
+
+  test(
+    'loss also removes pending accumulation without editing sortie history',
+    () async {
+      final records = <LogbookExperienceRecord>[];
+      final fixture = _Fixture(
+        recordExperience: (_, record) async => records.add(record),
+      );
+      addTearDown(fixture.dispose);
+      await fixture.controller.setTrackingEnabled(true);
+      await fixture.start();
+      await fixture.result([-1, 40, 20]);
+      await fixture.port();
+      await fixture.start();
+      await fixture.result([-1, 90, 30]);
+      await fixture.send(
+        '/kcsapi/api_req_kousyou/destroyship',
+        {
+          'api_material': [100, 200, 300, 400],
+        },
+        request: {'api_ship_id': '11'},
+      );
+      expect(fixture.experience, [90, 30]);
+      await fixture.fullPort([10, 12, 13]);
+      expect(fixture.totalExperience, {10: 130});
+      expect(fixture.controller.totalSorties, 2);
+      expect(fixture.experience, [90, 30]);
+      expect(records, hasLength(2));
+      expect(records.last.ships.map((ship) => ship.ownedShipId), [10, 11]);
+      expect(records.last.ships.map((ship) => ship.experience), [90, 30]);
+    },
+  );
+
+  test(
+    'port reconciliation runs after booking pending gains and preserves the sortie count',
+    () async {
+      final fixture = _Fixture();
+      addTearDown(fixture.dispose);
+      await fixture.recordTotals();
+      await fixture.start();
+      await fixture.result([-1, 60, 40]);
+      await fixture.fullPort([10]);
+      expect(fixture.totalExperience, {10: 100});
+      expect(fixture.controller.totalSorties, 3);
+      expect(fixture.experience, [60, 40]);
+    },
+  );
+
+  test(
+    'losing every pending ship still counts its completed tracked sortie',
+    () async {
+      final store = _MemoryStore();
+      final fixture = _Fixture(store: store);
+      addTearDown(fixture.dispose);
+      await fixture.controller.setTrackingEnabled(true);
+      await fixture.start();
+      await fixture.result([-1, 40, 20]);
+      await fixture.send(
+        '/kcsapi/api_req_kousyou/destroyship',
+        {
+          'api_material': [100, 200, 300, 400],
+        },
+        request: {'api_ship_id': '10,11'},
+      );
+      await fixture.fullPort([]);
+      expect(fixture.totalExperience, isEmpty);
+      expect(fixture.controller.totalSorties, 1);
+      expect(fixture.experience, [40, 20]);
+      final reopened = _Fixture(store: store);
+      addTearDown(reopened.dispose);
+      await reopened.controller.initialize();
+      expect(reopened.controller.totalSorties, 1);
+      expect(reopened.totalExperience, isEmpty);
+    },
+  );
+
+  test('HTTP-failed port cannot settle or prune an active sortie', () async {
+    final fixture = _Fixture();
+    addTearDown(fixture.dispose);
+    await fixture.recordTotals();
+    await fixture.start();
+    await fixture.result([-1, 60, 40]);
+    fixture.controller.accept(
+      CapturedApiEvent(
+        path: '/kcsapi/api_port/port',
+        responseBody: jsonEncode({
+          'api_result': 1,
+          'api_data': {
+            'api_basic': {'api_member_id': 1},
+            'api_ship': [],
+          },
+        }),
+        source: CaptureSource.xhr,
+        capturedAt: DateTime.utc(2026, 7, 30, 9, 30),
+        statusCode: 503,
+        sequence: ++fixture.sequence,
+      ),
+    );
+    await fixture.controller.idle;
+    expect(fixture.totalExperience, {10: 40, 11: 20, 12: 30, 13: 10});
+    expect(fixture.controller.totalSorties, 2);
+    expect(fixture.controller.isActive, isTrue);
+    expect(fixture.experience, [60, 40]);
+    await fixture.fullPort([10, 12, 13]);
+    expect(fixture.totalExperience, {10: 100, 12: 30, 13: 10});
+    expect(fixture.controller.totalSorties, 3);
+  });
+
+  for (final practice in [false, true]) {
+    test(
+      'a late ${practice ? 'practice' : 'battle'} award cannot resurrect a lost instance',
+      () async {
+        final fixture = _Fixture();
+        addTearDown(fixture.dispose);
+        await fixture.recordTotals();
+        if (practice) {
+          await fixture.practiceStart();
+        } else {
+          await fixture.start();
+          await fixture.battle();
+        }
+        await fixture.send(
+          '/kcsapi/api_req_kousyou/destroyship',
+          {
+            'api_material': [100, 200, 300, 400],
+          },
+          request: {'api_ship_id': '11'},
+        );
+        if (practice) {
+          await fixture.practiceResult([-1, 90, 30]);
+        } else {
+          await fixture.result([-1, 90, 30], withBattle: false);
+          await fixture.fullPort([10, 12, 13]);
+        }
+        expect(fixture.totalExperience, {10: 130, 12: 30, 13: 10});
+        expect(fixture.controller.totalSorties, 3);
+        expect(fixture.experience, [90, 30]);
+      },
+    );
+  }
+
+  test('zero remaining experience produces finite zero percentages', () async {
+    final fixture = _Fixture();
+    addTearDown(fixture.dispose);
+    await fixture.controller.setTrackingEnabled(true);
+    await fixture.start();
+    await fixture.result([-1, 0, 0]);
+    await fixture.port();
+    await fixture.send(
+      '/kcsapi/api_req_kousyou/destroyship',
+      {
+        'api_material': [100, 200, 300, 400],
+      },
+      request: {'api_ship_id': '11'},
+    );
+    expect(fixture.totalExperience, {10: 0});
+    expect(fixture.controller.totalExperience, 0);
+    expect(fixture.controller.totalExperiencePercentage(10), 0);
+    expect(fixture.controller.totalExperiencePercentage(10).isFinite, isTrue);
+  });
+
+  test('queued losses and writes cannot cross account sessions', () async {
+    final store = _MemoryStore();
+    final fixture = _Fixture(store: store);
+    addTearDown(fixture.dispose);
+    await fixture.recordTotals();
+    fixture.controller.accept(
+      kcsapiEvent(
+        '/kcsapi/api_req_kousyou/destroyship',
+        {
+          'api_material': [100, 200, 300, 400],
+        },
+        requestParams: {'api_ship_id': '10,11'},
+        sequence: ++fixture.sequence,
+      ),
+    );
+    fixture.session.selectMember(2);
+    fixture.state = fixture.state.copyWith(memberId: 2);
+    await fixture.controller.initialize();
+    await fixture.recordTotals();
+    await fixture.send(
+      '/kcsapi/api_req_kousyou/destroyship',
+      {
+        'api_material': [100, 200, 300, 400],
+      },
+      request: {'api_ship_id': '11'},
+    );
+    expect(fixture.totalExperience, {10: 40, 12: 30, 13: 10});
+    fixture.session.selectMember(1);
+    fixture.state = fixture.state.copyWith(memberId: 1);
+    await fixture.controller.initialize();
+    expect(fixture.totalExperience, {10: 40, 11: 20, 12: 30, 13: 10});
+    fixture.session.reset();
+    await fixture.send(
+      '/kcsapi/api_req_kousyou/destroyship',
+      {
+        'api_material': [100, 200, 300, 400],
+      },
+      request: {'api_ship_id': '11'},
+    );
+    fixture.session.selectMember(1);
+    await fixture.controller.initialize();
+    expect(fixture.totalExperience, {10: 40, 11: 20, 12: 30, 13: 10});
+  });
+
+  test(
+    'a failed loss write retries the same reduced archive without subtracting twice',
+    () async {
+      final store = _MemoryStore();
+      final fixture = _Fixture(store: store);
+      addTearDown(fixture.dispose);
+      await fixture.recordTotals();
+      store.failNextWrite = true;
+      await fixture.send(
+        '/kcsapi/api_req_kousyou/destroyship',
+        {
+          'api_material': [100, 200, 300, 400],
+        },
+        request: {'api_ship_id': '11'},
+      );
+      expect(fixture.totalExperience, {10: 40, 12: 30, 13: 10});
+      expect(fixture.controller.storageUnavailable, isTrue);
+      await fixture.fullPort([10, 12, 13]);
+      expect(fixture.controller.storageUnavailable, isFalse);
+      final reopened = _Fixture(store: store);
+      addTearDown(reopened.dispose);
+      await reopened.controller.initialize();
+      expect(reopened.totalExperience, {10: 40, 12: 30, 13: 10});
+      expect(reopened.controller.totalSorties, 2);
+    },
+  );
 
   test(
     'total ship visibility persists separately from cumulative experience',
@@ -542,7 +1115,7 @@ void main() {
       expect(fixture.controller.sortie!.isPractice, isFalse);
       expect(fixture.controller.sortie!.mapAreaId, 5);
       await fixture.practiceStart();
-      await fixture.practiceResult([-1, 100, 40]);
+      await fixture.practiceResult([-1, 100, 40], mvp: 2);
 
       final reopened = _Fixture(store: store);
       addTearDown(reopened.dispose);
@@ -550,6 +1123,8 @@ void main() {
       expect(reopened.controller.isActive, isFalse);
       expect(reopened.controller.sortie!.isPractice, isTrue);
       expect(reopened.experience, [100, 40]);
+      expect(reopened.sortieMvp, [0, 1]);
+      expect(reopened.totalMvp, {10: 0, 11: 1});
       expect(reopened.controller.totalSorties, 1);
 
       reopened.session.selectMember(2);
@@ -557,11 +1132,13 @@ void main() {
       await reopened.controller.idle;
       expect(reopened.controller.sortie, isNull);
       expect(reopened.controller.totalSorties, 0);
+      expect(reopened.totalMvp, isEmpty);
       reopened.session.selectMember(1);
       reopened.state = reopened.state.copyWith(memberId: 1);
       await reopened.controller.idle;
       expect(reopened.controller.sortie!.isPractice, isTrue);
       expect(reopened.totalExperience, {10: 100, 11: 40});
+      expect(reopened.totalMvp, {10: 0, 11: 1});
     },
   );
 
@@ -863,16 +1440,18 @@ void main() {
       expect(fixture.controller.isActive, isTrue);
       expect(fixture.experience, [0, 0]);
 
-      await fixture.result([-1, 100, 50, -1, -1, -1, -1]);
-      await fixture.result([-1, 100, 50, -1, -1, -1, -1]);
+      await fixture.result([-1, 100, 50, -1, -1, -1, -1], mvp: 1);
+      await fixture.result([-1, 100, 50, -1, -1, -1, -1], mvp: 1);
       expect(fixture.experience, [100, 50]);
+      expect(fixture.sortieMvp, [1, 0]);
       expect(fixture.controller.sortie!.battles, 1);
 
       await fixture.controller.setTrackingEnabled(true);
       await fixture.next(2);
-      await fixture.result([-1, 100, 50, -1, -1, -1, -1]);
+      await fixture.result([-1, 100, 50, -1, -1, -1, -1], mvp: 2);
       await fixture.controller.setTrackingEnabled(false);
       expect(fixture.experience, [200, 100]);
+      expect(fixture.sortieMvp, [1, 1]);
       expect(fixture.controller.totalSorties, 0);
       expect(fixture.controller.totals, isEmpty);
 
@@ -884,6 +1463,7 @@ void main() {
       expect(fixture.experience, [200, 100]);
       expect(fixture.controller.totalSorties, 1);
       expect(fixture.totalExperience, {10: 100, 11: 50});
+      expect(fixture.totalMvp, {10: 0, 11: 1});
       expect(fixture.controller.totals.map((ship) => ship.name), ['夕張', '夕張']);
       expect(fixture.controller.sortie!.incomplete, isFalse);
     },
@@ -896,7 +1476,13 @@ void main() {
       combinedFleetType: CombinedFleetType.surfaceTaskForce,
     );
     await fixture.start();
-    await fixture.result([-1, 111, 222], escort: [-1, 333, 444]);
+    await fixture.result(
+      [-1, 111, 222],
+      escort: [-1, 333, 444],
+      mvp: 1,
+      escortMvp: 2,
+    );
+    expect(fixture.sortieMvp, [1, 0, 0, 1]);
     fixture.state = fixture.state.copyWith(
       combatState: const CombatState(
         isActive: true,
@@ -916,8 +1502,14 @@ void main() {
       [10, 12],
     );
     await fixture.next(2);
-    await fixture.result([-1, -1, 20], escort: [-1, 0, 40]);
+    await fixture.result(
+      [-1, -1, 20],
+      escort: [-1, 0, 40],
+      mvp: 2,
+      escortMvp: 1,
+    );
     expect(fixture.experience, [111, 242, 333, 484]);
+    expect(fixture.sortieMvp, [1, 1, 0, 1]);
     expect(fixture.controller.sortie!.incomplete, isFalse);
   });
 
@@ -937,11 +1529,13 @@ void main() {
         ],
       );
       await fixture.start(deckId: 3);
-      await fixture.result([-1, 10, 20, 30, 40, 50, 60, 70]);
+      await fixture.result([-1, 10, 20, 30, 40, 50, 60, 70], mvp: 7);
       expect(fixture.experience, [10, 20, 30, 40, 50, 60, 70]);
+      expect(fixture.sortieMvp, [0, 0, 0, 0, 0, 0, 1]);
       await fixture.next(2);
-      await fixture.result([999, 20, 30, 40, 50, 60, 70]);
+      await fixture.result([999, 20, 30, 40, 50, 60, 70], mvp: 8);
       expect(fixture.experience, [10, 20, 30, 40, 50, 60, 70]);
+      expect(fixture.sortieMvp, [0, 0, 0, 0, 0, 0, 1]);
       expect(fixture.controller.sortie!.incomplete, isTrue);
     },
   );
@@ -953,14 +1547,54 @@ void main() {
       addTearDown(fixture.dispose);
       await fixture.controller.setTrackingEnabled(true);
       await fixture.start();
-      await fixture.result([-1, 100, 200]);
+      await fixture.result([-1, 100, 200], mvp: 1);
       await fixture.controller.clearTotal();
       expect(fixture.experience, [100, 200]);
+      expect(fixture.sortieMvp, [1, 0]);
       await fixture.next(2);
-      await fixture.result([-1, 30, 40]);
+      await fixture.result([-1, 30, 40], mvp: 2);
       await fixture.port();
       expect(fixture.controller.totalSorties, 1);
       expect(fixture.totalExperience, {10: 30, 11: 40});
+      expect(fixture.sortieMvp, [1, 1]);
+      expect(fixture.totalMvp, {10: 0, 11: 1});
+    },
+  );
+
+  test(
+    'legacy MVP is unknown, then only confirmed results contribute counts',
+    () async {
+      final store = _MemoryStore();
+      final legacy = _Fixture(store: store);
+      addTearDown(legacy.dispose);
+      await legacy.controller.setTrackingEnabled(true);
+      await legacy.start();
+      await legacy.result([-1, 80, 40]);
+      await legacy.port();
+
+      final fixture = _Fixture(store: store);
+      addTearDown(fixture.dispose);
+      await fixture.controller.initialize();
+      expect(fixture.experience, [80, 40]);
+      expect(fixture.sortieMvp, [null, null]);
+      expect(fixture.totalMvp, {10: null, 11: null});
+
+      await fixture.start();
+      await fixture.result([-1, 25, 10], mvp: 3);
+      expect(fixture.sortieMvp, [null, null]);
+      await fixture.next(2);
+      await fixture.result([-1, 100], mvp: 2);
+      expect(fixture.experience, [25, 10]);
+      expect(fixture.sortieMvp, [0, 1]);
+      await fixture.port();
+      expect(fixture.totalExperience, {10: 105, 11: 50});
+      expect(fixture.totalMvp, {10: 0, 11: 1});
+
+      await fixture.controller.setTrackingEnabled(false);
+      await fixture.practiceStart();
+      await fixture.practiceResult([-1, 50, 100], mvp: 1);
+      expect(fixture.sortieMvp, [1, 0]);
+      expect(fixture.totalMvp, {10: 0, 11: 1});
     },
   );
 
@@ -1182,6 +1816,13 @@ void main() {
   );
 }
 
+Map<String, Object?> _rosterShip(int id) => {
+  'api_id': id,
+  'api_ship_id': 101,
+  'api_lv': 1,
+  'api_exp': [0, 100],
+};
+
 class _MemoryStore implements SortieExperienceStore {
   final _saved = <int, String>{};
   bool failNextWrite = false;
@@ -1235,6 +1876,12 @@ class _Fixture {
   Map<int, int> get totalExperience => {
     for (final ship in controller.totals) ship.ownedShipId: ship.experience,
   };
+  List<int?> get sortieMvp => [
+    for (final ship in controller.sortie!.ships) ship.mvpCount,
+  ];
+  Map<int, int?> get totalMvp => {
+    for (final ship in controller.totals) ship.ownedShipId: ship.mvpCount,
+  };
 
   Future<void> start({int deckId = 1}) => send(
     '/kcsapi/api_req_map/start',
@@ -1244,9 +1891,9 @@ class _Fixture {
   Future<void> next(int node) => send('/kcsapi/api_req_map/next', _map(node));
   Future<void> practiceStart({int deckId = 1}) =>
       send('/kcsapi/api_req_practice/battle', {'api_deck_id': deckId});
-  Future<void> practiceResult(List<int> experience) => send(
+  Future<void> practiceResult(List<int> experience, {int? mvp}) => send(
     '/kcsapi/api_req_practice/battle_result',
-    {'api_get_ship_exp': experience},
+    {'api_get_ship_exp': experience, 'api_mvp': ?mvp},
   );
   Map<String, int> _map(int node) => {
     'api_maparea_id': 5,
@@ -1265,6 +1912,8 @@ class _Fixture {
     List<int>? escort,
     List<List<int>>? mainProgress,
     List<List<int>>? escortProgress,
+    int? mvp,
+    int? escortMvp,
     bool withBattle = true,
   }) async {
     if (withBattle) await battle(combined: escort != null);
@@ -1277,6 +1926,8 @@ class _Fixture {
         'api_get_ship_exp_combined': ?escort,
         'api_get_exp_lvup': ?mainProgress,
         'api_get_exp_lvup_combined': ?escortProgress,
+        'api_mvp': ?mvp,
+        'api_mvp_combined': ?escortMvp,
       },
     );
   }
@@ -1284,6 +1935,22 @@ class _Fixture {
   Future<void> port() => send('/kcsapi/api_port/port', {
     'api_basic': {'api_member_id': session.current.memberId},
   });
+
+  Future<void> fullPort(List<int> ids) => send('/kcsapi/api_port/port', {
+    'api_basic': {'api_member_id': session.current.memberId},
+    'api_ship': [for (final id in ids) _rosterShip(id)],
+  });
+
+  Future<void> recordTotals() async {
+    await controller.setTrackingEnabled(true);
+    await start();
+    await result([-1, 40, 20], mvp: 2);
+    await port();
+    await start(deckId: 2);
+    await result([-1, 30, 10], mvp: 1);
+    await port();
+  }
+
   Future<void> send(
     String path,
     Object? data, {

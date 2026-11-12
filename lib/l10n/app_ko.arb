@@ -319,6 +319,7 @@
   "officialWebsite": "공식 사이트",
   "checkForUpdates": "업데이트 확인",
   "openSourceLicense": "오픈 소스 라이선스: MIT License",
+  "harmonyOsSansNotice": "이 앱은 HarmonyOS Sans 글꼴을 사용합니다. © 2021 Huawei Device Co., Ltd.",
   "newVersionFound": "🚀 새 버전이 있습니다!",
   "currentVersionLabel": "현재 버전",
   "latestVersionLabel": "최신 버전",
@@ -1777,12 +1778,27 @@
   "menuPositionRight": "오른쪽",
   "topNoticeSectionTitle": "상단 메시지 알림",
   "topNoticeEnabledTitle": "상단 알림",
-  "topNoticeEnabledSubtitle": "상단의 「ヤハギ」 오른쪽에 개발, 개수, 출격/원정 점검 및 임무 완료 알림을 표시합니다",
+  "topNoticeEnabledSubtitle": "「ヤハギ」 오른쪽에 게임 알림을 표시합니다",
   "topNoticeDurationTitle": "알림 표시 시간",
   "topNoticeDurationSubtitle": "알림 팝업이 표시된 후 조작하지 않으면 자동으로 닫히기까지의 시간",
   "topNoticeDuration5s": "5초 (기본값)",
   "topNoticeDuration10s": "10초",
   "topNoticeDuration15s": "15초",
+  "topNoticeGroupFleet": "출격 및 원정",
+  "topNoticeGroupOperation": "작업 결과",
+  "topNoticeGroupOther": "기타 알림",
+  "topNoticeKindSortieHeavyDamage": "출격 대파 알림",
+  "topNoticeKindSortieSupply": "출격 보급 알림",
+  "topNoticeKindExpeditionHeavyDamage": "원정 대파 알림",
+  "topNoticeKindExpeditionSupply": "원정 보급 알림",
+  "topNoticeKindExpeditionSuccess": "원정 성공 조건 확인",
+  "topNoticeKindSortieCapacity": "출격 전 보유 한도 알림",
+  "topNoticeKindEquipmentDevelopment": "장비 개발",
+  "topNoticeKindEquipmentImprovement": "장비 개수",
+  "topNoticeKindModernization": "근대화개수",
+  "topNoticeKindMarriage": "결혼",
+  "topNoticeKindPracticeExperience": "연습전 경험치",
+  "topNoticeKindQuestCompletion": "임무 달성",
   "questCompletionSingleNotice": "임무 달성: {title}",
   "@questCompletionSingleNotice": {
     "placeholders": {
@@ -1940,6 +1956,41 @@
   "noticeSortieReasonFatigue": "칸무스 피로 (노란 얼굴 / 빨간 얼굴)",
   "noticeSortieReasonMainSlot": "일반 장비 슬롯 미장착",
   "noticeSortieReasonExpansionSlot": "보강증설 슬롯 미사용",
+  "noticeSortieHeavyDamage": "출격 알림: 제 {fleets} 함대에 대파 함선이 있습니다",
+  "@noticeSortieHeavyDamage": {
+    "placeholders": {
+      "fleets": {
+        "type": "String"
+      }
+    }
+  },
+  "noticeSortieSupplyWarning": "출격 알림: 제 {fleets} 함대가 미보급 상태입니다",
+  "@noticeSortieSupplyWarning": {
+    "placeholders": {
+      "fleets": {
+        "type": "String"
+      }
+    }
+  },
+  "noticeExpeditionHeavyDamage": "원정 알림: 제 {fleets} 함대에 대파 함선이 있습니다",
+  "@noticeExpeditionHeavyDamage": {
+    "placeholders": {
+      "fleets": {
+        "type": "String"
+      }
+    }
+  },
+  "noticeExpeditionPossibleFailure": "제 {fleet} 함대의 {expedition}번 원정이 실패할 수 있습니다",
+  "@noticeExpeditionPossibleFailure": {
+    "placeholders": {
+      "fleet": {
+        "type": "int"
+      },
+      "expedition": {
+        "type": "String"
+      }
+    }
+  },
   "noticeExpeditionSupplyWarning": "원정 알림: 제 {fleets} 함대가 미보급 상태입니다",
   "@noticeExpeditionSupplyWarning": {
     "placeholders": {

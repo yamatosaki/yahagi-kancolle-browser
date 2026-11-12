@@ -13,6 +13,7 @@ import '../game_state/game_api_event_pipeline.dart';
 import '../game_state/game_state.dart';
 import '../logbook/logbook_experience_record.dart';
 import '../toolbox/exp_calc/ship_exp_table.dart';
+import 'sortie_resource_ledger.dart';
 
 final class SortieExperienceShip {
   const SortieExperienceShip({
@@ -22,6 +23,7 @@ final class SortieExperienceShip {
     required this.fleetId,
     required this.position,
     this.experience = 0,
+    this.mvpCount,
     this.retreated = false,
   });
 
@@ -31,18 +33,23 @@ final class SortieExperienceShip {
   final int fleetId;
   final int position;
   final int experience;
+  final int? mvpCount;
   final bool retreated;
 
-  SortieExperienceShip _with({int? experience, bool? retreated}) =>
-      SortieExperienceShip(
-        ownedShipId: ownedShipId,
-        masterShipId: masterShipId,
-        name: name,
-        fleetId: fleetId,
-        position: position,
-        experience: experience ?? this.experience,
-        retreated: retreated ?? this.retreated,
-      );
+  SortieExperienceShip _with({
+    int? experience,
+    required int? mvpCount,
+    bool? retreated,
+  }) => SortieExperienceShip(
+    ownedShipId: ownedShipId,
+    masterShipId: masterShipId,
+    name: name,
+    fleetId: fleetId,
+    position: position,
+    experience: experience ?? this.experience,
+    mvpCount: mvpCount,
+    retreated: retreated ?? this.retreated,
+  );
 
   Map<String, Object?> _toJson() => {
     'ownedShipId': ownedShipId,
@@ -51,6 +58,7 @@ final class SortieExperienceShip {
     'fleetId': fleetId,
     'position': position,
     'experience': experience,
+    if (mvpCount != null) 'mvpCount': mvpCount,
     'retreated': retreated,
   };
 
@@ -66,6 +74,7 @@ final class SortieExperienceShip {
       fleetId: _storedInt(json['fleetId'], min: 1),
       position: _storedInt(json['position']),
       experience: _storedInt(json['experience']),
+      mvpCount: json['mvpCount'] == null ? null : _storedInt(json['mvpCount']),
       retreated: json['retreated'] as bool,
     );
   }
@@ -188,6 +197,8 @@ final class SortieExperienceController extends ChangeNotifier
       'sortieExperience.hiddenTotalShipIds.v1';
   static const _nextPath = '/kcsapi/api_req_map/next';
   static const _portPath = '/kcsapi/api_port/port';
+  static const _destroyShipPath = '/kcsapi/api_req_kousyou/destroyship';
+  static const _powerupPath = '/kcsapi/api_req_kaisou/powerup';
   static const _shipRosterPaths = {
     '/kcsapi/api_get_member/ship2',
     '/kcsapi/api_get_member/ship3',
@@ -217,6 +228,7 @@ final class SortieExperienceController extends ChangeNotifier
   final _queuedLogFlushes = <AccountScope>{};
   final _logQueues = <int, Future<void>>{};
   final _totalShipVisibilityQueues = <int, Future<void>>{};
+  final _lostShipIds = <int>{};
   final _projectedProgress =
       <int, ({_ShipProgress baseline, _ShipProgress current})>{};
   Map<int, OwnedShip>? _observedShips;
@@ -225,6 +237,7 @@ final class SortieExperienceController extends ChangeNotifier
   AccountScope? _scope;
   DateTime? _latestCaptureAt;
   _Archive _archive = const _Archive();
+  SortieResourceLedger _resourceLedger = SortieResourceLedger();
   Set<int> _hiddenTotalShipIds = const {};
   _ActiveSortie? _active;
   _PracticeBattle? _practice;
@@ -241,6 +254,33 @@ final class SortieExperienceController extends ChangeNotifier
   AccountScope get accountScope => _accountSession.current;
   int get memberId => _scope?.memberId ?? 0;
   int get totalSorties => _archive.totalSorties;
+  int get totalExperience =>
+      _archive.totals.values.fold(0, (sum, ship) => sum + ship.experience);
+
+  SortieShipResourceSpending? resourceSpendingFor(int ownedShipId) =>
+      _archive.totals.containsKey(ownedShipId)
+      ? _resourceLedger.spendingFor(ownedShipId)
+      : null;
+
+  bool get hasResourceSpendingData => _resourceLedger.hasData;
+  bool get resourceSpendingIncomplete => _resourceLedger.incomplete;
+  SortieResourceAmounts get unallocatedResourceSpending =>
+      _resourceLedger.unallocated;
+  SortieResourceAmounts get totalResourceSpending {
+    var result = const SortieResourceAmounts();
+    for (final id in _archive.totals.keys) {
+      final spending = _resourceLedger.spendingFor(id);
+      if (spending != null) result = result + spending.total;
+    }
+    return result;
+  }
+
+  double totalExperiencePercentage(int ownedShipId) {
+    final total = totalExperience;
+    return total == 0
+        ? 0
+        : (_archive.totals[ownedShipId]?.experience ?? 0) / total * 100;
+  }
 
   ({int? level, int? nextExperience}) progressFor(int ownedShipId) {
     final progress = _progressFor(_gameState(), ownedShipId);
@@ -298,13 +338,14 @@ final class SortieExperienceController extends ChangeNotifier
     Set<int> hiddenIds, {
     required AccountScope expectedAccount,
   }) {
-    if (!_isCurrent(expectedAccount) || !_isTotalShipVisibilityReady) {
+    if (!_isCurrent(expectedAccount) ||
+        !_loadedArchive ||
+        !_isTotalShipVisibilityReady) {
       return Future<void>.value();
     }
     final hidden = {
       for (final id in hiddenIds)
-        if (_hiddenTotalShipIds.contains(id) || _archive.totals.containsKey(id))
-          id,
+        if (_archive.totals.containsKey(id)) id,
     };
     if (setEquals(hidden, _hiddenTotalShipIds)) {
       return Future<void>.value();
@@ -329,6 +370,7 @@ final class SortieExperienceController extends ChangeNotifier
     return _enqueue(() async {
       if (!_isCurrent(scope) || !_loadedArchive) return;
       if (_archive.tracking != value) {
+        if (!value) _resourceLedger.abandonSortie();
         _archive = _archive._with(tracking: value);
         notifyListeners();
       }
@@ -341,6 +383,9 @@ final class SortieExperienceController extends ChangeNotifier
     return _enqueue(() async {
       if (!_isCurrent(scope) || !_loadedArchive) return;
       _active?.pending.clear();
+      _active?.pendingMvp.clear();
+      _active?.hadTrackedResult = false;
+      _resourceLedger.clear();
       _archive = _archive._with(totalSorties: 0, totals: const {});
       notifyListeners();
       await _persist(scope);
@@ -352,8 +397,13 @@ final class SortieExperienceController extends ChangeNotifier
     while (true) {
       final pending = _queue;
       await pending;
-      await Future.wait(_logQueues.values);
-      if (identical(pending, _queue) && _logQueues.isEmpty) {
+      await Future.wait([
+        ..._logQueues.values,
+        ..._totalShipVisibilityQueues.values,
+      ]);
+      if (identical(pending, _queue) &&
+          _logQueues.isEmpty &&
+          _totalShipVisibilityQueues.isEmpty) {
         return;
       }
     }
@@ -366,8 +416,11 @@ final class SortieExperienceController extends ChangeNotifier
       _isSortiePhase(path) ||
       GameCapturePathCatalog.battleRetreat.contains(path) ||
       path == _portPath ||
+      path == _destroyShipPath ||
+      path == _powerupPath ||
       _shipRosterPaths.contains(path) ||
-      _practicePaths.contains(path);
+      _practicePaths.contains(path) ||
+      SortieResourceLedger.supportsPath(path);
 
   static bool _isSortiePhase(String path) =>
       !path.startsWith('/kcsapi/api_req_practice/') &&
@@ -399,18 +452,100 @@ final class SortieExperienceController extends ChangeNotifier
         }
         _latestCaptureAt = event.capturedAt;
         final data = _map(payload);
+        final canRecordResources =
+            _loadedArchive && gameState.memberId == scope.memberId;
+        var resourcesChanged = false;
+        if (canRecordResources &&
+            event.path != _portPath &&
+            SortieResourceLedger.supportsPath(event.path) &&
+            _successfulResponse(event)) {
+          resourcesChanged = _resourceLedger.record(
+            event,
+            payload,
+            gameState,
+            tracking: _archive.tracking,
+          );
+        }
 
         switch (event.path) {
           case _startPath:
+            _practice = null;
+            final previous = _active;
+            _move(event, data ?? const {}, gameState, scope);
+            if (!identical(previous, _active)) {
+              _resourceLedger.abandonSortie();
+              if (canRecordResources &&
+                  _successfulResponse(event) &&
+                  _active != null) {
+                _resourceLedger.beginSortie(
+                  gameState,
+                  _active!.ships.map((ship) => ship.ownedShipId),
+                  tracking: _archive.tracking,
+                );
+              }
+            }
           case _nextPath:
             _practice = null;
+            final previous = _active;
             _move(event, data ?? const {}, gameState, scope);
+            if (canRecordResources &&
+                _successfulResponse(event) &&
+                data?['api_offshore_supply'] is Map) {
+              resourcesChanged =
+                  _resourceLedger.observeOffshoreSupply(
+                    (previous ?? _active)?.ships.map(
+                          (ship) => ship.ownedShipId,
+                        ) ??
+                        const [],
+                    tracking: _archive.tracking,
+                  ) ||
+                  resourcesChanged;
+            } else if (!identical(previous, _active) ||
+                _active?.waitingForNavigation == true) {
+              _resourceLedger.abandonSortie();
+            }
           case _portPath:
             final basic = _map(data?['api_basic']);
-            if (_wireInt(basic?['api_member_id']) == scope.memberId) {
+            if (_wireInt(basic?['api_member_id']) == scope.memberId &&
+                _successfulResponse(event)) {
               _reconcileProgress(data?['api_ship']);
               _discardPractice();
-              await _returnToPort(scope, event);
+              if (_loadedArchive) {
+                final changed = _resourceLedger.returnToPort(
+                  data?['api_ship'],
+                  tracking: _archive.tracking,
+                );
+                resourcesChanged =
+                    _resourceLedger.record(
+                      event,
+                      payload,
+                      gameState,
+                      tracking: _archive.tracking,
+                    ) ||
+                    changed;
+              }
+              await _returnToPort(
+                scope,
+                event,
+                ownedShipIds: _completeRosterIds(data?['api_ship']),
+                resourcesChanged: resourcesChanged,
+              );
+              resourcesChanged = false;
+            }
+          case _destroyShipPath:
+          case _powerupPath:
+            if (!_loadedArchive ||
+                gameState.memberId != scope.memberId ||
+                !_successfulResponse(event)) {
+              return;
+            }
+            final lostIds = _consumedShipIds(event, data);
+            if (lostIds != null) {
+              final changed = _forgetTotalShips(lostIds);
+              if (changed || _unsaved.containsKey(scope.memberId)) {
+                await _persist(scope);
+              }
+              await _pruneTotalShipVisibility(scope);
             }
           case final path when _shipRosterPaths.contains(path):
             _reconcileProgress(
@@ -431,12 +566,15 @@ final class SortieExperienceController extends ChangeNotifier
           case '/kcsapi/api_req_combined_battle/goback_port':
             _retreat(gameState, scope);
           default:
-            if (data == null) return;
-            if (_resultPaths.contains(event.path)) {
+            if (data != null && _resultPaths.contains(event.path)) {
               _settle(data, gameState);
-            } else {
+            } else if (data != null && _isSortiePhase(event.path)) {
               _observeBattle(event, data, gameState, scope);
             }
+        }
+        if (resourcesChanged) {
+          notifyListeners();
+          await _persist(scope);
         }
         _scheduleLogFlush(scope);
       }),
@@ -451,9 +589,14 @@ final class SortieExperienceController extends ChangeNotifier
     if (_disposed) return;
     _captureGeneration++;
     _discardPractice();
-    if (_active case final active?) {
-      active.loseNavigation();
+    final resourceChanged = _resourceLedger.interrupt();
+    _active?.loseNavigation();
+    if (_active != null || resourceChanged) {
       notifyListeners();
+    }
+    if (resourceChanged) {
+      final scope = accountScope;
+      unawaited(_enqueue(() => _persist(scope)));
     }
   }
 
@@ -467,6 +610,27 @@ final class SortieExperienceController extends ChangeNotifier
 
   bool _isCurrent(AccountScope scope) =>
       !_disposed && scope.isKnown && _accountSession.isCurrent(scope);
+
+  bool _forgetTotalShips(Set<int> ids) {
+    _lostShipIds.addAll(ids);
+    _active?.pending.removeWhere((id, _) => ids.contains(id));
+    _active?.pendingMvp.removeWhere((id, _) => ids.contains(id));
+    _projectedProgress.removeWhere((id, _) => ids.contains(id));
+    final resourceChanged = _resourceLedger.forgetShips(ids);
+    final totals = Map<int, SortieExperienceShip>.of(_archive.totals)
+      ..removeWhere((id, _) => ids.contains(id));
+    final totalsChanged = totals.length != _archive.totals.length;
+    if (totalsChanged) _archive = _archive._with(totals: totals);
+    if (totalsChanged || resourceChanged) notifyListeners();
+    return totalsChanged || resourceChanged;
+  }
+
+  Future<void> _pruneTotalShipVisibility(AccountScope scope) async {
+    if (!_isCurrent(scope)) return;
+    await _totalShipVisibilityLoad;
+    if (!_isCurrent(scope) || !_loadedArchive) return;
+    await setHiddenTotalShipIds(_hiddenTotalShipIds, expectedAccount: scope);
+  }
 
   // Display preferences never hold up capture and are ordered only within
   // their owning account, including reads after a rapid switch back.
@@ -510,6 +674,12 @@ final class SortieExperienceController extends ChangeNotifier
     if (!_isCurrent(scope)) return;
     _hiddenTotalShipIds = Set.unmodifiable(hidden);
     _isTotalShipVisibilityReady = true;
+    if (_loadedArchive) {
+      // Queue behind this load without waiting on its own visibility queue.
+      unawaited(
+        setHiddenTotalShipIds(_hiddenTotalShipIds, expectedAccount: scope),
+      );
+    }
     notifyListeners();
   }
 
@@ -522,8 +692,10 @@ final class SortieExperienceController extends ChangeNotifier
     _active = null;
     _practice = null;
     _projectedProgress.clear();
+    _lostShipIds.clear();
     _observedShips = null;
     _archive = const _Archive();
+    _resourceLedger = SortieResourceLedger();
     _hiddenTotalShipIds = const {};
     _isTotalShipVisibilityReady = false;
     _totalShipVisibilityLoad = scope.isKnown
@@ -555,11 +727,19 @@ final class SortieExperienceController extends ChangeNotifier
       if (raw != null) {
         final decoded = _Archive.decode(raw, scope.memberId);
         _archive = decoded.archive;
+        _resourceLedger = decoded.resourceLedger;
         for (final record in decoded.pendingLogRecords) {
           _queueLogRecord(scope, record);
         }
       }
       _loadedArchive = true;
+      if (_isTotalShipVisibilityReady) {
+        await setHiddenTotalShipIds(
+          _hiddenTotalShipIds,
+          expectedAccount: scope,
+        );
+        if (!_isCurrent(scope)) return;
+      }
       if (unsaved != null) await _persist(scope);
     } catch (error) {
       if (!_isCurrent(scope)) return;
@@ -572,10 +752,11 @@ final class SortieExperienceController extends ChangeNotifier
   }
 
   Future<void> _persist(AccountScope scope) async {
-    if (!_loadedArchive) return;
+    if (!_isCurrent(scope) || !_loadedArchive) return;
     final raw = _archive.encode(
       scope.memberId,
       _pendingLogRecords[scope.memberId]?.values ?? const [],
+      _resourceLedger,
     );
     _unsaved[scope.memberId] = raw;
     var failed = false;
@@ -899,6 +1080,7 @@ final class SortieExperienceController extends ChangeNotifier
     // A confirmed exercise supersedes a map sortie whose port was missed.
     // It must never book the unfinished map's pending total.
     _active = null;
+    _resourceLedger.abandonSortie();
     _practice = _PracticeBattle(
       eventKey: _experienceEventKey('practice', event),
       deckId: deckId,
@@ -928,13 +1110,20 @@ final class SortieExperienceController extends ChangeNotifier
       return;
     }
     final levelUps = data['api_get_exp_lvup'];
-    final rewards = _decodeRewards(
+    final rewards =
+        _decodeRewards(
+          practice.ships,
+          practice.deckId,
+          data['api_get_ship_exp'],
+          levelUps,
+        ) ??
+        const <int, int>{};
+    final mvpCounts = _decodeMvp(
       practice.ships,
       practice.deckId,
-      data['api_get_ship_exp'],
-      levelUps,
+      data['api_mvp'],
     );
-    if (rewards == null || rewards.isEmpty) {
+    if (rewards.isEmpty && mvpCounts.isEmpty) {
       _discardPractice();
       return;
     }
@@ -948,8 +1137,9 @@ final class SortieExperienceController extends ChangeNotifier
     _practice = null;
     await _completeSortie(
       scope,
-      practice.snapshot(rewards),
+      practice.snapshot(rewards, mvpCounts),
       _archive.tracking ? rewards : const {},
+      trackedMvp: _archive.tracking ? mvpCounts : const {},
       eventKey: practice.eventKey,
       completedAt: event.capturedAt,
     );
@@ -1007,20 +1197,30 @@ final class SortieExperienceController extends ChangeNotifier
     )) {
       active.incomplete = true;
     }
+    final mvpCounts = {
+      ..._decodeMvp(active.ships, active.deckId, data['api_mvp']),
+      if (active.combined)
+        ..._decodeMvp(active.ships, 2, data['api_mvp_combined']),
+    };
     active.recordedShipIds.addAll(rewards.keys);
     for (var index = 0; index < active.ships.length; index++) {
       final ship = active.ships[index];
-      if (rewards[ship.ownedShipId] case final experience?) {
-        active.ships[index] = ship._with(
-          experience: ship.experience + experience,
-        );
-        if (_archive.tracking) {
-          active.pending.update(
-            ship.ownedShipId,
-            (previous) => previous + experience,
-            ifAbsent: () => experience,
-          );
-        }
+      final id = ship.ownedShipId;
+      final experience = rewards[id];
+      final mvp = mvpCounts[id];
+      if (experience == null && mvp == null) continue;
+      active.ships[index] = ship._with(
+        experience: ship.experience + (experience ?? 0),
+        mvpCount: _addMvp(ship.mvpCount, mvp),
+      );
+      if (!_archive.tracking) continue;
+      active.hadTrackedResult = true;
+      if (_lostShipIds.contains(id)) continue;
+      if (experience != null) {
+        active.pending[id] = (active.pending[id] ?? 0) + experience;
+      }
+      if (mvp != null) {
+        active.pendingMvp[id] = (active.pendingMvp[id] ?? 0) + mvp;
       }
     }
     notifyListeners();
@@ -1077,29 +1277,58 @@ final class SortieExperienceController extends ChangeNotifier
     if (changed) notifyListeners();
   }
 
-  Future<void> _returnToPort(AccountScope scope, CapturedApiEvent event) async {
+  Future<void> _returnToPort(
+    AccountScope scope,
+    CapturedApiEvent event, {
+    Set<int>? ownedShipIds,
+    bool resourcesChanged = false,
+  }) async {
     final active = _active;
-    if (active == null) {
-      if (_unsaved.containsKey(scope.memberId)) await _persist(scope);
-      return;
+    var pruned = false;
+    if (_loadedArchive && ownedShipIds != null) {
+      _lostShipIds.removeAll(ownedShipIds);
+      final missing = {
+        ..._archive.totals.keys,
+        ..._hiddenTotalShipIds,
+        ..._resourceLedger.shipIds,
+        if (active != null)
+          for (final ship in active.ships) ship.ownedShipId,
+      }.difference(ownedShipIds);
+      // Preserve the historical lineup and count, and remove pending awards
+      // before completing this sortie so missing instances cannot return.
+      pruned = _forgetTotalShips(missing);
     }
-    _active = null;
-    active.markUnsettledBattle();
-    await _completeSortie(
-      scope,
-      active.snapshot,
-      active.pending,
-      eventKey: active.eventKey,
-      completedAt: event.capturedAt,
-    );
+    if (active == null) {
+      if (resourcesChanged && !pruned) notifyListeners();
+      if (pruned || resourcesChanged || _unsaved.containsKey(scope.memberId)) {
+        await _persist(scope);
+      }
+    } else {
+      _active = null;
+      active.markUnsettledBattle();
+      await _completeSortie(
+        scope,
+        active.snapshot,
+        active.pending,
+        trackedMvp: active.pendingMvp,
+        eventKey: active.eventKey,
+        completedAt: event.capturedAt,
+        countTrackedSortie: active.hadTrackedResult,
+      );
+    }
+    if (ownedShipIds != null) {
+      await _pruneTotalShipVisibility(scope);
+    }
   }
 
   Future<void> _completeSortie(
     AccountScope scope,
     SortieExperienceSnapshot snapshot,
     Map<int, int> trackedExperience, {
+    required Map<int, int> trackedMvp,
     required String eventKey,
     required DateTime completedAt,
+    bool? countTrackedSortie,
   }) async {
     if (_recordExperience != null &&
         snapshot.battles > 0 &&
@@ -1124,18 +1353,30 @@ final class SortieExperienceController extends ChangeNotifier
     }
     final totals = Map<int, SortieExperienceShip>.of(_archive.totals);
     for (final ship in snapshot.ships) {
-      if (trackedExperience[ship.ownedShipId] case final experience?) {
-        final previous = totals[ship.ownedShipId]?.experience ?? 0;
-        totals[ship.ownedShipId] = ship._with(
-          experience: _boundedTotal(previous + experience),
-          retreated: false,
-        );
+      final id = ship.ownedShipId;
+      final experience = trackedExperience[id];
+      final mvp = trackedMvp[id];
+      if ((experience == null && mvp == null) || _lostShipIds.contains(id)) {
+        continue;
       }
+      final previous = totals[id];
+      totals[id] = ship._with(
+        experience: _boundedTotal(
+          (previous?.experience ?? 0) + (experience ?? 0),
+        ),
+        mvpCount: _addMvp(previous?.mvpCount, mvp),
+        retreated: false,
+      );
     }
     _archive = _archive._with(
       last: snapshot,
       totals: totals,
-      totalSorties: _archive.totalSorties + (trackedExperience.isEmpty ? 0 : 1),
+      totalSorties:
+          _archive.totalSorties +
+          ((countTrackedSortie ??
+                  (trackedExperience.isNotEmpty || trackedMvp.isNotEmpty))
+              ? 1
+              : 0),
     );
     notifyListeners();
     await _persist(scope);
@@ -1173,11 +1414,13 @@ final class _ActiveSortie {
   final bool combined;
   final List<SortieExperienceShip> ships;
   final pending = <int, int>{};
+  final pendingMvp = <int, int>{};
   final recordedShipIds = <int>{};
   int node;
   int battles = 0;
   _NodeBattle battle = _NodeBattle.waitingForPhase;
   bool waitingForNavigation = false;
+  bool hadTrackedResult = false;
   bool incomplete;
 
   void markUnsettledBattle() {
@@ -1209,7 +1452,8 @@ final class _ActiveSortie {
   void retreat(Iterable<int> ids) {
     for (var index = 0; index < ships.length; index++) {
       if (ids.contains(ships[index].ownedShipId)) {
-        ships[index] = ships[index]._with(retreated: true);
+        final ship = ships[index];
+        ships[index] = ship._with(mvpCount: ship.mvpCount, retreated: true);
       }
     }
   }
@@ -1228,25 +1472,30 @@ final class _PracticeBattle {
   final List<SortieExperienceShip> ships;
   final bool incomplete;
 
-  SortieExperienceSnapshot snapshot([Map<int, int>? rewards]) =>
-      SortieExperienceSnapshot(
-        mapAreaId: 0,
-        mapInfoNo: 0,
-        deckId: deckId,
-        battles: rewards == null ? 0 : 1,
-        ships: List.unmodifiable([
-          for (final ship in ships)
-            ship._with(experience: rewards?[ship.ownedShipId] ?? 0),
-        ]),
-        incomplete:
-            incomplete || (rewards != null && rewards.length < ships.length),
-        isPractice: true,
-        unverifiedShipIds: Set.unmodifiable({
-          if (rewards != null)
-            for (final ship in ships)
-              if (!rewards.containsKey(ship.ownedShipId)) ship.ownedShipId,
-        }),
-      );
+  SortieExperienceSnapshot snapshot([
+    Map<int, int>? rewards,
+    Map<int, int> mvpCounts = const {},
+  ]) => SortieExperienceSnapshot(
+    mapAreaId: 0,
+    mapInfoNo: 0,
+    deckId: deckId,
+    battles: rewards == null ? 0 : 1,
+    ships: List.unmodifiable([
+      for (final ship in ships)
+        ship._with(
+          experience: rewards?[ship.ownedShipId] ?? 0,
+          mvpCount: mvpCounts[ship.ownedShipId],
+        ),
+    ]),
+    incomplete:
+        incomplete || (rewards != null && rewards.length < ships.length),
+    isPractice: true,
+    unverifiedShipIds: Set.unmodifiable({
+      if (rewards != null)
+        for (final ship in ships)
+          if (!rewards.containsKey(ship.ownedShipId)) ship.ownedShipId,
+    }),
+  );
 }
 
 String _experienceEventKey(String kind, CapturedApiEvent event) =>
@@ -1306,6 +1555,29 @@ Map<int, int>? _decodeRewards(
   }
   return result;
 }
+
+Map<int, int> _decodeMvp(
+  List<SortieExperienceShip> ships,
+  int fleetId,
+  Object? rawPosition,
+) {
+  final position = _wireInt(rawPosition);
+  if (position == null || position <= 0) return const {};
+  final participants = {
+    for (final ship in ships)
+      if (ship.fleetId == fleetId && !ship.retreated)
+        ship.position + 1: ship.ownedShipId,
+  };
+  if (!participants.containsKey(position)) return const {};
+  // The MVP index refers to the original fleet slot, even after a retreat.
+  return {
+    for (final slot in participants.entries)
+      slot.value: slot.key == position ? 1 : 0,
+  };
+}
+
+int? _addMvp(int? previous, int? award) =>
+    award == null ? previous : (previous ?? 0) + award;
 
 int _boundedTotal(int experience) => experience > 9999999 ? 0 : experience;
 
@@ -1403,7 +1675,11 @@ final class _Archive {
   final int totalSorties;
   final Map<int, SortieExperienceShip> totals;
 
-  static ({_Archive archive, List<LogbookExperienceRecord> pendingLogRecords})
+  static ({
+    _Archive archive,
+    List<LogbookExperienceRecord> pendingLogRecords,
+    SortieResourceLedger resourceLedger,
+  })
   decode(String raw, int memberId) {
     final json = _requireMap(jsonDecode(raw));
     if (json['version'] != 1 ||
@@ -1417,9 +1693,9 @@ final class _Archive {
         final experience = _boundedTotal(ship.experience);
         return experience == ship.experience
             ? ship
-            : ship._with(experience: experience);
+            : ship._with(experience: experience, mvpCount: ship.mvpCount);
       });
-    if ((count == 0) != totals.isEmpty) {
+    if (count == 0 && totals.isNotEmpty) {
       throw const FormatException('Invalid sortie experience total');
     }
     final last = json['last'];
@@ -1440,12 +1716,14 @@ final class _Archive {
             _requireMap(record).cast<String, Object?>(),
           ),
       ],
+      resourceLedger: SortieResourceLedger.fromJson(json['resourceLedger']),
     );
   }
 
   String encode(
     int memberId,
     Iterable<LogbookExperienceRecord> pendingLogRecords,
+    SortieResourceLedger resourceLedger,
   ) => jsonEncode({
     'version': 1,
     'memberId': memberId,
@@ -1453,6 +1731,7 @@ final class _Archive {
     'last': last?._toJson(),
     'totalSorties': totalSorties,
     'totals': totals.values.map((ship) => ship._toJson()).toList(),
+    if (resourceLedger.hasData) 'resourceLedger': resourceLedger.toJson(),
     if (pendingLogRecords.isNotEmpty)
       'pendingLogRecords': pendingLogRecords
           .map((record) => record.toRow())
@@ -1473,6 +1752,89 @@ final class _Archive {
 }
 
 Map<Object?, Object?>? _map(Object? value) => value is Map ? value : null;
+
+bool _successfulResponse(CapturedApiEvent event) {
+  if (event.statusCode != 0 &&
+      (event.statusCode < 200 || event.statusCode >= 300)) {
+    return false;
+  }
+  final envelope =
+      event.decodedEnvelope ??
+      GameApiDecoder.decodeEnvelope(event.responseBody);
+  return envelope['api_result'].toString() == '1';
+}
+
+Set<int>? _consumedShipIds(
+  CapturedApiEvent event,
+  Map<Object?, Object?>? data,
+) {
+  if (data == null) return null;
+  if (event.path == SortieExperienceController._destroyShipPath) {
+    // The existing game-state consumer also accepts an empty success object.
+    // If material balances are present, malformed values cannot confirm it.
+    if (data.containsKey('api_material')) {
+      final material = data['api_material'];
+      if (material is! List ||
+          material.length < 4 ||
+          material.any((value) => (_wireInt(value) ?? -1) < 0)) {
+        return null;
+      }
+    }
+    return _requestShipIds(event.requestParams['api_ship_id']);
+  }
+  final targetId = _wireInt(event.requestParams['api_id']);
+  final target = _map(data['api_ship']);
+  final flag = _wireInt(data['api_powerup_flag']);
+  final materials = _requestShipIds(event.requestParams['api_id_items']);
+  if (targetId == null ||
+      targetId <= 0 ||
+      _wireInt(target?['api_id']) != targetId ||
+      _completeRosterIds([target]) == null ||
+      (flag != 0 && flag != 1) ||
+      materials == null ||
+      materials.contains(targetId)) {
+    return null;
+  }
+  // api_powerup_flag reports the stat increase, not whether materials were used.
+  return materials;
+}
+
+Set<int>? _requestShipIds(Object? value) {
+  final values = value is List ? value : [value];
+  final ids = <int>{};
+  for (final raw in values) {
+    if (raw is! String && raw is! int) return null;
+    for (final part in '$raw'.split(',')) {
+      final id = _wireInt(part.trim());
+      if (id == null || id <= 0) return null;
+      ids.add(id);
+    }
+  }
+  return ids.isEmpty ? null : ids;
+}
+
+Set<int>? _completeRosterIds(Object? value) {
+  if (value is! List) return null;
+  final ids = <int>{};
+  for (final row in value) {
+    final ship = _map(row);
+    if (ship == null) return null;
+    final id = _wireInt(ship['api_id']);
+    if (id == null || id <= 0 || !ids.add(id)) return null;
+    for (final key in ['api_ship_id', 'api_lv']) {
+      if (ship.containsKey(key) && (_wireInt(ship[key]) ?? 0) <= 0) return null;
+    }
+    if (ship.containsKey('api_exp')) {
+      final experience = ship['api_exp'];
+      if (experience is! List ||
+          experience.length < 2 ||
+          experience.any((value) => (_wireInt(value) ?? -1) < 0)) {
+        return null;
+      }
+    }
+  }
+  return ids;
+}
 
 Map<Object?, Object?> _requireMap(Object? value) =>
     _map(value) ??

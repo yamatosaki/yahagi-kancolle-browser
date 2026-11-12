@@ -486,14 +486,35 @@ class _FleetSummaryMetrics extends StatelessWidget {
       'air-power' when hasAirPowerDetails => requiredL10n.showAirPowerDetails,
       _ => null,
     };
-    VoidCallback? onTapAt(int index) =>
-        values[index].$1 == 'air-power' && hasAirPowerDetails && current != null
-        ? () => showFleetAirPowerDetails(context, current)
-        : values[index].$1 == 'line-of-sight' &&
-              current != null &&
-              current.formula33.isNotEmpty
-        ? () => showFleetLineOfSightDetails(context, current)
-        : null;
+    Widget metricAt(int index, {bool flat = false}) {
+      final (id, label, value) = values[index];
+      final semanticLabel = semanticLabelAt(index);
+      Widget buildMetric(VoidCallback? onTap) => flat
+          ? _FlatSummaryMetric(
+              id: id,
+              label: label,
+              value: value,
+              semanticLabel: semanticLabel,
+              onTap: onTap,
+            )
+          : _FleetSummaryMetric(
+              id: id,
+              label: label,
+              value: value,
+              semanticLabel: semanticLabel,
+              onTap: onTap,
+            );
+      if (id == 'line-of-sight' &&
+          current != null &&
+          current.formula33.isNotEmpty) {
+        return FleetLineOfSightDetails(metrics: current, builder: buildMetric);
+      }
+      if (id == 'air-power' && hasAirPowerDetails && current != null) {
+        return FleetAirPowerDetails(metrics: current, builder: buildMetric);
+      }
+      return buildMetric(null);
+    }
+
     if (PanelStyleScope.isFlat(context)) {
       return SeparatedWrap(
         key: const Key('fleet-summary-metrics'),
@@ -504,23 +525,10 @@ class _FleetSummaryMetrics extends StatelessWidget {
         ),
         children: [
           for (var index = 0; index < values.length; index++)
-            _FlatSummaryMetric(
-              id: values[index].$1,
-              label: values[index].$2,
-              value: values[index].$3,
-              semanticLabel: semanticLabelAt(index),
-              onTap: onTapAt(index),
-            ),
+            metricAt(index, flat: true),
         ],
       );
     }
-    Widget metricAt(int index) => _FleetSummaryMetric(
-      id: values[index].$1,
-      label: values[index].$2,
-      value: values[index].$3,
-      semanticLabel: semanticLabelAt(index),
-      onTap: onTapAt(index),
-    );
     final vertical = HdModuleColumns.of(context) > 1;
     return Flex(
       key: const Key('fleet-summary-metrics'),

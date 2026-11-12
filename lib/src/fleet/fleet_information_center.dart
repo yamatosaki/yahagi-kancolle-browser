@@ -458,6 +458,7 @@ class _FleetViewState extends State<_FleetView> {
             const SizedBox(height: 5),
           ],
           _MetricsBar(
+            viewportContext: context,
             state: state,
             fleetId: fleet.id,
             metrics: metrics,
@@ -1978,6 +1979,7 @@ class _SelectedEquipmentDetails extends StatelessWidget {
 
 class _MetricsBar extends StatelessWidget {
   const _MetricsBar({
+    required this.viewportContext,
     required this.state,
     required this.fleetId,
     required this.metrics,
@@ -1987,6 +1989,7 @@ class _MetricsBar extends StatelessWidget {
     required this.onToggleMoraleMetricMode,
   });
 
+  final BuildContext viewportContext;
   final GameState state;
   final int fleetId;
   final FleetMetrics metrics;
@@ -2046,45 +2049,51 @@ class _MetricsBar extends StatelessWidget {
       (moraleLabel, moraleValue),
     ];
     final phone = usesCompactFleetLayout(context);
+    final hasAirPowerDetails =
+        metrics.airPower != null &&
+        metrics.airPowerMaximum != null &&
+        metrics.airPowerWithoutProficiency != null;
+    Widget metricAt(int index) {
+      Widget buildCell(VoidCallback? onTap) => _metricCell(
+        context,
+        label: values[index].$1,
+        value: values[index].$2,
+        key: switch (index) {
+          0 => const Key('fleet-speed-metric'),
+          6 => const Key('fleet-air-power-metric'),
+          7 => const Key('fleet-los-metric'),
+          8 => const Key('fleet-morale-metric'),
+          _ => null,
+        },
+        onTap: onTap,
+        semanticLabel: switch (index) {
+          6 when hasAirPowerDetails => requiredL10n.showAirPowerDetails,
+          8 => requiredL10n.toggleMoraleMetric,
+          _ => null,
+        },
+        compact: phone,
+      );
+      if (index == 6 && hasAirPowerDetails) {
+        return FleetAirPowerDetails(
+          metrics: metrics,
+          viewportContext: viewportContext,
+          builder: buildCell,
+        );
+      }
+      if (index == 7 && formula33.isNotEmpty) {
+        return FleetLineOfSightDetails(
+          metrics: metrics,
+          viewportContext: viewportContext,
+          builder: buildCell,
+        );
+      }
+      return buildCell(index == 8 ? onToggleMoraleMetricMode : null);
+    }
+
     return Row(
       children: [
         for (var index = 0; index < values.length; index++) ...[
-          Expanded(
-            child: _metricCell(
-              context,
-              label: values[index].$1,
-              value: values[index].$2,
-              key: switch (index) {
-                0 => const Key('fleet-speed-metric'),
-                6 => const Key('fleet-air-power-metric'),
-                7 => const Key('fleet-los-metric'),
-                8 => const Key('fleet-morale-metric'),
-                _ => null,
-              },
-              onTap: switch (index) {
-                6
-                    when metrics.airPower != null &&
-                        metrics.airPowerMaximum != null &&
-                        metrics.airPowerWithoutProficiency != null =>
-                  () => showFleetAirPowerDetails(context, metrics),
-                7 when formula33.isNotEmpty => () => _showLineOfSightDetails(
-                  context,
-                ),
-                8 => onToggleMoraleMetricMode,
-                _ => null,
-              },
-              semanticLabel: switch (index) {
-                6
-                    when metrics.airPower != null &&
-                        metrics.airPowerMaximum != null &&
-                        metrics.airPowerWithoutProficiency != null =>
-                  requiredL10n.showAirPowerDetails,
-                8 => requiredL10n.toggleMoraleMetric,
-                _ => null,
-              },
-              compact: phone,
-            ),
-          ),
+          Expanded(child: metricAt(index)),
           if (index != values.length - 1) const SizedBox(width: 5),
         ],
       ],
@@ -2157,10 +2166,6 @@ class _MetricsBar extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Future<void> _showLineOfSightDetails(BuildContext context) {
-    return showFleetLineOfSightDetails(context, metrics);
   }
 }
 

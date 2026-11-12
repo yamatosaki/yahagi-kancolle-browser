@@ -7,13 +7,15 @@ import '../browser/game_reminder_dialog.dart';
 import '../browser/native_game_resource_checklist.dart';
 import 'layout_settings_controller.dart';
 
-/// Keeps the native game live and uses the same dismissal protection as alerts.
+/// Keeps the native game live while editing display settings.
 Future<void> showGameDisplaySettingsDialog({
   required BuildContext context,
   LayoutSettingsController? controller,
   Listenable? changes,
   bool Function()? ownerIsCurrent,
   bool allowNative = true,
+  bool protectInputOnDismiss = true,
+  bool compactShipChecklist = false,
   required String kind,
   required String title,
   required List<Map<String, Object?>> Function() items,
@@ -69,6 +71,10 @@ Future<void> showGameDisplaySettingsDialog({
       isCurrent: isCurrent,
       onToggle: onToggle,
       onReset: onReset,
+      protectInputOnDismiss: protectInputOnDismiss,
+      compactShipChecklistCloseLabel: compactShipChecklist
+          ? MaterialLocalizations.of(context).closeButtonTooltip
+          : null,
       resetLabel: resetLabel,
       doneLabel:
           doneLabel ?? MaterialLocalizations.of(context).closeButtonTooltip,
@@ -91,6 +97,7 @@ Future<void> showGameDisplaySettingsDialog({
     message: '',
     nativePort: native,
     builder: builder,
+    protectInputOnDismiss: protectInputOnDismiss,
     backCancels: onDone != null,
   );
   return presentation.completed

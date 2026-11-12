@@ -65,6 +65,7 @@ void main() {
       expect(find.byType(Dialog), findsNothing);
       final payload = h.port.shown.single;
       expect(payload['kind'], 'headerResources');
+      expect(payload['protectInputOnDismiss'], isFalse);
       expect(
         (payload['items']! as List),
         hasLength(allHeaderResourceIds.length),
@@ -261,6 +262,7 @@ void main() {
     await tester.pumpAndSettle();
     final payload = h.port.shown.single;
     expect(payload['kind'], 'collapsedResources');
+    expect(payload['protectInputOnDismiss'], isFalse);
     expect(payload['resetLabel'], isA<String>());
     h.port.emit(payload, headerAnchorageTimerId, true);
     expect(
@@ -294,6 +296,7 @@ void main() {
       )!;
       addTearDown(presentation.cancel);
       await tester.pumpAndSettle();
+      expect(h.port.shown.single['protectInputOnDismiss'], isFalse);
       h.senka = 21.25;
       h.rank = 42;
       h.nosakiStarted = DateTime.now().toUtc().subtract(

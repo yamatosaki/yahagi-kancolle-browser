@@ -45,9 +45,11 @@ or other rights that apply to third-party components and assets.
 HarmonyOS Sans
 --------------
 
-This repository bundles HarmonyOS Sans font files under `assets/fonts/`.
+This repository bundles HarmonyOS Sans font files, including HarmonyOS Sans
+Condensed Bold from Huawei's official font archive, under `assets/fonts/`.
 HarmonyOS Sans is provided by Huawei and is governed by the HarmonyOS Sans
-Fonts License Agreement rather than the project's MIT License.
+Fonts License Agreement included at `assets/fonts/HarmonyOS-Sans-LICENSE.txt`
+rather than the project's MIT License.
 
 License reference:
 https://gitee.com/openharmony/global_system_resources/blob/master/LICENSE_Fonts

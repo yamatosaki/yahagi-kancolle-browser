@@ -13,6 +13,9 @@ internal class NativeGameDialogCard(
     private val content: ScrollView,
     actions: View,
     private val minimumCardWidth: Int,
+    private val header: View? = null,
+    private val maximumCardWidth: Int = Int.MAX_VALUE,
+    private val maximumCardHeight: Int = Int.MAX_VALUE,
 ) : ViewGroup(context) {
     private val footer = ScrollView(context).apply {
         tag = "dialog-actions-scroll"
@@ -22,6 +25,7 @@ internal class NativeGameDialogCard(
     }
 
     init {
+        header?.let { addView(it, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)) }
         content.tag = "dialog-content-scroll"
         addView(content, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         addView(footer, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
@@ -32,30 +36,43 @@ internal class NativeGameDialogCard(
         content.measure(unbounded, unbounded)
         footer.measure(unbounded, unbounded)
         val desiredWidth = max(minimumCardWidth, max(content.measuredWidth, footer.measuredWidth))
-        val width = resolveSize(desiredWidth, widthMeasureSpec)
+        val width = resolveSize(desiredWidth.coerceAtMost(maximumCardWidth), widthMeasureSpec)
         val exactWidth = MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY)
+        val maxHeaderHeight = if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED) unbounded
+            else MeasureSpec.makeMeasureSpec(MeasureSpec.getSize(heightMeasureSpec) / 2, MeasureSpec.AT_MOST)
+        header?.measure(exactWidth, maxHeaderHeight)
+        val headerHeight = header?.measuredHeight ?: 0
         content.measure(exactWidth, unbounded)
         footer.measure(exactWidth, unbounded)
         val naturalContentHeight = content.measuredHeight
         val naturalFooterHeight = footer.measuredHeight
-        val height = resolveSize(naturalContentHeight + naturalFooterHeight, heightMeasureSpec)
+        val desiredHeight = (headerHeight + naturalContentHeight + naturalFooterHeight).coerceAtMost(maximumCardHeight)
+        val height = resolveSize(desiredHeight, heightMeasureSpec)
+        val bodyHeight = (height - headerHeight).coerceAtLeast(0)
         // Most dialogs pin all actions below the scrolling content. On unusually
         // short screens with very large/long actions, both areas can scroll.
-        val footerLimit = if (naturalContentHeight + naturalFooterHeight <= height) naturalFooterHeight
-            else min(naturalFooterHeight, max(1, height / 2))
+        val footerLimit = if (naturalContentHeight + naturalFooterHeight <= bodyHeight) naturalFooterHeight
+            else min(naturalFooterHeight, max(1, bodyHeight / 2))
         footer.measure(exactWidth, MeasureSpec.makeMeasureSpec(footerLimit, MeasureSpec.AT_MOST))
-        content.measure(exactWidth, MeasureSpec.makeMeasureSpec((height - footer.measuredHeight).coerceAtLeast(0), MeasureSpec.AT_MOST))
-        setMeasuredDimension(width, min(height, content.measuredHeight + footer.measuredHeight))
+        content.measure(exactWidth, MeasureSpec.makeMeasureSpec((bodyHeight - footer.measuredHeight).coerceAtLeast(0), MeasureSpec.AT_MOST))
+        setMeasuredDimension(width, min(height, headerHeight + content.measuredHeight + footer.measuredHeight))
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-        content.layout(0, 0, measuredWidth, content.measuredHeight)
-        footer.layout(0, content.measuredHeight, measuredWidth, content.measuredHeight + footer.measuredHeight)
+        val headerHeight = header?.measuredHeight ?: 0
+        header?.layout(0, 0, measuredWidth, headerHeight)
+        val contentBottom = headerHeight + content.measuredHeight
+        content.layout(0, headerHeight, measuredWidth, contentBottom)
+        footer.layout(0, contentBottom, measuredWidth, contentBottom + footer.measuredHeight)
     }
 }
 
 /** Flutter OverflowBar: end-aligned horizontal actions, vertical when they do not fit. */
-internal class NativeGameDialogActions(context: Context, private val spacing: Int) : ViewGroup(context) {
+internal class NativeGameDialogActions(
+    context: Context,
+    private val spacing: Int,
+    private val spreadPair: Boolean = false,
+) : ViewGroup(context) {
     private var horizontal = true
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -89,7 +106,9 @@ internal class NativeGameDialogActions(context: Context, private val spacing: In
         var y = paddingTop
         for (index in 0 until childCount) {
             val child = getChildAt(index)
-            val left = if (horizontal) { if (rtl) x - child.measuredWidth else x }
+            val left = if (horizontal && spreadPair && childCount == 2 && index == 0) {
+                if (rtl) measuredWidth - paddingRight - child.measuredWidth else paddingLeft
+            } else if (horizontal) { if (rtl) x - child.measuredWidth else x }
                 else if (rtl) paddingLeft else measuredWidth - paddingRight - child.measuredWidth
             val top = if (horizontal) paddingTop else y
             child.layout(left, top, left + child.measuredWidth, top + child.measuredHeight)

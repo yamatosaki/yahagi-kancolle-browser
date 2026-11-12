@@ -22,6 +22,7 @@ class GameReminderDialogPresentation {
     required this._nativePort,
     required this.inputProtectionMaxDuration,
     required this.needsPostTouchProtection,
+    required this.protectInputOnDismiss,
     required this.backCancels,
   }) : _context = context,
        _navigator = Navigator.of(context, rootNavigator: true),
@@ -42,6 +43,7 @@ class GameReminderDialogPresentation {
   final bool allowFlutterFallback;
   final Duration? inputProtectionMaxDuration;
   final bool Function()? needsPostTouchProtection;
+  final bool protectInputOnDismiss;
   final bool backCancels;
   final _completion = Completer<bool>();
   GameSafetyDialogRoute? _route;
@@ -164,7 +166,18 @@ class GameReminderDialogPresentation {
       return;
     }
     _acknowledging = true;
-    _beginProtection(route, accepted: accepted);
+    if (protectInputOnDismiss) {
+      _beginProtection(route, accepted: accepted);
+    } else {
+      _mutateNavigator(() {
+        if (route.isActive) route.navigator?.removeRoute(route);
+      });
+      unawaited(
+        route.completed.then((_) {
+          _finish(accepted && _context.mounted && _navigator.mounted);
+        }),
+      );
+    }
   }
 
   void _beginProtection(GameSafetyDialogRoute route, {required bool accepted}) {
@@ -226,7 +239,9 @@ class GameReminderDialogPresentation {
     // Once chosen, the protection outlives an obsolete owner/account. Cancelling
     // the read result must not release a held pointer into the game.
     if (_acknowledging) return;
-    if (route?.isActive == true && route!.activePointers.isNotEmpty) {
+    if (protectInputOnDismiss &&
+        route?.isActive == true &&
+        route!.activePointers.isNotEmpty) {
       _beginProtection(route, accepted: false);
       return;
     }
@@ -274,6 +289,7 @@ GameReminderDialogPresentation showGameReminderDialog({
   NativeGameWarningDialogPort? nativePort,
   Duration? inputProtectionMaxDuration,
   bool Function()? needsPostTouchProtection,
+  bool protectInputOnDismiss = true,
   bool backCancels = false,
 }) => GameReminderDialogPresentation._(
   context: context,
@@ -286,5 +302,6 @@ GameReminderDialogPresentation showGameReminderDialog({
   nativePort: nativePort,
   inputProtectionMaxDuration: inputProtectionMaxDuration,
   needsPostTouchProtection: needsPostTouchProtection,
+  protectInputOnDismiss: protectInputOnDismiss,
   backCancels: backCancels,
 ).._start();

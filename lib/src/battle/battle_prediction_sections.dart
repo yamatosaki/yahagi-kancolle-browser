@@ -9,6 +9,7 @@ class BattlePredictionSections extends StatelessWidget {
   const BattlePredictionSections({
     super.key,
     this.order,
+    this.visibleSections = BattlePredictionSection.values,
     this.legacyEnemyPreviewPosition = EnemyPreviewPosition.above,
     this.sortieMap,
     this.enemyPreview,
@@ -16,6 +17,7 @@ class BattlePredictionSections extends StatelessWidget {
   });
 
   final List<BattlePredictionSection>? order;
+  final Iterable<BattlePredictionSection> visibleSections;
   final EnemyPreviewPosition legacyEnemyPreviewPosition;
   final Widget? sortieMap;
   final Widget? enemyPreview;
@@ -42,7 +44,7 @@ class BattlePredictionSections extends StatelessWidget {
     final children = <Widget>[];
     for (final section in effectiveOrder) {
       final content = sections[section];
-      if (content == null) continue;
+      if (content == null || !visibleSections.contains(section)) continue;
       if (children.isNotEmpty) children.add(SizedBox(height: gap));
       children.add(
         KeyedSubtree(

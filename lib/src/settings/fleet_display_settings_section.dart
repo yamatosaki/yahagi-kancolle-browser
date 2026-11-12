@@ -343,6 +343,7 @@ Future<void> showFleetDisplaySettings(
   return showGameDisplaySettingsDialog(
     context: context,
     controller: controller,
+    protectInputOnDismiss: false,
     kind: 'fleetDisplay',
     title: text(FleetUiKeys.fleetSummaryDisplay),
     resetLabel: text(FleetUiKeys.reset),

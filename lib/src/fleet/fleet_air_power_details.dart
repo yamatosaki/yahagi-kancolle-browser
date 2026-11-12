@@ -1,85 +1,49 @@
-import '../theme/app_palette.dart';
 import 'package:flutter/material.dart';
-
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
-import '../browser/game_surface_dialog.dart';
 import '../game_state/fleet_metrics.dart';
+import '../theme/app_palette.dart';
+import 'fleet_metric_details_popover.dart';
 
-AppLocalizations _airPowerL10n(BuildContext context) =>
-    AppLocalizations.of(context) ?? lookupAppLocalizations(const Locale('zh'));
+class FleetAirPowerDetails extends StatelessWidget {
+  const FleetAirPowerDetails({
+    super.key,
+    required this.metrics,
+    required this.builder,
+    this.viewportContext,
+  });
 
-Future<void> showFleetAirPowerDetails(
-  BuildContext context,
-  FleetMetrics metrics,
-) async {
-  final l10n = _airPowerL10n(context);
-  final rows = <(String, int?)>[
-    (l10n.minimumValue, metrics.airPower),
-    (l10n.maximumValue, metrics.airPowerMaximum),
-    (l10n.withoutBonus, metrics.airPowerWithoutProficiency),
-  ];
-  await showGameSurfaceDialog<bool>(
-    context: context,
-    title: l10n.airPowerDetails,
-    rows: [for (final row in rows) '${row.$1}：${row.$2 ?? '—'}'],
-    actions: [
-      GameSurfaceDialogAction(id: 'close', label: l10n.close, value: true),
-    ],
-    builder: (context, close) => AlertDialog(
-      title: Text(l10n.airPowerDetails),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var index = 0; index < rows.length; index++) ...[
-            _AirPowerDetailRow(
-              label: rows[index].$1,
-              value: rows[index].$2?.toString() ?? '—',
-            ),
-            if (index != rows.length - 1)
-              Divider(color: appColor(context, Color(0xff294052))),
-          ],
-        ],
-      ),
-      actions: [
-        TextButton(onPressed: () => close(true), child: Text(l10n.close)),
-      ],
-    ),
-  );
-}
-
-class _AirPowerDetailRow extends StatelessWidget {
-  const _AirPowerDetailRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
+  final FleetMetrics metrics;
+  final Widget Function(VoidCallback toggle) builder;
+  final BuildContext? viewportContext;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 5),
-    child: Row(
+  Widget build(BuildContext context) {
+    final l10n =
+        AppLocalizations.of(context) ??
+        lookupAppLocalizations(const Locale('zh'));
+    final rows = <(String, int?)>[
+      (l10n.minimumValue, metrics.airPower),
+      (l10n.maximumValue, metrics.airPowerMaximum),
+      (l10n.withoutBonus, metrics.airPowerWithoutProficiency),
+    ];
+    return FleetMetricDetailsPopover(
+      title: l10n.airPowerDetails,
+      closeLabel: l10n.close,
+      cardKey: const Key('fleet-air-power-details-popover'),
+      closeKey: const Key('fleet-air-power-details-close'),
+      viewportContext: viewportContext,
+      builder: builder,
       children: [
-        Expanded(
-          child: Text(
-            label,
-            style: appTextStyle(
-              context,
-              TextStyle(color: appColor(context, Color(0xff9fb4bf))),
-            ),
+        for (var index = 0; index < rows.length; index++) ...[
+          if (index != 0)
+            Divider(color: appColor(context, const Color(0xff294052))),
+          FleetMetricDetailRow(
+            label: rows[index].$1,
+            value: rows[index].$2?.toString() ?? '—',
           ),
-        ),
-        Text(
-          value,
-          style: appTextStyle(
-            context,
-            TextStyle(
-              color: appColor(context, Color(0xffe1e9ed)),
-              fontWeight: FontWeight.w800,
-              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-            ),
-          ),
-        ),
+        ],
       ],
-    ),
-  );
+    );
+  }
 }

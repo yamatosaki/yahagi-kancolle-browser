@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/src/bridge/captured_api_event.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
@@ -6,7 +7,10 @@ import 'package:yahagi_kancolle_browser/src/game_state/game_state_reducer.dart';
 import 'package:yahagi_kancolle_browser/src/notice/game_info_notice_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
+import 'package:yahagi_kancolle_browser/src/settings/top_notice_kind.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
+
+import '../fixtures/kcsapi_fixtures.dart';
 
 class TestTopNoticeSettingsStore
     implements LayoutSettingsStore, TopNoticeSettingsStore {
@@ -109,6 +113,7 @@ OwnedShip makeShip({
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late TestTopNoticeSettingsStore store;
   late LayoutSettingsController layoutController;
   late TopNoticeController topNoticeController;
@@ -148,6 +153,408 @@ void main() {
       captureDocumentId: 'doc1',
       captureDocumentStartedAtEpochMs: 1000,
     );
+  }
+
+  group('Expedition dispatch notices', () {
+    late GameInfoNoticeController controller;
+
+    setUp(() {
+      state = state.copyWith(
+        hasMasterData: true,
+        masterShips: const {
+          1: MasterShip(
+            id: 1,
+            name: '吹雪',
+            shipTypeId: 2,
+            maxFuel: 15,
+            maxAmmo: 20,
+          ),
+        },
+        ships: const {
+          1: OwnedShip(
+            id: 1,
+            masterId: 1,
+            level: 30,
+            currentFuel: 15,
+            currentAmmo: 20,
+          ),
+          2: OwnedShip(
+            id: 2,
+            masterId: 1,
+            level: 20,
+            currentFuel: 15,
+            currentAmmo: 20,
+          ),
+        },
+        fleets: const [
+          Fleet(id: 3, name: '第3舰队', shipIds: [1, 2]),
+        ],
+      );
+      controller = GameInfoNoticeController(
+        stateProvider: () => state,
+        layoutSettingsController: layoutController,
+        topNoticeController: topNoticeController,
+      );
+      addTearDown(controller.dispose);
+      addTearDown(layoutController.dispose);
+      addTearDown(topNoticeController.dispose);
+    });
+
+    CapturedApiEvent missionStart({
+      Object fleet = '3',
+      Object mission = '21',
+      Object completionTime = 1794474000000,
+      int apiResult = 1,
+    }) => kcsapiEvent(
+      '/kcsapi/api_req_mission/start',
+      {'api_complatetime': completionTime},
+      apiResult: apiResult,
+      requestParams: {'api_deck_id': fleet, 'api_mission_id': mission},
+    );
+
+    test(
+      'warns by default after a successful launch with a failing fleet',
+      () async {
+        final launch = missionStart();
+        expect(controller.supportsPath(launch.path), isTrue);
+        controller.accept(launch);
+        await controller.idle;
+        expect(topNoticeController.current?.message, '第 3 舰队执行的 21 号远征可能失败');
+        expect(topNoticeController.current?.tone, TopNoticeTone.warning);
+      },
+    );
+
+    test(
+      'ordinary success is sufficient even without sparkled ships',
+      () async {
+        controller.accept(missionStart(fleet: 3, mission: 1));
+        await controller.idle;
+        expect(topNoticeController.notices, isEmpty);
+      },
+    );
+    test('shows the display number for a lettered expedition', () async {
+      controller.accept(missionStart(mission: 101));
+      await controller.idle;
+      expect(topNoticeController.current?.message, '第 3 舰队执行的 A2 号远征可能失败');
+    });
+
+    test('requires a confirmed launch and valid request fields', () async {
+      for (final event in [
+        missionStart(apiResult: 0),
+        missionStart(completionTime: 0),
+        missionStart(fleet: 'unknown'),
+        missionStart(mission: 'unknown'),
+      ]) {
+        controller.accept(event);
+        await controller.idle;
+        expect(topNoticeController.notices, isEmpty);
+      }
+    });
+
+    test('does not warn for unknown mission rules or missing fleet', () async {
+      controller.accept(missionStart(mission: 999));
+      controller.accept(missionStart(fleet: 4));
+      await controller.idle;
+      expect(topNoticeController.notices, isEmpty);
+    });
+
+    test(
+      'does not treat missing ship and equipment data as a failed check',
+      () async {
+        state = state.copyWith(ships: {1: state.ships[1]!});
+        controller.accept(missionStart());
+        await controller.idle;
+        expect(topNoticeController.notices, isEmpty);
+
+        state = state.copyWith(
+          fleets: const [
+            Fleet(id: 3, name: '', shipIds: [1]),
+          ],
+          ships: const {
+            1: OwnedShip(
+              id: 1,
+              masterId: 1,
+              level: 30,
+              currentFuel: 15,
+              currentAmmo: 20,
+              slotIds: [999],
+            ),
+          },
+        );
+        controller.accept(missionStart());
+        await controller.idle;
+        expect(topNoticeController.notices, isEmpty);
+      },
+    );
+
+    test(
+      'checks transport drums against the fleet actually dispatched',
+      () async {
+        GameState transportFleet(int drumCarriers) => state.copyWith(
+          masterShips: {
+            ...state.masterShips,
+            2: const MasterShip(
+              id: 2,
+              name: '川内',
+              shipTypeId: 3,
+              maxFuel: 15,
+              maxAmmo: 20,
+            ),
+          },
+          masterSlotItems: const {
+            75: MasterSlotItem(id: 75, name: 'ドラム缶', type: [0, 0, 30]),
+          },
+          ships: {
+            for (var id = 1; id <= 5; id++)
+              id: OwnedShip(
+                id: id,
+                masterId: id == 1 ? 2 : 1,
+                level: 30,
+                currentFuel: 15,
+                currentAmmo: 20,
+                slotIds: id <= drumCarriers ? [id] : const [],
+              ),
+          },
+          slotItems: {
+            for (var id = 1; id <= drumCarriers; id++)
+              id: OwnedSlotItem(instanceId: id, masterSlotItemId: 75),
+          },
+          fleets: const [
+            Fleet(id: 3, name: '', shipIds: [1, 2, 3, 4, 5]),
+          ],
+        );
+        state = transportFleet(2);
+        controller.accept(missionStart());
+        state = transportFleet(3);
+        await controller.idle;
+        expect(topNoticeController.current?.message, '第 3 舰队执行的 21 号远征可能失败');
+
+        topNoticeController.hide();
+        controller.accept(missionStart());
+        await controller.idle;
+        expect(topNoticeController.notices, isEmpty);
+      },
+    );
+
+    test('uses the ordinary-success resupply requirement', () async {
+      state = state.copyWith(
+        ships: {
+          ...state.ships,
+          1: const OwnedShip(
+            id: 1,
+            masterId: 1,
+            level: 30,
+            currentFuel: 14,
+            currentAmmo: 20,
+          ),
+        },
+      );
+      controller.accept(missionStart(mission: 1));
+      await controller.idle;
+      expect(topNoticeController.current?.message, '第 3 舰队执行的 1 号远征可能失败');
+    });
+
+    test('the master switch disables dispatch warnings', () async {
+      await layoutController.setTopNoticeEnabled(false);
+      controller.accept(missionStart());
+      await controller.idle;
+      expect(topNoticeController.notices, isEmpty);
+    });
+  });
+
+  group('Independent fleet page notices', () {
+    late GameInfoNoticeController controller;
+
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      layoutController.dispose();
+      layoutController = await LayoutSettingsController.load(
+        SharedPreferencesLayoutSettingsStore(),
+      );
+      OwnedShip fleetShip(
+        int id, {
+        int hp = 7,
+        int maxHp = 30,
+        int fuel = 14,
+        int ammo = 20,
+      }) => OwnedShip(
+        id: id,
+        masterId: 1,
+        level: 90,
+        currentHp: hp,
+        maxHp: maxHp,
+        currentFuel: fuel,
+        currentAmmo: ammo,
+      );
+      state = state.copyWith(
+        hasMasterData: true,
+        maxShipCount: 8,
+        masterShips: const {
+          1: MasterShip(
+            id: 1,
+            name: '吹雪',
+            shipTypeId: 2,
+            maxFuel: 15,
+            maxAmmo: 20,
+          ),
+        },
+        ships: {
+          1: fleetShip(1, hp: 8, maxHp: 32, fuel: 15, ammo: 19),
+          2: fleetShip(2),
+          3: fleetShip(3),
+          4: fleetShip(4, maxHp: 31),
+          5: fleetShip(5, hp: 30, fuel: 15),
+        },
+        fleets: const [
+          Fleet(id: 4, name: '', shipIds: [4]),
+          Fleet(id: 2, name: '', shipIds: [2, 5]),
+          Fleet(id: 1, name: '', shipIds: [1]),
+          Fleet(id: 3, name: '', shipIds: [3], mission: FleetMission(state: 2)),
+        ],
+        repairDocks: const [RepairDock(id: 1, state: 1, shipId: 5)],
+      );
+      controller = GameInfoNoticeController(
+        stateProvider: () => state,
+        layoutSettingsController: layoutController,
+        topNoticeController: topNoticeController,
+      );
+      addTearDown(layoutController.dispose);
+      addTearDown(controller.dispose);
+      addTearDown(topNoticeController.dispose);
+    });
+
+    Future<List<String>> openPage(String page) async {
+      topNoticeController.hide();
+      controller.accept(
+        createEvent(
+          '/kcsapi/api_get_member/$page',
+          '{"api_result":1,"api_data":{}}',
+        ),
+      );
+      await controller.idle;
+      return topNoticeController.notices
+          .map((notice) => notice.message)
+          .toList();
+    }
+
+    test('sortie batches heavy, supply and capacity in that order', () async {
+      expect(await openPage('mapinfo'), [
+        '出击提醒：第 1、4 舰队有大破舰',
+        '出击提醒：第 1、4 舰队尚未补给',
+        '船位仅剩 3 个，请注意母港容量',
+      ]);
+    });
+
+    test('expedition skips docked fleets for heavy damage only', () async {
+      expect(await openPage('mission'), [
+        '远征提醒：第 4 舰队有大破舰',
+        '远征提醒：第 2、4 舰队尚未补给',
+      ]);
+    });
+
+    test(
+      'sortie capacity, heavy damage, and supply can be turned off separately',
+      () async {
+        await layoutController.setTopNoticeKindEnabled(
+          TopNoticeKind.sortieCapacity,
+          false,
+        );
+        expect(await openPage('mapinfo'), [
+          '出击提醒：第 1、4 舰队有大破舰',
+          '出击提醒：第 1、4 舰队尚未补给',
+        ]);
+        await layoutController.setTopNoticeKindEnabled(
+          TopNoticeKind.sortieHeavyDamage,
+          false,
+        );
+        expect(await openPage('mapinfo'), ['出击提醒：第 1、4 舰队尚未补给']);
+        await layoutController.setTopNoticeKindEnabled(
+          TopNoticeKind.sortieSupply,
+          false,
+        );
+        expect(await openPage('mapinfo'), isEmpty);
+      },
+    );
+
+    test(
+      'expedition heavy damage does not depend on the supply switch',
+      () async {
+        await layoutController.setTopNoticeKindEnabled(
+          TopNoticeKind.expeditionSupply,
+          false,
+        );
+        expect(await openPage('mission'), ['远征提醒：第 4 舰队有大破舰']);
+        await layoutController.setTopNoticeKindEnabled(
+          TopNoticeKind.expeditionHeavyDamage,
+          false,
+        );
+        expect(await openPage('mission'), isEmpty);
+      },
+    );
+
+    test(
+      'only notices for established damage and supply data are emitted',
+      () async {
+        state = state.copyWith(
+          hasMasterData: false,
+          maxShipCount: 100,
+          ships: {
+            1: makeShip(id: 1, currentHp: 0, maxHp: 32),
+            4: makeShip(id: 4, currentHp: 7, maxHp: 31),
+          },
+        );
+        expect(await openPage('mapinfo'), ['出击提醒：第 4 舰队有大破舰']);
+      },
+    );
+  });
+
+  for (final (kind, path, data) in [
+    (
+      TopNoticeKind.equipmentDevelopment,
+      '/kcsapi/api_req_kousyou/createitem',
+      '{"api_create_flag":0}',
+    ),
+    (
+      TopNoticeKind.equipmentImprovement,
+      '/kcsapi/api_req_kousyou/remodel_slot',
+      '{"api_remodel_flag":1}',
+    ),
+    (
+      TopNoticeKind.modernization,
+      '/kcsapi/api_req_kaisou/powerup',
+      '{"api_powerup_flag":0}',
+    ),
+    (
+      TopNoticeKind.marriage,
+      '/kcsapi/api_req_kaisou/marriage',
+      '{"api_id":1,"api_lucky":[15,50]}',
+    ),
+    (
+      TopNoticeKind.practiceExperience,
+      '/kcsapi/api_req_member/get_practice_enemyinfo',
+      '{"api_deck":{"api_ships":[{"api_level":99}]}}',
+    ),
+  ]) {
+    test('${kind.name} respects its individual switch', () async {
+      final controller = GameInfoNoticeController(
+        stateProvider: () => state,
+        layoutSettingsController: layoutController,
+        topNoticeController: topNoticeController,
+      );
+      addTearDown(controller.dispose);
+      addTearDown(topNoticeController.dispose);
+
+      final event = createEvent(path, '{"api_result":1,"api_data":$data}');
+      await layoutController.setTopNoticeKindEnabled(kind, false);
+      controller.accept(event);
+      await controller.idle;
+      expect(topNoticeController.notices, isEmpty);
+
+      await layoutController.setTopNoticeKindEnabled(kind, true);
+      controller.accept(event);
+      await controller.idle;
+      expect(topNoticeController.notices, hasLength(1));
+    });
   }
 
   test(

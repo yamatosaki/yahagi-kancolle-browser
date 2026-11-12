@@ -2,6 +2,9 @@ import '../theme/app_palette.dart';
 import 'package:flutter/material.dart';
 import '../battle/battle_detail_models.dart';
 import '../battle/battle_detail_strings.dart';
+import '../fleet/equipment_display.dart';
+import '../fleet/fleet_ui_strings.dart';
+import '../fleet/ship_status_style.dart';
 
 // Shared by the logbook and the isolated UI preview. No sample data is loaded here.
 // LogbookPage owns insets for both this view and the adjacent record list.
@@ -521,6 +524,33 @@ class _AttackReport extends StatelessWidget {
   final BattleDetailShip? target;
   final BattleDetailShip? attacker;
 
+  String? _specialAttackLabel(
+    BuildContext context,
+    BattleDetailStrings strings,
+  ) {
+    final fleetLabel = switch (attack.attackTypeCode) {
+      'Nelson' => 'Nelson Touch',
+      'Nagato' => '一齐射击（长门）',
+      'Mutsu' => '一齐射击（陆奥）',
+      'Colorado' => 'Colorado Touch',
+      'Kongo_Class_Kaini_C' => '僚舰夜战突击',
+      'Baguette_Charge' => 'Richelieu级特殊攻击',
+      'QE_Touch' => 'Queen Elizabeth级特殊攻击',
+      _ => null,
+    };
+    if (fleetLabel != null) return fleetText(context, fleetLabel);
+    return switch (attack.attackTypeCode) {
+      'Yamato_Triple' => strings.localize('大和三舰特殊攻击'),
+      'Yamato_Double' => strings.localize('大和两舰特殊攻击'),
+      'Submarine_Special_Attack_2_3' => strings.localize('潜水舰特殊攻击（2·3号舰）'),
+      'Submarine_Special_Attack_3_4' => strings.localize('潜水舰特殊攻击（3·4号舰）'),
+      'Submarine_Special_Attack_2_4' => strings.localize('潜水舰特殊攻击（2·4号舰）'),
+      'Type_4_LC_Special_Attack' => strings.localize('四式陆战特殊攻击'),
+      'Laser' => strings.localize('激光攻击'),
+      _ => null,
+    };
+  }
+
   String? get targetStatus {
     if (target?.hpUnknown == true || attack.defenderHpAfter < 0) return null;
     final hp = attack.defenderHpAfter;
@@ -542,6 +572,8 @@ class _AttackReport extends StatelessWidget {
   Widget build(BuildContext context) {
     final strings = BattleDetailStrings.of(context);
     final a = attack;
+    final cutIn = strings.attackCutIn(a.attackTypeCode);
+    final attackType = cutIn ?? _specialAttackLabel(context, strings);
     // Attacks without a ship identity use a generated source label instead.
     final attackerName = a.attackerRole == null && a.attackerPosition == null
         ? strings.localize(a.attackerName)
@@ -592,6 +624,14 @@ class _AttackReport extends StatelessWidget {
                         strings.sideAttack(a.attackerSide),
                         color: appColor(context, accent),
                       ),
+                      if (attackType != null)
+                        Tag(
+                          attackType,
+                          color: cutIn != null
+                              ? const Color(0xffbfa4ff)
+                              : mechanismToneColor(MechanismTone.specialAttack),
+                          pill: true,
+                        ),
                     ],
                   ),
                   const SizedBox(height: 9),

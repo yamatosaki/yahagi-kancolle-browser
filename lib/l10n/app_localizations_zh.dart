@@ -779,6 +779,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get openSourceLicense => '开源协议: MIT License';
 
   @override
+  String get harmonyOsSansNotice =>
+      '本应用使用 HarmonyOS Sans 字体。© 2021 Huawei Device Co., Ltd.';
+
+  @override
   String get newVersionFound => '🚀 发现新版本！';
 
   @override
@@ -3476,7 +3480,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get topNoticeEnabledTitle => '顶栏通知';
 
   @override
-  String get topNoticeEnabledSubtitle => '在顶栏「ヤハギ」右侧显示开发、改修、出击/远征检查与任务完成提示';
+  String get topNoticeEnabledSubtitle => '在「ヤハギ」右侧显示游戏提醒';
 
   @override
   String get topNoticeDurationTitle => '提示停留时间';
@@ -3492,6 +3496,51 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get topNoticeDuration15s => '15 秒';
+
+  @override
+  String get topNoticeGroupFleet => '出击与远征';
+
+  @override
+  String get topNoticeGroupOperation => '操作结果';
+
+  @override
+  String get topNoticeGroupOther => '其他提醒';
+
+  @override
+  String get topNoticeKindSortieHeavyDamage => '出击大破提醒';
+
+  @override
+  String get topNoticeKindSortieSupply => '出击补给提醒';
+
+  @override
+  String get topNoticeKindExpeditionHeavyDamage => '远征大破提醒';
+
+  @override
+  String get topNoticeKindExpeditionSupply => '远征补给提醒';
+
+  @override
+  String get topNoticeKindExpeditionSuccess => '远征成功提醒';
+
+  @override
+  String get topNoticeKindSortieCapacity => '出击容量提醒';
+
+  @override
+  String get topNoticeKindEquipmentDevelopment => '装备开发';
+
+  @override
+  String get topNoticeKindEquipmentImprovement => '装备改修';
+
+  @override
+  String get topNoticeKindModernization => '近代化改修';
+
+  @override
+  String get topNoticeKindMarriage => '誓约';
+
+  @override
+  String get topNoticeKindPracticeExperience => '演习经验';
+
+  @override
+  String get topNoticeKindQuestCompletion => '任务达成';
 
   @override
   String questCompletionSingleNotice(String title) {
@@ -3634,6 +3683,26 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get noticeSortieReasonExpansionSlot => '补强增设插槽闲置';
+
+  @override
+  String noticeSortieHeavyDamage(String fleets) {
+    return '出击提醒：第 $fleets 舰队有大破舰';
+  }
+
+  @override
+  String noticeSortieSupplyWarning(String fleets) {
+    return '出击提醒：第 $fleets 舰队尚未补给';
+  }
+
+  @override
+  String noticeExpeditionHeavyDamage(String fleets) {
+    return '远征提醒：第 $fleets 舰队有大破舰';
+  }
+
+  @override
+  String noticeExpeditionPossibleFailure(int fleet, String expedition) {
+    return '第 $fleet 舰队执行的 $expedition 号远征可能失败';
+  }
 
   @override
   String noticeExpeditionSupplyWarning(String fleets) {
@@ -4893,6 +4962,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get openSourceLicense => '開源授權條款：MIT License';
+
+  @override
+  String get harmonyOsSansNotice =>
+      '本應用程式使用 HarmonyOS Sans 字型。© 2021 Huawei Device Co., Ltd.';
 
   @override
   String get newVersionFound => '🚀 發現新版本！';
@@ -7593,7 +7666,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get topNoticeEnabledTitle => '頂欄通知';
 
   @override
-  String get topNoticeEnabledSubtitle => '在頂欄「ヤハギ」右側顯示開發、改修、出擊/遠征檢查與任務完成提示';
+  String get topNoticeEnabledSubtitle => '在「ヤハギ」右側顯示遊戲提醒';
 
   @override
   String get topNoticeDurationTitle => '提示停留時間';
@@ -7609,6 +7682,51 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get topNoticeDuration15s => '15 秒';
+
+  @override
+  String get topNoticeGroupFleet => '出擊與遠征';
+
+  @override
+  String get topNoticeGroupOperation => '操作結果';
+
+  @override
+  String get topNoticeGroupOther => '其他提醒';
+
+  @override
+  String get topNoticeKindSortieHeavyDamage => '出擊大破提醒';
+
+  @override
+  String get topNoticeKindSortieSupply => '出擊補給提醒';
+
+  @override
+  String get topNoticeKindExpeditionHeavyDamage => '遠征大破提醒';
+
+  @override
+  String get topNoticeKindExpeditionSupply => '遠征補給提醒';
+
+  @override
+  String get topNoticeKindExpeditionSuccess => '遠征成功提醒';
+
+  @override
+  String get topNoticeKindSortieCapacity => '出擊容量提醒';
+
+  @override
+  String get topNoticeKindEquipmentDevelopment => '裝備開發';
+
+  @override
+  String get topNoticeKindEquipmentImprovement => '裝備改修';
+
+  @override
+  String get topNoticeKindModernization => '近代化改修';
+
+  @override
+  String get topNoticeKindMarriage => '誓約';
+
+  @override
+  String get topNoticeKindPracticeExperience => '演習經驗';
+
+  @override
+  String get topNoticeKindQuestCompletion => '任務達成';
 
   @override
   String questCompletionSingleNotice(String title) {
@@ -7751,6 +7869,26 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get noticeSortieReasonExpansionSlot => '補強增設插槽閒置';
+
+  @override
+  String noticeSortieHeavyDamage(String fleets) {
+    return '出擊提醒：第 $fleets 艦隊有大破艦';
+  }
+
+  @override
+  String noticeSortieSupplyWarning(String fleets) {
+    return '出擊提醒：第 $fleets 艦隊尚未補給';
+  }
+
+  @override
+  String noticeExpeditionHeavyDamage(String fleets) {
+    return '遠征提醒：第 $fleets 艦隊有大破艦';
+  }
+
+  @override
+  String noticeExpeditionPossibleFailure(int fleet, String expedition) {
+    return '第 $fleet 艦隊執行的 $expedition 號遠征可能失敗';
+  }
 
   @override
   String noticeExpeditionSupplyWarning(String fleets) {

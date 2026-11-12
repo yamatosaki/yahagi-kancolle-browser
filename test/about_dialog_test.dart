@@ -220,6 +220,7 @@ void main() {
     await tester.drag(scroll, const Offset(0, -600));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('about-disclaimer-end')), findsOneWidget);
+    expect(find.textContaining('HarmonyOS Sans'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

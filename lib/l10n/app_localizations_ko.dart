@@ -793,6 +793,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get openSourceLicense => '오픈 소스 라이선스: MIT License';
 
   @override
+  String get harmonyOsSansNotice =>
+      '이 앱은 HarmonyOS Sans 글꼴을 사용합니다. © 2021 Huawei Device Co., Ltd.';
+
+  @override
   String get newVersionFound => '🚀 새 버전이 있습니다!';
 
   @override
@@ -3546,8 +3550,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get topNoticeEnabledTitle => '상단 알림';
 
   @override
-  String get topNoticeEnabledSubtitle =>
-      '상단의 「ヤハギ」 오른쪽에 개발, 개수, 출격/원정 점검 및 임무 완료 알림을 표시합니다';
+  String get topNoticeEnabledSubtitle => '「ヤハギ」 오른쪽에 게임 알림을 표시합니다';
 
   @override
   String get topNoticeDurationTitle => '알림 표시 시간';
@@ -3564,6 +3567,51 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get topNoticeDuration15s => '15초';
+
+  @override
+  String get topNoticeGroupFleet => '출격 및 원정';
+
+  @override
+  String get topNoticeGroupOperation => '작업 결과';
+
+  @override
+  String get topNoticeGroupOther => '기타 알림';
+
+  @override
+  String get topNoticeKindSortieHeavyDamage => '출격 대파 알림';
+
+  @override
+  String get topNoticeKindSortieSupply => '출격 보급 알림';
+
+  @override
+  String get topNoticeKindExpeditionHeavyDamage => '원정 대파 알림';
+
+  @override
+  String get topNoticeKindExpeditionSupply => '원정 보급 알림';
+
+  @override
+  String get topNoticeKindExpeditionSuccess => '원정 성공 조건 확인';
+
+  @override
+  String get topNoticeKindSortieCapacity => '출격 전 보유 한도 알림';
+
+  @override
+  String get topNoticeKindEquipmentDevelopment => '장비 개발';
+
+  @override
+  String get topNoticeKindEquipmentImprovement => '장비 개수';
+
+  @override
+  String get topNoticeKindModernization => '근대화개수';
+
+  @override
+  String get topNoticeKindMarriage => '결혼';
+
+  @override
+  String get topNoticeKindPracticeExperience => '연습전 경험치';
+
+  @override
+  String get topNoticeKindQuestCompletion => '임무 달성';
 
   @override
   String questCompletionSingleNotice(String title) {
@@ -3708,6 +3756,26 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get noticeSortieReasonExpansionSlot => '보강증설 슬롯 미사용';
+
+  @override
+  String noticeSortieHeavyDamage(String fleets) {
+    return '출격 알림: 제 $fleets 함대에 대파 함선이 있습니다';
+  }
+
+  @override
+  String noticeSortieSupplyWarning(String fleets) {
+    return '출격 알림: 제 $fleets 함대가 미보급 상태입니다';
+  }
+
+  @override
+  String noticeExpeditionHeavyDamage(String fleets) {
+    return '원정 알림: 제 $fleets 함대에 대파 함선이 있습니다';
+  }
+
+  @override
+  String noticeExpeditionPossibleFailure(int fleet, String expedition) {
+    return '제 $fleet 함대의 $expedition번 원정이 실패할 수 있습니다';
+  }
 
   @override
   String noticeExpeditionSupplyWarning(String fleets) {

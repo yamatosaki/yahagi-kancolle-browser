@@ -77,16 +77,22 @@ String poiAttackTypeCode(int type, {required bool isNight}) {
   }[type];
   if (special != null) return special;
   if (isNight) {
-    return const <int, String>{
-          1: 'Double',
-          2: 'PTCI',
-          3: 'TTCI',
-          4: 'PSCI',
-          5: 'PrCI',
-          104: 'Kongo_Class_Kaini_C',
-          200: 'Zuiyun_Night_Attack',
-        }[type] ??
-        'Normal';
+    return switch (type) {
+      1 => 'Double',
+      2 => 'PTCI',
+      3 => 'TTCI',
+      4 => 'PSCI',
+      5 => 'PrCI',
+      6 => 'NightCarrierCI',
+      // The 11–14 variants use the same setups as 7–10 with two hits.
+      7 || 11 => 'DestroyerGunTorpedoRadarCI',
+      8 || 12 => 'DestroyerTorpedoRadarLookoutCI',
+      9 || 13 => 'DestroyerTorpedoLookoutCI',
+      10 || 14 => 'DestroyerTorpedoDrumCI',
+      104 => 'Kongo_Class_Kaini_C',
+      200 => 'Zuiyun_Night_Attack',
+      _ => 'Normal',
+    };
   }
   return const <int, String>{
         1: 'Laser',
@@ -96,6 +102,8 @@ String poiAttackTypeCode(int type, {required bool isNight}) {
         5: 'PACI',
         6: 'PrCI',
         7: 'CVCI',
+        200: 'ZuiunMultiAngle',
+        201: 'SeaAirMultiAngle',
       }[type] ??
       'Normal';
 }
@@ -117,16 +125,21 @@ String poiAttackTypeLabel(int type, {required bool isNight}) {
   }[type];
   if (special != null) return special;
   if (isNight) {
-    return const <int, String>{
-          1: '连击',
-          2: '主炮·鱼雷 Cut-in',
-          3: '鱼雷 Cut-in',
-          4: '主炮·副炮 Cut-in',
-          5: '主炮·主炮 Cut-in',
-          104: '僚舰夜战突击',
-          200: '夜间瑞云攻击',
-        }[type] ??
-        '夜战攻击';
+    return switch (type) {
+      1 => '连击',
+      2 => '主炮·鱼雷 Cut-in',
+      3 => '鱼雷 Cut-in',
+      4 => '主炮·副炮 Cut-in',
+      5 => '主炮·主炮 Cut-in',
+      6 => '空母夜袭 CI',
+      7 || 11 => '主炮·鱼雷·电探 CI',
+      8 || 12 => '鱼雷·电探·见张员 CI',
+      9 || 13 => '双鱼雷·水雷见张员 CI',
+      10 || 14 => '鱼雷·运输桶·水雷见张员 CI',
+      104 => '僚舰夜战突击',
+      200 => '夜间瑞云攻击',
+      _ => '夜战攻击',
+    };
   }
   return const <int, String>{
         1: '激光攻击',
@@ -136,6 +149,8 @@ String poiAttackTypeLabel(int type, {required bool isNight}) {
         5: '主炮·彻甲弹 Cut-in',
         6: '主炮·主炮 Cut-in',
         7: '战爆联合 Cut-in',
+        200: '瑞云立体攻击',
+        201: '海空立体攻击',
       }[type] ??
       '炮击';
 }

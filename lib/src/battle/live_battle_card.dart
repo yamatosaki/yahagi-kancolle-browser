@@ -44,6 +44,7 @@ class LiveBattleCard extends StatefulWidget {
     this.showLastFormationHint = true,
     this.enemyPreviewPosition = EnemyPreviewPosition.above,
     this.sectionOrder,
+    this.visibleSections = BattlePredictionSection.values,
     this.showLogo = true,
     this.showTitle = true,
     this.onOpenDisplaySettings,
@@ -57,6 +58,7 @@ class LiveBattleCard extends StatefulWidget {
   final bool showLastFormationHint;
   final EnemyPreviewPosition enemyPreviewPosition;
   final List<BattlePredictionSection>? sectionOrder;
+  final Iterable<BattlePredictionSection> visibleSections;
   final bool showLogo;
   final bool showTitle;
   final VoidCallback? onOpenDisplaySettings;
@@ -119,9 +121,10 @@ class _LiveBattleCardState extends State<LiveBattleCard> {
     LiveBattle? battle, {
     required bool showCurrentNode,
   }) {
-    // DashboardCard does not mount its child while collapsed. Avoid even the
-    // first lazy geometry parse until the map can be shown.
-    if (widget.collapsed || battle?.context.practice == true) {
+    // Avoid loading map geometry until the card can display it.
+    if (widget.collapsed ||
+        !widget.visibleSections.contains(BattlePredictionSection.sortieMap) ||
+        battle?.context.practice == true) {
       _cachedMapSection = null;
       return null;
     }
@@ -228,6 +231,7 @@ class _LiveBattleCardState extends State<LiveBattleCard> {
                   showLastFormationHint: widget.showLastFormationHint,
                   enemyPreviewPosition: widget.enemyPreviewPosition,
                   sectionOrder: widget.sectionOrder,
+                  visibleSections: widget.visibleSections,
                   mapSection: mapSection,
                 )
               else
@@ -241,6 +245,7 @@ class _LiveBattleCardState extends State<LiveBattleCard> {
                     showLastFormationHint: widget.showLastFormationHint,
                     enemyPreviewPosition: widget.enemyPreviewPosition,
                     sectionOrder: widget.sectionOrder,
+                    visibleSections: widget.visibleSections,
                     mapSection: mapSection,
                   ),
                 ),
@@ -353,6 +358,7 @@ class _CompactBattlePanel extends StatelessWidget {
     required this.damagePulseMode,
     required this.showLastFormationHint,
     required this.enemyPreviewPosition,
+    required this.visibleSections,
     this.sectionOrder,
     this.mapSection,
   });
@@ -363,6 +369,7 @@ class _CompactBattlePanel extends StatelessWidget {
   final bool showLastFormationHint;
   final EnemyPreviewPosition enemyPreviewPosition;
   final List<BattlePredictionSection>? sectionOrder;
+  final Iterable<BattlePredictionSection> visibleSections;
   final Widget? mapSection;
 
   @override
@@ -438,6 +445,7 @@ class _CompactBattlePanel extends StatelessWidget {
           SizedBox(height: flat ? flatSectionGap : 7),
           BattlePredictionSections(
             order: sectionOrder,
+            visibleSections: visibleSections,
             legacyEnemyPreviewPosition: enemyPreviewPosition,
             sortieMap: mapSection,
             enemyPreview: previewShips.isNotEmpty ? enemyPreview : null,
@@ -490,6 +498,7 @@ class _CompactBattlePanel extends StatelessWidget {
       children: [
         BattlePredictionSections(
           order: sectionOrder,
+          visibleSections: visibleSections,
           legacyEnemyPreviewPosition: enemyPreviewPosition,
           sortieMap: mapSection,
           predictionResult: Column(

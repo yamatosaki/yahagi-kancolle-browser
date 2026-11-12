@@ -615,6 +615,30 @@ async function run() {
     return;
   }
 
+  const wrappedOoiFrame = '<div class="ooi-frame-wrap"><iframe id="externalswf" width="1280" height="720"></iframe></div>';
+  await check('OOI /kancolle fits the wrapped game iframe after it loads', async () => {
+    await setup('https://ooi.moe/kancolle', 'ooi', 'iframe', profiles[0], true);
+    assert.equal((await page.evaluate(metrics)).state, 'pending');
+    const before = counts();
+    await page.locator('#ooi-game').evaluate((game, frame) => game.insertAdjacentHTML('beforeend', frame), wrappedOoiFrame);
+    await settle();
+    await geometryAndClicks('OOI wrapped game iframe', false);
+    assert.equal(await page.locator('#ooi-game > p').isVisible(), false);
+    await observerSettles('OOI wrapped game iframe', true);
+    assert.equal(counts().mainNavigations, before.mainNavigations);
+  });
+  await check('DMM keeps its canvas fit without styling the wrapped OOI iframe', async () => {
+    const url = 'https://play.games.dmm.com/game/kancolle/';
+    await setup(url, 'ooi', 'iframe', profiles[0], true);
+    await page.locator('#ooi-game').evaluate((game, frame) => {
+      game.insertAdjacentHTML('beforeend', frame);
+      document.body.insertAdjacentHTML('beforeend', '<canvas width="1200" height="720"></canvas>');
+    }, wrappedOoiFrame);
+    await settle();
+    await nativeFit(url);
+    assert.equal((await page.evaluate(metrics)).frameCss.position, 'static');
+  });
+
   for (const route of quick ? ['/poi'] : routes) for (const shape of quick ? ['flash'] : shapes) for (const tag of ['iframe', 'embed']) {
     await check(`routes ${route} ${shape}/${tag}`, async () => {
       await setup('https://ooi.moe' + route, shape, tag);

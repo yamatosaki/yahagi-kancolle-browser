@@ -80,6 +80,9 @@ internal data class NativeGameWarningDialogSpec(
     val variants: Map<String, String> = emptyMap(),
     val postTouchProtectionActions: Set<String>? = null,
     val backCancels: Boolean = false,
+    val protectInputOnDismiss: Boolean = true,
+    val compactShipChecklist: Boolean = false,
+    val closeLabel: String? = null,
 ) {
     val key: NativeGameDialogKey get() = NativeGameDialogKey(kind, id)
     val isNotice: Boolean get() = kind != "battle"
@@ -143,6 +146,21 @@ internal data class NativeGameWarningDialogSpec(
                 require(checklist && value is Boolean) { "Back cancellation requires a checklist boolean" }
                 value
             } else false
+            val protectInputOnDismiss = if (values.containsKey("protectInputOnDismiss")) {
+                val value = values["protectInputOnDismiss"]
+                require((checklist || surface) && value is Boolean) {
+                    "Dismissal protection requires a checklist or surface dialog boolean"
+                }
+                value
+            } else true
+            val compactShipChecklist = values["compactShipChecklist"] ?: false
+            require(compactShipChecklist is Boolean) { "Compact ship checklist flag must be boolean" }
+            val closeLabel = if (compactShipChecklist) {
+                require(kind == "moduleDisplay" && backCancels && !protectInputOnDismiss) {
+                    "Compact ship checklist requires an immediately cancellable module checklist"
+                }
+                text("closeLabel")
+            } else null
             require(surface || listOf("choices", "checkbox", "selectedChoiceId", "dismissible", "postTouchProtectionActions").none { values.containsKey(it) }) {
                 "Surface dialog controls require a surface dialog"
             }
@@ -189,6 +207,7 @@ internal data class NativeGameWarningDialogSpec(
                 (values["refreshFailed"] as? String)?.takeIf { it.isNotEmpty() },
                 kind, displayActions, items, resetLabel, applied.toLong(), false, checkbox, choices, selectedChoiceId,
                 NativeGameDialogPresentation.parse(values["presentation"]), variants, postTouchProtectionActions, backCancels,
+                protectInputOnDismiss, compactShipChecklist, closeLabel,
             )
         }
     }
@@ -237,6 +256,7 @@ internal data class NativeGameChecklistItem(
     val iconCodePoint: Int? = null,
     val iconColor: Int? = null,
     val enabled: Boolean = true,
+    val detail: String? = null,
 ) {
     companion object {
         private val resourceIconAsset = Regex("assets/images/material/[A-Za-z0-9_-]+\\.png")
@@ -268,7 +288,11 @@ internal data class NativeGameChecklistItem(
                 require(argb in 0..0xffffffffL) { "Invalid checklist icon color" }
                 argb.toInt()
             }
-            return NativeGameChecklistItem(id, label, value, checked, iconAsset, iconCodePoint, iconColor, enabled)
+            val detail = values["detail"]?.let {
+                require(it is String && it.length <= 4096) { "Invalid checklist item detail" }
+                it
+            }
+            return NativeGameChecklistItem(id, label, value, checked, iconAsset, iconCodePoint, iconColor, enabled, detail)
         }
 
         private fun iconInteger(value: Any, name: String): Long {

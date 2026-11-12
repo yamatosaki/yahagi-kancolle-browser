@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -7,6 +8,7 @@ import '../../l10n/app_localizations.dart';
 import '../account/account_session.dart';
 import '../browser/game_surface_dialog.dart';
 import '../fleet/dashboard_card.dart';
+import '../fleet/header_resource_catalog.dart';
 import '../game_state/game_state_controller.dart';
 import '../layout/flat_empty_text.dart';
 import '../layout/flat_style.dart';
@@ -22,6 +24,9 @@ import 'sortie_experience_controller.dart';
 import 'sortie_experience_row.dart';
 import 'sortie_experience_ship_filter.dart';
 import 'sortie_experience_strings.dart';
+import 'sortie_resource_ledger.dart';
+
+part 'sortie_experience_resource_view.dart';
 
 class SortieExperienceCard extends StatefulWidget {
   const SortieExperienceCard({
@@ -49,7 +54,9 @@ class SortieExperienceCard extends StatefulWidget {
 
 class _SortieExperienceCardState extends State<SortieExperienceCard> {
   bool _showTotal = false;
+  bool _showConsumption = false;
   bool _totalDialogOpen = false;
+  _ResourceKind? _sortByResource;
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +76,6 @@ class _SortieExperienceCardState extends State<SortieExperienceCard> {
           (false, true) => strings.active,
           (false, false) => strings.returned,
         };
-        final palette = AppPalette.of(context);
         final options = [
           FlatTextToggleOption(
             key: const Key('sortie-exp-tab-sortie'),
@@ -98,31 +104,9 @@ class _SortieExperienceCardState extends State<SortieExperienceCard> {
             'sortie_experience',
             widget.onOpenDisplaySettings,
           ),
-          titleBadge: _showTotal || snapshot == null
+          titleBadge: !widget.collapsed || _showTotal || snapshot == null
               ? null
-              : DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: active ? palette.successSurface : palette.raised,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 2,
-                    ),
-                    child: Text(
-                      statusLabel,
-                      style: appTextStyle(
-                        context,
-                        TextStyle(
-                          color: active ? palette.success : palette.muted,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+              : _sortieStatus(context, statusLabel, active: active),
           child: widget.collapsed
               ? const SizedBox.shrink()
               : Padding(
@@ -144,6 +128,7 @@ class _SortieExperienceCardState extends State<SortieExperienceCard> {
                           numberFormat,
                           snapshot,
                           active,
+                          statusLabel,
                         ),
                     ],
                   ),
@@ -160,33 +145,92 @@ class _SortieExperienceCardState extends State<SortieExperienceCard> {
     NumberFormat format,
     SortieExperienceSnapshot snapshot,
     bool active,
+    String statusLabel,
   ) {
-    final location = [
-      if (snapshot.isPractice)
-        l10n.questExercise
-      else if (snapshot.mapAreaId > 0 && snapshot.mapInfoNo > 0)
-        '${snapshot.mapAreaId}-${snapshot.mapInfoNo}',
-      if (snapshot.deckId > 0) strings.fleet(snapshot.deckId),
-    ].join(' · ');
+    final location = snapshot.isPractice
+        ? l10n.questExercise
+        : snapshot.mapAreaId > 0 && snapshot.mapInfoNo > 0
+        ? '${snapshot.mapAreaId}-${snapshot.mapInfoNo}'
+        : '—';
+    final fleet = snapshot.deckId > 0 ? strings.fleet(snapshot.deckId) : '—';
+    final experience = snapshot.ships.fold(
+      0,
+      (sum, ship) => sum + (snapshot.confirmedExperience(ship) ?? 0),
+    );
+    final experienceText =
+        snapshot.unverifiedShipIds.length == snapshot.ships.length
+        ? '—'
+        : '+${format.format(experience)} EXP';
+    Widget fit(Widget child) => FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: AlignmentDirectional.centerStart,
+      child: child,
+    );
+    TableRow line(Widget left, Widget right, {double top = 0}) => TableRow(
+      children: [
+        Padding(
+          padding: EdgeInsetsDirectional.only(top: top, end: 5),
+          child: left,
+        ),
+        Padding(
+          padding: EdgeInsetsDirectional.only(top: top, start: 5),
+          child: right,
+        ),
+      ],
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 8,
-          runSpacing: 3,
-          children: [
-            _summary(
-              context,
-              strings.battles(
-                format.format(snapshot.battles),
-                singular: snapshot.battles == 1,
+        _summaryPanel(context, [
+          Table(
+            key: const Key('sortie-exp-sortie-summary-grid'),
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            children: [
+              line(
+                fit(_secondary(context, strings.sortieArea)),
+                fit(_secondary(context, strings.sortieFleet)),
               ),
-            ),
-            if (location.isNotEmpty) _secondary(context, location),
-          ],
-        ),
+              line(
+                fit(_summary(context, location)),
+                fit(_summary(context, fleet)),
+                top: 2,
+              ),
+              line(
+                fit(_secondary(context, strings.settled)),
+                fit(
+                  _secondary(
+                    context,
+                    strings.sortieFleetExperience(active: active),
+                  ),
+                ),
+                top: 6,
+              ),
+              line(
+                fit(
+                  _summary(
+                    context,
+                    strings.battleCount(
+                      format.format(snapshot.battles),
+                      singular: snapshot.battles == 1,
+                    ),
+                  ),
+                ),
+                _experienceAmount(
+                  context,
+                  experienceText,
+                  key: const Key('sortie-exp-sortie-experience'),
+                  active: active,
+                ),
+                top: 2,
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: _sortieStatus(context, statusLabel, active: active),
+          ),
+        ]),
         const SizedBox(height: 6),
         if (snapshot.incomplete) ...[
           _secondary(context, strings.incomplete),
@@ -202,7 +246,9 @@ class _SortieExperienceCardState extends State<SortieExperienceCard> {
             format,
             snapshot.ships,
             active: active,
+            experienceTotal: experience,
             mainFleetId: snapshot.deckId,
+            sortieBattles: snapshot.battles,
             unverifiedShipIds: snapshot.unverifiedShipIds,
           ),
       ],
@@ -221,9 +267,29 @@ class _SortieExperienceCardState extends State<SortieExperienceCard> {
     final ready = controller.isReady && !controller.storageUnavailable;
     final allShips = controller.totals;
     final hidden = controller.hiddenTotalShipIds;
-    final ships = hidden.isEmpty
-        ? allShips
-        : allShips.where((ship) => !hidden.contains(ship.ownedShipId)).toList();
+    final ships = allShips
+        .where((ship) => !hidden.contains(ship.ownedShipId))
+        .toList();
+    final sortBy = _sortByResource;
+    if (_showConsumption && sortBy != null) {
+      final spending = {
+        for (final ship in ships)
+          ship.ownedShipId: sortBy.amount(
+            controller.resourceSpendingFor(ship.ownedShipId)?.total ??
+                const SortieResourceAmounts(),
+          ),
+      };
+      ships.sort((a, b) {
+        final byAmount = spending[b.ownedShipId]!.compareTo(
+          spending[a.ownedShipId]!,
+        );
+        if (byAmount != 0) return byAmount;
+        final byExperience = b.experience.compareTo(a.experience);
+        return byExperience == 0
+            ? a.ownedShipId.compareTo(b.ownedShipId)
+            : byExperience;
+      });
+    }
     final flat = PanelStyleScope.isFlat(context);
     final controlHeight = flat
         ? FlatUnderlineTabs.height
@@ -273,119 +339,186 @@ class _SortieExperienceCardState extends State<SortieExperienceCard> {
       key: ValueKey(account),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 6,
-          runSpacing: 2,
-          children: [
-            Wrap(
-              spacing: 5,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                _summary(
-                  context,
-                  strings.totalCount(format.format(controller.totalSorties)),
-                ),
-                _secondary(
-                  context,
-                  strings.totalUnit(singular: controller.totalSorties == 1),
-                ),
-              ],
+        _summaryPanel(context, [
+          _summaryPair(
+            _summaryMetric(
+              context,
+              strings.totalRecord,
+              Wrap(
+                spacing: 5,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  _summary(
+                    context,
+                    strings.totalCount(format.format(controller.totalSorties)),
+                  ),
+                  _secondary(
+                    context,
+                    strings.totalUnit(singular: controller.totalSorties == 1),
+                  ),
+                ],
+              ),
             ),
-            Wrap(
-              spacing: 5,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Tooltip(
-                      message: strings.tracking,
-                      child: SizedBox(
-                        height: controlHeight,
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Switch(
-                            key: const Key('sortie-exp-tracking-switch'),
-                            value: controller.trackingEnabled,
-                            onChanged: ready
-                                ? (value) => controller.setTrackingEnabled(
-                                    value,
-                                    expectedAccount: account,
-                                  )
-                                : null,
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                            activeTrackColor: palette.successSurface,
-                            activeThumbColor: palette.success,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Text(
-                      controller.trackingEnabled ? strings.on : strings.off,
-                      style: appTextStyle(
-                        context,
-                        controlTextStyle.copyWith(color: palette.muted),
-                      ),
-                    ),
-                  ],
+            _summaryMetric(
+              context,
+              strings.allShipsExperience,
+              _experienceAmount(
+                context,
+                strings.totalExperience(
+                  format.format(controller.totalExperience),
                 ),
-                Builder(
-                  builder: (buttonContext) => Wrap(
-                    spacing: 5,
-                    runSpacing: 2,
-                    children: [
-                      Tooltip(
-                        message: strings.filterTitle,
-                        child: FilledButton(
-                          key: const Key('sortie-exp-filter-total'),
-                          onPressed:
-                              ready &&
-                                  controller.isTotalShipVisibilityReady &&
-                                  allShips.isNotEmpty
-                              ? () => _showTotalShipFilter(
-                                  buttonContext,
-                                  controller,
-                                  account,
+                key: const Key('sortie-exp-total-experience'),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 5,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Tooltip(
+                    message: strings.tracking,
+                    child: SizedBox(
+                      height: controlHeight,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Switch(
+                          key: const Key('sortie-exp-tracking-switch'),
+                          value: controller.trackingEnabled,
+                          onChanged: ready
+                              ? (value) => controller.setTrackingEnabled(
+                                  value,
+                                  expectedAccount: account,
                                 )
                               : null,
-                          style: capsuleStyle(
-                            const Color(0xfff0c06f),
-                            const Color(0xff342500),
-                          ),
-                          child: const Icon(Icons.filter_alt_rounded, size: 16),
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          activeTrackColor: palette.successSurface,
+                          activeThumbColor: palette.success,
                         ),
                       ),
-                      FilledButton(
-                        key: const Key('sortie-exp-clear-total'),
-                        onPressed: ready && controller.totalSorties > 0
-                            ? () => _confirmClearTotal(
+                    ),
+                  ),
+                  Text(
+                    controller.trackingEnabled ? strings.on : strings.off,
+                    style: appTextStyle(
+                      context,
+                      controlTextStyle.copyWith(color: palette.muted),
+                    ),
+                  ),
+                ],
+              ),
+              Builder(
+                builder: (buttonContext) => Wrap(
+                  spacing: 5,
+                  runSpacing: 2,
+                  children: [
+                    Tooltip(
+                      message: strings.filterTitle,
+                      child: FilledButton(
+                        key: const Key('sortie-exp-filter-total'),
+                        onPressed:
+                            ready &&
+                                controller.isTotalShipVisibilityReady &&
+                                allShips.isNotEmpty
+                            ? () => _showTotalShipFilter(
                                 buttonContext,
                                 controller,
                                 account,
-                                strings,
-                                l10n,
                               )
                             : null,
-                        style: capsuleStyle(palette.error, Colors.white),
-                        child: Text(strings.clear),
+                        style: capsuleStyle(
+                          const Color(0xfff0c06f),
+                          const Color(0xff342500),
+                        ),
+                        child: const Icon(Icons.filter_alt_rounded, size: 16),
                       ),
-                    ],
-                  ),
+                    ),
+                    FilledButton(
+                      key: const Key('sortie-exp-clear-total'),
+                      onPressed:
+                          ready &&
+                              (controller.totalSorties > 0 ||
+                                  controller.hasResourceSpendingData)
+                          ? () => _confirmClearTotal(
+                              buttonContext,
+                              controller,
+                              account,
+                              strings,
+                              l10n,
+                            )
+                          : null,
+                      style: capsuleStyle(palette.error, Colors.white),
+                      child: Text(strings.clear),
+                    ),
+                  ],
                 ),
-              ],
+              ),
+            ],
+          ),
+        ]),
+        const SizedBox(height: 4),
+        _ExperienceSwitcher(
+          options: [
+            FlatTextToggleOption(
+              key: const Key('sortie-exp-total-tab-experience'),
+              label: strings.experienceTab,
+              selected: !_showConsumption,
+              onTap: () => setState(() => _showConsumption = false),
+            ),
+            FlatTextToggleOption(
+              key: const Key('sortie-exp-total-tab-consumption'),
+              label: strings.consumptionTab,
+              selected: _showConsumption,
+              onTap: () => setState(() => _showConsumption = true),
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         if (controller.storageUnavailable) ...[
           _ExperienceMessage(text: strings.storageUnavailable),
           if (allShips.isNotEmpty) const SizedBox(height: 5),
         ],
+        if (_showConsumption && ready) ...[
+          _WarehouseSpendingSummary(
+            strings: strings,
+            localizations: l10n,
+            format: format,
+            confirmed: controller.totalResourceSpending,
+            unallocated: controller.unallocatedResourceSpending,
+            incomplete: controller.resourceSpendingIncomplete,
+          ),
+          const SizedBox(height: 5),
+          if (ships.isNotEmpty) ...[
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: _resourceSortMenu(context, account, strings, l10n),
+            ),
+            const SizedBox(height: 4),
+          ],
+        ],
         if (ships.isNotEmpty)
-          _shipTable(context, strings, l10n, format, ships, active: false)
+          _PaginatedTotalShips(
+            key: ValueKey((controller, account)),
+            ships: ships,
+            sortByResource: sortBy,
+            allShipIds: {for (final ship in allShips) ship.ownedShipId},
+            hiddenShipIds: hidden,
+            format: format,
+            tableBuilder: (pageShips) => _shipTable(
+              context,
+              strings,
+              l10n,
+              format,
+              pageShips,
+              active: false,
+              experienceTotal: controller.totalExperience,
+              showResourceSpending: _showConsumption,
+            ),
+          )
         else if (allShips.isNotEmpty)
           _ExperienceMessage(text: strings.noVisibleShips)
         else if (!controller.storageUnavailable)
@@ -397,6 +530,112 @@ class _SortieExperienceCardState extends State<SortieExperienceCard> {
                 : strings.offHint,
           ),
       ],
+    );
+  }
+
+  Widget _resourceSortMenu(
+    BuildContext context,
+    AccountScope account,
+    SortieExperienceStrings strings,
+    AppLocalizations l10n,
+  ) {
+    final palette = AppPalette.of(context);
+    final outline = BorderSide(color: palette.border);
+    final controller = widget.controller;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = math.min(116.0, constraints.maxWidth);
+        return SizedBox(
+          width: width,
+          child: MenuAnchor(
+            key: ValueKey((controller, account)),
+            crossAxisUnconstrained: false,
+            consumeOutsideTap: false,
+            alignmentOffset: const Offset(0, 3),
+            style: MenuStyle(
+              alignment: AlignmentDirectional.bottomStart,
+              fixedSize: WidgetStatePropertyAll(Size.fromWidth(width)),
+              padding: const WidgetStatePropertyAll(
+                EdgeInsets.symmetric(vertical: 3),
+              ),
+              backgroundColor: WidgetStatePropertyAll(palette.surface),
+              side: WidgetStatePropertyAll(outline),
+              shape: WidgetStatePropertyAll(
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+              ),
+            ),
+            menuChildren: [
+              for (final kind in _ResourceKind.values)
+                MenuItemButton(
+                  key: Key('sortie-exp-resource-sort-${kind.name}'),
+                  style: ButtonStyle(
+                    minimumSize: WidgetStatePropertyAll(Size(width, 32)),
+                    padding: const WidgetStatePropertyAll(
+                      EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    foregroundColor: WidgetStatePropertyAll(
+                      kind == _sortByResource
+                          ? palette.accent
+                          : palette.foreground,
+                    ),
+                  ),
+                  trailingIcon: kind == _sortByResource
+                      ? const Icon(Icons.check, size: 14)
+                      : null,
+                  onPressed: () {
+                    if (!mounted ||
+                        !identical(widget.controller, controller) ||
+                        !identical(controller.accountScope, account)) {
+                      return;
+                    }
+                    setState(() => _sortByResource = kind);
+                  },
+                  child: Text(
+                    kind.label(l10n),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+            builder: (context, menu, _) => TextButton(
+              key: const Key('sortie-exp-resource-sort'),
+              style: TextButton.styleFrom(
+                foregroundColor: palette.muted,
+                minimumSize: const Size(0, 28),
+                padding: const EdgeInsets.symmetric(horizontal: 7),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                side: outline,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(5),
+                ),
+              ),
+              onPressed: () {
+                if (menu.isOpen) {
+                  menu.close();
+                } else if (!_totalDialogOpen) {
+                  menu.open();
+                }
+              },
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _sortByResource?.label(l10n) ?? strings.resourceSort,
+                      style: _secondaryStyle(context),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Icon(
+                    menu.isOpen ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -441,7 +680,7 @@ class _SortieExperienceCardState extends State<SortieExperienceCard> {
         identical(controller.accountScope, account) &&
         controller.isReady &&
         !controller.storageUnavailable &&
-        controller.totalSorties > 0;
+        (controller.totalSorties > 0 || controller.hasResourceSpendingData);
 
     if (_totalDialogOpen || !canClear()) return;
     _totalDialogOpen = true;
@@ -490,6 +729,39 @@ class _SortieExperienceCardState extends State<SortieExperienceCard> {
     }
   }
 
+  Future<void> _showResourceBill(
+    BuildContext context,
+    SortieExperienceController controller,
+    AccountScope account,
+    SortieExperienceStrings strings,
+    AppLocalizations l10n,
+    NumberFormat format,
+    String name,
+    int id,
+  ) async {
+    if (_totalDialogOpen ||
+        !context.mounted ||
+        !identical(widget.controller, controller) ||
+        !identical(controller.accountScope, account) ||
+        !controller.isReady ||
+        controller.storageUnavailable) {
+      return;
+    }
+    _totalDialogOpen = true;
+    try {
+      await _showWarehouseSpendingDialog(
+        context,
+        strings,
+        l10n,
+        format,
+        name,
+        controller.resourceSpendingFor(id),
+      );
+    } finally {
+      _totalDialogOpen = false;
+    }
+  }
+
   Widget _shipTable(
     BuildContext context,
     SortieExperienceStrings strings,
@@ -497,17 +769,20 @@ class _SortieExperienceCardState extends State<SortieExperienceCard> {
     NumberFormat format,
     List<SortieExperienceShip> ships, {
     required bool active,
+    required int experienceTotal,
+    bool showResourceSpending = false,
     int? mainFleetId,
+    int? sortieBattles,
     Set<int> unverifiedShipIds = const {},
   }) {
     final flat = PanelStyleScope.isFlat(context);
     final palette = AppPalette.of(context);
-    final expColor = palette.isDark
-        ? Color(active ? 0xfff7cf75 : 0xff8adac7)
-        : active
-        ? palette.warning
-        : palette.success;
+    final expColor = _experienceColor(context, active: active);
     final names = gameNames(context);
+    final controller = widget.controller;
+    final account = controller.accountScope;
+    final percentFormat = NumberFormat.percentPattern(l10n.localeName)
+      ..maximumFractionDigits = 1;
     final masterShips = widget.gameState.state.masterShips;
     final fleets = <int, List<SortieExperienceShip>>{};
     if (mainFleetId != null) {
@@ -521,15 +796,32 @@ class _SortieExperienceCardState extends State<SortieExperienceCard> {
         horizontal: flat ? 2 : (compact ? 4 : 8),
       );
       final gap = SizedBox(width: compact ? 4 : 6);
-      final nameWidth = (width - padding.horizontal) * (compact ? 0.29 : 0.35);
+      final nameWidth =
+          (width - padding.horizontal) *
+          (showResourceSpending ? 0.27 : (compact ? 0.29 : 0.35));
 
-      Widget columns(Widget name, Widget progress, Widget amount) => Row(
+      Widget columns(
+        Widget name,
+        Widget progress,
+        Widget amount, [
+        Widget? mvp,
+      ]) => Row(
         children: [
           SizedBox(width: nameWidth.clamp(0.0, 164.0), child: name),
           gap,
-          Expanded(flex: compact ? 36 : 30, child: progress),
+          Expanded(
+            flex: showResourceSpending ? 23 : (compact ? 36 : 30),
+            child: progress,
+          ),
           gap,
-          Expanded(flex: compact ? 35 : 26, child: amount),
+          Expanded(
+            flex: showResourceSpending ? 50 : (compact ? 35 : 26),
+            child: amount,
+          ),
+          if (mvp != null) ...[
+            gap,
+            SizedBox(width: compact ? 28 : 38, child: mvp),
+          ],
         ],
       );
 
@@ -557,13 +849,14 @@ class _SortieExperienceCardState extends State<SortieExperienceCard> {
         final id = ship.ownedShipId;
         final (:level, :nextExperience) = widget.controller.progressFor(id);
         final captured = !unverifiedShipIds.contains(id);
+        final mvp = sortieBattles == 0 ? 0 : ship.mvpCount;
         final name = names.shipName(
           ship.name.isNotEmpty
               ? ship.name
               : masterShips[ship.masterShipId]?.name ?? strings.unknownShip,
           shipId: ship.masterShipId,
         );
-        return DecoratedBox(
+        final row = DecoratedBox(
           key: Key('sortie-exp-ship-$id'),
           decoration: BoxDecoration(
             border: index == 0
@@ -584,14 +877,61 @@ class _SortieExperienceCardState extends State<SortieExperienceCard> {
                 levelKey: Key('sortie-exp-level-$id'),
                 nextKey: Key('sortie-exp-next-$id'),
               ),
-              SortieExperienceAmount(
-                value: captured
-                    ? '${ship.experience > 0 ? '+' : ''}${format.format(ship.experience)}'
-                    : strings.uncaptured,
-                unit: captured ? 'EXP' : null,
-                color: captured ? expColor : palette.muted,
-                valueKey: Key('sortie-exp-value-$id'),
+              showResourceSpending
+                  ? _WarehouseShipSpending(
+                      strings: strings,
+                      localizations: l10n,
+                      format: format,
+                      spending: controller.resourceSpendingFor(id),
+                    )
+                  : SortieExperienceAmount(
+                      value: captured
+                          ? '${ship.experience > 0 ? '+' : ''}${format.format(ship.experience)}'
+                          : strings.uncaptured,
+                      unit: !captured
+                          ? null
+                          : percentFormat.format(
+                              experienceTotal == 0
+                                  ? 0
+                                  : ship.experience / experienceTotal,
+                            ),
+                      color: captured ? expColor : palette.muted,
+                      valueKey: Key('sortie-exp-value-$id'),
+                      unitKey: Key('sortie-exp-percentage-$id'),
+                    ),
+              showResourceSpending
+                  ? null
+                  : SortieExperienceAmount(
+                      value: mvp == null ? '—' : format.format(mvp),
+                      color: mvp == null || mvp == 0
+                          ? palette.muted
+                          : palette.accent,
+                      valueKey: Key('sortie-exp-mvp-$id'),
+                    ),
+            ),
+          ),
+        );
+        if (!showResourceSpending ||
+            !controller.isReady ||
+            controller.storageUnavailable) {
+          return row;
+        }
+        return Material(
+          type: MaterialType.transparency,
+          child: Builder(
+            builder: (rowContext) => InkWell(
+              key: Key('sortie-exp-resource-open-$id'),
+              onTap: () => _showResourceBill(
+                rowContext,
+                controller,
+                account,
+                strings,
+                l10n,
+                format,
+                name,
+                id,
               ),
+              child: row,
             ),
           ),
         );
@@ -617,7 +957,20 @@ class _SortieExperienceCardState extends State<SortieExperienceCard> {
                   child: columns(
                     heading(strings.ship),
                     heading(l10n.level),
-                    heading(l10n.expCalcAccumulatedExpLabel, end: true),
+                    heading(
+                      showResourceSpending
+                          ? strings.periodSpending
+                          : l10n.expCalcAccumulatedExpLabel,
+                      end: true,
+                    ),
+                    showResourceSpending
+                        ? null
+                        : Tooltip(
+                            message: strings.mvpTooltip(
+                              total: sortieBattles == null,
+                            ),
+                            child: heading('MVP', end: true),
+                          ),
                   ),
                 ),
               ),
@@ -658,6 +1011,120 @@ class _SortieExperienceCardState extends State<SortieExperienceCard> {
           ],
         );
       },
+    );
+  }
+}
+
+class _PaginatedTotalShips extends StatefulWidget {
+  const _PaginatedTotalShips({
+    super.key,
+    required this.ships,
+    required this.sortByResource,
+    required this.allShipIds,
+    required this.hiddenShipIds,
+    required this.format,
+    required this.tableBuilder,
+  });
+
+  final List<SortieExperienceShip> ships;
+  final _ResourceKind? sortByResource;
+  final Set<int> allShipIds;
+  final Set<int> hiddenShipIds;
+  final NumberFormat format;
+  final Widget Function(List<SortieExperienceShip>) tableBuilder;
+
+  @override
+  State<_PaginatedTotalShips> createState() => _PaginatedTotalShipsState();
+}
+
+class _PaginatedTotalShipsState extends State<_PaginatedTotalShips> {
+  static const _pageSize = 10;
+  int _page = 0;
+
+  int get _pageCount =>
+      math.max(1, (widget.ships.length + _pageSize - 1) ~/ _pageSize);
+
+  @override
+  void didUpdateWidget(covariant _PaginatedTotalShips oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final previousSelection = oldWidget.hiddenShipIds.intersection(
+      widget.allShipIds,
+    );
+    final currentSelection = widget.hiddenShipIds.intersection(
+      widget.allShipIds,
+    );
+    _page =
+        oldWidget.sortByResource == widget.sortByResource &&
+            setEquals(previousSelection, currentSelection)
+        ? math.min(_page, _pageCount - 1)
+        : 0;
+  }
+
+  void _changePage(int direction) {
+    if (!mounted) return;
+    setState(() => _page = (_page + direction).clamp(0, _pageCount - 1));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final start = _page * _pageSize;
+    final end = math.min(start + _pageSize, widget.ships.length);
+    final localizations = MaterialLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        widget.tableBuilder(widget.ships.sublist(start, end)),
+        if (_pageCount > 1) ...[
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                key: const Key('sortie-exp-total-previous'),
+                onPressed: _page > 0 ? () => _changePage(-1) : null,
+                tooltip: localizations.previousPageTooltip,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 28,
+                  height: 28,
+                ),
+                visualDensity: VisualDensity.standard,
+                icon: const Icon(Icons.chevron_left_rounded, size: 20),
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '${widget.format.format(_page + 1)} / ${widget.format.format(_pageCount)}',
+                    key: const Key('sortie-exp-total-page'),
+                    semanticsLabel: localizations.pageRowsInfoTitle(
+                      start + 1,
+                      end,
+                      widget.ships.length,
+                      false,
+                    ),
+                    style: _secondaryStyle(context),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                key: const Key('sortie-exp-total-next'),
+                onPressed: _page + 1 < _pageCount ? () => _changePage(1) : null,
+                tooltip: localizations.nextPageTooltip,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 28,
+                  height: 28,
+                ),
+                visualDensity: VisualDensity.standard,
+                icon: const Icon(Icons.chevron_right_rounded, size: 20),
+              ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }
@@ -737,15 +1204,17 @@ class _ExperienceMessage extends StatelessWidget {
   }
 }
 
-Text _summary(BuildContext context, String text) => Text(
-  text,
-  style: appTextStyle(
-    context,
-    TextStyle(
-      color: AppPalette.of(context).foreground,
-      fontSize: 12,
-      fontWeight: FontWeight.w700,
-    ),
+const _summaryValueFontSize = 12.0;
+
+Text _summary(BuildContext context, String text) =>
+    Text(text, style: _summaryValueStyle(context));
+
+TextStyle _summaryValueStyle(BuildContext context) => appTextStyle(
+  context,
+  TextStyle(
+    color: AppPalette.of(context).foreground,
+    fontSize: _summaryValueFontSize,
+    fontWeight: FontWeight.w700,
   ),
 );
 
@@ -756,3 +1225,105 @@ TextStyle _secondaryStyle(BuildContext context) => appTextStyle(
   context,
   TextStyle(color: AppPalette.of(context).muted, fontSize: 11),
 );
+
+Widget _summaryPanel(BuildContext context, List<Widget> children) {
+  final palette = AppPalette.of(context);
+  final flat = PanelStyleScope.isFlat(context);
+  return DecoratedBox(
+    decoration: BoxDecoration(
+      color: flat ? Colors.transparent : palette.inner,
+      border: Border.all(color: palette.border),
+      borderRadius: BorderRadius.circular(flat ? 0 : 7),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(7),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    ),
+  );
+}
+
+Widget _summaryPair(Widget left, Widget right) => LayoutBuilder(
+  builder: (context, constraints) {
+    final scaledFontSize = MediaQuery.textScalerOf(
+      context,
+    ).scale(_summaryValueFontSize);
+    final twoColumnWidth = 240 * scaledFontSize / _summaryValueFontSize;
+    return constraints.maxWidth < twoColumnWidth
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [left, const SizedBox(height: 6), right],
+          )
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: left),
+              const SizedBox(width: 10),
+              Expanded(child: right),
+            ],
+          );
+  },
+);
+
+Widget _summaryMetric(BuildContext context, String label, Widget value) =>
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [_secondary(context, label), const SizedBox(height: 2), value],
+    );
+
+Color _experienceColor(BuildContext context, {required bool active}) {
+  final palette = AppPalette.of(context);
+  if (palette.isDark) return Color(active ? 0xfff7cf75 : 0xff8adac7);
+  return active ? palette.warning : palette.success;
+}
+
+Widget _experienceAmount(
+  BuildContext context,
+  String text, {
+  required Key key,
+  bool active = false,
+}) => FittedBox(
+  fit: BoxFit.scaleDown,
+  alignment: AlignmentDirectional.centerStart,
+  child: Text(
+    text,
+    key: key,
+    maxLines: 1,
+    style: _summaryValueStyle(context).copyWith(
+      color: _experienceColor(context, active: active),
+      fontFeatures: const [FontFeature.tabularFigures()],
+    ),
+  ),
+);
+
+Widget _sortieStatus(
+  BuildContext context,
+  String label, {
+  required bool active,
+}) {
+  final palette = AppPalette.of(context);
+  return DecoratedBox(
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(12),
+      color: active ? palette.warning.withValues(alpha: 0.14) : palette.raised,
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      child: Text(
+        label,
+        style: appTextStyle(
+          context,
+          TextStyle(
+            color: active
+                ? _experienceColor(context, active: true)
+                : palette.muted,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    ),
+  );
+}

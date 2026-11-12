@@ -221,7 +221,7 @@ class OoiViewportSmokeTest {
         """.trimIndent())
         eval(script)
         settle()
-        assertEquals("Runtime upgrades cached v3 state", "7", eval("window.__yahagiMobilePresentationRuntimeVersion"))
+        assertEquals("Runtime upgrades cached v3 state", "8", eval("window.__yahagiMobilePresentationRuntimeVersion"))
         assertEquals("Upgrade replaces old OOI alignment closure", "0", eval("window.__staleOoiClosureCalls"))
         val finishes = pageFinishes.get()
         eval("document.getElementById('externalswf').contentWindow.scrollTo(113,157)")

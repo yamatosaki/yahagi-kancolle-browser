@@ -326,16 +326,18 @@ final class BattleDetailReplayBuilder {
             originalAttacker +
             (order == null ? 0 : (hit < order.length ? order[hit] : 0));
         var df = _int(targets[order == null ? 0 : hit]);
+        final enemyAttack = map['api_at_eflag'] != null
+            ? _atInt(flags, row) == 1
+            : df < friendlyRange;
+        // A combined night special can report our escort's local index.
         if (order != null &&
             night &&
             !npc &&
+            !enemyAttack &&
             state.hasEscort(BattleDetailSide.friend) &&
             at < friendlyRange) {
           at += friendlyRange;
         }
-        final enemyAttack = map['api_at_eflag'] != null
-            ? _atInt(flags, row) == 1
-            : df < friendlyRange;
         if (map['api_at_eflag'] == null) {
           if (at >= friendlyRange) at -= friendlyRange;
           if (df >= friendlyRange) df -= friendlyRange;

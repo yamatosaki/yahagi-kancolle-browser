@@ -450,10 +450,12 @@ class AboutContentWidget extends StatelessWidget {
             ),
             alignment: Alignment.center,
             child: Text(
-              l10n.openSourceLicense,
+              '${l10n.openSourceLicense}\n${l10n.harmonyOsSansNotice}',
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
-                color: appColor(context, Color(0xff567080)),
+                height: 1.4,
+                color: appColor(context, Color(0xffa0b6c4)),
               ),
             ),
           ),

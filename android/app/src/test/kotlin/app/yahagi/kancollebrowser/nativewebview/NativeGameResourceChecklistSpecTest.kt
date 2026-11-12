@@ -63,10 +63,35 @@ class NativeGameResourceChecklistSpecTest {
         reject((payload("debuff") - "items") + ("backCancels" to true))
     }
 
+    @Test fun checklistsCanOptOutOfDismissalProtectionWithoutChangingExistingEditors() {
+        assertTrue(valid(payload("moduleDisplay")).protectInputOnDismiss)
+        assertFalse(valid(payload("moduleDisplay") + ("protectInputOnDismiss" to false)).protectInputOnDismiss)
+        reject(payload("moduleDisplay") + ("protectInputOnDismiss" to "false"))
+        reject((payload("debuff") - "items" + ("body" to "notice")) + ("protectInputOnDismiss" to false))
+    }
+
     @Test fun itemIdsMustBeUniqueAndNonempty() {
         val original = (payload()["items"] as List<*>).single()!!
         reject(payload() + ("items" to listOf(original, original)))
         reject(payload() + ("items" to listOf(mapOf("id" to "", "label" to "a", "value" to "", "checked" to true))))
+    }
+
+    @Test fun compactShipChecklistRequiresLocalizedCloseAndImmediateCancellation() {
+        val item = (payload()["items"] as List<*>).single() as Map<*, *>
+        val compact = mapOf(
+            "compactShipChecklist" to true, "closeLabel" to "关闭",
+            "backCancels" to true, "protectInputOnDismiss" to false,
+            "items" to listOf(item + ("detail" to "Lv.187")),
+        )
+        val spec = valid(payload("moduleDisplay") + compact)
+        assertTrue(spec.compactShipChecklist)
+        assertEquals("关闭", spec.closeLabel)
+        assertEquals("Lv.187", spec.items.single().detail)
+        assertFalse(valid(payload("moduleDisplay")).compactShipChecklist)
+        reject(payload() + compact)
+        reject(payload("moduleDisplay") + (compact - "closeLabel"))
+        reject(payload("moduleDisplay") + compact + ("backCancels" to false))
+        reject(payload("moduleDisplay") + compact + ("protectInputOnDismiss" to true))
     }
 
     @Test fun checksAndVisibleValuesAreStrictlyTyped() {

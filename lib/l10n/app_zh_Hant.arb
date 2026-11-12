@@ -258,6 +258,7 @@
   "officialWebsite": "官網",
   "checkForUpdates": "檢查更新",
   "openSourceLicense": "開源授權條款：MIT License",
+  "harmonyOsSansNotice": "本應用程式使用 HarmonyOS Sans 字型。© 2021 Huawei Device Co., Ltd.",
   "newVersionFound": "🚀 發現新版本！",
   "currentVersionLabel": "目前版本",
   "latestVersionLabel": "最新版本",
@@ -1195,12 +1196,27 @@
   "menuPositionRight": "右",
   "topNoticeSectionTitle": "頂欄消息通知",
   "topNoticeEnabledTitle": "頂欄通知",
-  "topNoticeEnabledSubtitle": "在頂欄「ヤハギ」右側顯示開發、改修、出擊/遠征檢查與任務完成提示",
+  "topNoticeEnabledSubtitle": "在「ヤハギ」右側顯示遊戲提醒",
   "topNoticeDurationTitle": "提示停留時間",
   "topNoticeDurationSubtitle": "消息氣泡彈出後無操作自動收起的時長",
   "topNoticeDuration5s": "5 秒 (默認)",
   "topNoticeDuration10s": "10 秒",
   "topNoticeDuration15s": "15 秒",
+  "topNoticeGroupFleet": "出擊與遠征",
+  "topNoticeGroupOperation": "操作結果",
+  "topNoticeGroupOther": "其他提醒",
+  "topNoticeKindSortieHeavyDamage": "出擊大破提醒",
+  "topNoticeKindSortieSupply": "出擊補給提醒",
+  "topNoticeKindExpeditionHeavyDamage": "遠征大破提醒",
+  "topNoticeKindExpeditionSupply": "遠征補給提醒",
+  "topNoticeKindExpeditionSuccess": "遠征成功提醒",
+  "topNoticeKindSortieCapacity": "出擊容量提醒",
+  "topNoticeKindEquipmentDevelopment": "裝備開發",
+  "topNoticeKindEquipmentImprovement": "裝備改修",
+  "topNoticeKindModernization": "近代化改修",
+  "topNoticeKindMarriage": "誓約",
+  "topNoticeKindPracticeExperience": "演習經驗",
+  "topNoticeKindQuestCompletion": "任務達成",
   "questCompletionSingleNotice": "任務達成：{title}",
   "@questCompletionSingleNotice": {
     "placeholders": {
@@ -1346,6 +1362,41 @@
   "noticeSortieReasonFatigue": "艦娘疲勞 (黃臉/紅臉)",
   "noticeSortieReasonMainSlot": "主裝備槽未裝滿",
   "noticeSortieReasonExpansionSlot": "補強增設插槽閒置",
+  "noticeSortieHeavyDamage": "出擊提醒：第 {fleets} 艦隊有大破艦",
+  "@noticeSortieHeavyDamage": {
+    "placeholders": {
+      "fleets": {
+        "type": "String"
+      }
+    }
+  },
+  "noticeSortieSupplyWarning": "出擊提醒：第 {fleets} 艦隊尚未補給",
+  "@noticeSortieSupplyWarning": {
+    "placeholders": {
+      "fleets": {
+        "type": "String"
+      }
+    }
+  },
+  "noticeExpeditionHeavyDamage": "遠征提醒：第 {fleets} 艦隊有大破艦",
+  "@noticeExpeditionHeavyDamage": {
+    "placeholders": {
+      "fleets": {
+        "type": "String"
+      }
+    }
+  },
+  "noticeExpeditionPossibleFailure": "第 {fleet} 艦隊執行的 {expedition} 號遠征可能失敗",
+  "@noticeExpeditionPossibleFailure": {
+    "placeholders": {
+      "fleet": {
+        "type": "int"
+      },
+      "expedition": {
+        "type": "String"
+      }
+    }
+  },
   "noticeExpeditionSupplyWarning": "遠征提醒：第 {fleets} 艦隊尚未補給",
   "@noticeExpeditionSupplyWarning": {
     "placeholders": {

@@ -25,6 +25,25 @@ class _Store extends GameStateStore {
 }
 
 void main() {
+  test('forecast sections default to visible and persist even when all are hidden', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = SharedPreferencesLayoutSettingsStore();
+    final settings = await LayoutSettingsController.load(store);
+    addTearDown(settings.dispose);
+    const allSections = {'sortieMap', 'enemyPreview', 'predictionResult'};
+    expect(settings.moduleDisplayFields('battle'), allSections);
+
+    await settings.setModuleDisplayFields('battle', {'enemyPreview'});
+    final restored = await LayoutSettingsController.load(store);
+    addTearDown(restored.dispose);
+    expect(restored.moduleDisplayFields('battle'), {'enemyPreview'});
+
+    await restored.setModuleDisplayFields('battle', {});
+    final allHidden = await LayoutSettingsController.load(store);
+    addTearDown(allHidden.dispose);
+    expect(allHidden.moduleDisplayFields('battle'), isEmpty);
+  });
+
   test('quest fields default to all and persist individual choices', () async {
     SharedPreferences.setMockInitialValues({});
     final store = SharedPreferencesLayoutSettingsStore();

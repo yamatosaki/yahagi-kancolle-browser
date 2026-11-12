@@ -144,6 +144,17 @@ void verifyDetail(Map<String, dynamic> c) {
   }
 
   final actual = <Object?>[];
+  // POI 3.0.5 returns Normal for these types. The replay builder tests
+  // separately verify Yahagi's labels for them.
+  const additionalCiTypes = {
+    'NightCarrierCI',
+    'DestroyerGunTorpedoRadarCI',
+    'DestroyerTorpedoRadarLookoutCI',
+    'DestroyerTorpedoLookoutCI',
+    'DestroyerTorpedoDrumCI',
+    'ZuiunMultiAngle',
+    'SeaAirMultiAngle',
+  };
   for (final stage in detail.stages) {
     for (final a in stage.attacks) {
       final target = identity(
@@ -159,7 +170,9 @@ void verifyDetail(Map<String, dynamic> c) {
         'after': a.defenderHpAfter,
         'damage': a.hits.map((h) => h.damage).toList(),
         'hit': a.hits.map((h) => h.kind.name).toList(),
-        'type': a.attackTypeCode,
+        'type': additionalCiTypes.contains(a.attackTypeCode)
+            ? 'Normal'
+            : a.attackTypeCode,
         'useItem': const {'应急修理要员': 42, '应急修理女神': 43}[a.damageControlName],
       });
     }

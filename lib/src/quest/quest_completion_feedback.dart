@@ -5,6 +5,7 @@ import '../../l10n/app_localizations.dart';
 import '../game_state/game_state_controller.dart';
 import '../game_state/game_state.dart';
 import '../settings/layout_settings_controller.dart';
+import '../settings/top_notice_kind.dart';
 import '../widgets/top_notice.dart';
 import 'quest_completion_drawer.dart';
 import 'quest_completion_tracker.dart';
@@ -37,6 +38,12 @@ class _QuestCompletionFeedbackState extends State<QuestCompletionFeedback> {
   final Map<int, GameQuest> _pendingVerification = {};
   final Map<int, String> _fullUnverified = {};
   final Map<int, String> _announcedVerification = {};
+
+  bool get _noticeEnabled =>
+      widget.layoutSettingsController.topNoticeEnabled &&
+      widget.layoutSettingsController.isTopNoticeKindEnabled(
+        TopNoticeKind.questCompletion,
+      );
 
   @override
   void initState() {
@@ -77,6 +84,7 @@ class _QuestCompletionFeedbackState extends State<QuestCompletionFeedback> {
     final now = DateTime.now().toUtc();
     final previousCount = _tracker.completedCount;
     final newlyCompleted = _tracker.update(state, now: now);
+    final noticeEnabled = _noticeEnabled;
     if (_tracker.completedCount != previousCount) setState(() {});
     if (_pendingMemberId != state.memberId) {
       _pendingQuests.clear();
@@ -86,11 +94,10 @@ class _QuestCompletionFeedbackState extends State<QuestCompletionFeedback> {
       QuestCompletionDrawerHost.removeQuestNotices(context);
     } else {
       for (final quest in _newlyFullUnverified(state, now)) {
-        _pendingVerification[quest.id] = quest;
+        if (noticeEnabled) _pendingVerification[quest.id] = quest;
       }
     }
-    if ((!newlyCompleted && _pendingVerification.isEmpty) ||
-        !widget.layoutSettingsController.topNoticeEnabled) {
+    if (!noticeEnabled || (!newlyCompleted && _pendingVerification.isEmpty)) {
       return;
     }
     for (final quest in _tracker.latestCompletedQuests) {
@@ -133,8 +140,7 @@ class _QuestCompletionFeedbackState extends State<QuestCompletionFeedback> {
         return show;
       }).toList();
       _pendingVerification.clear();
-      if ((recent.isEmpty && awaiting.isEmpty) ||
-          !widget.layoutSettingsController.topNoticeEnabled) {
+      if ((recent.isEmpty && awaiting.isEmpty) || !_noticeEnabled) {
         return;
       }
       final l10n = AppLocalizations.of(context)!;

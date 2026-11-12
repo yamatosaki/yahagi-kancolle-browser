@@ -3,6 +3,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 
 void main() {
+  test('an explicitly batched notice appends without a time window', () {
+    final controller = TopNoticeController();
+    addTearDown(controller.dispose);
+    controller.show(message: '舰队有大破舰');
+    controller.show(message: '舰队尚未补给', appendToCurrentBatch: true);
+
+    expect(controller.notices.map((notice) => notice.message), [
+      '舰队有大破舰',
+      '舰队尚未补给',
+    ]);
+  });
+
   Widget buildApp({
     required Widget child,
     Size size = const Size(400, 800),

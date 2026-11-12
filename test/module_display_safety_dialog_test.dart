@@ -27,6 +27,7 @@ void main() {
         expect(find.byType(Dialog), findsNothing);
         final shown = h.port.shown.single;
         expect(shown['kind'], 'moduleDisplay');
+        expect(shown['protectInputOnDismiss'], isFalse);
         expect(
           (shown['items'] as List),
           hasLength(
@@ -99,6 +100,7 @@ void main() {
         expect(h.port.shown, hasLength(1));
         expect(find.byType(Dialog), findsNothing);
         expect(h.port.shown.single['kind'], 'fleetDisplay');
+        expect(h.port.shown.single['protectInputOnDismiss'], isFalse);
         final current = hd
             ? h.settings.hdFleetDisplayFields
             : h.settings.fleetDisplayFields;
@@ -155,62 +157,46 @@ void main() {
   }
 
   for (final module in ['battle', 'fleet']) {
-    for (final close in ['button', 'outside', 'back']) {
+    for (final close in ['button', 'back', 'lock']) {
       testWidgets(
-        '$module Flutter $close protects game touches until close settles',
+        '$module Flutter $close dismisses while a pointer is still held',
         (tester) async {
           final h = await _Harness.mount(tester, module: module, native: false);
           await h.open(tester);
-          expect(find.byType(Dialog), findsOneWidget);
-          if (close == 'button') {
-            await tester.tap(find.byKey(Key('$module-display-close')));
-          } else if (close == 'outside') {
-            await tester.tapAt(const Offset(3, 3));
-            await tester.pump();
-            expect(find.byType(Dialog), findsOneWidget);
-            expect(find.byKey(_guard), findsNothing);
-            expect(h.completed, isFalse);
-            expect(h.gameTouches, 0);
-            await tester.tap(find.byKey(Key('$module-display-close')));
-          } else {
-            await tester.binding.handlePopRoute();
-          }
+          final dialog = find.byType(Dialog);
+          const gamePoint = Offset(4, 300);
+          expect(dialog, findsOneWidget);
+          await tester.tapAt(gamePoint);
           await tester.pump();
-          expect(find.byKey(_guard), findsOneWidget);
+          expect(dialog, findsOneWidget);
           expect(h.completed, isFalse);
-          await tester.tapAt(const Offset(4, 300));
           expect(h.gameTouches, 0);
-          await tester.pump(const Duration(milliseconds: 599));
-          expect(find.byKey(_guard), findsOneWidget);
+
+          final held = await tester.startGesture(tester.getCenter(dialog));
+          try {
+            if (close == 'button') {
+              await tester.tap(find.byKey(Key('$module-display-close')));
+            } else if (close == 'lock') {
+              await h.settings.setUiLocked(true);
+            } else {
+              await tester.binding.handlePopRoute();
+            }
+            await tester.pump();
+            expect(dialog, findsNothing);
+            expect(find.byKey(_guard), findsNothing);
+            expect(h.completed, isTrue);
+            expect(h.gameTouches, 0);
+            await tester.tapAt(gamePoint);
+            expect(h.gameTouches, 1);
+          } finally {
+            await held.up();
+          }
           await tester.pumpAndSettle();
-          expect(h.completed, isTrue);
-          await tester.tapAt(const Offset(4, 300));
-          expect(h.gameTouches, 1);
+          expect(tester.takeException(), isNull);
         },
       );
     }
   }
-
-  testWidgets('module editor protects a pointer held before Back', (
-    tester,
-  ) async {
-    final h = await _Harness.mount(tester, module: 'battle', native: false);
-    await h.open(tester);
-    final pointer = await tester.startGesture(
-      tester.getCenter(find.byType(Dialog)),
-      pointer: 41,
-    );
-    await tester.binding.handlePopRoute();
-    await tester.pump(const Duration(seconds: 2));
-    expect(find.byKey(_guard), findsOneWidget);
-    expect(h.completed, isFalse);
-    await pointer.up();
-    await tester.pump(const Duration(milliseconds: 599));
-    expect(h.completed, isFalse);
-    await tester.pumpAndSettle();
-    expect(h.completed, isTrue);
-    expect(h.gameTouches, 0);
-  });
 
   for (final change in ['lock', 'mode', 'owner']) {
     testWidgets('native settings $change cancellation rejects late edits', (
@@ -295,6 +281,7 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
       expect(port.shown.single['labels'], {'acknowledge': 'Finish editing'});
+      expect(port.shown.single.containsKey('protectInputOnDismiss'), isFalse);
       display.value = (active: true, checked: false);
       expect((port.current['items'] as List).single['checked'], isFalse);
       port.toggle('101', true);

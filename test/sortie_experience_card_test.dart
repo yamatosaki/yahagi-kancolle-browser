@@ -19,6 +19,7 @@ import 'package:yahagi_kancolle_browser/src/layout/hd_dashboard_content.dart';
 import 'package:yahagi_kancolle_browser/src/layout/panel_style.dart';
 import 'package:yahagi_kancolle_browser/src/sortie_experience/sortie_experience_card.dart';
 import 'package:yahagi_kancolle_browser/src/sortie_experience/sortie_experience_controller.dart';
+import 'package:yahagi_kancolle_browser/src/sortie_experience/sortie_experience_row.dart';
 import 'package:yahagi_kancolle_browser/src/theme/app_palette.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/app_segmented_style.dart';
 
@@ -65,6 +66,561 @@ void main() {
 
   setUp(() => GameStateController.disableTimerForTest = true);
   tearDown(() => GameStateController.disableTimerForTest = false);
+
+  testWidgets('warehouse spending shares total roster and opens ship details', (
+    tester,
+  ) async {
+    const leaders = {
+      'fuel': 111,
+      'ammo': 110,
+      'steel': 109,
+      'bauxite': 108,
+      'buckets': 107,
+    };
+    const zero = {'fuel': 0, 'ammo': 0, 'steel': 0, 'bauxite': 0, 'buckets': 0};
+    await _Fixture.mount(
+      tester,
+      width: 180,
+      textScale: 1.4,
+      initialPreferences: _totalPreferences(
+        11,
+        resourceLedger: {
+          'version': 1,
+          'incomplete': false,
+          'unallocated': zero,
+          'ships': [
+            for (final MapEntry(key: resource, value: id) in leaders.entries)
+              {
+                'id': id,
+                'supply': {
+                  ...zero,
+                  if (const ['fuel', 'ammo', 'bauxite'].contains(resource))
+                    resource: 25,
+                },
+                'repair': {
+                  ...zero,
+                  if (resource == 'steel' || resource == 'buckets') resource: 3,
+                },
+                'pending': zero,
+                'incomplete': false,
+              },
+          ],
+        },
+      ),
+    );
+
+    Future<void> tap(Key key) async {
+      final target = find.byKey(key);
+      expect(target, findsOneWidget);
+      await tester.ensureVisible(target);
+      await tester.tap(target);
+      await tester.pumpAndSettle();
+    }
+
+    await tap(const Key('sortie-exp-tab-total'));
+    expect(find.byKey(const Key('sortie-exp-value-101')), findsOneWidget);
+    await tap(const Key('sortie-exp-total-tab-consumption'));
+    expect(find.text('本轮仓库支出'), findsOneWidget);
+    final summary = find.byKey(const Key('sortie-exp-resource-summary'));
+    expect(
+      find.descendant(of: summary, matching: find.text('桶')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: summary, matching: find.text('高速修复材')),
+      findsNothing,
+    );
+    expect(find.text('MVP'), findsNothing);
+    expect(find.text('统计已确认归属的补给、入渠和用桶。'), findsNothing);
+    expect(find.byKey(const Key('sortie-exp-value-101')), findsNothing);
+    expect(find.byType(SortieExperienceShipName), findsNWidgets(10));
+    expect(find.byType(SortieExperienceProgress), findsNWidgets(10));
+    expect(find.text('未统计'), findsWidgets);
+    await tap(const Key('sortie-exp-total-next'));
+    expect(find.byType(SortieExperienceShipName), findsOneWidget);
+    await tap(const Key('sortie-exp-resource-open-111'));
+    expect(find.byKey(const Key('sortie-exp-resource-dialog')), findsOneWidget);
+    expect(find.text('出击补给支出'), findsOneWidget);
+    expect(find.text('入渠与加速'), findsOneWidget);
+    expect(find.text('本轮待补给'), findsOneWidget);
+    expect(find.text('舰上消耗'), findsNothing);
+    await tap(const Key('sortie-exp-resource-close'));
+    await tap(const Key('sortie-exp-total-tab-experience'));
+    expect(find.byKey(const Key('sortie-exp-value-111')), findsOneWidget);
+    expect(find.byKey(const Key('sortie-exp-resource-sort')), findsNothing);
+
+    await tap(const Key('sortie-exp-total-tab-consumption'));
+    for (final MapEntry(key: resource, value: id) in leaders.entries) {
+      await tap(const Key('sortie-exp-resource-sort'));
+      expect(find.byType(MenuItemButton), findsNWidgets(5));
+      expect(find.byType(AlertDialog), findsNothing);
+      await tap(Key('sortie-exp-resource-sort-$resource'));
+      expect(find.text('1 / 2'), findsOneWidget);
+      final firstShip = find.byKey(Key('sortie-exp-ship-$id'));
+      expect(firstShip, findsOneWidget);
+      expect(
+        tester.getTopLeft(firstShip).dy,
+        lessThan(
+          tester.getTopLeft(find.byKey(const Key('sortie-exp-ship-101'))).dy,
+        ),
+      );
+      if (resource == 'buckets') {
+        Text amount(String value) => tester.widget<Text>(
+          find.descendant(of: firstShip, matching: find.text(value)).first,
+        );
+        expect(amount('3').style?.color, amount('0').style?.color);
+      }
+    }
+    await tap(const Key('sortie-exp-total-tab-experience'));
+    expect(find.byKey(const Key('sortie-exp-value-101')), findsOneWidget);
+    expect(find.byKey(const Key('sortie-exp-value-111')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  group('warehouse spending resource layout', () {
+    const font = 'HarmonyOS_Sans_SC';
+    const resources = ['fuel', 'ammo', 'steel', 'bauxite', 'buckets'];
+    const labels = ['燃料', '弹药', '钢材', '铝土', '桶'];
+    const sixDigits = [123456, 234567, 356789, 148912, 219];
+    const formattedSixDigits = [
+      '123,456',
+      '234,567',
+      '356,789',
+      '148,912',
+      '219',
+    ];
+    const sevenDigits = [1234567, 2345678, 3567891, 1489123, 219];
+    const formattedSevenDigits = [
+      '1,234,567',
+      '2,345,678',
+      '3,567,891',
+      '1,489,123',
+      '219',
+    ];
+
+    setUpAll(() async {
+      await (FontLoader(
+        font,
+      )..addFont(rootBundle.load('assets/fonts/HarmonyOS_Sans_SC.ttf'))).load();
+      await (FontLoader('HarmonyOS_Sans_Condensed')..addFont(
+            rootBundle.load('assets/fonts/HarmonyOS_Sans_Condensed_Bold.ttf'),
+          ))
+          .load();
+    });
+
+    for (final (width, textScale, columns, values, formatted) in [
+      (280.0, 1.0, 5, sixDigits, formattedSixDigits),
+      (145.0, 1.0, 3, sixDigits, formattedSixDigits),
+      (145.0, 1.0, 2, sevenDigits, formattedSevenDigits),
+      (145.0, 1.4, 2, sixDigits, formattedSixDigits),
+    ]) {
+      testWidgets(
+        'shows $columns columns at width $width, text scale $textScale, '
+        'starting at ${formatted.first}',
+        (tester) async {
+          const zero = {
+            'fuel': 0,
+            'ammo': 0,
+            'steel': 0,
+            'bauxite': 0,
+            'buckets': 0,
+          };
+          await _Fixture.mount(
+            tester,
+            width: width + 12, // The flat dashboard card adds 6 dp per side.
+            textScale: textScale,
+            style: PanelStyle.flat,
+            fontFamily: font,
+            initialPreferences: _totalPreferences(
+              1,
+              resourceLedger: {
+                'version': 1,
+                'incomplete': false,
+                'unallocated': zero,
+                'ships': [
+                  {
+                    'id': 101,
+                    'supply': {
+                      ...zero,
+                      'fuel': values[0],
+                      'ammo': values[1],
+                      'bauxite': values[3],
+                    },
+                    'repair': {
+                      ...zero,
+                      'steel': values[2],
+                      'buckets': values[4],
+                    },
+                    'pending': zero,
+                    'incomplete': false,
+                  },
+                ],
+              },
+            ),
+          );
+          for (final tab in ['tab-total', 'total-tab-consumption']) {
+            await tester.tap(find.byKey(Key('sortie-exp-$tab')));
+            await tester.pumpAndSettle();
+          }
+          final summary = find.byKey(const Key('sortie-exp-resource-summary'));
+          final bounds = tester.getRect(summary);
+          expect(bounds.width, closeTo(width, .01));
+
+          final numbers = [
+            for (final value in formatted)
+              find.descendant(of: summary, matching: find.text(value)),
+          ];
+          final rectangles = numbers.map(tester.getRect).toList();
+          for (var index = 1; index < rectangles.length; index++) {
+            final previous = rectangles[index - 1];
+            final current = rectangles[index];
+            if (index % columns == 0) {
+              expect(current.top, greaterThan(previous.bottom));
+              expect(current.left, closeTo(rectangles.first.left, .1));
+            } else {
+              expect(current.top, closeTo(previous.top, .1));
+              expect(current.left, greaterThanOrEqualTo(previous.right - .1));
+            }
+          }
+
+          for (var index = 0; index < resources.length; index++) {
+            final group = find.descendant(
+              of: summary,
+              matching: find.byKey(
+                Key('sortie-exp-resource-group-${resources[index]}'),
+              ),
+            );
+            expect(
+              find.descendant(of: group, matching: find.byType(Image)),
+              findsOneWidget,
+            );
+            expect(
+              find.descendant(of: group, matching: find.text(labels[index])),
+              findsOneWidget,
+            );
+            expect(
+              find.descendant(of: group, matching: numbers[index]),
+              findsOneWidget,
+            );
+            final number = tester.renderObject<RenderParagraph>(numbers[index]);
+            final painted = rectangles[index];
+            expect(tester.widget<Text>(numbers[index]).style?.fontSize, 12);
+            expect(number.textScaler.scale(12), closeTo(12 * textScale, .01));
+            expect(painted.height, closeTo(number.size.height, .01));
+            expect(painted.width, closeTo(number.size.width, .01));
+            expect(number.didExceedMaxLines, isFalse);
+            final text = TextPainter(
+              text: number.text,
+              textDirection: number.textDirection,
+              textScaler: number.textScaler,
+            )..layout();
+            expect(painted.width, greaterThanOrEqualTo(text.width - .01));
+            expect(painted.height, closeTo(text.height, .01));
+            text.dispose();
+            expect(bounds.inflate(.01).contains(painted.bottomRight), isTrue);
+          }
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  });
+
+  testWidgets('warehouse sorting stays anchored in native game mode', (
+    tester,
+  ) async {
+    final requests = <Map<Object?, Object?>>[];
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(_nativeDialog, (call) async {
+      if (call.method != 'show') return null;
+      requests.add(Map<Object?, Object?>.from(call.arguments as Map));
+      return null;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(_nativeDialog, null));
+    await _Fixture.mount(
+      tester,
+      nativeActivity: true,
+      initialPreferences: _totalPreferences(2),
+    );
+
+    Future<void> tap(String suffix) async {
+      final target = find.byKey(Key('sortie-exp-$suffix'));
+      await tester.ensureVisible(target);
+      await tester.tap(target);
+      await tester.pumpAndSettle();
+    }
+
+    await tap('tab-total');
+    await tap('total-tab-consumption');
+    await tap('resource-sort');
+    expect(requests, isEmpty);
+    expect(find.byType(MenuItemButton), findsNWidgets(5));
+    expect(find.byType(AlertDialog), findsNothing);
+    final trigger = find.byKey(const Key('sortie-exp-resource-sort'));
+    final fuel = find.byKey(const Key('sortie-exp-resource-sort-fuel'));
+    final triggerBounds = tester.getRect(trigger);
+    final optionBounds = tester.getRect(fuel);
+    expect(optionBounds.left, closeTo(triggerBounds.left, 1));
+    expect(optionBounds.width, closeTo(triggerBounds.width, 1));
+    expect(optionBounds.top, greaterThanOrEqualTo(triggerBounds.bottom));
+
+    await tap('resource-sort-buckets');
+    expect(
+      find.descendant(of: trigger, matching: find.text('桶')),
+      findsOneWidget,
+    );
+    await tap('resource-sort');
+    await tap('total-tab-experience');
+    expect(find.byType(MenuItemButton), findsNothing);
+    expect(find.byKey(const Key('sortie-exp-value-101')), findsOneWidget);
+    expect(requests, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('last sortie summary stays two by two at narrow width', (
+    tester,
+  ) async {
+    final fixture = await _Fixture.mount(
+      tester,
+      width: 145,
+      textScale: 1.4,
+      style: PanelStyle.flat,
+    );
+    await fixture.start();
+    await fixture.settle([-1, 750, 1500], mainMvp: 1);
+    await fixture.returnToPort();
+    expect(find.text('上次出击'), findsOneWidget);
+
+    Rect label(String text) => tester.getRect(find.text(text));
+    final area = label('海域');
+    final fleet = label('出击舰队');
+    final settled = label('已结算');
+    final total = label('上次舰队合计');
+    expect(area.left, closeTo(settled.left, .1));
+    expect(fleet.left, closeTo(total.left, .1));
+    expect(area.right, lessThan(fleet.left));
+    expect(settled.right, lessThan(total.left));
+    expect(area.center.dy, closeTo(fleet.center.dy, .1));
+    expect(settled.center.dy, closeTo(total.center.dy, .1));
+    expect(settled.top, greaterThan(area.bottom));
+    expect(find.text('+2,250 EXP'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final (width, style, textScale) in [
+    (320.0, PanelStyle.card, 1.0),
+    (180.0, PanelStyle.flat, 1.4),
+  ]) {
+    testWidgets('total ships paginate after filtering at width $width', (
+      tester,
+    ) async {
+      final fixture = await _Fixture.mount(
+        tester,
+        width: width,
+        style: style,
+        textScale: textScale,
+        initialPreferences: {
+          ..._totalPreferences(21),
+          ..._totalPreferences(11, memberId: 100),
+        },
+      );
+      final previous = find.byKey(const Key('sortie-exp-total-previous'));
+      final next = find.byKey(const Key('sortie-exp-total-next'));
+      final indicator = find.byKey(const Key('sortie-exp-total-page'));
+
+      Future<void> tap(Finder target) async {
+        await tester.ensureVisible(target);
+        await tester.tap(target);
+        await tester.pumpAndSettle();
+      }
+
+      void expectPage(int first, int last, String label) {
+        expect(
+          find.byType(SortieExperienceShipName),
+          findsNWidgets(last - first + 1),
+        );
+        for (var id = 101; id <= 121; id++) {
+          expect(
+            find.byKey(Key('sortie-exp-ship-$id')),
+            id >= first && id <= last ? findsOneWidget : findsNothing,
+          );
+        }
+        expect(tester.widget<Text>(indicator).data, label);
+      }
+
+      await tap(find.byKey(const Key('sortie-exp-tab-total')));
+      expectPage(101, 110, '1 / 3');
+      expect(tester.widget<IconButton>(previous).onPressed, isNull);
+      await tap(next);
+      expectPage(111, 120, '2 / 3');
+      await fixture.controller.setTrackingEnabled(false);
+      await tester.pumpAndSettle();
+      expectPage(111, 120, '2 / 3');
+      await tap(next);
+      expectPage(121, 121, '3 / 3');
+      expect(tester.widget<IconButton>(next).onPressed, isNull);
+      await tap(previous);
+      expectPage(111, 120, '2 / 3');
+
+      final archive = fixture.controller.totals;
+      await tap(find.byKey(_filterButton));
+      final choice = find.byKey(const Key('sortie-exp-filter-ship-101'));
+      await tap(choice);
+      expectPage(111, 120, '2 / 3');
+      await tap(find.byKey(_filterDone));
+      expectPage(102, 111, '1 / 2');
+      expect(fixture.controller.totals, archive);
+      await tap(next);
+      expectPage(112, 121, '2 / 2');
+
+      final oldPageAction = tester.widget<IconButton>(previous).onPressed!;
+      fixture.accountSession.selectMember(100);
+      await fixture.controller.initialize();
+      await tester.pumpAndSettle();
+      oldPageAction();
+      await tester.pumpAndSettle();
+      expectPage(101, 110, '1 / 2');
+      expect(fixture.controller.totalSorties, 3);
+      await fixture.controller.clearTotal();
+      await fixture.controller.idle;
+      await tester.pumpAndSettle();
+      expect(indicator, findsNothing);
+      expect(find.byType(SortieExperienceShipName), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('ten total ships fit without pagination controls', (
+    tester,
+  ) async {
+    await _Fixture.mount(tester, initialPreferences: _totalPreferences(10));
+    await tester.tap(find.byKey(const Key('sortie-exp-tab-total')));
+    await tester.pumpAndSettle();
+    expect(find.byType(SortieExperienceShipName), findsNWidgets(10));
+    expect(find.byKey(const Key('sortie-exp-total-page')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'total percentages include hidden ships and follow confirmed loss',
+    (tester) async {
+      final fixture = await _Fixture.mount(tester, width: 180, textScale: 1.4);
+      await fixture.recordTotal();
+      await fixture.controller.setHiddenTotalShipIds({
+        102,
+      }, expectedAccount: fixture.accountSession.current);
+      await tester.pumpAndSettle();
+      expect(find.text('合计 960 EXP'), findsOneWidget);
+      expect(fixture.percentage(101), '25%');
+      expect(fixture.mvp(101), '0');
+      expect(find.byKey(const Key('sortie-exp-ship-102')), findsNothing);
+
+      await fixture.destroyShips('102');
+      expect(find.text('合计 240 EXP'), findsOneWidget);
+      expect(fixture.percentage(101), '100%');
+      expect(fixture.controller.totalSorties, 1);
+      expect(fixture.controller.hiddenTotalShipIds, isEmpty);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('zero cumulative EXP displays zero percentages', (tester) async {
+    final fixture = await _Fixture.mount(
+      tester,
+      initialPreferences: _totalPreferences(2, fixedExperience: 0),
+    );
+    await tester.tap(find.byKey(const Key('sortie-exp-tab-total')));
+    await tester.pumpAndSettle();
+    expect(find.text('合计 0 EXP'), findsOneWidget);
+    expect(find.text('0%'), findsNWidgets(2));
+    expect(fixture.mvp(101), '—');
+    expect(fixture.mvp(102), '—');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'lost ships clamp the last page without treating cleanup as a filter edit',
+    (tester) async {
+      final fixture = await _Fixture.mount(
+        tester,
+        initialPreferences: _totalPreferences(22),
+      );
+      await fixture.controller.setHiddenTotalShipIds({
+        101,
+      }, expectedAccount: fixture.accountSession.current);
+      await tester.tap(find.byKey(const Key('sortie-exp-tab-total')));
+      await tester.pumpAndSettle();
+      final next = find.byKey(const Key('sortie-exp-total-next'));
+      final page = find.byKey(const Key('sortie-exp-total-page'));
+      for (var index = 0; index < 2; index++) {
+        await tester.ensureVisible(next);
+        await tester.tap(next);
+        await tester.pumpAndSettle();
+      }
+      expect(tester.widget<Text>(page).data, '3 / 3');
+      expect(find.byKey(const Key('sortie-exp-ship-122')), findsOneWidget);
+
+      await fixture.destroyShips('101,122');
+      expect(fixture.controller.hiddenTotalShipIds, isEmpty);
+      expect(tester.widget<Text>(page).data, '2 / 2');
+      expect(find.byType(SortieExperienceShipName), findsNWidgets(10));
+      expect(find.byKey(const Key('sortie-exp-ship-112')), findsOneWidget);
+
+      await fixture.destroyShips(
+        [for (var id = 102; id <= 121; id++) id].join(','),
+      );
+      expect(page, findsNothing);
+      expect(find.byType(SortieExperienceShipName), findsNothing);
+      expect(find.text('合计 0 EXP'), findsOneWidget);
+      expect(fixture.controller.totalSorties, 3);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final native in [false, true]) {
+    testWidgets('open ship filter drops lost draft rows, native=$native', (
+      tester,
+    ) async {
+      final port = _ShipChecklistPort();
+      addTearDown(port.source.close);
+      final fixture = await _Fixture.mount(
+        tester,
+        nativeActivity: native,
+        nativeChecklistPort: port,
+      );
+      await fixture.recordTotal();
+      await tester.tap(find.byKey(_filterButton));
+      await tester.pumpAndSettle();
+      final lostChoice = find.byKey(const Key('sortie-exp-filter-ship-101'));
+      if (native) {
+        port.emit('101', 1, checked: false);
+      } else {
+        await tester.tap(lostChoice);
+      }
+      await tester.pumpAndSettle();
+
+      await fixture.destroyShips('101');
+      if (native) {
+        expect((port.updated.last['items'] as List).map((row) => row['id']), [
+          '102',
+        ]);
+        port.emit('101', 2, checked: false);
+        port.result.complete(NativeGameWarningAction.acknowledge);
+      } else {
+        expect(lostChoice, findsNothing);
+        expect(
+          find.byKey(const Key('sortie-exp-filter-ship-102')),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(_filterDone));
+      }
+      await tester.pumpAndSettle();
+      expect(fixture.controller.hiddenTotalShipIds, isEmpty);
+      expect(fixture.controller.totals.map((ship) => ship.ownedShipId), [102]);
+      expect(fixture.controller.totalSorties, 1);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets(
     'total ship picker applies drafts on Done with matching capsules',
@@ -209,6 +765,7 @@ void main() {
     await tester.tap(find.byKey(_filterButton));
     await tester.pumpAndSettle();
     expect(port.shown.single['backCancels'], isTrue);
+    expect(port.shown.single['protectInputOnDismiss'], isFalse);
 
     port.emit('101', 1, checked: false);
     await tester.pump();
@@ -291,32 +848,55 @@ void main() {
 
     await fixture.start();
     expect(find.text('本次出击'), findsOneWidget);
-    expect(find.text('已结算 0 场战斗'), findsOneWidget);
-    expect(find.text('5-3 · 第 1 舰队'), findsOneWidget);
+    expect(find.text('已结算'), findsOneWidget);
+    expect(find.text('0 场战斗'), findsOneWidget);
+    expect(find.text('海域'), findsOneWidget);
+    expect(find.text('5-3'), findsOneWidget);
+    expect(find.text('出击舰队'), findsOneWidget);
+    expect(find.text('第 1 舰队'), findsOneWidget);
+    final amount = find.byKey(const Key('sortie-exp-sortie-experience'));
+    expect(find.text('本次舰队合计'), findsOneWidget);
+    expect(tester.widget<Text>(amount).data, '+0 EXP');
+    expect(tester.widget<Text>(amount).style?.color, const Color(0xfff7cf75));
+    final mapStyle = tester.widget<Text>(find.text('5-3')).style;
+    final amountStyle = tester.widget<Text>(amount).style;
+    expect(amountStyle?.fontSize, mapStyle?.fontSize);
+    expect(amountStyle?.fontWeight, mapStyle?.fontWeight);
     expect(find.byKey(const Key('sortie-exp-position-101')), findsNothing);
     expect(fixture.exp(101).data, '0');
+    expect(fixture.percentage(101), '0%');
+    expect(fixture.mvp(101), '0');
     expect(fixture.level(101), 'Lv.2');
     expect(fixture.next(101), 'Next. 140');
     expect(fixture.exp(101).style?.color, const Color(0xfff7cf75));
 
-    await fixture.settle([-1, 240, 720]);
+    await fixture.settle([-1, 240, 720], mainMvp: 2);
     expect(fixture.level(101), 'Lv.3');
     expect(fixture.next(101), 'Next. 200');
     await fixture.moveToNextNode();
-    await fixture.settle([-1, 240, 720]);
-    expect(find.text('已结算 2 场战斗'), findsOneWidget);
+    await fixture.settle([-1, 240, 720], mainMvp: 2);
+    expect(find.text('2 场战斗'), findsOneWidget);
+    expect(tester.widget<Text>(amount).data, '+1,920 EXP');
     expect(fixture.exp(101).data, '+480');
     expect(fixture.exp(102).data, '+1,440');
+    expect(fixture.percentage(101), '25%');
+    expect(fixture.percentage(102), '75%');
+    expect(fixture.mvp(101), '0');
+    expect(fixture.mvp(102), '2');
     expect(fixture.level(101), 'Lv.4');
     expect(fixture.next(101), 'Next. 360');
     expect(fixture.exp(101).style?.color, const Color(0xfff7cf75));
 
     await fixture.returnToPort();
     expect(find.text('上次出击'), findsOneWidget);
+    expect(find.text('上次舰队合计'), findsOneWidget);
+    expect(tester.widget<Text>(amount).data, '+1,920 EXP');
+    expect(tester.widget<Text>(amount).style?.color, const Color(0xff8adac7));
     expect(find.byKey(const Key('sortie-exp-position-101')), findsNothing);
     expect(find.byKey(const Key('sortie-exp-position-102')), findsNothing);
     expect(fixture.exp(101).style?.color, const Color(0xff8adac7));
     expect(fixture.exp(101).data, '+480');
+    expect(fixture.mvp(102), '2');
     expect(fixture.next(101), 'Next. 360');
     expect(
       tester.getTopLeft(find.byKey(const Key('sortie-exp-ship-101'))).dy,
@@ -328,6 +908,7 @@ void main() {
     await fixture.start();
     expect(find.byKey(const Key('sortie-exp-position-101')), findsNothing);
     expect(fixture.exp(101).data, '0');
+    expect(fixture.mvp(102), '0');
   });
 
   testWidgets('total capsule matches the fleet style and receives only '
@@ -343,7 +924,9 @@ void main() {
     final context = tester.element(total);
     expect(segment.color, AppSegmentedStyle.selection(context, true));
     expect(segment.borderRadius, AppSegmentedStyle.itemRadius(compact: true));
-    expect(find.text('5-3 · 第 1 舰队'), findsNothing);
+    expect(find.text('海域'), findsNothing);
+    expect(find.text('累计记录'), findsOneWidget);
+    expect(find.text('全部舰船合计'), findsOneWidget);
     expect(find.text('总累计 0 场'), findsOneWidget);
     expect(find.text('出击'), findsOneWidget);
     final tracking = find.byKey(const Key('sortie-exp-tracking-switch'));
@@ -363,6 +946,14 @@ void main() {
 
     await fixture.returnToPort();
     expect(find.text('总累计 1 场'), findsOneWidget);
+    final amount = tester.widget<Text>(
+      find.byKey(const Key('sortie-exp-total-experience')),
+    );
+    expect(amount.data, '合计 1,400 EXP');
+    expect(amount.style?.color, const Color(0xff8adac7));
+    final countStyle = tester.widget<Text>(find.text('总累计 1 场')).style;
+    expect(amount.style?.fontSize, countStyle?.fontSize);
+    expect(amount.style?.fontWeight, countStyle?.fontWeight);
     expect(fixture.exp(101).data, '+500');
     expect(fixture.exp(102).data, '+900');
     expect(fixture.level(101), 'Lv.4');
@@ -478,6 +1069,7 @@ void main() {
       expect(fixture.controller.totalSorties, 1);
       expect(find.byKey(_clearDialog), findsNothing);
       expect(requests.single['kind'], 'surfaceDialog');
+      expect(requests.single.containsKey('protectInputOnDismiss'), isFalse);
       expect(requests.single['title'], '清理累计记录？');
       expect(requests.single['actions'], ['cancel', 'confirm']);
       expect(requests.single['dismissible'], isFalse);
@@ -532,6 +1124,12 @@ void main() {
     await fixture.returnToPort();
     expect(fixture.exp(101).data, '0');
     expect(fixture.exp(201).data, '未捕获');
+    expect(
+      tester
+          .widget<Text>(find.byKey(const Key('sortie-exp-sortie-experience')))
+          .data,
+      '+720 EXP',
+    );
   });
 
   for (final (span, width, textScale, sideBySide) in [
@@ -585,7 +1183,8 @@ void main() {
     expect(find.byType(FlatUnderlineTabs), findsOneWidget);
     expect(find.text('This sortie'), findsOneWidget);
     expect(fixture.exp(101).data, '+1,234,567');
-    expect(find.text('EXP'), findsNWidgets(4));
+    final percentage = find.byKey(const Key('sortie-exp-percentage-101'));
+    expect(tester.widget<Text>(percentage).data, '99.9%');
     final shipRow = find.byKey(const Key('sortie-exp-ship-101'));
     final shipName = find.descendant(
       of: shipRow,
@@ -596,7 +1195,7 @@ void main() {
     expect(tester.widget<Text>(shipName).overflow, TextOverflow.ellipsis);
     expect(tester.widget<Text>(shipName).maxLines, 2);
     final rowBounds = tester.getRect(shipRow);
-    for (final metric in ['level', 'next', 'value']) {
+    for (final metric in ['level', 'next', 'value', 'percentage', 'mvp']) {
       final cell = find.byKey(Key('sortie-exp-$metric-101'));
       final cellBounds = tester.getRect(cell);
       expect(cellBounds.left, greaterThan(tester.getRect(shipName).right));
@@ -611,7 +1210,7 @@ void main() {
   });
 
   testWidgets('180px combined card shows all twelve ships and fits every '
-      'level, six-digit Next. and EXP without ship numbers', (tester) async {
+      'level, six-digit Next., percentage and MVP', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(800, 900);
     addTearDown(tester.view.resetPhysicalSize);
@@ -650,6 +1249,8 @@ void main() {
     await fixture.settle(
       [-1, 1201, 1202, 1203, 1204, 1205, 1206],
       escort: [-1, 1207, 1208, 1209, 1210, 1211, 1212],
+      mainMvp: 1,
+      escortMvp: 6,
     );
 
     expect(find.text(name), findsNWidgets(12));
@@ -659,6 +1260,7 @@ void main() {
       expect(fixture.level(id), 'Lv.179');
       expect(fixture.next(id), 'Next. 898,${799 - index}');
       expect(fixture.exp(id).data, '+1,${201 + index}');
+      expect(fixture.mvp(id), id == 101 || id == 206 ? '1' : '0');
 
       final shipName = find.descendant(of: row, matching: find.text(name));
       expect(
@@ -674,10 +1276,26 @@ void main() {
       final valueBounds = tester.getRect(
         find.byKey(Key('sortie-exp-value-$id')),
       );
+      final percentageBounds = tester.getRect(
+        find.byKey(Key('sortie-exp-percentage-$id')),
+      );
+      final mvpBounds = tester.getRect(find.byKey(Key('sortie-exp-mvp-$id')));
       expect(nameBounds.right, lessThan(nextBounds.left));
       expect(levelBounds.bottom, lessThanOrEqualTo(nextBounds.top + 0.01));
       expect(nextBounds.right, lessThan(valueBounds.left));
-      for (final metric in [levelBounds, nextBounds, valueBounds]) {
+      expect(
+        valueBounds.bottom,
+        lessThanOrEqualTo(percentageBounds.top + 0.01),
+      );
+      expect(valueBounds.right, lessThan(mvpBounds.left));
+      expect(percentageBounds.right, lessThan(mvpBounds.left));
+      for (final metric in [
+        levelBounds,
+        nextBounds,
+        valueBounds,
+        percentageBounds,
+        mvpBounds,
+      ]) {
         expect(metric.width, greaterThan(0));
         expect(metric.top, greaterThanOrEqualTo(bounds.top));
         expect(metric.right, lessThanOrEqualTo(bounds.right));
@@ -685,16 +1303,43 @@ void main() {
       }
       expect(
         find.descendant(of: row, matching: find.text('EXP')),
-        findsOneWidget,
+        findsNothing,
       );
       expect(
         find.descendant(of: row, matching: find.byType(Text)),
-        findsNWidgets(5),
+        findsNWidgets(6),
       );
     }
     expect(tester.takeException(), isNull);
   });
 }
+
+Map<String, Object> _totalPreferences(
+  int count, {
+  int memberId = 99,
+  int? fixedExperience,
+  Map<String, Object?>? resourceLedger,
+}) => {
+  'account.$memberId.sortieExperience.v1': jsonEncode({
+    'version': 1,
+    'memberId': memberId,
+    'tracking': true,
+    'totalSorties': 3,
+    'resourceLedger': ?resourceLedger,
+    'totals': [
+      for (var index = 0; index < count; index++)
+        {
+          'ownedShipId': 101 + index,
+          'masterShipId': 1,
+          'name': 'Ship ${101 + index}',
+          'fleetId': 1,
+          'position': 0,
+          'experience': fixedExperience ?? 1000 - index,
+          'retreated': false,
+        },
+    ],
+  }),
+};
 
 final class _Fixture {
   _Fixture(this.tester, GameState initialState)
@@ -721,6 +1366,7 @@ final class _Fixture {
     bool nativeActivity = false,
     NativeGameResourceChecklistPort? nativeChecklistPort,
     Map<String, Object> initialPreferences = const {},
+    String? fontFamily,
     String firstShipName = '矢矧改二乙',
     GameState? initialState,
   }) async {
@@ -738,6 +1384,7 @@ final class _Fixture {
     await tester.pumpWidget(
       MaterialApp(
         locale: locale,
+        theme: fontFamily == null ? null : ThemeData(fontFamily: fontFamily),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         builder: (context, child) => MediaQuery(
@@ -780,6 +1427,12 @@ final class _Fixture {
   Text exp(int id) =>
       tester.widget<Text>(find.byKey(Key('sortie-exp-value-$id')));
 
+  String? percentage(int id) =>
+      tester.widget<Text>(find.byKey(Key('sortie-exp-percentage-$id'))).data;
+
+  String? mvp(int id) =>
+      tester.widget<Text>(find.byKey(Key('sortie-exp-mvp-$id'))).data;
+
   String? level(int id) =>
       tester.widget<Text>(find.byKey(Key('sortie-exp-level-$id'))).data;
 
@@ -789,7 +1442,7 @@ final class _Fixture {
   Future<void> recordTotal() async {
     await controller.setTrackingEnabled(true);
     await start();
-    await settle([-1, 240, 720]);
+    await settle([-1, 240, 720], mainMvp: 2);
     await returnToPort();
     await tester.tap(find.byKey(const Key('sortie-exp-tab-total')));
     await tester.pumpAndSettle();
@@ -808,7 +1461,12 @@ final class _Fixture {
     'api_no': 2,
   });
 
-  Future<void> settle(List<int> main, {List<int>? escort}) async {
+  Future<void> settle(
+    List<int> main, {
+    List<int>? escort,
+    int? mainMvp,
+    int? escortMvp,
+  }) async {
     final path = escort == null
         ? '/kcsapi/api_req_sortie'
         : '/kcsapi/api_req_combined_battle';
@@ -816,12 +1474,22 @@ final class _Fixture {
     await _send('$path/battleresult', {
       'api_get_ship_exp': main,
       'api_get_ship_exp_combined': ?escort,
+      'api_mvp': ?mainMvp,
+      'api_mvp_combined': ?escortMvp,
     });
   }
 
   Future<void> returnToPort() => _send('/kcsapi/api_port/port', {
     'api_basic': {'api_member_id': 99},
   });
+
+  Future<void> destroyShips(String ids) => _send(
+    '/kcsapi/api_req_kousyou/destroyship',
+    {
+      'api_material': [100, 100, 100, 100],
+    },
+    params: {'api_ship_id': ids},
+  );
 
   Future<void> _send(
     String path,

@@ -788,6 +788,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get openSourceLicense => 'ライセンス: MIT License';
 
   @override
+  String get harmonyOsSansNotice =>
+      'このアプリは HarmonyOS Sans フォントを使用しています。© 2021 Huawei Device Co., Ltd.';
+
+  @override
   String get newVersionFound => '🚀 新しいバージョンが見つかりました！';
 
   @override
@@ -3522,8 +3526,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get topNoticeEnabledTitle => 'トップバー通知';
 
   @override
-  String get topNoticeEnabledSubtitle =>
-      '「ヤハギ」アイコン右側に開発、改修、出撃・遠征確認、任務達成通知を表示します';
+  String get topNoticeEnabledSubtitle => '「ヤハギ」の右側にゲーム内の通知を表示します';
 
   @override
   String get topNoticeDurationTitle => '表示時間';
@@ -3539,6 +3542,51 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get topNoticeDuration15s => '15秒';
+
+  @override
+  String get topNoticeGroupFleet => '出撃・遠征';
+
+  @override
+  String get topNoticeGroupOperation => '操作結果';
+
+  @override
+  String get topNoticeGroupOther => 'その他の通知';
+
+  @override
+  String get topNoticeKindSortieHeavyDamage => '出撃時の大破通知';
+
+  @override
+  String get topNoticeKindSortieSupply => '出撃時の補給通知';
+
+  @override
+  String get topNoticeKindExpeditionHeavyDamage => '遠征時の大破通知';
+
+  @override
+  String get topNoticeKindExpeditionSupply => '遠征時の補給通知';
+
+  @override
+  String get topNoticeKindExpeditionSuccess => '遠征の成功条件チェック';
+
+  @override
+  String get topNoticeKindSortieCapacity => '出撃時の空き枠通知';
+
+  @override
+  String get topNoticeKindEquipmentDevelopment => '装備開発';
+
+  @override
+  String get topNoticeKindEquipmentImprovement => '装備改修';
+
+  @override
+  String get topNoticeKindModernization => '近代化改修';
+
+  @override
+  String get topNoticeKindMarriage => 'ケッコンカッコカリ';
+
+  @override
+  String get topNoticeKindPracticeExperience => '演習経験値';
+
+  @override
+  String get topNoticeKindQuestCompletion => '任務達成';
 
   @override
   String questCompletionSingleNotice(String title) {
@@ -3682,6 +3730,26 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get noticeSortieReasonExpansionSlot => '増設スロット未装備';
+
+  @override
+  String noticeSortieHeavyDamage(String fleets) {
+    return '出撃注意：第 $fleets 艦隊に大破艦がいます';
+  }
+
+  @override
+  String noticeSortieSupplyWarning(String fleets) {
+    return '出撃注意：第 $fleets 艦隊が未補給です';
+  }
+
+  @override
+  String noticeExpeditionHeavyDamage(String fleets) {
+    return '遠征注意：第 $fleets 艦隊に大破艦がいます';
+  }
+
+  @override
+  String noticeExpeditionPossibleFailure(int fleet, String expedition) {
+    return '第 $fleet 艦隊の遠征（$expedition）は失敗する可能性があります';
+  }
 
   @override
   String noticeExpeditionSupplyWarning(String fleets) {

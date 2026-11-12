@@ -93,12 +93,14 @@ class SortieExperienceAmount extends StatelessWidget {
     required this.color,
     this.unit,
     this.valueKey,
+    this.unitKey,
   });
 
   final String value;
   final Color color;
   final String? unit;
   final Key? valueKey;
+  final Key? unitKey;
 
   @override
   Widget build(BuildContext context) {
@@ -120,6 +122,7 @@ class SortieExperienceAmount extends StatelessWidget {
           _metricText(
             context,
             unit,
+            key: unitKey,
             color: AppPalette.of(context).muted,
             fontSize: 10,
             weight: FontWeight.w600,

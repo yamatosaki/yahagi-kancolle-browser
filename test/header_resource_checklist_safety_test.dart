@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,15 +10,22 @@ import 'package:yahagi_kancolle_browser/src/settings/layout_settings_controller.
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
 
 void main() {
-  for (final close in ['done', 'outside', 'back', 'held-back', 'held-cancel']) {
+  for (final (checklist, close) in [
+    ('header', 'done'),
+    ('header', 'back'),
+    ('header', 'lock'),
+    ('collapsed', 'done'),
+  ]) {
     testWidgets(
-      '$close protects the game after closing the resource checklist',
+      '$checklist resource checklist closes on $close with a pointer held',
       (tester) async {
         SharedPreferences.setMockInitialValues({});
         final settings = await LayoutSettingsController.load(
           SharedPreferencesLayoutSettingsStore(),
         );
         addTearDown(settings.dispose);
+        final bar = GlobalKey<CompactResourceBarState>();
+        const gamePoint = Offset(5, 200);
         var gameTouches = 0;
         await tester.pumpWidget(
           MaterialApp(
@@ -36,6 +45,7 @@ void main() {
                   Align(
                     alignment: Alignment.topLeft,
                     child: CompactResourceBar(
+                      key: bar,
                       state: const GameState(),
                       settingsController: settings,
                       initiallyEditing: true,
@@ -46,68 +56,44 @@ void main() {
             ),
           ),
         );
-        await tester.tap(find.byKey(const Key('header-resource-filter')));
+        final Finder dialog;
+        if (checklist == 'collapsed') {
+          unawaited(bar.currentState!.openCollapsedChecklist());
+          dialog = find.byKey(const Key('panel-resource-collapsed-dialog'));
+        } else {
+          await tester.tap(find.byKey(const Key('header-resource-filter')));
+          dialog = find.byKey(const Key('header-resource-filter-dialog'));
+        }
         await tester.pumpAndSettle();
-        final held = close.startsWith('held-')
-            ? await tester.startGesture(
-                tester.getCenter(
-                  find.text(
-                    lookupAppLocalizations(
-                      const Locale('zh'),
-                    ).selectHeaderVisibleItems,
-                  ),
-                ),
-                pointer: 91,
-              )
-            : null;
-        if (close == 'done') {
-          await tester.tap(
-            find.byKey(const Key('header-resource-filter-done')),
-          );
-        } else if (close == 'outside') {
-          await tester.tapAt(const Offset(5, 200));
+        expect(dialog, findsOneWidget);
+        await tester.tapAt(gamePoint);
+        await tester.pump();
+        expect(dialog, findsOneWidget);
+        expect(gameTouches, 0);
+        final held = await tester.startGesture(tester.getCenter(dialog));
+        try {
+          if (close == 'done') {
+            await tester.tap(
+              find.byKey(const Key('header-resource-filter-done')),
+            );
+          } else if (close == 'lock') {
+            await settings.setUiLocked(true);
+          } else {
+            await tester.binding.handlePopRoute();
+          }
           await tester.pump();
-          expect(
-            find.byKey(const Key('header-resource-filter-dialog')),
-            findsOneWidget,
-          );
+          expect(dialog, findsNothing);
           expect(
             find.byKey(const Key('game-safety-input-guard')),
             findsNothing,
           );
           expect(gameTouches, 0);
-          await tester.tap(
-            find.byKey(const Key('header-resource-filter-done')),
-          );
-        } else if (close == 'held-cancel') {
-          await settings.setUiLocked(true);
-        } else {
-          await tester.binding.handlePopRoute();
-        }
-        await tester.pump();
-        expect(
-          find.byKey(const Key('game-safety-input-guard')),
-          findsOneWidget,
-        );
-        await tester.tapAt(const Offset(5, 200));
-        expect(gameTouches, 0);
-        if (held != null) {
-          await tester.pump(const Duration(seconds: 2));
-          expect(
-            find.byKey(const Key('game-safety-input-guard')),
-            findsOneWidget,
-          );
-          expect(gameTouches, 0);
+          await tester.tapAt(gamePoint);
+          expect(gameTouches, 1);
+        } finally {
           await held.up();
-          await tester.pump(const Duration(milliseconds: 599));
-          expect(
-            find.byKey(const Key('game-safety-input-guard')),
-            findsOneWidget,
-          );
         }
         await tester.pumpAndSettle();
-        await tester.tapAt(const Offset(5, 200));
-        expect(gameTouches, 1);
         expect(tester.takeException(), isNull);
       },
     );

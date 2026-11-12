@@ -258,6 +258,7 @@
   "officialWebsite": "公式サイト",
   "checkForUpdates": "更新を確認",
   "openSourceLicense": "ライセンス: MIT License",
+  "harmonyOsSansNotice": "このアプリは HarmonyOS Sans フォントを使用しています。© 2021 Huawei Device Co., Ltd.",
   "newVersionFound": "🚀 新しいバージョンが見つかりました！",
   "currentVersionLabel": "現在のバージョン",
   "latestVersionLabel": "最新バージョン",
@@ -1195,12 +1196,27 @@
   "menuPositionRight": "右",
   "topNoticeSectionTitle": "トップバー通知",
   "topNoticeEnabledTitle": "トップバー通知",
-  "topNoticeEnabledSubtitle": "「ヤハギ」アイコン右側に開発、改修、出撃・遠征確認、任務達成通知を表示します",
+  "topNoticeEnabledSubtitle": "「ヤハギ」の右側にゲーム内の通知を表示します",
   "topNoticeDurationTitle": "表示時間",
   "topNoticeDurationSubtitle": "通知ポップアップが表示されてから自動で閉じるまでの時間",
   "topNoticeDuration5s": "5秒 (デフォルト)",
   "topNoticeDuration10s": "10秒",
   "topNoticeDuration15s": "15秒",
+  "topNoticeGroupFleet": "出撃・遠征",
+  "topNoticeGroupOperation": "操作結果",
+  "topNoticeGroupOther": "その他の通知",
+  "topNoticeKindSortieHeavyDamage": "出撃時の大破通知",
+  "topNoticeKindSortieSupply": "出撃時の補給通知",
+  "topNoticeKindExpeditionHeavyDamage": "遠征時の大破通知",
+  "topNoticeKindExpeditionSupply": "遠征時の補給通知",
+  "topNoticeKindExpeditionSuccess": "遠征の成功条件チェック",
+  "topNoticeKindSortieCapacity": "出撃時の空き枠通知",
+  "topNoticeKindEquipmentDevelopment": "装備開発",
+  "topNoticeKindEquipmentImprovement": "装備改修",
+  "topNoticeKindModernization": "近代化改修",
+  "topNoticeKindMarriage": "ケッコンカッコカリ",
+  "topNoticeKindPracticeExperience": "演習経験値",
+  "topNoticeKindQuestCompletion": "任務達成",
   "questCompletionSingleNotice": "任務達成：{title}",
   "@questCompletionSingleNotice": {
     "placeholders": {
@@ -1346,6 +1362,41 @@
   "noticeSortieReasonFatigue": "疲労状態 (間宮点滅/赤疲労)",
   "noticeSortieReasonMainSlot": "主スロット未装備",
   "noticeSortieReasonExpansionSlot": "増設スロット未装備",
+  "noticeSortieHeavyDamage": "出撃注意：第 {fleets} 艦隊に大破艦がいます",
+  "@noticeSortieHeavyDamage": {
+    "placeholders": {
+      "fleets": {
+        "type": "String"
+      }
+    }
+  },
+  "noticeSortieSupplyWarning": "出撃注意：第 {fleets} 艦隊が未補給です",
+  "@noticeSortieSupplyWarning": {
+    "placeholders": {
+      "fleets": {
+        "type": "String"
+      }
+    }
+  },
+  "noticeExpeditionHeavyDamage": "遠征注意：第 {fleets} 艦隊に大破艦がいます",
+  "@noticeExpeditionHeavyDamage": {
+    "placeholders": {
+      "fleets": {
+        "type": "String"
+      }
+    }
+  },
+  "noticeExpeditionPossibleFailure": "第 {fleet} 艦隊の遠征（{expedition}）は失敗する可能性があります",
+  "@noticeExpeditionPossibleFailure": {
+    "placeholders": {
+      "fleet": {
+        "type": "int"
+      },
+      "expedition": {
+        "type": "String"
+      }
+    }
+  },
   "noticeExpeditionSupplyWarning": "遠征注意：第 {fleets} 艦隊が未補給です",
   "@noticeExpeditionSupplyWarning": {
     "placeholders": {

@@ -12,6 +12,7 @@ import 'package:yahagi_kancolle_browser/src/fleet/ship_portrait.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/ship_status_style.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
+import 'package:yahagi_kancolle_browser/src/layout/ui_scale.dart';
 import 'package:yahagi_kancolle_browser/src/notification/notification_timer_anchor_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/battle_status_effect_settings.dart';
@@ -1657,6 +1658,98 @@ void main() {
     },
   );
 
+  for (final (label, metricPrefix, expectedText) in const [
+    (
+      'LOS',
+      'fleet-los',
+      [
+        ('索敌详情', 1),
+        ('总索敌', 1),
+        ('40', 1),
+        ('33式', 1),
+        ('× 1', 1),
+        ('-25.63', 1),
+        ('× 2', 1),
+        ('-19.63', 1),
+        ('× 3', 1),
+        ('-13.63', 1),
+        ('× 4', 1),
+        ('-7.63', 1),
+      ],
+    ),
+    (
+      'air power',
+      'fleet-air-power',
+      [('制空详情', 1), ('最小', 1), ('最大', 1), ('不含熟练度加成', 1), ('0', 3)],
+    ),
+  ]) {
+    testWidgets('fleet $label details fit a scaled short landscape panel', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(800, 360);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      final controller = GameStateController();
+      addTearDown(controller.dispose);
+      controller
+        ..accept(start2Event)
+        ..accept(portEvent)
+        ..accept(slotItemEvent);
+      await controller.idle;
+
+      const panelKey = Key('detailed-fleet-panel');
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.centerLeft,
+              child: SizedBox(
+                key: panelKey,
+                width: 520,
+                height: 300,
+                child: UiScale(
+                  scale: 1.2,
+                  child: FleetInformationCenter(controller: controller),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final panel = find.byKey(panelKey);
+      final metric = find.byKey(Key('$metricPrefix-metric'));
+      final popover = find.byKey(Key('$metricPrefix-details-popover'));
+      await tester.tap(metric);
+      await tester.pump();
+      expect(popover, findsOneWidget);
+      final panelBounds = tester.getRect(panel);
+      final cardBounds = tester.getRect(popover);
+      expect(cardBounds.intersect(panelBounds), cardBounds);
+      Finder cardText(String text) =>
+          find.descendant(of: popover, matching: find.text(text));
+      for (final (text, count) in expectedText) {
+        expect(cardText(text), findsNWidgets(count));
+      }
+
+      await tester.tap(find.byKey(Key('$metricPrefix-details-close')));
+      await tester.pump();
+      expect(popover, findsNothing);
+
+      await tester.tap(metric);
+      await tester.pump();
+      expect(popover, findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      expect(popover, findsNothing);
+      expect(metric, findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
   testWidgets('shows a real fleet and expands equipment details', (
     tester,
   ) async {
@@ -1767,22 +1860,6 @@ void main() {
     final hpSize = tester.getSize(find.byKey(const Key('ship-status-hp-9001')));
     final statusColumnGap = ammoPosition.dx - (hpPosition.dx + hpSize.width);
     expect(statusColumnGap, inInclusiveRange(30, 40));
-
-    await tester.tap(find.byKey(const Key('fleet-los-metric')));
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('总索敌'), findsOneWidget);
-    expect(find.text('33式'), findsOneWidget);
-    expect(find.text('40'), findsOneWidget);
-    expect(find.text('× 1'), findsOneWidget);
-    expect(find.text('-25.63'), findsNWidgets(2));
-    expect(find.text('× 2'), findsOneWidget);
-    expect(find.text('-19.63'), findsOneWidget);
-    expect(find.text('× 3'), findsOneWidget);
-    expect(find.text('-13.63'), findsOneWidget);
-    expect(find.text('× 4'), findsOneWidget);
-    expect(find.text('-7.63'), findsOneWidget);
-    await tester.tap(find.text('关闭'));
-    await tester.pump(const Duration(milliseconds: 300));
 
     final shipName = tester.widget<Text>(find.text('夕張'));
     final shipLevel = tester.widget<Text>(find.text('Lv. 50'));

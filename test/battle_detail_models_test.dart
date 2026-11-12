@@ -2,6 +2,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_detail_models.dart';
 
 void main() {
+  test('saved attacks without a type code retain their original damage', () {
+    final legacy = BattleDetailAttack.fromJson({
+      'attackType': '鱼雷 Cut-in',
+      'defenderHpBefore': 45,
+      'defenderHpAfter': 21,
+      'hits': [
+        {'damage': 24, 'kind': 'hit', 'hpAfter': 21},
+      ],
+    });
+
+    expect(legacy.attackTypeCode, 'Normal');
+    expect(legacy.totalDamage, 24);
+    expect(legacy.defenderHpAfter, 21);
+  });
+
   test('battle detail snapshot preserves fleets, equipment and per-hit HP', () {
     const snapshot = BattleDetailSnapshot(
       completedAtMillis: 1788533880000,

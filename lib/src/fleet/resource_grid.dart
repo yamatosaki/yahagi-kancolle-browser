@@ -1344,6 +1344,7 @@ GameReminderDialogPresentation? _presentResourceChecklist({
           isCurrent: canEdit,
           onToggle: onToggle,
           onReset: onReset,
+          protectInputOnDismiss: false,
           doneLabel: l10n.editDone,
           resetLabel: resetLabel,
         )
@@ -1361,8 +1362,7 @@ GameReminderDialogPresentation? _presentResourceChecklist({
 
   controller.addListener(refresh);
   if (!identical(valueChanges, controller)) valueChanges?.addListener(refresh);
-  // A timer can start while the editor is already open. Keep this short-lived
-  // presentation subscribed until its owner or input protection completes.
+  // A timer can start while the editor is already open.
   final timer = Timer.periodic(const Duration(seconds: 1), (_) => refresh());
   presentation = showGameReminderDialog(
     context: context,
@@ -1370,6 +1370,7 @@ GameReminderDialogPresentation? _presentResourceChecklist({
     title: title,
     message: '',
     nativePort: native,
+    protectInputOnDismiss: false,
     builder: (dialogContext, acknowledge) => Dialog(
       key: key ?? const Key('header-resource-filter-dialog'),
       child: ConstrainedBox(

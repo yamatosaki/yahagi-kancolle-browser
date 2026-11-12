@@ -223,6 +223,76 @@ void main() {
     expect(find.text('历史战果'), findsNothing);
   });
 
+  testWidgets('experience slides in the direction of the visible tab order', (
+    tester,
+  ) async {
+    final database = await LogbookDatabase.openForTesting();
+    addTearDown(database.close);
+    final controller = BattleController(gameState: () => GameState.empty);
+    addTearDown(controller.dispose);
+    var selected = 6;
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => Column(
+              children: [
+                LogbookSegmented(
+                  selectedIndex: selected,
+                  onChanged: (value) => setState(() => selected = value),
+                ),
+                Expanded(
+                  child: LogbookPage(
+                    battleController: controller,
+                    database: database,
+                    selectedTabIndex: selected,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final pages = find.descendant(
+      of: find.byType(TabBarView),
+      matching: find.byType(PageView),
+    );
+    Future<void> checkSlide(String tab, {required bool toRight}) async {
+      await tester.tap(find.byKey(Key('logbook-tab-$tab')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+      final pageController = tester.widget<PageView>(pages).controller!;
+      final start = pageController.page!;
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        pageController.page!,
+        toRight ? greaterThan(start) : lessThan(start),
+        reason: 'Switching to $tab must follow its position in the header.',
+      );
+      await tester.pumpAndSettle();
+    }
+
+    for (final tab in [
+      'sortie',
+      'expedition',
+      'construction',
+      'development',
+      'retirement',
+      'resource',
+    ]) {
+      final toRight = tab != 'sortie';
+      await checkSlide(tab, toRight: toRight);
+      await checkSlide('experience', toRight: !toRight);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('horizontal table gestures cannot switch logbook categories', (
     tester,
   ) async {

@@ -280,6 +280,89 @@ class NativeGameResourceChecklistTest {
         assertEquals(0, gameDowns)
     }
 
+    @Test fun unprotectedChecklistDismissesImmediatelyDespiteHeldContact() {
+        for (method in listOf("done", "back", "dismiss")) {
+            val current = show(checklist("moduleDisplay") + mapOf(
+                "protectInputOnDismiss" to false, "backCancels" to true,
+            ))
+            val next = show(checklist("collapsedResources") + ("resetLabel" to "恢复默认"))
+            onMain {
+                assertNull(find(R.id.native_game_resource_checklist_reset))
+                dispatch(MotionEvent.ACTION_DOWN, 2f, 2f)
+                when (method) {
+                    "done" -> requireView(R.id.native_game_resource_checklist_done).performClick()
+                    "back" -> requireNotNull(dialog()).let { window ->
+                        window.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK))
+                        window.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK))
+                    }
+                    else -> dismiss("moduleDisplay", 1)
+                }
+                assertEquals(method, listOf(if (method == "done") "acknowledge" else null), current.values)
+                assertNull(find(R.id.native_game_warning_input_guard))
+                assertNotNull(find(R.id.native_game_resource_checklist_reset))
+                requireView(R.id.native_game_resource_checklist_done).performClick()
+                assertNotNull(find(R.id.native_game_warning_input_guard))
+                assertTrue(next.values.isEmpty())
+            }
+            waitResult(next)
+        }
+    }
+
+    @Test fun compactShipChecklistReturnsTheFirstRealGameTapAfterCloseBackAndDone() {
+        val items = itemMaps().mapIndexed { index, item ->
+            item + mapOf("label" to "舰娘 ${index + 1}", "detail" to "Lv.187", "value" to "+1,104 EXP")
+        }
+        lateinit var baselinePoint: Pair<Float, Float>
+        onMain { baselinePoint = screenCenter(game) }
+        tapScreen(baselinePoint.first, baselinePoint.second)
+        onMain { assertEquals("The test WebView must receive a real game tap", 1, gameDowns) }
+        for (exit in listOf("close", "back", "done")) {
+            val result = show(checklist("moduleDisplay") + mapOf(
+                "title" to "选择显示舰娘", "items" to items, "resetLabel" to "恢复默认",
+                "compactShipChecklist" to true, "closeLabel" to "关闭",
+                "backCancels" to true, "protectInputOnDismiss" to false,
+            ))
+            waitForScrollableList()
+            var before = 0
+            lateinit var exitPoint: Pair<Float, Float>
+            lateinit var gamePoint: Pair<Float, Float>
+            onMain { activity ->
+                val container = requireView(R.id.native_game_resource_checklist)
+                val close = container.findViewWithTag<View>("compact-ship-checklist-close")
+                val done = requireView(R.id.native_game_resource_checklist_done)
+                val first = checkbox("senka")
+                assertEquals("关闭", close.contentDescription.toString())
+                assertEquals("舰娘 1  Lv.187", first.text.toString())
+                assertEquals("+1,104 EXP", container.findViewWithTag<TextView>("value:senka").text.toString())
+                assertTrue(first.height <= (44 * activity.resources.displayMetrics.density).toInt())
+                // The header and footer stay put when the body is scrolled.
+                val headerPoint = screenCenter(close)
+                val footerPoint = screenCenter(done)
+                list().scrollTo(0, list().height)
+                assertTrue(list().scrollY > 0)
+                assertEquals(headerPoint, screenCenter(close))
+                assertEquals(footerPoint, screenCenter(done))
+                exitPoint = if (exit == "close") headerPoint else footerPoint
+                before = gameDowns
+            }
+            if (exit == "back") instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+            else tapScreen(exitPoint.first, exitPoint.second)
+            // Android posts a Button click after ACTION_UP. Drain that click,
+            // then require dismissal without waiting for a protection timer.
+            instrumentation.waitForIdleSync()
+            onMain {
+                assertEquals(exit, listOf(if (exit == "done") "acknowledge" else null), result.values)
+                assertNull(exit, dialog())
+                assertEquals("The closing gesture must not reach the game", before, gameDowns)
+                gamePoint = screenCenter(game)
+            }
+            tapScreen(gamePoint.first, gamePoint.second)
+            onMain {
+                assertEquals("The first game tap after $exit must reach the WebView", before + 1, gameDowns)
+            }
+        }
+    }
+
     @Test fun cancellationProtectsAHeldContactBeforeTheOtherChecklistAndResetAppears() {
         val first = show(checklist())
         lateinit var old: CheckBox
@@ -571,6 +654,10 @@ class NativeGameResourceChecklistTest {
             try { assertTrue("Screen touch injection failed", instrumentation.uiAutomation.injectInputEvent(event, true)) }
             finally { event.recycle() }
         }
+    }
+    private fun screenCenter(view: View): Pair<Float, Float> {
+        val location = IntArray(2).also(view::getLocationOnScreen)
+        return (location[0] + view.width / 2f) to (location[1] + view.height / 2f)
     }
     private fun javascript(script: String): String {
         val complete = CountDownLatch(1)

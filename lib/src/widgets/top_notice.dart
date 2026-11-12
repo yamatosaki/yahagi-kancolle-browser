@@ -59,6 +59,7 @@ class TopNoticeController extends ChangeNotifier {
     IconData? customIcon,
     Color? customColor,
     Duration appendWithin = Duration.zero,
+    bool appendToCurrentBatch = false,
     String? replacementKey,
     bool showIcon = true,
   }) {
@@ -66,7 +67,8 @@ class TopNoticeController extends ChangeNotifier {
     final now = DateTime.now();
     final append =
         _notices.isNotEmpty &&
-        (replacementKey != null ||
+        (appendToCurrentBatch ||
+            replacementKey != null ||
             (appendWithin > Duration.zero &&
                 _batchStartedAt != null &&
                 now.difference(_batchStartedAt!) <= appendWithin));

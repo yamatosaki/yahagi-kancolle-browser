@@ -82,7 +82,11 @@ abstract final class FleetUiKeys {
       'name': '任务名字',
       'progress': '任务进度',
     },
-    'battle': <String, String>{},
+    'battle': {
+      'sortieMap': '地图',
+      'enemyPreview': '提前剧透',
+      'predictionResult': '结果剧透',
+    },
     'pre_sortie': <String, String>{},
     'sortie_experience': <String, String>{},
   };
@@ -168,6 +172,21 @@ String fleetText(BuildContext context, String source) {
       "戦闘の表示内容",
       "전투 요약 표시 항목",
       "Battle briefing display",
+    ),
+    "地图": ("地图", "地圖", "マップ", "지도", "Map"),
+    "提前剧透": (
+      "提前剧透",
+      "提前劇透",
+      "敵編成の先読み",
+      "적 편성 미리 보기",
+      "Enemy preview",
+    ),
+    "结果剧透": (
+      "结果剧透",
+      "結果劇透",
+      "戦闘結果の先読み",
+      "전투 결과 미리 보기",
+      "Battle outcome preview",
     ),
     "出击准备显示内容": (
       "出击准备显示内容",

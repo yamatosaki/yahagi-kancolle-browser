@@ -52,8 +52,8 @@ class GameSurfaceDialogCheckbox {
   final ValueChanged<bool> onChanged;
 }
 
-/// Presents a game dialog above the live surface and settles its typed result
-/// only after the existing reminder host has finished input protection.
+/// Presents a modal above the live game and returns its selected result.
+/// When enabled, dismissal protection completes before the result is returned.
 Future<T?> showGameSurfaceDialog<T>({
   required BuildContext context,
   required String title,
@@ -64,8 +64,9 @@ Future<T?> showGameSurfaceDialog<T>({
   String? selectedChoiceId,
   GameSurfaceDialogCheckbox? checkbox,
   bool allowFlutterFallback = true,
-  // When provided, only these choices need a quiet interval after all touches
-  // end. The closing gesture itself is always protected, including dismissal.
+  bool protectInputOnDismiss = true,
+  // With dismissal protection enabled, only these choices need a quiet
+  // interval after the closing gesture ends.
   Set<String>? postTouchProtectionActions,
   required Widget Function(BuildContext, void Function(T? value) close) builder,
 }) async {
@@ -99,6 +100,7 @@ Future<T?> showGameSurfaceDialog<T>({
           rows: rows,
           selectedChoiceId: selectedChoiceId,
           checkbox: checkbox,
+          protectInputOnDismiss: protectInputOnDismiss,
           postTouchProtectionActions: postTouchProtectionActions,
           isCurrent: () => !finished && ownerIsCurrent(),
           onSelected: select,
@@ -111,6 +113,7 @@ Future<T?> showGameSurfaceDialog<T>({
     message: message,
     allowFlutterFallback: allowFlutterFallback,
     nativePort: native,
+    protectInputOnDismiss: protectInputOnDismiss,
     inputProtectionMaxDuration:
         GameSurfaceInputGuardRoute.confirmationProtectionLimit,
     needsPostTouchProtection: () =>
@@ -160,6 +163,7 @@ final class _NativeGameSurfaceDialogAdapter<T>
     required this.rows,
     required this.selectedChoiceId,
     required this.checkbox,
+    required this.protectInputOnDismiss,
     required this.postTouchProtectionActions,
     required this.isCurrent,
     required this.onSelected,
@@ -173,6 +177,7 @@ final class _NativeGameSurfaceDialogAdapter<T>
   final List<String> rows;
   final String? selectedChoiceId;
   final GameSurfaceDialogCheckbox? checkbox;
+  final bool protectInputOnDismiss;
   final Set<String>? postTouchProtectionActions;
   final bool Function() isCurrent;
   final ValueChanged<T?> onSelected;
@@ -186,6 +191,7 @@ final class _NativeGameSurfaceDialogAdapter<T>
     'enabled': {for (final action in actions) action.id: action.enabled},
     'variants': {for (final action in actions) action.id: action.variant},
     'dismissible': false,
+    if (!protectInputOnDismiss) 'protectInputOnDismiss': false,
     if (postTouchProtectionActions case final actions?)
       'postTouchProtectionActions': actions.toList(),
     if (selectedChoiceId != null) 'selectedChoiceId': selectedChoiceId,

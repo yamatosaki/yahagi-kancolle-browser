@@ -72,6 +72,8 @@ final class NativeGameResourceChecklistAdapter
     required this.doneLabel,
     this.onReset,
     this.resetLabel,
+    this.protectInputOnDismiss = true,
+    this.compactShipChecklistCloseLabel,
   });
 
   final String kind;
@@ -82,6 +84,8 @@ final class NativeGameResourceChecklistAdapter
   final FutureOr<void> Function()? onReset;
   final String doneLabel;
   final String? resetLabel;
+  final bool protectInputOnDismiss;
+  final String? compactShipChecklistCloseLabel;
   Map<String, Object?>? _warning;
   StreamSubscription<Map<String, Object?>>? _subscription;
   bool _showing = false;
@@ -97,6 +101,11 @@ final class NativeGameResourceChecklistAdapter
       'items': rows,
       'appliedChangeId': _appliedChangeId,
       'labels': {'acknowledge': doneLabel},
+      if (!protectInputOnDismiss) 'protectInputOnDismiss': false,
+      if (compactShipChecklistCloseLabel case final label?) ...{
+        'compactShipChecklist': true,
+        'closeLabel': label,
+      },
       if (onReset != null && resetLabel != null) 'resetLabel': resetLabel,
     };
   }

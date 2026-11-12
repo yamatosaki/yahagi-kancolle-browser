@@ -36,6 +36,7 @@ import 'package:yahagi_kancolle_browser/src/settings/network_settings_store.dart
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/sortie_experience/sortie_experience_controller.dart';
+import 'package:yahagi_kancolle_browser/src/sortie_experience/sortie_resource_ledger.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/frozen_data_table.dart';
 
 import 'fixtures/kcsapi_fixtures.dart';
@@ -98,7 +99,8 @@ void main() {
     await harness.publish(tester, mapStartEvent);
     await _tap(tester, sortieTab);
     expect(_inCard(card, '本次出击'), findsOneWidget);
-    expect(_inCard(card, '已结算 0 场战斗'), findsOneWidget);
+    expect(_inCard(card, '0 场战斗'), findsOneWidget);
+    expect(_inCard(card, '+0 EXP'), findsOneWidget);
     expect(harness.experience.sortie?.ships.map((ship) => ship.experience), [
       0,
       0,
@@ -108,11 +110,13 @@ void main() {
     await harness.publishResult(tester, [360, 120], _firstNode);
     // A replay with a fresh capture sequence is still the same node result.
     await harness.publishResult(tester, [360, 120], _firstNode);
-    expect(_inCard(card, '已结算 1 场战斗'), findsOneWidget);
+    expect(_inCard(card, '1 场战斗'), findsOneWidget);
     expect(harness.experience.sortie?.ships.map((ship) => ship.experience), [
       360,
       120,
     ]);
+    _expectHomeMvp(tester, 9001, 1, percentage: '75%');
+    _expectHomeMvp(tester, 9002, 0, percentage: '25%');
     _expectHomeProgress(9001, 11, '940');
     _expectHomeProgress(9002, 12, '1,030');
 
@@ -124,14 +128,18 @@ void main() {
       request: const {},
     );
     await harness.publishResult(tester, [360, 120], _firstNode);
-    expect(_inCard(card, '已结算 1 场战斗'), findsOneWidget);
+    expect(_inCard(card, '1 场战斗'), findsOneWidget);
     await harness.publish(tester, dayBattleEvent);
     await harness.publishResult(tester, [90, 210], _secondNode);
-    expect(_inCard(card, '已结算 2 场战斗'), findsOneWidget);
+    expect(_inCard(card, '2 场战斗'), findsOneWidget);
     expect(harness.experience.sortie?.ships.map((ship) => ship.experience), [
       450,
       330,
     ]);
+    // The server still names ship 9001 MVP at node 2 despite ship 9002's
+    // higher EXP award. The replay must not increment either ship.
+    _expectHomeMvp(tester, 9001, 2, percentage: '57.7%');
+    _expectHomeMvp(tester, 9002, 0, percentage: '42.3%');
     _expectHomeProgress(9001, 11, '850');
     _expectHomeProgress(9002, 12, '820');
     await _tap(tester, totalTab);
@@ -145,14 +153,471 @@ void main() {
       450,
       330,
     ]);
+    _expectHomeMvp(tester, 9001, 2, percentage: '57.7%');
+    _expectHomeMvp(tester, 9002, 0, percentage: '42.3%');
     _expectHomeProgress(9001, 11, '850');
     _expectHomeProgress(9002, 12, '820');
     await _tap(tester, sortieTab);
     expect(_inCard(card, '上次出击'), findsOneWidget);
-    expect(_inCard(card, '已结算 2 场战斗'), findsOneWidget);
+    expect(_inCard(card, '2 场战斗'), findsOneWidget);
+    expect(_inCard(card, '+780 EXP'), findsOneWidget);
+    _expectHomeMvp(tester, 9001, 2, percentage: '57.7%');
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets('home spending follows sortie, refill, repair, and bucket APIs', (
+    tester,
+  ) async {
+    // Use dedicated accounts so their SQLite queues cannot outlive this
+    // widget test and be picked up by a separate fake clock.
+    const memberId = 27101;
+    const otherMember = 27102;
+    final harness = await _mount(
+      tester,
+      size: const Size(1180, 820),
+      memberId: memberId,
+    );
+    final experience = harness.experience;
+    Finder keyed(String id) => find.byKey(Key('sortie-exp-$id'));
+    double rowTop(int id) => tester.getTopLeft(keyed('ship-$id')).dy;
+
+    Map<String, Object?> port([int sorties = 0]) {
+      final after = sorties > 0;
+      final (firstFuel, firstAmmo, secondFuel, secondAmmo) = switch (sorties) {
+        0 => (25, 40, 15, 20),
+        1 => (22, 37, 14, 15),
+        2 => (19, 34, 13, 10),
+        _ => (15, 30, 11, 6),
+      };
+      final base = _portData(memberId, [
+        (
+          after ? 11 : 10,
+          5300 + 360 * sorties,
+          after ? 1300 - 360 * sorties : 200,
+        ),
+        (12, 6650 + 120 * sorties, 1150 - 120 * sorties),
+      ]);
+      final ships = (base['api_ship'] as List).cast<Map>();
+      return {
+        ...base,
+        'api_material': [
+          for (var id = 1; id <= 8; id++) {'api_id': id, 'api_value': 1000},
+        ],
+        'api_ship': [
+          {
+            ...ships[0],
+            'api_fuel': firstFuel,
+            'api_bull': firstAmmo,
+            'api_ndock_item': after ? [6, 11] : [0, 0],
+            'api_ndock_time': after ? 3600000 : 0,
+            'api_nowhp': after ? 22 : 30,
+          },
+          {
+            ...ships[1],
+            'api_fuel': secondFuel,
+            'api_bull': secondAmmo,
+            'api_ndock_item': after ? [3, 5] : [0, 0],
+            'api_ndock_time': after ? 7200000 : 0,
+            'api_nowhp': after ? 10 : 15,
+          },
+        ],
+        'api_ndock': [
+          for (var id = 1; id <= 2; id++)
+            {'api_id': id, 'api_state': 0, 'api_ship_id': 0},
+        ],
+      };
+    }
+
+    Future<void> send(
+      String path,
+      Map<String, Object?> request, [
+      Map<String, Object?> data = const {},
+    ]) => harness.publish(
+      tester,
+      portEvent,
+      path: '/kcsapi/$path',
+      request: request,
+      data: data,
+    );
+
+    await harness.publish(tester, portEvent, data: port());
+    await _tap(tester, keyed('tab-total'));
+    await _tap(tester, keyed('tracking-switch'));
+    await _tap(tester, keyed('total-tab-consumption'));
+    final summary = keyed('resource-summary');
+    expect(summary, findsOneWidget);
+    expect(experience.hasResourceSpendingData, isFalse);
+
+    for (var sortie = 1; sortie <= 3; sortie++) {
+      await harness.publish(tester, mapStartEvent);
+      await harness.publish(tester, dayBattleEvent);
+      await harness.publishResult(tester, [360, 120], _firstNode);
+      expect(experience.totalSorties, sortie - 1);
+      await harness.publish(tester, portEvent, data: port(sortie));
+      expect(experience.totalSorties, sortie);
+      expect(experience.totalResourceSpending.isEmpty, isTrue);
+      expect(_inCard(summary, '未统计'), findsOneWidget);
+      expect(_inCard(summary, '—'), findsNWidgets(5));
+      for (final id in [9001, 9002]) {
+        expect(_inCard(keyed('ship-$id'), '未统计'), findsOneWidget);
+      }
+    }
+    expect(
+      experience.resourceSpendingFor(9001)?.pending,
+      const SortieResourceAmounts(fuel: 10, ammo: 10),
+    );
+    expect(
+      experience.resourceSpendingFor(9002)?.pending,
+      const SortieResourceAmounts(fuel: 4, ammo: 14),
+    );
+    expect(experience.totalResourceSpending.isEmpty, isTrue);
+    expect(find.textContaining('本轮待补给'), findsNothing);
+    await _tap(tester, keyed('resource-sort'));
+    await _tap(tester, keyed('resource-sort-ammo'));
+    await tester.pumpAndSettle();
+    // A pending refill does not move a ship ahead of the EXP tie breaker.
+    expect(rowTop(9001), lessThan(rowTop(9002)));
+
+    const chargePath = '/kcsapi/api_req_hokyu/charge';
+    const chargeRequest = {
+      'api_kind': '3',
+      'api_id_items': '9001,9002',
+      'api_onslot': '1',
+    };
+    const chargeData = <String, Object?>{
+      'api_ship': [
+        {
+          'api_id': 9001,
+          'api_fuel': 25,
+          'api_bull': 40,
+          'api_onslot': [0, 2, 0],
+        },
+        {
+          'api_id': 9002,
+          'api_fuel': 15,
+          'api_bull': 20,
+          'api_onslot': [0, 0],
+        },
+      ],
+      'api_material': [986, 976, 1000, 1000],
+      'api_use_bou': 0,
+    };
+    await harness.publish(
+      tester,
+      portEvent,
+      path: chargePath,
+      request: chargeRequest,
+      data: chargeData,
+      apiResult: 0,
+    );
+    expect(experience.totalResourceSpending.isEmpty, isTrue);
+    expect(_inCard(summary, '—'), findsNWidgets(5));
+    expect(experience.resourceSpendingFor(9001)?.pending.fuel, 10);
+
+    await send('api_req_hokyu/charge', chargeRequest, chargeData);
+    expect(experience.resourceSpendingFor(9001)?.pending.isEmpty, isTrue);
+    expect(experience.resourceSpendingFor(9002)?.pending.isEmpty, isTrue);
+    expect(experience.resourceSpendingFor(9001)?.supply.fuel, 10);
+    expect(experience.resourceSpendingFor(9002)?.supply.ammo, 14);
+    expect(_inCard(summary, '未统计'), findsNothing);
+    expect(_inCard(keyed('resource-group-fuel'), '14'), findsOneWidget);
+    expect(_inCard(keyed('resource-group-ammo'), '24'), findsOneWidget);
+    expect(_inCard(keyed('ship-9001'), '10'), findsNWidgets(2));
+    expect(_inCard(keyed('ship-9002'), '14'), findsOneWidget);
+    expect(rowTop(9002), lessThan(rowTop(9001)));
+    await send('api_req_hokyu/charge', chargeRequest, chargeData);
+    expect(
+      experience.totalResourceSpending,
+      const SortieResourceAmounts(fuel: 14, ammo: 24),
+    );
+    expect(_inCard(keyed('resource-group-fuel'), '14'), findsOneWidget);
+    expect(_inCard(keyed('resource-group-ammo'), '24'), findsOneWidget);
+
+    await send('api_req_nyukyo/start', {
+      'api_ship_id': '9001',
+      'api_ndock_id': '1',
+      'api_highspeed': '1',
+    });
+    await send('api_req_nyukyo/start', {
+      'api_ship_id': '9002',
+      'api_ndock_id': '2',
+      'api_highspeed': '0',
+    });
+    expect(experience.totalResourceSpending.buckets, 1);
+    await send('api_req_nyukyo/speedchange', {'api_ndock_id': '2'});
+    await send('api_req_nyukyo/speedchange', {'api_ndock_id': '2'});
+
+    final SortieResourceAmounts total = experience.totalResourceSpending;
+    expect(
+      [total.fuel, total.ammo, total.steel, total.bauxite, total.buckets],
+      [23, 24, 16, 0, 2],
+    );
+    expect(experience.resourceSpendingFor(9001)?.repair.steel, 11);
+    expect(experience.resourceSpendingFor(9002)?.repair.steel, 5);
+    expect(experience.resourceSpendingFor(9002)?.repair.buckets, 1);
+    expect(experience.totals.map((ship) => ship.experience), [1080, 360]);
+    expect(experience.resourceSpendingIncomplete, isFalse);
+    expect(_inCard(summary, '桶'), findsOneWidget);
+    for (final amount in ['23', '24', '16', '0', '2']) {
+      expect(
+        find.descendant(of: summary, matching: find.text(amount)),
+        findsOneWidget,
+      );
+    }
+    expect(find.textContaining('本轮待补给'), findsNothing);
+    await _tap(tester, keyed('resource-open-9002'));
+    expect(keyed('resource-dialog'), findsOneWidget);
+    expect(find.text('出击补给支出'), findsOneWidget);
+    expect(find.text('入渠与加速'), findsOneWidget);
+    expect(find.text('燃料 4 · 弹药 14 · 铝土 0'), findsOneWidget);
+    expect(find.text('燃料 3 · 钢材 5 · 桶 1'), findsOneWidget);
+    await _tap(tester, keyed('resource-close'));
+
+    await _tap(tester, keyed('filter-total'));
+    await _tap(tester, keyed('filter-ship-9002'));
+    await _tap(tester, keyed('filter-done'));
+    await tester.pumpAndSettle();
+    expect(experience.hiddenTotalShipIds, {9002});
+    expect(keyed('ship-9002'), findsNothing);
+    expect(experience.totalResourceSpending, total);
+    expect(
+      find.descendant(of: summary, matching: find.text('24')),
+      findsOneWidget,
+    );
+    await _tap(tester, keyed('filter-total'));
+    await _tap(tester, keyed('filter-ship-9002'));
+    await _tap(tester, keyed('filter-done'));
+    await tester.pumpAndSettle();
+    expect(experience.hiddenTotalShipIds, isEmpty);
+    expect(rowTop(9002), lessThan(rowTop(9001)));
+    await _tap(tester, keyed('resource-sort'));
+    await _tap(tester, keyed('resource-sort-fuel'));
+    await tester.pumpAndSettle();
+    expect(rowTop(9001), lessThan(rowTop(9002)));
+
+    await harness.publish(tester, start2Event);
+    await harness.publish(
+      tester,
+      portEvent,
+      data: {
+        ...port(),
+        'api_basic': {'api_member_id': otherMember, 'api_level': 120},
+      },
+    );
+    expect(harness.account.current.memberId, otherMember);
+    expect(experience.hasResourceSpendingData, isFalse);
+    expect(experience.totalResourceSpending.isEmpty, isTrue);
+
+    await harness.publish(tester, start2Event);
+    await harness.publish(tester, portEvent, data: port());
+    expect(harness.account.current.memberId, memberId);
+    expect(experience.totalResourceSpending, total);
+    expect(experience.trackingEnabled, isTrue);
+    await send('api_req_kousyou/destroyship', {'api_ship_id': '9002'});
+    expect(experience.resourceSpendingFor(9002), isNull);
+    expect(
+      experience.totalResourceSpending,
+      const SortieResourceAmounts(fuel: 16, ammo: 10, steel: 11, buckets: 1),
+    );
+    expect(experience.totalExperiencePercentage(9001), 100);
+    await experience.clearTotal();
+    expect(experience.hasResourceSpendingData, isFalse);
+    expect(experience.totals, isEmpty);
+    expect(experience.totalResourceSpending.isEmpty, isTrue);
+
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    for (final id in [memberId, otherMember]) {
+      await _awaitWithFrames(
+        tester,
+        LogbookDatabase.forAccount(id).close(),
+        'close spending smoke SQLite',
+      );
+    }
+  });
+
+  testWidgets(
+    'home pipeline prunes lost ships while preserving sortie history',
+    (tester) async {
+      const ids = [9001, 9002, 9003, 9004];
+      const gains = [240, 120, 80, 40];
+      final history = <List<int?>>[];
+      final harness = await _mount(
+        tester,
+        size: const Size(1180, 820),
+        recordExperience: (_, record) async {
+          history.add(record.ships.map((ship) => ship.experience).toList());
+        },
+      );
+      final card = find.byKey(const ValueKey(_module));
+      final base = _portData(_memberId);
+      final template = (base['api_ship'] as List).first as Map;
+      final decks = (base['api_deck_port'] as List).cast<Map>();
+
+      Map<String, Object?> portFor(
+        Iterable<int> ownedIds, {
+        bool earned = false,
+      }) => {
+        ...base,
+        'api_ndock': const [],
+        'api_ship': [
+          for (final id in ownedIds)
+            {
+              ...template,
+              'api_id': id,
+              'api_lv': earned && id == 9001 ? 11 : 10,
+              'api_exp': [
+                5300 + (earned ? gains[ids.indexOf(id)] : 0),
+                (earned && id == 9001 ? 6600 : 5500) -
+                    5300 -
+                    (earned ? gains[ids.indexOf(id)] : 0),
+                0,
+              ],
+              'api_slot': const [-1, -1, -1],
+              'api_slot_ex': -1,
+              'api_onslot': const [0, 0, 0],
+            },
+        ],
+        'api_deck_port': [
+          {...decks.first, 'api_ship': ownedIds.toList()},
+          for (final deck in decks.skip(1))
+            {
+              ...deck,
+              'api_ship': const [-1, -1, -1, -1, -1, -1],
+            },
+        ],
+      };
+
+      await harness.publish(tester, portEvent, data: portFor(ids));
+      final totalTab = find.byKey(const Key('sortie-exp-tab-total'));
+      final filter = find.byKey(const Key('sortie-exp-filter-total'));
+      final done = find.byKey(const Key('sortie-exp-filter-done'));
+      await _tap(tester, totalTab);
+      await _tap(tester, find.byKey(const Key('sortie-exp-tracking-switch')));
+      await harness.publish(tester, mapStartEvent);
+      await harness.publish(
+        tester,
+        dayBattleEvent,
+        data: {
+          ..._data(dayBattleEvent),
+          'api_f_nowhps': const [28, 28, 28, 28],
+          'api_f_maxhps': const [30, 30, 30, 30],
+        },
+      );
+      await harness.publishResult(tester, gains);
+      await harness.publish(
+        tester,
+        portEvent,
+        data: portFor(ids, earned: true),
+      );
+      expect(harness.experience.totalExperience, 480);
+      expect(harness.experience.totalExperiencePercentage(9001), 50);
+      expect(_inCard(card, '合计 480 EXP'), findsOneWidget);
+      expect(_inCard(card, '50%'), findsOneWidget);
+      expect(history, [gains]);
+      final snapshot = harness.experience.sortie;
+
+      await _tap(tester, filter);
+      await _tap(tester, find.byKey(const Key('sortie-exp-filter-ship-9002')));
+      await _tap(tester, done);
+      await tester.pumpAndSettle();
+      expect(harness.experience.hiddenTotalShipIds, {9002});
+      expect(find.byKey(const Key('sortie-exp-ship-9002')), findsNothing);
+      expect(_inCard(card, '合计 480 EXP'), findsOneWidget);
+
+      await harness.publish(
+        tester,
+        portEvent,
+        path: '/kcsapi/api_req_kousyou/destroyship',
+        request: const {'api_ship_id': '9004'},
+        data: const {
+          'api_material': [100, 100, 100, 100],
+        },
+      );
+      expect(harness.state.state.ships, isNot(contains(9004)));
+      expect(harness.experience.totalExperience, 440);
+      expect(_inCard(card, '合计 440 EXP'), findsOneWidget);
+      expect(_inCard(card, '54.5%'), findsOneWidget);
+      expect(find.byKey(const Key('sortie-exp-ship-9004')), findsNothing);
+
+      await _tap(tester, filter);
+      final materialChoice = find.byKey(
+        const Key('sortie-exp-filter-ship-9003'),
+      );
+      await _tap(tester, materialChoice);
+      expect(tester.widget<CheckboxListTile>(materialChoice).value, isFalse);
+      final target = (portFor([9001], earned: true)['api_ship'] as List).single;
+      await harness.publish(
+        tester,
+        portEvent,
+        path: '/kcsapi/api_req_kaisou/powerup',
+        request: const {'api_id': '9001', 'api_id_items': '9003'},
+        data: {'api_powerup_flag': 0, 'api_ship': target},
+      );
+      expect(harness.state.state.ships, contains(9001));
+      expect(harness.state.state.ships, isNot(contains(9003)));
+      expect(materialChoice, findsNothing);
+      await _tap(tester, done);
+      await tester.pumpAndSettle();
+      expect(harness.experience.hiddenTotalShipIds, {9002});
+      expect(harness.experience.totals.map((ship) => ship.ownedShipId), [
+        9001,
+        9002,
+      ]);
+      expect(harness.experience.totalExperience, 360);
+      expect(
+        harness.experience.totalExperiencePercentage(9001),
+        closeTo(200 / 3, .0001),
+      );
+      expect(_inCard(card, '合计 360 EXP'), findsOneWidget);
+      expect(_inCard(card, '66.7%'), findsOneWidget);
+      expect(harness.experience.sortie, same(snapshot));
+      expect(harness.experience.totalSorties, 1);
+      expect(history, [gains]);
+
+      await harness.publish(
+        tester,
+        portEvent,
+        data: portFor([9001], earned: true),
+      );
+      expect(harness.experience.totals.single.ownedShipId, 9001);
+      expect(harness.experience.totalExperience, 240);
+      expect(harness.experience.totalExperiencePercentage(9001), 100);
+      expect(harness.experience.hiddenTotalShipIds, isEmpty);
+      expect(_inCard(card, '合计 240 EXP'), findsOneWidget);
+      expect(_inCard(card, '100%'), findsOneWidget);
+
+      await harness.publish(tester, portEvent, data: portFor(const []));
+      expect(harness.experience.totals, isEmpty);
+      expect(harness.experience.totalExperience, 0);
+      expect(harness.experience.totalExperiencePercentage(9001), 0);
+      expect(_inCard(card, '总累计 1 场'), findsOneWidget);
+      expect(_inCard(card, '合计 0 EXP'), findsOneWidget);
+      expect(find.byKey(const Key('sortie-exp-total-page')), findsNothing);
+
+      final reopened = SortieExperienceController(
+        accountSession: harness.account,
+        gameState: () => harness.state.state,
+      );
+      try {
+        await reopened.initialize();
+        expect(reopened.totals, isEmpty);
+        expect(reopened.hiddenTotalShipIds, isEmpty);
+        expect(reopened.totalSorties, 1);
+        expect(reopened.sortie?.ships.map((ship) => ship.experience), gains);
+        expect(history, [gains]);
+      } finally {
+        reopened.dispose();
+      }
+      await _tap(tester, find.byKey(const Key('sortie-exp-tab-sortie')));
+      for (final (index, id) in ids.indexed) {
+        _homeExperienceRow(tester, id, gains[index]);
+      }
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets('clear confirmation protects game input and keeps capture live', (
     tester,
@@ -279,6 +744,10 @@ void main() {
       90,
       210,
     ]);
+    expect(harness.experience.sortie?.ships.map((ship) => ship.mvpCount), [
+      1,
+      0,
+    ]);
     expect(tester.element(surface), same(liveSurface));
     await tester.tapAt(gamePoint);
     expect(gameTaps, 3);
@@ -404,18 +873,18 @@ void main() {
       ]);
       expect(tester.element(surface), same(liveSurface));
 
-      await _tap(tester, done);
-      await _waitForFrame(
-        tester,
-        () =>
-            surface.hitTestable().evaluate().isNotEmpty &&
-            firstShip.evaluate().isEmpty,
-        'committed ship filter and restored game input',
-      );
-      expect(dialog, findsNothing);
-      expect(firstShip, findsNothing);
-      expect(secondShip, findsOneWidget);
-      await tester.tapAt(gamePoint);
+      final heldAtClose = await tester.startGesture(gamePoint);
+      try {
+        await _tap(tester, done);
+        expect(find.byKey(const Key('game-safety-input-guard')), findsNothing);
+        expect(surface.hitTestable(), findsOneWidget);
+        expect(dialog, findsNothing);
+        expect(firstShip, findsNothing);
+        expect(secondShip, findsOneWidget);
+        await tester.tapAt(gamePoint);
+      } finally {
+        await heldAtClose.up();
+      }
       expect(gameDowns, 2);
       expect(gameTaps, 2);
 
@@ -445,24 +914,27 @@ void main() {
     final card = find.byKey(const ValueKey(_module));
     await _show(tester, card);
     await harness.experience.setTrackingEnabled(true);
-    await harness.publish(
+    Future<void> startExercise() => harness.publish(
       tester,
       dayBattleEvent,
       path: '/kcsapi/api_req_practice/battle',
       data: {..._data(dayBattleEvent), 'api_deck_id': 1},
       request: const {},
     );
+    await startExercise();
     expect(_inCard(card, '演习中'), findsOneWidget);
-    expect(_inCard(card, '演习 · 第 1 舰队'), findsOneWidget);
-    expect(_inCard(card, '已结算 0 场战斗'), findsOneWidget);
+    expect(_inCard(card, '演习'), findsOneWidget);
+    expect(_inCard(card, '第 1 舰队'), findsOneWidget);
+    expect(_inCard(card, '0 场战斗'), findsOneWidget);
     expect(harness.experience.totalSorties, 0);
 
-    Future<void> settleExercise() => harness.publish(
+    Future<void> settleExercise({int mvp = 2}) => harness.publish(
       tester,
       battleResultEvent,
       path: '/kcsapi/api_req_practice/battle_result',
       data: {
         'api_win_rank': 'S',
+        'api_mvp': mvp,
         'api_get_ship_exp': [-1, 180, 120, -1, -1, -1, -1],
         'api_get_exp_lvup': _exerciseNode,
       },
@@ -471,12 +943,15 @@ void main() {
 
     await settleExercise();
     expect(_inCard(card, '上次出击'), findsOneWidget);
-    expect(_inCard(card, '已结算'), findsOneWidget);
-    expect(_inCard(card, '已结算 1 场战斗'), findsOneWidget);
+    expect(_inCard(card, '演习已结算'), findsOneWidget);
+    expect(_inCard(card, '1 场战斗'), findsOneWidget);
+    expect(_inCard(card, '+300 EXP'), findsOneWidget);
     expect(harness.experience.sortie?.ships.map((ship) => ship.experience), [
       180,
       120,
     ]);
+    _expectHomeMvp(tester, 9001, 0, percentage: '60%');
+    _expectHomeMvp(tester, 9002, 1, percentage: '40%');
     _expectHomeProgress(9001, 10, '20');
     _expectHomeProgress(9002, 12, '1,030');
     await _tap(tester, find.byKey(const Key('sortie-exp-tab-total')));
@@ -488,8 +963,20 @@ void main() {
       180,
       120,
     ]);
+    _expectHomeMvp(tester, 9001, 0);
+    _expectHomeMvp(tester, 9002, 1);
     _expectHomeProgress(9001, 10, '20');
     _expectHomeProgress(9002, 12, '1,030');
+
+    await harness.experience.setTrackingEnabled(false);
+    await startExercise();
+    await settleExercise(mvp: 1);
+    expect(_inCard(card, '总累计 1 场'), findsOneWidget);
+    _expectHomeMvp(tester, 9001, 0);
+    _expectHomeMvp(tester, 9002, 1);
+    await _tap(tester, find.byKey(const Key('sortie-exp-tab-sortie')));
+    _expectHomeMvp(tester, 9001, 1, percentage: '60%');
+    _expectHomeMvp(tester, 9002, 0, percentage: '40%');
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -571,7 +1058,7 @@ void main() {
         expect(_inCard(card, '上次出击'), findsOneWidget);
         final battles = isPractice ? 1 : 2;
         final battleLabel = '已结算 $battles 场战斗';
-        expect(_inCard(card, battleLabel), findsOneWidget);
+        expect(_inCard(card, '$battles 场战斗'), findsOneWidget);
         final homeRows = [
           for (final (index, id) in [9001, 9002].indexed)
             _homeExperienceRow(tester, id, gains[index]),
@@ -603,11 +1090,11 @@ void main() {
               find.descendant(of: page, matching: find.byType(PageView)).first,
             )
             .controller!;
-        // The header selects index 6 before TabBarView finishes its warp.
+        // The stable experience route is 6; its visible page is second.
         await _waitForFrame(
           tester,
-          () => pager.page == 6 && table.evaluate().isNotEmpty,
-          'experience tab to finish navigating (current page ${pager.page})',
+          () => pager.page == 1 && table.evaluate().isNotEmpty,
+          'experience tab to finish navigating',
         );
         if (writeWhileOpen) {
           final empty = _inCard(page, '暂无记录');
@@ -747,7 +1234,12 @@ void main() {
           },
         );
 
-    Future<void> node(List<int> earned, List<List<int>> levelUps) async {
+    Future<void> node(
+      List<int> earned,
+      List<List<int>> levelUps, {
+      required int mainMvp,
+      required int escortMvp,
+    }) async {
       const hp = [28, 28, 28, 28, 28, 28];
       const maxHp = [30, 30, 30, 30, 30, 30];
       await harness.publish(
@@ -768,6 +1260,8 @@ void main() {
         path: '/kcsapi/api_req_combined_battle/battleresult',
         data: {
           ..._data(battleResultEvent),
+          'api_mvp': mainMvp,
+          'api_mvp_combined': escortMvp,
           'api_get_ship_exp': [-1, ...earned.take(6)],
           'api_get_ship_exp_combined': [-1, ...earned.skip(6)],
           'api_get_exp_lvup': levelUps.take(6).toList(),
@@ -821,12 +1315,17 @@ void main() {
       await _tap(tester, sortieTab);
       expect(_inCard(card, '主力舰队'), findsOneWidget);
       expect(_inCard(card, '护卫舰队'), findsOneWidget);
-      expect(_inCard(card, '已结算 0 场战斗'), findsOneWidget);
+      expect(_inCard(card, '0 场战斗'), findsOneWidget);
 
-      await node(first, [
-        for (final value in initial) [value, 5500, 6600],
-      ]);
-      expect(_inCard(card, '已结算 1 场战斗'), findsOneWidget);
+      await node(
+        first,
+        [
+          for (final value in initial) [value, 5500, 6600],
+        ],
+        mainMvp: 6,
+        escortMvp: 1,
+      );
+      expect(_inCard(card, '1 场战斗'), findsOneWidget);
       for (final (i, id) in ids.indexed) {
         _expectHomeProgress(id, 11, '${6600 - afterFirst[i]}');
         _homeExperienceRow(tester, id, first[i]);
@@ -838,14 +1337,25 @@ void main() {
         data: {..._data(mapStartEvent), 'api_no': 2},
         request: const {},
       );
-      await node(second, [
-        for (final value in afterFirst) [value, 6600],
-      ]);
-      expect(_inCard(card, battleLabel), findsOneWidget);
+      await node(
+        second,
+        [
+          for (final value in afterFirst) [value, 6600],
+        ],
+        mainMvp: 6,
+        escortMvp: 4,
+      );
+      expect(_inCard(card, '2 场战斗'), findsOneWidget);
       for (final (i, id) in ids.indexed) {
         _expectHomeProgress(id, 11, '${6600 - afterSecond[i]}');
         _homeExperienceRow(tester, id, gains[i]);
       }
+      const expectedMvp = {9006: 2, 9101: 1, 9104: 1};
+      for (final id in ids) {
+        _expectHomeMvp(tester, id, expectedMvp[id] ?? 0);
+      }
+      _expectHomeMvp(tester, 9001, 0, percentage: '6.2%');
+      _expectHomeMvp(tester, 9106, 0, percentage: '10.5%');
       expectFleetLayout(card, sideBySide: false);
 
       await harness.layout.moveHdModuleToSidebar('expedition');
@@ -893,9 +1403,19 @@ void main() {
 
       await port(afterSecond, 11, 6600);
       expect(_inCard(card, '总累计 1 场'), findsOneWidget);
-      for (final (i, id) in ids.indexed) {
-        _expectHomeProgress(id, 11, '${6600 - afterSecond[i]}');
-        _homeExperienceRow(tester, id, gains[i]);
+      final totals = harness.experience.totals;
+      for (var page = 0; page < 2; page++) {
+        expect(_inCard(card, '${page + 1} / 2'), findsOneWidget);
+        for (final ship in totals.skip(page * 10).take(10)) {
+          final id = ship.ownedShipId;
+          final i = ids.indexOf(id);
+          _expectHomeProgress(id, 11, '${6600 - afterSecond[i]}');
+          _homeExperienceRow(tester, id, gains[i]);
+          _expectHomeMvp(tester, id, expectedMvp[id] ?? 0);
+        }
+        if (page == 0) {
+          await _tap(tester, find.byKey(const Key('sortie-exp-total-next')));
+        }
       }
       await _tap(tester, sortieTab);
       expect(_inCard(card, '上次出击'), findsOneWidget);
@@ -1102,6 +1622,7 @@ void main() {
         battleResultEvent,
         path: '/kcsapi/api_req_practice/battle_result',
         data: {
+          'api_mvp': 2,
           'api_get_ship_exp': [-1, 60, 40, -1, -1, -1, -1],
           'api_get_exp_lvup': [
             [1490, 1500, 2100],
@@ -1128,6 +1649,8 @@ void main() {
       _expectHomeProgress(9002, 7, '70');
       _homeExperienceRow(tester, 9001, 60);
       _homeExperienceRow(tester, 9002, 40);
+      _expectHomeMvp(tester, 9001, 0);
+      _expectHomeMvp(tester, 9002, 1);
       expect(await store.load(scopeB), savedB);
 
       await openLogbook();
@@ -1140,8 +1663,12 @@ void main() {
       expect(_inCard(card, '总累计 1 场'), findsOneWidget);
       _homeExperienceRow(tester, 9001, 360);
       _homeExperienceRow(tester, 9002, 120);
+      _expectHomeMvp(tester, 9001, 1);
+      _expectHomeMvp(tester, 9002, 0);
       await _tap(tester, sortieTab);
       expect(_inCard(card, '上次出击'), findsOneWidget);
+      _expectHomeMvp(tester, 9001, 1);
+      _expectHomeMvp(tester, 9002, 0);
       _expectHomeProgress(9001, 11, '850');
       _expectHomeProgress(9002, 12, '820');
       expect(await store.load(scopeA), savedA);
@@ -1384,6 +1911,29 @@ void _expectHomeProgress(int id, int level, String next) {
   );
 }
 
+void _expectHomeMvp(
+  WidgetTester tester,
+  int id,
+  int count, {
+  String? percentage,
+}) {
+  final mvp = find.byKey(Key('sortie-exp-mvp-$id'));
+  expect(tester.widget<Text>(mvp).data, '$count');
+  if (percentage == null) return;
+
+  final share = find.byKey(Key('sortie-exp-percentage-$id'));
+  final amount = find.byKey(Key('sortie-exp-value-$id'));
+  expect(tester.widget<Text>(share).data, percentage);
+  expect(tester.getCenter(share).dy, greaterThan(tester.getCenter(amount).dy));
+  expect(
+    find.descendant(
+      of: find.byKey(Key('sortie-exp-ship-$id')),
+      matching: find.textContaining('EXP'),
+    ),
+    findsNothing,
+  );
+}
+
 (int, String, String, String, String) _homeExperienceRow(
   WidgetTester tester,
   int id,
@@ -1591,8 +2141,15 @@ class _HomeHarness {
     String? path,
     Map<String, Object?>? data,
     Map<String, Object?>? request,
+    int apiResult = 1,
   }) async {
-    enqueue(fixture, path: path, data: data, request: request);
+    enqueue(
+      fixture,
+      path: path,
+      data: data,
+      request: request,
+      apiResult: apiResult,
+    );
     await pipeline.idle;
     await _settle(tester);
   }
@@ -1602,11 +2159,13 @@ class _HomeHarness {
     String? path,
     Map<String, Object?>? data,
     Map<String, Object?>? request,
+    int apiResult = 1,
   }) {
     pipeline.add(
       kcsapiEvent(
         path ?? fixture.path,
         data ?? _data(fixture),
+        apiResult: apiResult,
         sequence: ++_sequence,
         requestParams: request ?? fixture.requestParams,
       ),

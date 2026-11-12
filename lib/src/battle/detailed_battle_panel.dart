@@ -34,6 +34,7 @@ class DetailedBattlePanel extends StatelessWidget {
     this.showLastFormationHint = true,
     this.enemyPreviewPosition = EnemyPreviewPosition.above,
     this.sectionOrder,
+    this.visibleSections = BattlePredictionSection.values,
     this.mapSection,
   });
 
@@ -45,6 +46,7 @@ class DetailedBattlePanel extends StatelessWidget {
   final bool showLastFormationHint;
   final EnemyPreviewPosition enemyPreviewPosition;
   final List<BattlePredictionSection>? sectionOrder;
+  final Iterable<BattlePredictionSection> visibleSections;
   final Widget? mapSection;
 
   @override
@@ -86,6 +88,7 @@ class DetailedBattlePanel extends StatelessWidget {
           ],
           BattlePredictionSections(
             order: sectionOrder,
+            visibleSections: visibleSections,
             legacyEnemyPreviewPosition: enemyPreviewPosition,
             sortieMap: mapSection,
             enemyPreview: navigation && enemyPreviewShips.isNotEmpty

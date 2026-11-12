@@ -100,6 +100,32 @@ class NativeGameSurfaceDialogTest {
         assertEquals(0, gameDowns)
     }
 
+    @Test fun ordinarySurfaceChoiceClosesImmediatelyWhileConfirmationStillGuardsHeldTouch() {
+        val choice = show(payload() + mapOf(
+            "protectInputOnDismiss" to false,
+            "choices" to listOf(mapOf("id" to "fuel", "label" to "燃料")),
+        ))
+        onMain {
+            dispatch(MotionEvent.ACTION_DOWN, 2f, 2f)
+            assertOutsideIgnored(choice)
+            tagged("surface-dialog-choice:fuel").performClick()
+            assertEquals(listOf(mapOf("action" to "fuel", "checked" to false)), choice.values)
+            assertNull(dialog())
+        }
+
+        val confirmation = show(payload(2L))
+        onMain {
+            dispatch(MotionEvent.ACTION_DOWN, 2f, 2f)
+            tagged("surface-dialog-action:confirm").performClick()
+            assertTrue(confirmation.values.isEmpty())
+            assertNotNull(find(R.id.native_game_warning_input_guard))
+            dispatch(MotionEvent.ACTION_UP, 2f, 2f)
+            assertTrue(confirmation.values.isEmpty())
+        }
+        waitResult(confirmation, mapOf("action" to "confirm", "checked" to false))
+        assertEquals(0, gameDowns)
+    }
+
     @Test fun repeatedSurfaceTouchesFinishAtTheProtectionDeadlineWithoutTouchThrough() {
         onMain { protectionClock = 0L }
         val result = show(payload() + ("postTouchProtectionActions" to listOf("confirm")))

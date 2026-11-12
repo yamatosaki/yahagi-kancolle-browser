@@ -142,6 +142,7 @@ Future<void> showModuleDisplaySettings(
   return showGameDisplaySettingsDialog(
     context: context,
     controller: controller,
+    protectInputOnDismiss: false,
     kind: 'moduleDisplay',
     title: text(moduleDisplayTitles[module] ?? FleetUiKeys.displayContent),
     resetLabel: text(FleetUiKeys.reset),

@@ -1069,6 +1069,7 @@ void main() {
       final shows = calls.where((call) => call.method == 'show').toList();
       expect(shows, hasLength(1));
       expect((shows.single.arguments as Map)['kind'], 'headerResources');
+      expect((shows.single.arguments as Map)['protectInputOnDismiss'], isFalse);
       expect(find.byType(Dialog), findsNothing);
       expect(gameDisposals, 0);
       await layout.setUiLocked(true);
@@ -1090,7 +1091,7 @@ void main() {
     GameRenderingMode.compatibility,
     GameRenderingMode.canvasCompatibility,
   ]) {
-    testWidgets('home header close protects game input: $mode', (tester) async {
+    testWidgets('home header skips the closing guard: $mode', (tester) async {
       final rendering = await GameRenderingModeController.load(
         MemoryGameRenderingModeStore(mode),
       );
@@ -1116,12 +1117,18 @@ void main() {
         find.byKey(const Key('header-resource-edit-mode')),
         findsOneWidget,
       );
-      await tester.tap(find.byKey(const Key('header-resource-filter-done')));
-      await tester.pump();
-      expect(find.byKey(const Key('game-safety-input-guard')), findsOneWidget);
+      final held = await tester.startGesture(
+        tester.getCenter(find.byKey(const Key('header-resource-filter-dialog'))),
+      );
+      try {
+        await tester.tap(find.byKey(const Key('header-resource-filter-done')));
+        await tester.pump();
+        expect(find.byType(Dialog), findsNothing);
+        expect(find.byKey(const Key('game-safety-input-guard')), findsNothing);
+      } finally {
+        await held.up();
+      }
       await tester.pumpAndSettle();
-      expect(find.byType(Dialog), findsNothing);
-      expect(find.byKey(const Key('game-safety-input-guard')), findsNothing);
       expect(tester.takeException(), isNull);
     });
   }

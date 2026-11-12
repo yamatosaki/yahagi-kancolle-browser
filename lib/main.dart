@@ -2057,6 +2057,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
             kind: 'headerEditor',
             title: l10n.selectHeaderVisibleItems,
             message: '',
+            protectInputOnDismiss: false,
             builder: (dialogContext, acknowledge) => Dialog(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 720),
@@ -4435,6 +4436,8 @@ class _InformationPanelState extends State<_InformationPanel> {
                       (widget.singleModule != null || !hiddenIds.contains(id)),
                 )
                 .toList();
+            final battleDisplayFields = widget.layoutSettingsController
+                .moduleDisplayFields('battle');
             Widget buildCard(String id) {
               final isCollapsed = tabbed
                   ? false
@@ -4640,6 +4643,10 @@ class _InformationPanelState extends State<_InformationPanel> {
                       true,
                   sectionOrder:
                       widget.battlePredictionSettingsController?.sectionOrder,
+                  visibleSections: [
+                    for (final section in BattlePredictionSection.values)
+                      if (battleDisplayFields.contains(section.name)) section,
+                  ],
                   damagePulseMode: widget
                       .safetySettingsController
                       .battleStatusEffects

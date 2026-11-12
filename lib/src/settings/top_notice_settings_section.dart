@@ -4,6 +4,7 @@ import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import '../theme/app_palette.dart';
 import 'layout_settings_controller.dart';
 import 'settings_ui_helpers.dart';
+import 'top_notice_kind.dart';
 
 class TopNoticeSettingsSection extends StatelessWidget with SettingsUIHelpers {
   const TopNoticeSettingsSection({super.key, required this.controller});
@@ -17,6 +18,53 @@ class TopNoticeSettingsSection extends StatelessWidget with SettingsUIHelpers {
         lookupAppLocalizations(const Locale('zh'));
     final english = Localizations.localeOf(context).languageCode == 'en';
     final layoutSettingsController = controller;
+    final groups = [
+      (
+        l10n.topNoticeGroupFleet,
+        [
+          (
+            TopNoticeKind.sortieHeavyDamage,
+            l10n.topNoticeKindSortieHeavyDamage,
+          ),
+          (TopNoticeKind.sortieSupply, l10n.topNoticeKindSortieSupply),
+          (
+            TopNoticeKind.expeditionHeavyDamage,
+            l10n.topNoticeKindExpeditionHeavyDamage,
+          ),
+          (TopNoticeKind.expeditionSupply, l10n.topNoticeKindExpeditionSupply),
+          (
+            TopNoticeKind.expeditionSuccess,
+            l10n.topNoticeKindExpeditionSuccess,
+          ),
+          (TopNoticeKind.sortieCapacity, l10n.topNoticeKindSortieCapacity),
+        ],
+      ),
+      (
+        l10n.topNoticeGroupOperation,
+        [
+          (
+            TopNoticeKind.equipmentDevelopment,
+            l10n.topNoticeKindEquipmentDevelopment,
+          ),
+          (
+            TopNoticeKind.equipmentImprovement,
+            l10n.topNoticeKindEquipmentImprovement,
+          ),
+          (TopNoticeKind.modernization, l10n.topNoticeKindModernization),
+          (TopNoticeKind.marriage, l10n.topNoticeKindMarriage),
+        ],
+      ),
+      (
+        l10n.topNoticeGroupOther,
+        [
+          (
+            TopNoticeKind.practiceExperience,
+            l10n.topNoticeKindPracticeExperience,
+          ),
+          (TopNoticeKind.questCompletion, l10n.topNoticeKindQuestCompletion),
+        ],
+      ),
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -134,6 +182,45 @@ class TopNoticeSettingsSection extends StatelessWidget with SettingsUIHelpers {
                     ),
                   ),
                 ),
+                for (final (title, items) in groups) ...[
+                  Divider(
+                    color: appColor(context, Color(0xff294052)),
+                    height: 1,
+                  ),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          color: appColor(
+                            context,
+                            layoutSettingsController.topNoticeEnabled
+                                ? const Color(0xffd4a85f)
+                                : const Color(0xff526776),
+                          ),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  for (final (kind, label) in items)
+                    MergeSemantics(
+                      child: buildSwitchTile(
+                        title: label,
+                        switchKey: Key('settings-top-notice-kind-${kind.name}'),
+                        value: layoutSettingsController.isTopNoticeKindEnabled(
+                          kind,
+                        ),
+                        onChanged: layoutSettingsController.topNoticeEnabled
+                            ? (enabled) => layoutSettingsController
+                                  .setTopNoticeKindEnabled(kind, enabled)
+                            : null,
+                      ),
+                    ),
+                ],
               ],
             ),
           ),

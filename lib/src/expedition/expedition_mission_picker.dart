@@ -173,6 +173,7 @@ class ExpeditionMissionPicker extends StatelessWidget {
     final selected = await showGameSurfaceDialog<int?>(
       context: context,
       title: strings.selectExpedition,
+      protectInputOnDismiss: false,
       selectedChoiceId:
           groups.any((group) => group.missionIds.contains(selectedMissionId))
           ? 'mission-$selectedMissionId'

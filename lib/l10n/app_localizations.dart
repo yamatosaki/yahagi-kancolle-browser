@@ -1573,6 +1573,12 @@ abstract class AppLocalizations {
   /// **'开源协议: MIT License'**
   String get openSourceLicense;
 
+  /// No description provided for @harmonyOsSansNotice.
+  ///
+  /// In zh, this message translates to:
+  /// **'本应用使用 HarmonyOS Sans 字体。© 2021 Huawei Device Co., Ltd.'**
+  String get harmonyOsSansNotice;
+
   /// No description provided for @newVersionFound.
   ///
   /// In zh, this message translates to:
@@ -6569,7 +6575,7 @@ abstract class AppLocalizations {
   /// No description provided for @topNoticeEnabledSubtitle.
   ///
   /// In zh, this message translates to:
-  /// **'在顶栏「ヤハギ」右侧显示开发、改修、出击/远征检查与任务完成提示'**
+  /// **'在「ヤハギ」右侧显示游戏提醒'**
   String get topNoticeEnabledSubtitle;
 
   /// No description provided for @topNoticeDurationTitle.
@@ -6601,6 +6607,96 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'15 秒'**
   String get topNoticeDuration15s;
+
+  /// No description provided for @topNoticeGroupFleet.
+  ///
+  /// In zh, this message translates to:
+  /// **'出击与远征'**
+  String get topNoticeGroupFleet;
+
+  /// No description provided for @topNoticeGroupOperation.
+  ///
+  /// In zh, this message translates to:
+  /// **'操作结果'**
+  String get topNoticeGroupOperation;
+
+  /// No description provided for @topNoticeGroupOther.
+  ///
+  /// In zh, this message translates to:
+  /// **'其他提醒'**
+  String get topNoticeGroupOther;
+
+  /// No description provided for @topNoticeKindSortieHeavyDamage.
+  ///
+  /// In zh, this message translates to:
+  /// **'出击大破提醒'**
+  String get topNoticeKindSortieHeavyDamage;
+
+  /// No description provided for @topNoticeKindSortieSupply.
+  ///
+  /// In zh, this message translates to:
+  /// **'出击补给提醒'**
+  String get topNoticeKindSortieSupply;
+
+  /// No description provided for @topNoticeKindExpeditionHeavyDamage.
+  ///
+  /// In zh, this message translates to:
+  /// **'远征大破提醒'**
+  String get topNoticeKindExpeditionHeavyDamage;
+
+  /// No description provided for @topNoticeKindExpeditionSupply.
+  ///
+  /// In zh, this message translates to:
+  /// **'远征补给提醒'**
+  String get topNoticeKindExpeditionSupply;
+
+  /// No description provided for @topNoticeKindExpeditionSuccess.
+  ///
+  /// In zh, this message translates to:
+  /// **'远征成功提醒'**
+  String get topNoticeKindExpeditionSuccess;
+
+  /// No description provided for @topNoticeKindSortieCapacity.
+  ///
+  /// In zh, this message translates to:
+  /// **'出击容量提醒'**
+  String get topNoticeKindSortieCapacity;
+
+  /// No description provided for @topNoticeKindEquipmentDevelopment.
+  ///
+  /// In zh, this message translates to:
+  /// **'装备开发'**
+  String get topNoticeKindEquipmentDevelopment;
+
+  /// No description provided for @topNoticeKindEquipmentImprovement.
+  ///
+  /// In zh, this message translates to:
+  /// **'装备改修'**
+  String get topNoticeKindEquipmentImprovement;
+
+  /// No description provided for @topNoticeKindModernization.
+  ///
+  /// In zh, this message translates to:
+  /// **'近代化改修'**
+  String get topNoticeKindModernization;
+
+  /// No description provided for @topNoticeKindMarriage.
+  ///
+  /// In zh, this message translates to:
+  /// **'誓约'**
+  String get topNoticeKindMarriage;
+
+  /// No description provided for @topNoticeKindPracticeExperience.
+  ///
+  /// In zh, this message translates to:
+  /// **'演习经验'**
+  String get topNoticeKindPracticeExperience;
+
+  /// No description provided for @topNoticeKindQuestCompletion.
+  ///
+  /// In zh, this message translates to:
+  /// **'任务达成'**
+  String get topNoticeKindQuestCompletion;
 
   /// No description provided for @questCompletionSingleNotice.
   ///
@@ -6829,6 +6925,30 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'补强增设插槽闲置'**
   String get noticeSortieReasonExpansionSlot;
+
+  /// No description provided for @noticeSortieHeavyDamage.
+  ///
+  /// In zh, this message translates to:
+  /// **'出击提醒：第 {fleets} 舰队有大破舰'**
+  String noticeSortieHeavyDamage(String fleets);
+
+  /// No description provided for @noticeSortieSupplyWarning.
+  ///
+  /// In zh, this message translates to:
+  /// **'出击提醒：第 {fleets} 舰队尚未补给'**
+  String noticeSortieSupplyWarning(String fleets);
+
+  /// No description provided for @noticeExpeditionHeavyDamage.
+  ///
+  /// In zh, this message translates to:
+  /// **'远征提醒：第 {fleets} 舰队有大破舰'**
+  String noticeExpeditionHeavyDamage(String fleets);
+
+  /// No description provided for @noticeExpeditionPossibleFailure.
+  ///
+  /// In zh, this message translates to:
+  /// **'第 {fleet} 舰队执行的 {expedition} 号远征可能失败'**
+  String noticeExpeditionPossibleFailure(int fleet, String expedition);
 
   /// No description provided for @noticeExpeditionSupplyWarning.
   ///

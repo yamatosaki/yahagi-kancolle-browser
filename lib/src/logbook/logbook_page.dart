@@ -45,8 +45,7 @@ enum _LogbookCategory {
   final String label;
 }
 
-// Retain the indices used by existing logbook routes. The header presents the
-// new page next to Sortie even though it is last in the page controller.
+// The header and page controller share this visual order of stable route IDs.
 final _experienceTabIndex = _LogbookCategory.values.length;
 final _logbookTabOrder = [
   _LogbookCategory.sortie.index,
@@ -91,7 +90,7 @@ class _LogbookPageState extends State<LogbookPage>
     );
     _tabController = TabController(
       length: _logbookTabOrder.length,
-      initialIndex: _reportedTabIndex,
+      initialIndex: _logbookTabOrder.indexOf(_reportedTabIndex),
       vsync: this,
     )..addListener(_reportTabChange);
   }
@@ -103,14 +102,15 @@ class _LogbookPageState extends State<LogbookPage>
       0,
       _logbookTabOrder.length - 1,
     );
-    if (_tabController.index != nextIndex) {
+    final nextPosition = _logbookTabOrder.indexOf(nextIndex);
+    if (_tabController.index != nextPosition) {
       _reportedTabIndex = nextIndex;
-      _tabController.animateTo(nextIndex);
+      _tabController.animateTo(nextPosition);
     }
   }
 
   void _reportTabChange() {
-    final index = _tabController.index;
+    final index = _logbookTabOrder[_tabController.index];
     if (index == _reportedTabIndex) return;
     _reportedTabIndex = index;
     widget.onTabChanged?.call(index);
@@ -143,40 +143,25 @@ class _LogbookPageState extends State<LogbookPage>
           controller: _tabController,
           physics: const NeverScrollableScrollPhysics(),
           children: [
-            _LogbookTablePage(
-              category: _LogbookCategory.sortie,
-              database: database,
-              battleController: widget.battleController,
-            ),
-            _LogbookTablePage(
-              category: _LogbookCategory.expedition,
-              database: database,
-              battleController: widget.battleController,
-            ),
-            _LogbookTablePage(
-              category: _LogbookCategory.construction,
-              database: database,
-              battleController: widget.battleController,
-            ),
-            _LogbookTablePage(
-              category: _LogbookCategory.development,
-              database: database,
-              battleController: widget.battleController,
-            ),
-            _LogbookTablePage(
-              category: _LogbookCategory.retirement,
-              database: database,
-              battleController: widget.battleController,
-            ),
-            ResourceTrendPage(database: database),
-            _LogbookExperiencePage(
-              database: database,
-              memberId: scope.memberId,
-              sortieExperienceController:
-                  scope.isKnown && identical(database, LogbookDatabase.instance)
-                  ? widget.sortieExperienceController
-                  : null,
-            ),
+            for (final index in _logbookTabOrder)
+              if (index == _experienceTabIndex)
+                _LogbookExperiencePage(
+                  database: database,
+                  memberId: scope.memberId,
+                  sortieExperienceController:
+                      scope.isKnown &&
+                          identical(database, LogbookDatabase.instance)
+                      ? widget.sortieExperienceController
+                      : null,
+                )
+              else if (index == _LogbookCategory.resource.index)
+                ResourceTrendPage(database: database)
+              else
+                _LogbookTablePage(
+                  category: _LogbookCategory.values[index],
+                  database: database,
+                  battleController: widget.battleController,
+                ),
           ],
         ),
       ),

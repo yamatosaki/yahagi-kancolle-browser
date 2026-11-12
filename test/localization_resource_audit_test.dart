@@ -411,6 +411,9 @@ void main() {
       'statHp',
       'topNoticeDuration10s',
       'topNoticeDuration15s',
+      // These notification labels use the same wording in both Chinese scripts.
+      'topNoticeGroupOther',
+      'topNoticeKindModernization',
       // These display labels and game terms are written the same in both scripts.
       'expCalcCardView',
       'expCalcTableView',
@@ -473,6 +476,7 @@ void main() {
       'formula33',
       // 改修 is an established UI term shared with Japanese.
       'improvement',
+      'topNoticeKindModernization',
       // These established game terms use the same spelling in Japanese.
       'armor',
       'evasion',

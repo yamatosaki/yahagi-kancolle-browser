@@ -106,7 +106,7 @@ void main() {
   }
 
   testWidgets(
-    'ship filter hands off a held outside touch to a queued battle warning',
+    'ship filter closes with a held touch and a battle warning still protects the game',
     (tester) async {
       final fixture = await _Fixture.mount(tester, withExperienceCard: true);
       final dialog = find.byKey(const Key('sortie-exp-filter-dialog'));
@@ -127,32 +127,24 @@ void main() {
       final held = _Held(await tester.startGesture(_gamePoint, pointer: 43));
       addTearDown(held.cancelIfHeld);
       await tester.tap(find.byKey(const Key('sortie-exp-filter-done')));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(dialog, findsNothing);
+      expect(find.byKey(_guard), findsNothing);
+      expect(fixture.experience!.hiddenTotalShipIds, {101});
       await fixture.warn(tester);
-      await tester.pump(const Duration(seconds: 3));
-      expect(find.byKey(_guard), findsOneWidget);
-      expect(warning, findsNothing);
-      expect(fixture.gameTouches, 0);
-      expect(fixture.experience!.hiddenTotalShipIds, isEmpty);
-
-      await held.up();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 599));
-      expect(warning, findsNothing);
       await tester.pumpAndSettle(
         const Duration(milliseconds: 16),
         EnginePhase.sendSemanticsUpdate,
         const Duration(seconds: 2),
       );
-      expect(dialog, findsNothing);
       expect(warning, findsOneWidget);
-      expect(fixture.experience!.hiddenTotalShipIds, {101});
       expect(
         ModalRoute.of(tester.element(warning)),
         isA<GameSafetyDialogRoute>(),
       );
       expect(fixture.experience!.totalSorties, 1);
 
+      await held.up();
       await tester.tapAt(_gamePoint);
       await tester.pump();
       expect(warning, findsOneWidget);

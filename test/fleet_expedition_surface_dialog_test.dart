@@ -62,64 +62,41 @@ const _missions = <int, MasterMission>{
 
 void main() {
   testWidgets(
-    'native air-power details retain all metrics without a game-covering route',
+    'air-power details keep all values without opening a native dialog',
     (tester) async {
       final native = _NativeDialog();
-      var completed = false;
       await _mount(
         tester,
         native: true,
-        body: Builder(
-          builder: (context) => TextButton(
-            onPressed: () => showFleetAirPowerDetails(
-              context,
-              _metrics,
-            ).then((_) => completed = true),
-            child: const Text('open'),
-          ),
-        ),
+        body: const Center(child: _MetricTrigger(airPower: true)),
       );
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
-      expect(native.shown, hasLength(1));
-      final payload = native.shown.single;
-      expect(payload['kind'], 'surfaceDialog');
-      expect(payload['title'], '制空详情');
-      expect(payload['rows'], ['最小：40', '最大：41', '不含熟练度加成：24']);
+      expect(native.shown, isEmpty);
+      for (final text in ['制空详情', '最小', '40', '最大', '41', '不含熟练度加成', '24']) {
+        expect(find.text(text), findsOneWidget);
+      }
       expect(find.byType(AlertDialog), findsNothing);
-      expect(completed, isFalse);
-      native.finish('close');
-      await tester.pumpAndSettle();
-      expect(completed, isTrue);
       expect(tester.takeException(), isNull);
     },
   );
 
   testWidgets(
-    'native line-of-sight details retain total and every formula result',
+    'line-of-sight details keep all values without opening a native dialog',
     (tester) async {
       final native = _NativeDialog();
       await _mount(
         tester,
         native: true,
-        body: Builder(
-          builder: (context) => TextButton(
-            onPressed: () => showFleetLineOfSightDetails(context, _metrics),
-            child: const Text('open'),
-          ),
-        ),
+        body: const Center(child: _MetricTrigger(airPower: false)),
       );
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
-      expect(native.shown, hasLength(1));
-      expect(native.shown.single['rows'], [
-        '总索敌：99',
-        '33式 × 1：12.50',
-        '33式 × 4：20.00',
-      ]);
+      expect(native.shown, isEmpty);
+      for (final text in ['总索敌', '99', '33式', '× 1', '12.50', '× 4', '20.00']) {
+        expect(find.text(text), findsOneWidget);
+      }
       expect(find.byType(AlertDialog), findsNothing);
-      native.finish('close');
-      await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     },
   );
@@ -145,6 +122,7 @@ void main() {
         expect(native.shown, hasLength(1));
         final payload = native.shown.single;
         expect(payload['kind'], 'surfaceDialog');
+        expect(payload['protectInputOnDismiss'], isFalse);
         expect(payload['selectedChoiceId'], 'mission-1');
         final choices = (payload['choices']! as List).cast<Map>();
         expect(choices.map((choice) => choice['id']), [
@@ -169,84 +147,152 @@ void main() {
     );
   }
 
-  for (final close in ['button', 'outside', 'back']) {
-    testWidgets(
-      'Flutter LOS $close keeps game touches blocked until dismissal settles',
-      (tester) async {
-        var gameTouches = 0;
-        var completed = false;
-        await _mount(
-          tester,
-          native: false,
-          onGameTouch: () => gameTouches++,
-          body: Builder(
-            builder: (context) => Center(
-              child: TextButton(
-                onPressed: () => showFleetLineOfSightDetails(
-                  context,
-                  _metrics,
-                ).then((_) => completed = true),
-                child: const Text('open'),
-              ),
-            ),
-          ),
-        );
-        await tester.tap(find.text('open'));
-        await tester.pumpAndSettle();
-        if (close == 'button') {
-          await tester.tap(find.text('关闭'));
-        } else if (close == 'outside') {
-          await tester.tapAt(const Offset(3, 3));
-          await tester.pump();
-          expect(find.byType(Dialog), findsOneWidget);
-          expect(find.byKey(_guard), findsNothing);
-          expect(completed, isFalse);
-          expect(gameTouches, 0);
-          await tester.tap(find.text('关闭'));
-        } else {
-          await tester.binding.handlePopRoute();
-        }
-        await tester.pump();
-        expect(find.byKey(_guard), findsOneWidget);
-        expect(completed, isFalse);
-        await tester.tapAt(const Offset(4, 300));
-        expect(gameTouches, 0);
-        await tester.pumpAndSettle();
-        expect(completed, isTrue);
-        await tester.tapAt(const Offset(4, 300));
-        expect(gameTouches, 1);
-        expect(tester.takeException(), isNull);
-      },
+  for (final airPower in [false, true]) {
+    final metric = airPower ? 'air power' : 'LOS';
+    final title = airPower ? '制空详情' : '索敌详情';
+    final closeKey = Key(
+      airPower ? 'fleet-air-power-details-close' : 'fleet-los-details-close',
     );
+    for (final close in ['button', 'outside', 'back', 'escape']) {
+      testWidgets(
+        'Flutter $metric $close leaves the next game touch available immediately',
+        (tester) async {
+          var gameTouches = 0;
+          await _mount(
+            tester,
+            native: false,
+            onGameTouch: () => gameTouches++,
+            body: Center(child: _MetricTrigger(airPower: airPower)),
+          );
+          if (close == 'escape') {
+            await tester.pump();
+            await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+          } else {
+            await tester.tap(find.text('open'));
+          }
+          await tester.pumpAndSettle();
+          expect(find.text(title), findsOneWidget);
+          if (close == 'button') {
+            await tester.tap(find.byKey(closeKey));
+          } else if (close == 'outside') {
+            await tester.tapAt(const Offset(4, 300));
+          } else if (close == 'back') {
+            await tester.binding.handlePopRoute();
+          } else {
+            await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+          }
+          await tester.pump();
+          expect(find.byKey(_guard), findsNothing);
+          expect(find.text(title), findsNothing);
+          expect(gameTouches, close == 'outside' ? 1 : 0);
+          await tester.tapAt(const Offset(4, 300));
+          expect(gameTouches, close == 'outside' ? 2 : 1);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
   }
 
+  testWidgets('air power scroll position resets when the card is reopened', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(420, 160);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    await _mount(
+      tester,
+      native: false,
+      body: const Center(
+        child: KeyedSubtree(
+          key: PageStorageKey('fleet-pane'),
+          child: _MetricTrigger(airPower: true),
+        ),
+      ),
+    );
+    final trigger = find.text('open');
+    final scrollable = find.descendant(
+      of: find.byKey(const Key('fleet-air-power-details-popover')),
+      matching: find.byType(Scrollable),
+    );
+    ScrollPosition position() =>
+        tester.state<ScrollableState>(scrollable).position;
+    await tester.tap(trigger);
+    await tester.pumpAndSettle();
+    expect(position().maxScrollExtent, greaterThan(0));
+    await tester.drag(scrollable, const Offset(0, -100));
+    await tester.pumpAndSettle();
+    expect(position().pixels, greaterThan(0));
+
+    await tester.tapAt(const Offset(4, 80));
+    await tester.pumpAndSettle();
+    await tester.tap(trigger);
+    await tester.pumpAndSettle();
+    expect(position().pixels, 0);
+  });
+
   testWidgets(
-    'Flutter expedition selection reaches its owner only after touch protection',
+    'Flutter expedition selection and game input resume while a touch is held',
     (tester) async {
       int? selected;
+      var gameTouches = 0;
+      const gamePoint = Offset(4, 300);
       await _mount(
         tester,
         native: false,
-        body: ExpeditionMissionPicker(
-          missions: _missions,
-          missionIds: const [1, 9],
-          selectedMissionId: 1,
-          onSelected: (value) => selected = value,
+        onGameTouch: () => gameTouches++,
+        body: Center(
+          child: SizedBox(
+            width: 280,
+            child: ExpeditionMissionPicker(
+              missions: _missions,
+              missionIds: const [1, 9],
+              selectedMissionId: 1,
+              onSelected: (value) => selected = value,
+            ),
+          ),
         ),
       );
       await tester.tap(find.byKey(const Key('expedition-mission-picker')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('expedition-area-2')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('expedition-mission-option-9')));
-      await tester.pump();
-      expect(find.byKey(_guard), findsOneWidget);
-      expect(selected, isNull);
-      await tester.pumpAndSettle();
-      expect(selected, 9);
+      final held = await tester.startGesture(
+        tester.getCenter(find.text('选择远征')),
+      );
+      try {
+        await tester.tap(find.byKey(const Key('expedition-mission-option-9')));
+        await tester.pump();
+        await tester.pump();
+        expect(find.byKey(_guard), findsNothing);
+        expect(find.text('选择远征'), findsNothing);
+        expect(selected, 9);
+        await tester.tapAt(gamePoint);
+        expect(gameTouches, 1);
+      } finally {
+        await held.up();
+      }
       expect(tester.takeException(), isNull);
     },
   );
+}
+
+class _MetricTrigger extends StatelessWidget {
+  const _MetricTrigger({required this.airPower});
+
+  final bool airPower;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget buildButton(VoidCallback toggle) => TextButton(
+      autofocus: true,
+      onPressed: toggle,
+      child: const Text('open'),
+    );
+    return airPower
+        ? FleetAirPowerDetails(metrics: _metrics, builder: buildButton)
+        : FleetLineOfSightDetails(metrics: _metrics, builder: buildButton);
+  }
 }
 
 Future<void> _mount(

@@ -8,6 +8,7 @@ import 'package:yahagi_kancolle_browser/src/browser/game_surface_dialog.dart';
 import 'package:yahagi_kancolle_browser/src/settings/game_rendering_mode.dart';
 
 const _native = MethodChannel('app.yahagi.kancollebrowser/native_warning');
+const _guard = Key('game-safety-input-guard');
 
 Widget _host({
   required Widget child,
@@ -79,6 +80,86 @@ void main() {
     });
   }
 
+  for (final protectInputOnDismiss in [false, true]) {
+    final wait = protectInputOnDismiss ? 'waits for' : 'does not wait for';
+    testWidgets('surface dismissal $wait a held touch', (tester) async {
+      const gameButton = Key('game-button');
+      const dialogTitle = Key('dialog-title');
+      final decisions = <bool?>[];
+      var gameTaps = 0;
+      await tester.pumpWidget(
+        _host(
+          child: Stack(
+            children: [
+              Positioned(
+                left: 8,
+                top: 8,
+                child: TextButton(
+                  key: gameButton,
+                  onPressed: () => gameTaps++,
+                  child: const Text('game'),
+                ),
+              ),
+              Center(
+                child: Builder(
+                  builder: (context) => TextButton(
+                    onPressed: () async => decisions.add(
+                      await showGameSurfaceDialog<bool>(
+                        context: context,
+                        title: 'question',
+                        protectInputOnDismiss: protectInputOnDismiss,
+                        builder: (_, close) => AlertDialog(
+                          title: const Text('question', key: dialogTitle),
+                          actions: [
+                            TextButton(
+                              onPressed: () => close(true),
+                              child: const Text('done'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    child: const Text('open'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      final gamePoint = tester.getCenter(find.byKey(gameButton));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.tapAt(gamePoint);
+      expect(gameTaps, 0);
+      expect(find.byKey(dialogTitle), findsOneWidget);
+
+      final held = await tester.startGesture(
+        tester.getCenter(find.byKey(dialogTitle)),
+      );
+      try {
+        await tester.tap(find.text('done'));
+        await tester.pump();
+        await tester.pump();
+        expect(find.byKey(dialogTitle), findsNothing);
+        await tester.tapAt(gamePoint);
+        if (protectInputOnDismiss) {
+          expect(find.byKey(_guard), findsOneWidget);
+          expect(decisions, isEmpty);
+          expect(gameTaps, 0);
+        } else {
+          expect(find.byKey(_guard), findsNothing);
+          expect(decisions, [true]);
+          expect(gameTaps, 1);
+        }
+      } finally {
+        await held.up();
+      }
+      await tester.pumpAndSettle();
+      expect(decisions, [true]);
+    });
+  }
+
   for (final mode in GameRenderingMode.values) {
     testWidgets('${mode.name} settles only the selected result', (
       tester,
@@ -137,6 +218,7 @@ void main() {
         expect(find.byType(AlertDialog), findsNothing);
         expect(requests.single['kind'], 'surfaceDialog');
         expect(requests.single['dismissible'], isFalse);
+        expect(requests.single['protectInputOnDismiss'], isNot(false));
         pending.complete({'action': 'selected', 'checked': false});
       } else {
         expect(requests, isEmpty);

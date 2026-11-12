@@ -12,6 +12,7 @@ import 'hd_layout_settings.dart';
 import 'camera_avoidance_settings.dart';
 import 'ui_font_size.dart';
 import 'dashboard_display_mode.dart';
+import 'top_notice_kind.dart';
 
 class LayoutSettingsController extends ChangeNotifier {
   LayoutSettingsController._(
@@ -256,6 +257,11 @@ class LayoutSettingsController extends ChangeNotifier {
           .loadTopNoticeEnabled();
       controller._topNoticeDurationSeconds = await topNoticeStore
           .loadTopNoticeDurationSeconds();
+    }
+    if (store case final TopNoticeKindSettingsStore kindStore) {
+      controller._topNoticeKindOverrides.addAll(
+        await kindStore.loadTopNoticeKindOverrides(),
+      );
     }
     if (store is UiDisplaySizeSettingsStore) {
       controller._uiDisplaySize = await (store as UiDisplaySizeSettingsStore)
@@ -577,9 +583,22 @@ class LayoutSettingsController extends ChangeNotifier {
 
   bool _topNoticeEnabled = true;
   int _topNoticeDurationSeconds = 5;
+  final _topNoticeKindOverrides = <TopNoticeKind, bool>{};
 
   bool get topNoticeEnabled => _topNoticeEnabled;
   int get topNoticeDurationSeconds => _topNoticeDurationSeconds;
+
+  bool isTopNoticeKindEnabled(TopNoticeKind kind) =>
+      _topNoticeKindOverrides[kind] ?? true;
+
+  Future<void> setTopNoticeKindEnabled(TopNoticeKind kind, bool enabled) async {
+    if (isTopNoticeKindEnabled(kind) == enabled) return;
+    _topNoticeKindOverrides[kind] = enabled;
+    notifyListeners();
+    if (_store case final TopNoticeKindSettingsStore kindStore) {
+      await kindStore.saveTopNoticeKindEnabled(kind, enabled);
+    }
+  }
 
   Future<void> setTopNoticeEnabled(bool enabled) async {
     if (_topNoticeEnabled == enabled) return;

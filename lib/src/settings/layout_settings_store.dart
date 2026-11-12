@@ -10,6 +10,7 @@ import 'hd_layout_settings.dart';
 import 'camera_avoidance_settings.dart';
 import 'ui_font_size.dart';
 import 'dashboard_display_mode.dart';
+import 'top_notice_kind.dart';
 
 enum FleetMoraleMetricMode { minimumCondition, recoveryCountdown }
 
@@ -166,6 +167,11 @@ abstract interface class TopNoticeSettingsStore {
   Future<void> saveTopNoticeDurationSeconds(int seconds);
 }
 
+abstract interface class TopNoticeKindSettingsStore {
+  Future<Map<TopNoticeKind, bool>> loadTopNoticeKindOverrides();
+  Future<void> saveTopNoticeKindEnabled(TopNoticeKind kind, bool enabled);
+}
+
 class SharedPreferencesLayoutSettingsStore
     implements
         LayoutSettingsStore,
@@ -185,6 +191,7 @@ class SharedPreferencesLayoutSettingsStore
         InformationPanelSideSettingsStore,
         WorkspaceMenuPositionStore,
         TopNoticeSettingsStore,
+        TopNoticeKindSettingsStore,
         AppThemeSettingsStore,
         CameraAvoidanceSettingsStore,
         UiLockSettingsStore {
@@ -772,6 +779,28 @@ class SharedPreferencesLayoutSettingsStore
   Future<void> saveTopNoticeEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyTopNoticeEnabled, enabled);
+  }
+
+  static String _topNoticeKindKey(TopNoticeKind kind) =>
+      'top_notice_kind_${kind.name}';
+
+  @override
+  Future<Map<TopNoticeKind, bool>> loadTopNoticeKindOverrides() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      for (final kind in TopNoticeKind.values)
+        if (prefs.get(_topNoticeKindKey(kind)) case final bool enabled)
+          kind: enabled,
+    };
+  }
+
+  @override
+  Future<void> saveTopNoticeKindEnabled(
+    TopNoticeKind kind,
+    bool enabled,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_topNoticeKindKey(kind), enabled);
   }
 
   static const _keyMinimalResourcePosition = 'layout_minimal_resource_position';

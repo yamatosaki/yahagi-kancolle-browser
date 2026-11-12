@@ -63,6 +63,155 @@ void main() {
   });
 
   for (final gameRatio in [.5, .75]) {
+    for (final (name, metricId, titleText, closeKey) in const [
+      ('LOS', 'line-of-sight', '索敌详情', 'fleet-los-details-close'),
+      ('air power', 'air-power', '制空详情', 'fleet-air-power-details-close'),
+    ]) {
+      testWidgets(
+        'landscape game accepts the first tap outside $name details ($gameRatio)',
+        (tester) async {
+          SharedPreferences.setMockInitialValues(<String, Object>{});
+          final previousTimerSetting = GameStateController.disableTimerForTest;
+          GameStateController.disableTimerForTest = true;
+          addTearDown(
+            () =>
+                GameStateController.disableTimerForTest = previousTimerSetting,
+          );
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = _landscape;
+          addTearDown(tester.view.resetDevicePixelRatio);
+          addTearDown(tester.view.resetPhysicalSize);
+          const nativeDialogs = MethodChannel(
+            'app.yahagi.kancollebrowser/native_warning',
+          );
+          final messenger = tester.binding.defaultBinaryMessenger;
+          final nativeDialogCalls = <String>[];
+          messenger.setMockMethodCallHandler(nativeDialogs, (call) async {
+            nativeDialogCalls.add(call.method);
+            if (call.method == 'show') {
+              throw PlatformException(code: 'no-native-dialog-test-host');
+            }
+            return null;
+          });
+          addTearDown(
+            () => messenger.setMockMethodCallHandler(nativeDialogs, null),
+          );
+
+          final fixture = await _AppFixture.load(dataset, UiDisplaySize.normal);
+          for (final notifier in fixture.notifiers) {
+            addTearDown(notifier.dispose);
+          }
+          await fixture.layout.setAutoZoom(false);
+          await fixture.layout.setGameAreaRatio(gameRatio);
+          await fixture.layout.setFleetDisplayFields({
+            'air-power',
+            'line-of-sight',
+          });
+          fixture.game.accept(slotItemEvent);
+          await fixture.game.idle;
+          await tester.pumpWidget(
+            RepaintBoundary(key: _captureKey, child: fixture.app),
+          );
+          await _settle(tester);
+
+          _expectSplit(
+            tester,
+            landscape: true,
+            hd: false,
+            infoRatio: 1 - gameRatio,
+          );
+          final surface = find.byType(_GameProbe);
+          final gameState = tester.state<_GameProbeState>(surface);
+          final gameBounds = tester.getRect(surface);
+          final gamePixelBounds = _wholePixelBounds(gameBounds);
+          final gamePixels = await _readPixels(tester, gamePixelBounds);
+          expect(gamePixels.take(4), [0x07, 0x16, 0x21, 0xff]);
+
+          final metric = find.byKey(Key('fleet-summary-metric-$metricId'));
+          final title = find.text(titleText);
+          final close = find.byKey(Key(closeKey));
+          for (final dismissWithGameTap in [true, false, true]) {
+            await Scrollable.ensureVisible(
+              tester.element(metric),
+              alignment: .5,
+            );
+            await tester.pump();
+            await tester.tap(metric);
+            await _settle(tester);
+            expect(title, findsOneWidget);
+            expect(tester.state(surface), same(gameState));
+            expect(tester.getRect(surface), gameBounds);
+            final openPixels = await _readPixels(tester, gamePixelBounds);
+
+            final tapsBefore = gameState.taps;
+            if (dismissWithGameTap) {
+              await tester.tapAt(gameBounds.center);
+            } else {
+              await tester.tap(close);
+              await tester.pump();
+              expect(title, findsNothing);
+              await tester.tapAt(gameBounds.center);
+            }
+            await _settle(tester);
+            expect(gameState.taps, tapsBefore + 1);
+            expect(title, findsNothing);
+            expect(tester.state(surface), same(gameState));
+            expect(tester.getRect(surface), gameBounds);
+            expect(listEquals(openPixels, gamePixels), isTrue);
+            expect(
+              listEquals(
+                await _readPixels(tester, gamePixelBounds),
+                gamePixels,
+              ),
+              isTrue,
+            );
+            expect(tester.takeException(), isNull);
+          }
+          if (metricId == 'air-power') {
+            final losMetric = find.byKey(
+              const Key('fleet-summary-metric-line-of-sight'),
+            );
+            final losTitle = find.text('索敌详情');
+            // Leave room below the shared row so the current card does not
+            // physically cover either metric during the switch.
+            await Scrollable.ensureVisible(tester.element(losMetric));
+            await _settle(tester);
+            for (final (trigger, opened, closed) in [
+              (losMetric, losTitle, title),
+              (metric, title, losTitle),
+              (losMetric, losTitle, title),
+            ]) {
+              expect(trigger.hitTestable(), findsOneWidget);
+              await tester.tap(trigger);
+              await _settle(tester);
+              expect(opened, findsOneWidget);
+              expect(closed, findsNothing);
+              expect(tester.state(surface), same(gameState));
+              expect(tester.getRect(surface), gameBounds);
+              expect(
+                listEquals(
+                  await _readPixels(tester, gamePixelBounds),
+                  gamePixels,
+                ),
+                isTrue,
+              );
+            }
+            final tapsBefore = gameState.taps;
+            await tester.tapAt(gameBounds.center);
+            await _settle(tester);
+            expect(gameState.taps, tapsBefore + 1);
+            expect(losTitle, findsNothing);
+            expect(title, findsNothing);
+            expect(tester.takeException(), isNull);
+          }
+          expect(nativeDialogCalls, isEmpty);
+          await tester.pumpWidget(const SizedBox.shrink());
+        },
+      );
+    }
+  }
+
+  for (final gameRatio in [.5, .75]) {
     testWidgets(
       'landscape game accepts the first gesture outside ship details ($gameRatio)',
       (tester) async {
@@ -107,13 +256,7 @@ void main() {
         final gameState = tester.state<_GameProbeState>(surface);
         final gameBounds = tester.getRect(surface);
         final popover = find.byKey(const Key('battle-ship-details-popover'));
-        // Compare every full pixel of the game picture, excluding fractional edges.
-        final gamePixelBounds = Rect.fromLTRB(
-          gameBounds.left.ceilToDouble(),
-          gameBounds.top.ceilToDouble(),
-          gameBounds.right.floorToDouble(),
-          gameBounds.bottom.floorToDouble(),
-        );
+        final gamePixelBounds = _wholePixelBounds(gameBounds);
         final gamePixels = await _readPixels(tester, gamePixelBounds);
         expect(gamePixels.take(4), [0x07, 0x16, 0x21, 0xff]);
 
@@ -365,6 +508,14 @@ Future<void> _settle(WidgetTester tester) async {
   await tester.pump();
   await tester.pump();
 }
+
+// Compare every full pixel of the game picture, excluding fractional edges.
+Rect _wholePixelBounds(Rect bounds) => Rect.fromLTRB(
+  bounds.left.ceilToDouble(),
+  bounds.top.ceilToDouble(),
+  bounds.right.floorToDouble(),
+  bounds.bottom.floorToDouble(),
+);
 
 Future<Uint8List> _readPixels(WidgetTester tester, Rect bounds) async {
   final boundary = tester.renderObject<RenderRepaintBoundary>(

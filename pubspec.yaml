@@ -17,8 +17,8 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
 # Public release sequence: 1.10, 1.11, 1.12; Flutter keeps the zero patch.
-# User-facing version: 1.10 Beta3. Every distributed build increments the code.
-version: 1.10.0-beta.3+32
+# User-facing version: 1.10 Beta6. Every distributed build increments the code.
+version: 1.10.0-beta.6+35
 
 environment:
   sdk: ^3.12.2
@@ -91,6 +91,7 @@ flutter:
     - assets/data/quest-progress-goals.json
     - assets/data/quest-progress-meta.json
     - assets/data/poi-quest-LICENSE.txt
+    - assets/fonts/HarmonyOS-Sans-LICENSE.txt
     - assets/data/improvement/
     - assets/data/development/
     - assets/data/game_resource_static_catalog.json
@@ -165,6 +166,10 @@ flutter:
     - family: HarmonyOS_Sans
       fonts:
         - asset: assets/fonts/HarmonyOS_Sans.ttf
+    - family: HarmonyOS_Sans_Condensed
+      fonts:
+        - asset: assets/fonts/HarmonyOS_Sans_Condensed_Bold.ttf
+          weight: 700
 flutter_icons:
   android: true
   ios: false

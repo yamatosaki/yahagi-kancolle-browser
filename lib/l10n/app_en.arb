@@ -319,6 +319,7 @@
   "officialWebsite": "Official website",
   "checkForUpdates": "Check for updates",
   "openSourceLicense": "Open-source license: MIT License",
+  "harmonyOsSansNotice": "This app uses HarmonyOS Sans fonts. © 2021 Huawei Device Co., Ltd.",
   "newVersionFound": "🚀 A new version is available!",
   "currentVersionLabel": "Current version",
   "latestVersionLabel": "Latest version",
@@ -1777,12 +1778,27 @@
   "menuPositionRight": "Right",
   "topNoticeSectionTitle": "Top bar messages",
   "topNoticeEnabledTitle": "Top bar notifications",
-  "topNoticeEnabledSubtitle": "Show development, improvement, sortie/expedition check, and quest completion alerts to the right of 「ヤハギ」 in the top bar",
+  "topNoticeEnabledSubtitle": "Show game alerts to the right of 「ヤハギ」",
   "topNoticeDurationTitle": "Alert duration",
   "topNoticeDurationSubtitle": "Time before an alert bubble closes automatically when left untouched",
   "topNoticeDuration5s": "5 seconds (default)",
   "topNoticeDuration10s": "10 seconds",
   "topNoticeDuration15s": "15 seconds",
+  "topNoticeGroupFleet": "Sorties and expeditions",
+  "topNoticeGroupOperation": "Action results",
+  "topNoticeGroupOther": "Other alerts",
+  "topNoticeKindSortieHeavyDamage": "Sortie heavy damage warning",
+  "topNoticeKindSortieSupply": "Sortie resupply reminder",
+  "topNoticeKindExpeditionHeavyDamage": "Expedition heavy damage warning",
+  "topNoticeKindExpeditionSupply": "Expedition resupply reminder",
+  "topNoticeKindExpeditionSuccess": "Expedition success check",
+  "topNoticeKindSortieCapacity": "Sortie capacity warning",
+  "topNoticeKindEquipmentDevelopment": "Equipment development",
+  "topNoticeKindEquipmentImprovement": "Equipment improvement",
+  "topNoticeKindModernization": "Modernization",
+  "topNoticeKindMarriage": "Marriage",
+  "topNoticeKindPracticeExperience": "Practice experience",
+  "topNoticeKindQuestCompletion": "Quest completion",
   "questCompletionSingleNotice": "Quest completed: {title}",
   "@questCompletionSingleNotice": {
     "placeholders": {
@@ -1940,6 +1956,41 @@
   "noticeSortieReasonFatigue": "Low ship morale (yellow/red faces)",
   "noticeSortieReasonMainSlot": "Normal equipment slots not filled",
   "noticeSortieReasonExpansionSlot": "Expansion slots unused",
+  "noticeSortieHeavyDamage": "Sortie alert: Heavily damaged ships in fleet {fleets}",
+  "@noticeSortieHeavyDamage": {
+    "placeholders": {
+      "fleets": {
+        "type": "String"
+      }
+    }
+  },
+  "noticeSortieSupplyWarning": "Sortie alert: Fleet {fleets} not resupplied",
+  "@noticeSortieSupplyWarning": {
+    "placeholders": {
+      "fleets": {
+        "type": "String"
+      }
+    }
+  },
+  "noticeExpeditionHeavyDamage": "Expedition alert: Heavily damaged ships in fleet {fleets}",
+  "@noticeExpeditionHeavyDamage": {
+    "placeholders": {
+      "fleets": {
+        "type": "String"
+      }
+    }
+  },
+  "noticeExpeditionPossibleFailure": "Fleet {fleet}'s expedition {expedition} may fail",
+  "@noticeExpeditionPossibleFailure": {
+    "placeholders": {
+      "fleet": {
+        "type": "int"
+      },
+      "expedition": {
+        "type": "String"
+      }
+    }
+  },
   "noticeExpeditionSupplyWarning": "Expedition alert: Fleet {fleets} not resupplied",
   "@noticeExpeditionSupplyWarning": {
     "placeholders": {

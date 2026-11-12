@@ -6,21 +6,28 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import '../account/account_session.dart';
 import '../bridge/captured_api_event.dart';
+import '../expedition/expedition_evaluator.dart';
+import '../expedition/expedition_mission_picker.dart' show expeditionDisplayId;
+import '../fleet/ship_damage_level.dart';
 import '../game_state/game_api_decoder.dart';
 import '../game_state/game_api_event_pipeline.dart';
 import '../game_state/game_state.dart';
 import '../localization/game_name_catalog.dart';
 import '../settings/layout_settings_controller.dart';
+import '../settings/top_notice_kind.dart';
 import '../toolbox/exp_calc/ship_exp_table.dart';
 import '../widgets/top_notice.dart';
+
+typedef _FleetNoticeEmitter =
+    void Function({required String message, required TopNoticeTone tone});
 
 /// Intercepts game events and dispatches unified top bar notices for:
 /// - Equipment development (single & 3-batch with slot-by-slot status)
 /// - Equipment improvement (success and failure)
 /// - Ship modernization (increases, MAX flags, failure)
 /// - Marriage (luck bonus and remaining to cap)
-/// - Sortie safety checks (ship/equipment capacity warnings)
-/// - Expedition supply checks (Fleets 2, 3, and 4 fuel/ammo status)
+/// - Sortie checks (fleet damage, supply, and ship/equipment capacity)
+/// - Expedition checks (fleet damage and supply, and possible failure at launch)
 /// - Practice assistant (opponent base experience and training cruiser bonus)
 class GameInfoNoticeController implements GameApiEventConsumer {
   GameInfoNoticeController({
@@ -67,6 +74,7 @@ class GameInfoNoticeController implements GameApiEventConsumer {
         path == '/kcsapi/api_req_kaisou/marriage' ||
         path == '/kcsapi/api_get_member/mapinfo' ||
         path == '/kcsapi/api_get_member/mission' ||
+        path == '/kcsapi/api_req_mission/start' ||
         path == '/kcsapi/api_req_member/get_practice_enemyinfo';
   }
 
@@ -94,7 +102,7 @@ class GameInfoNoticeController implements GameApiEventConsumer {
           return;
         }
         if (event.path == '/kcsapi/api_get_member/mission') {
-          _handleExpeditionCheck(stateBefore);
+          _handleFleetPageCheck(stateBefore, forExpedition: true);
           return;
         }
         if (rawData is! Map<String, Object?>) return;
@@ -113,7 +121,10 @@ class GameInfoNoticeController implements GameApiEventConsumer {
             _handleMarriage(rawData, event, stateBefore);
             break;
           case '/kcsapi/api_get_member/mapinfo':
-            _handleSortieCheck(stateBefore);
+            _handleFleetPageCheck(stateBefore, forExpedition: false);
+            break;
+          case '/kcsapi/api_req_mission/start':
+            _handleExpeditionStart(rawData, event, stateBefore);
             break;
           case '/kcsapi/api_req_member/get_practice_enemyinfo':
             _handlePracticeEnemyInfo(rawData, stateBefore);
@@ -127,12 +138,17 @@ class GameInfoNoticeController implements GameApiEventConsumer {
     });
   }
 
+  bool _isNoticeEnabled(TopNoticeKind kind) =>
+      layoutSettingsController.topNoticeEnabled &&
+      layoutSettingsController.isTopNoticeKindEnabled(kind);
+
   void postNotice({
     required String message,
     required TopNoticeTone tone,
     IconData? icon,
     Color? color,
     Duration appendWithin = const Duration(milliseconds: 500),
+    bool appendToCurrentBatch = false,
     String? replacementKey,
   }) {
     if (_disposed || !layoutSettingsController.topNoticeEnabled) return;
@@ -145,6 +161,7 @@ class GameInfoNoticeController implements GameApiEventConsumer {
         seconds: layoutSettingsController.topNoticeDurationSeconds,
       ),
       appendWithin: appendWithin,
+      appendToCurrentBatch: appendToCurrentBatch,
       replacementKey: replacementKey,
     );
   }
@@ -228,6 +245,7 @@ class GameInfoNoticeController implements GameApiEventConsumer {
   }
 
   void _handleDevelopment(Map<String, Object?> data, GameState state) {
+    if (!_isNoticeEnabled(TopNoticeKind.equipmentDevelopment)) return;
     final l10n = _getL10n();
     final rawGetItems = data['api_get_items'];
     if (rawGetItems is List && rawGetItems.isNotEmpty) {
@@ -291,6 +309,7 @@ class GameInfoNoticeController implements GameApiEventConsumer {
   }
 
   void _handleEquipmentImprovement(Map<String, Object?> data) {
+    if (!_isNoticeEnabled(TopNoticeKind.equipmentImprovement)) return;
     final l10n = _getL10n();
     final succeeded = _asInt(data['api_remodel_flag']) == 1;
     postNotice(
@@ -307,6 +326,7 @@ class GameInfoNoticeController implements GameApiEventConsumer {
     CapturedApiEvent event,
     GameState state,
   ) {
+    if (!_isNoticeEnabled(TopNoticeKind.modernization)) return;
     final l10n = _getL10n();
     final flag = _asInt(data['api_powerup_flag']);
     if (flag == 0) {
@@ -400,6 +420,7 @@ class GameInfoNoticeController implements GameApiEventConsumer {
     CapturedApiEvent event,
     GameState state,
   ) {
+    if (!_isNoticeEnabled(TopNoticeKind.marriage)) return;
     final l10n = _getL10n();
     final rawShip = data.containsKey('api_id')
         ? data
@@ -435,7 +456,65 @@ class GameInfoNoticeController implements GameApiEventConsumer {
     }
   }
 
-  void _handleSortieCheck(GameState state) {
+  void _handleFleetPageCheck(GameState state, {required bool forExpedition}) {
+    var hasPosted = false;
+    void emit({required String message, required TopNoticeTone tone}) {
+      postNotice(message: message, tone: tone, appendToCurrentBatch: hasPosted);
+      hasPosted = true;
+    }
+
+    _handleFleetReadiness(state, forExpedition: forExpedition, emit: emit);
+    if (!forExpedition) _handleSortieCapacity(state, emit);
+  }
+
+  void _handleExpeditionStart(
+    Map<String, Object?> data,
+    CapturedApiEvent event,
+    GameState state,
+  ) {
+    if (!_isNoticeEnabled(TopNoticeKind.expeditionSuccess) ||
+        !state.hasMasterData ||
+        _asInt(data['api_complatetime']) <= 0) {
+      return;
+    }
+    final fleetId = _asInt(event.requestParams['api_deck_id']);
+    final missionId = _asInt(event.requestParams['api_mission_id']);
+    if (fleetId <= 0 || missionId <= 0) return;
+    final fleet = state.fleets
+        .where((fleet) => fleet.id == fleetId)
+        .firstOrNull;
+    if (fleet == null || fleet.shipIds.isEmpty) return;
+
+    // A partial snapshot can make the evaluator count too few ships or drums.
+    for (final shipId in fleet.shipIds) {
+      final ship = state.ships[shipId];
+      if (ship == null || state.masterForShip(ship) == null) return;
+      for (final slotId in [...ship.slotIds, ship.extraSlotId]) {
+        if (slotId <= 0) continue;
+        final equipment = state.slotItems[slotId];
+        if (equipment == null ||
+            !state.masterSlotItems.containsKey(equipment.masterSlotItemId)) {
+          return;
+        }
+      }
+    }
+    final evaluation = const ExpeditionEvaluator().evaluate(
+      state: state,
+      fleet: fleet,
+      missionId: missionId,
+    );
+    if (!evaluation.hasRule || evaluation.normalPassed) return;
+    postNotice(
+      message: _getL10n().noticeExpeditionPossibleFailure(
+        fleetId,
+        expeditionDisplayId(missionId, state.masterMissions[missionId]),
+      ),
+      tone: TopNoticeTone.warning,
+    );
+  }
+
+  void _handleSortieCapacity(GameState state, _FleetNoticeEmitter emit) {
+    if (!_isNoticeEnabled(TopNoticeKind.sortieCapacity)) return;
     final l10n = _getL10n();
     final maxShips = state.maxShipCount;
     final remainingShips = (maxShips != null && maxShips > 0)
@@ -452,18 +531,18 @@ class GameInfoNoticeController implements GameApiEventConsumer {
 
     // Error priority: Full capacity
     if (shipFull && itemFull) {
-      postNotice(
+      emit(
         message: l10n.noticeSortieShipAndItemFull,
         tone: TopNoticeTone.error,
       );
       return;
     }
     if (shipFull) {
-      postNotice(message: l10n.noticeSortieShipFull, tone: TopNoticeTone.error);
+      emit(message: l10n.noticeSortieShipFull, tone: TopNoticeTone.error);
       return;
     }
     if (itemFull) {
-      postNotice(message: l10n.noticeSortieItemFull, tone: TopNoticeTone.error);
+      emit(message: l10n.noticeSortieItemFull, tone: TopNoticeTone.error);
       return;
     }
 
@@ -474,7 +553,7 @@ class GameInfoNoticeController implements GameApiEventConsumer {
         remainingItems != null && remainingItems > 0 && remainingItems <= 5;
 
     if (shipLow && itemLow) {
-      postNotice(
+      emit(
         message: l10n.noticeSortieShipAndItemLow(
           remainingShips,
           remainingItems,
@@ -484,14 +563,14 @@ class GameInfoNoticeController implements GameApiEventConsumer {
       return;
     }
     if (shipLow) {
-      postNotice(
+      emit(
         message: l10n.noticeSortieShipLow(remainingShips),
         tone: TopNoticeTone.warning,
       );
       return;
     }
     if (itemLow) {
-      postNotice(
+      emit(
         message: l10n.noticeSortieItemLow(remainingItems),
         tone: TopNoticeTone.warning,
       );
@@ -499,63 +578,89 @@ class GameInfoNoticeController implements GameApiEventConsumer {
     }
   }
 
-  void _handleExpeditionCheck(GameState state) {
-    if (state.fleets.isEmpty || !state.hasMasterData) {
-      return;
-    }
+  void _handleFleetReadiness(
+    GameState state, {
+    required bool forExpedition,
+    required _FleetNoticeEmitter emit,
+  }) {
+    final checkDamage = _isNoticeEnabled(
+      forExpedition
+          ? TopNoticeKind.expeditionHeavyDamage
+          : TopNoticeKind.sortieHeavyDamage,
+    );
+    final checkSupply =
+        state.hasMasterData &&
+        _isNoticeEnabled(
+          forExpedition
+              ? TopNoticeKind.expeditionSupply
+              : TopNoticeKind.sortieSupply,
+        );
+    if (!checkDamage && !checkSupply) return;
 
+    final dockedShipIds = {
+      for (final dock in state.repairDocks)
+        if (dock.isRepairing) dock.shipId,
+    };
+    final damagedFleetIds = <int>[];
     final unresuppliedFleetIds = <int>[];
-    for (final targetFleetId in const <int>[2, 3, 4]) {
-      Fleet? fleet;
-      for (final candidate in state.fleets) {
-        if (candidate.id == targetFleetId) {
-          fleet = candidate;
-          break;
-        }
-      }
-      if (fleet == null ||
-          fleet.shipIds.isEmpty ||
-          fleet.mission.isActive ||
-          fleet.mission.state > 0) {
-        continue;
-      }
+    final firstFleetId = forExpedition ? 2 : 1;
+    for (var id = firstFleetId; id <= 4; id++) {
+      final fleet = state.fleets.where((fleet) => fleet.id == id).firstOrNull;
+      if (fleet == null || fleet.mission.state > 0) continue;
 
-      var needsSupply = false;
-      for (final shipId in fleet.shipIds) {
-        final ship = state.ships[shipId];
-        if (ship == null) continue;
-        final master = state.masterShips[ship.masterId];
-        if (master == null || (master.maxFuel <= 0 && master.maxAmmo <= 0)) {
-          continue;
-        }
-        if (ship.currentFuel < master.maxFuel ||
-            ship.currentAmmo < master.maxAmmo) {
-          needsSupply = true;
-          break;
-        }
+      final hasDockedShip = fleet.shipIds.any(dockedShipIds.contains);
+      final ships = fleet.shipIds.map((shipId) => state.ships[shipId]).nonNulls;
+      if (checkDamage && !hasDockedShip && ships.any(_isHeavilyDamaged)) {
+        damagedFleetIds.add(id);
       }
-
-      if (needsSupply) {
-        unresuppliedFleetIds.add(targetFleetId);
+      if (checkSupply &&
+          (forExpedition || !hasDockedShip) &&
+          ships.any((ship) => _needsSupply(ship, state))) {
+        unresuppliedFleetIds.add(id);
       }
-    }
-
-    if (unresuppliedFleetIds.isEmpty) {
-      return;
     }
 
     final l10n = _getL10n();
     final code = layoutSettingsController.effectiveLocaleCode;
     final separator = (code == 'en' || code == 'ko') ? ', ' : '、';
-    final fleetsLabel = unresuppliedFleetIds.join(separator);
-    postNotice(
-      message: l10n.noticeExpeditionSupplyWarning(fleetsLabel),
-      tone: TopNoticeTone.warning,
-    );
+    if (damagedFleetIds.isNotEmpty) {
+      final fleets = damagedFleetIds.join(separator);
+      emit(
+        message: forExpedition
+            ? l10n.noticeExpeditionHeavyDamage(fleets)
+            : l10n.noticeSortieHeavyDamage(fleets),
+        tone: TopNoticeTone.warning,
+      );
+    }
+    if (unresuppliedFleetIds.isNotEmpty) {
+      final fleets = unresuppliedFleetIds.join(separator);
+      emit(
+        message: forExpedition
+            ? l10n.noticeExpeditionSupplyWarning(fleets)
+            : l10n.noticeSortieSupplyWarning(fleets),
+        tone: TopNoticeTone.warning,
+      );
+    }
+  }
+
+  static bool _isHeavilyDamaged(OwnedShip ship) =>
+      shipDamageLevel(currentHp: ship.currentHp, maxHp: ship.maxHp) ==
+      ShipDamageLevel.heavy;
+
+  static bool _needsSupply(OwnedShip ship, GameState state) {
+    final master = state.masterShips[ship.masterId];
+    return master != null &&
+        (master.maxFuel > 0 || master.maxAmmo > 0) &&
+        (ship.currentFuel < master.maxFuel ||
+            ship.currentAmmo < master.maxAmmo);
   }
 
   void _handlePracticeEnemyInfo(Map<String, Object?> data, GameState state) {
     const noticeKey = 'practice-experience';
+    if (!_isNoticeEnabled(TopNoticeKind.practiceExperience)) {
+      topNoticeController.removeByKey(noticeKey);
+      return;
+    }
     final l10n = _getL10n();
     final rawDeck = data['api_deck'];
     if (rawDeck is! Map) {

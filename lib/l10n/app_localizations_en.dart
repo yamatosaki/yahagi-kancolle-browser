@@ -817,6 +817,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get openSourceLicense => 'Open-source license: MIT License';
 
   @override
+  String get harmonyOsSansNotice =>
+      'This app uses HarmonyOS Sans fonts. © 2021 Huawei Device Co., Ltd.';
+
+  @override
   String get newVersionFound => '🚀 A new version is available!';
 
   @override
@@ -3635,7 +3639,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get topNoticeEnabledSubtitle =>
-      'Show development, improvement, sortie/expedition check, and quest completion alerts to the right of 「ヤハギ」 in the top bar';
+      'Show game alerts to the right of 「ヤハギ」';
 
   @override
   String get topNoticeDurationTitle => 'Alert duration';
@@ -3652,6 +3656,52 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get topNoticeDuration15s => '15 seconds';
+
+  @override
+  String get topNoticeGroupFleet => 'Sorties and expeditions';
+
+  @override
+  String get topNoticeGroupOperation => 'Action results';
+
+  @override
+  String get topNoticeGroupOther => 'Other alerts';
+
+  @override
+  String get topNoticeKindSortieHeavyDamage => 'Sortie heavy damage warning';
+
+  @override
+  String get topNoticeKindSortieSupply => 'Sortie resupply reminder';
+
+  @override
+  String get topNoticeKindExpeditionHeavyDamage =>
+      'Expedition heavy damage warning';
+
+  @override
+  String get topNoticeKindExpeditionSupply => 'Expedition resupply reminder';
+
+  @override
+  String get topNoticeKindExpeditionSuccess => 'Expedition success check';
+
+  @override
+  String get topNoticeKindSortieCapacity => 'Sortie capacity warning';
+
+  @override
+  String get topNoticeKindEquipmentDevelopment => 'Equipment development';
+
+  @override
+  String get topNoticeKindEquipmentImprovement => 'Equipment improvement';
+
+  @override
+  String get topNoticeKindModernization => 'Modernization';
+
+  @override
+  String get topNoticeKindMarriage => 'Marriage';
+
+  @override
+  String get topNoticeKindPracticeExperience => 'Practice experience';
+
+  @override
+  String get topNoticeKindQuestCompletion => 'Quest completion';
 
   @override
   String questCompletionSingleNotice(String title) {
@@ -3799,6 +3849,26 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noticeSortieReasonExpansionSlot => 'Expansion slots unused';
+
+  @override
+  String noticeSortieHeavyDamage(String fleets) {
+    return 'Sortie alert: Heavily damaged ships in fleet $fleets';
+  }
+
+  @override
+  String noticeSortieSupplyWarning(String fleets) {
+    return 'Sortie alert: Fleet $fleets not resupplied';
+  }
+
+  @override
+  String noticeExpeditionHeavyDamage(String fleets) {
+    return 'Expedition alert: Heavily damaged ships in fleet $fleets';
+  }
+
+  @override
+  String noticeExpeditionPossibleFailure(int fleet, String expedition) {
+    return 'Fleet $fleet\'s expedition $expedition may fail';
+  }
 
   @override
   String noticeExpeditionSupplyWarning(String fleets) {

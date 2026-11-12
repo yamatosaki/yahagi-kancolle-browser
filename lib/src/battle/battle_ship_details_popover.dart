@@ -1,6 +1,5 @@
 import '../theme/app_palette.dart';
 import '../localization/game_name_localizations.dart';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +9,7 @@ import '../fleet/equipment_type_icon.dart';
 import '../fleet/fleet_ui_strings.dart';
 import '../browser/game_workspace_visibility.dart';
 import '../game_state/game_state.dart';
+import '../widgets/panel_popover_layout.dart';
 import 'battle_models.dart';
 import 'battle_detail_strings.dart';
 import 'battle_ship_details.dart';
@@ -184,36 +184,26 @@ class _BattleShipDetailsHostState extends State<BattleShipDetailsHost>
         overlayChildBuilder: (context) {
           final ship = _selected;
           if (ship == null) return const SizedBox.shrink();
-          // Positioning uses overlay coordinates, so use the overlay's safe
-          // area too. The panel may sit below a SafeArea that consumed padding.
-          final media = MediaQuery.of(Overlay.of(context).context);
-          // Keep the card's shadow inside the information panel too.
-          return ClipRect(
-            clipper: _PopoverViewportClipper(_viewport),
-            child: CustomSingleChildLayout(
-              delegate: _PopoverPosition(
-                anchor: _anchor,
-                insets: media.padding + media.viewInsets,
-                viewport: _viewport,
-              ),
-              child: TapRegion(
-                groupId: this,
-                onTapOutside: (_) => _close(),
-                child: Focus(
-                  focusNode: _focus,
-                  onKeyEvent: (_, event) {
-                    if (event is KeyDownEvent &&
-                        event.logicalKey == LogicalKeyboardKey.escape) {
-                      _close();
-                      return KeyEventResult.handled;
-                    }
-                    return KeyEventResult.ignored;
-                  },
-                  child: _ShipPopover(
-                    key: ValueKey(_identity(ship)),
-                    ship: ship,
-                    onClose: _close,
-                  ),
+          return PanelPopoverLayout(
+            anchor: _anchor,
+            viewport: _viewport,
+            child: TapRegion(
+              groupId: this,
+              onTapOutside: (_) => _close(),
+              child: Focus(
+                focusNode: _focus,
+                onKeyEvent: (_, event) {
+                  if (event is KeyDownEvent &&
+                      event.logicalKey == LogicalKeyboardKey.escape) {
+                    _close();
+                    return KeyEventResult.handled;
+                  }
+                  return KeyEventResult.ignored;
+                },
+                child: _ShipPopover(
+                  key: ValueKey(_identity(ship)),
+                  ship: ship,
+                  onClose: _close,
                 ),
               ),
             ),
@@ -290,98 +280,6 @@ class BattleShipDetailsTap extends StatelessWidget {
       ),
     );
   }
-}
-
-class _PopoverViewportClipper extends CustomClipper<Rect> {
-  const _PopoverViewportClipper(this.viewport);
-
-  final Rect? viewport;
-
-  @override
-  Rect getClip(Size size) => viewport ?? (Offset.zero & size);
-
-  @override
-  bool shouldReclip(_PopoverViewportClipper oldClipper) =>
-      viewport != oldClipper.viewport;
-}
-
-class _PopoverPosition extends SingleChildLayoutDelegate {
-  const _PopoverPosition({
-    required this.anchor,
-    required this.insets,
-    this.viewport,
-  });
-  final Rect anchor;
-  final EdgeInsets insets;
-  final Rect? viewport;
-
-  Rect _bounds(Size size) {
-    final safe = Rect.fromLTRB(
-      insets.left + 8,
-      insets.top + 8,
-      math.max(insets.left + 8, size.width - insets.right - 8),
-      math.max(insets.top + 8, size.height - insets.bottom - 8),
-    );
-    // The adjacent Android game WebView can draw above Flutter. Keep the
-    // popover inside the information panel's scroll viewport when present.
-    final panel = viewport;
-    final bounds = panel == null ? safe : safe.intersect(panel.deflate(8));
-    return Rect.fromLTWH(
-      bounds.left,
-      bounds.top,
-      math.max(0, bounds.width),
-      math.max(0, bounds.height),
-    );
-  }
-
-  @override
-  BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
-    final bounds = _bounds(constraints.biggest);
-    final width = math.min(270.0, bounds.width);
-    return BoxConstraints(
-      minWidth: width,
-      maxWidth: width,
-      maxHeight: bounds.height,
-    );
-  }
-
-  @override
-  Offset getPositionForChild(Size size, Size childSize) {
-    final bounds = _bounds(size);
-    const gap = 8.0;
-    double x;
-    double y;
-    if (anchor.right + gap + childSize.width <= bounds.right) {
-      x = anchor.right + gap;
-      y = anchor.top;
-    } else if (anchor.left - gap - childSize.width >= bounds.left) {
-      x = anchor.left - gap - childSize.width;
-      y = anchor.top;
-    } else {
-      x = anchor.center.dx - childSize.width / 2;
-      y = anchor.bottom + gap;
-      if (y + childSize.height > bounds.bottom &&
-          anchor.top - gap - childSize.height >= bounds.top) {
-        y = anchor.top - gap - childSize.height;
-      }
-    }
-    return Offset(
-      x.clamp(
-        bounds.left,
-        math.max(bounds.left, bounds.right - childSize.width),
-      ),
-      y.clamp(
-        bounds.top,
-        math.max(bounds.top, bounds.bottom - childSize.height),
-      ),
-    );
-  }
-
-  @override
-  bool shouldRelayout(_PopoverPosition oldDelegate) =>
-      anchor != oldDelegate.anchor ||
-      insets != oldDelegate.insets ||
-      viewport != oldDelegate.viewport;
 }
 
 class _ShipPopover extends StatefulWidget {
