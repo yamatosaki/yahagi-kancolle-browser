@@ -7,7 +7,6 @@ import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import '../account/account_session.dart';
 import '../subtitles/ship_subtitle_catalog_controller.dart';
 import '../subtitles/ship_subtitle_update_section.dart';
-import '../subtitles/ship_subtitle_data_strings.dart';
 import '../backup/record_backup.dart';
 
 import '../battle/fcd_map_controller.dart';
@@ -41,10 +40,7 @@ import 'sortie_map_catalog_update_section.dart';
 import 'enemy_catalog_update_section.dart';
 import 'settings_ui_helpers.dart';
 import 'record_backup_section.dart';
-import 'data_update_metadata.dart';
-import 'settings_detail_page.dart';
 import 'settings_organization_strings.dart';
-import '../browser/game_resource_cache_store.dart';
 
 class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
   const DataSettingsPage({
@@ -107,67 +103,39 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
         lookupAppLocalizations(const Locale('zh'));
     final updates = <Widget>[
       if (fcdMapController case final controller?)
-        _updateEntry(
-          context,
+        FcdMapUpdateSection(
           key: const Key('settings-data-update-fcd'),
-          title: l10n.fcdMapDataTitle,
           controller: controller,
-          version: () => controller.version.toString(),
-          child: FcdMapUpdateSection(controller: controller),
         ),
       if (sortieMapCatalogController case final controller?)
-        _updateEntry(
-          context,
+        SortieMapCatalogUpdateSection(
           key: const Key('settings-data-update-maps'),
-          title: l10n.sortieMapDataTitle,
           controller: controller,
-          version: () => controller.data.dataVersion,
-          child: SortieMapCatalogUpdateSection(controller: controller),
         ),
       if (enemyCatalogController case final controller?)
-        _updateEntry(
-          context,
+        EnemyCatalogUpdateSection(
           key: const Key('settings-data-update-enemies'),
-          title: l10n.enemyDataTitle,
           controller: controller,
-          version: () => controller.data.dataVersion,
-          child: EnemyCatalogUpdateSection(controller: controller),
         ),
       if (questCatalogController case final controller?)
-        _updateEntry(
-          context,
+        QuestCatalogUpdateSection(
           key: const Key('settings-data-update-quests'),
-          title: l10n.questCatalogDataTitle,
           controller: controller,
-          version: () => controller.version.shortLabel,
-          child: QuestCatalogUpdateSection(controller: controller),
         ),
       if (questProgressRulesController case final controller?)
-        _updateEntry(
-          context,
+        QuestProgressUpdateSection(
           key: const Key('settings-data-update-quest-progress'),
-          title: l10n.questProgressDataTitle,
           controller: controller,
-          version: () => controller.version,
-          child: QuestProgressUpdateSection(controller: controller),
         ),
       if (improvementPlannerController case final controller?)
-        _updateEntry(
-          context,
+        ImprovementDatasetUpdateSection(
           key: const Key('settings-data-update-improvement'),
-          title: l10n.improvementDatasetTitle,
           controller: controller,
-          version: () => controller.dataset.version.dataVersion,
-          child: ImprovementDatasetUpdateSection(controller: controller),
         ),
       if (shipSubtitleCatalogController case final controller?)
-        _updateEntry(
-          context,
+        ShipSubtitleUpdateSection(
           key: const Key('settings-data-update-translations'),
-          title: ShipSubtitleDataStrings(l10n.localeName).title,
           controller: controller,
-          version: () => controller.data.version,
-          child: ShipSubtitleUpdateSection(controller: controller),
         ),
     ];
     return Container(
@@ -187,53 +155,13 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
             if (gameResourceCacheController case final controller?) ...[
               buildSectionTitle(l10n.gameResourceCacheTitle),
               buildCard(
-                child: AnimatedBuilder(
-                  animation: controller,
-                  builder: (context, _) => buildActionTile(
-                    key: const Key('settings-resource-cache-entry'),
-                    title: l10n.gameResourceCacheTitle,
-                    subtitle:
-                        '${controller.mode == GameResourceCacheMode.full ? l10n.gameResourceCacheFull : l10n.gameResourceCacheNone} · ${l10n.gameResourceCacheStoredSize(controller.completenessLine)}',
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => openSettingsDetail(
-                      context,
-                      title: l10n.gameResourceCacheTitle,
-                      child: GameResourceCacheSection(controller: controller),
-                    ),
-                  ),
-                ),
+                child: GameResourceCacheSection(controller: controller),
               ),
               const SizedBox(height: 24),
             ],
             if (_backupService case final backup?) ...[
               buildSectionTitle(RecordBackupStrings.of(context).section),
-              buildCard(
-                child: AnimatedBuilder(
-                  animation: backup,
-                  builder: (context, _) {
-                    final strings = RecordBackupStrings.of(context);
-                    final status = backup.lastError != null
-                        ? strings.syncFailed(backup.lastError!)
-                        : backup.pending
-                        ? strings.syncPending
-                        : backup.lastSync != null
-                        ? strings.lastSync(backup.lastSync!.toLocal())
-                        : strings.neverSynced;
-                    return buildActionTile(
-                      key: const Key('settings-record-backup-entry'),
-                      title: strings.section,
-                      subtitle:
-                          '${settingsOrganizationText(context, backup.enabled ? 'settingsStatusEnabled' : 'settingsStatusDisabled')} · $status',
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => openSettingsDetail(
-                        context,
-                        title: strings.section,
-                        child: RecordBackupSection(service: backup),
-                      ),
-                    );
-                  },
-                ),
-              ),
+              buildCard(child: RecordBackupSection(service: backup)),
               const SizedBox(height: 24),
             ],
             if (kcwikiReportController != null ||
@@ -357,30 +285,6 @@ class DataSettingsPage extends StatelessWidget with SettingsUIHelpers {
       children[index],
     ],
   ];
-
-  Widget _updateEntry(
-    BuildContext context, {
-    required Key key,
-    required String title,
-    required Listenable controller,
-    required String Function() version,
-    required Widget child,
-  }) => AnimatedBuilder(
-    animation: controller,
-    builder: (context, _) {
-      final l10n =
-          AppLocalizations.of(context) ??
-          lookupAppLocalizations(const Locale('zh'));
-      return buildActionTile(
-        key: key,
-        title: title,
-        subtitle:
-            '${l10n.dataVersionLabel}：${DataUpdateMetadata.versionDate(version())}',
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => openSettingsDetail(context, title: title, child: child),
-      );
-    },
-  );
 
   String _kcwikiReportSubtitle(
     AppLocalizations l10n,

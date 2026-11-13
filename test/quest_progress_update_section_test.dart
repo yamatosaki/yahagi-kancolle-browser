@@ -157,7 +157,7 @@ void main() {
     });
   }
 
-  testWidgets('data settings opens the independent progress update action', (
+  testWidgets('data settings shows the independent progress update inline', (
     tester,
   ) async {
     final capture = await CaptureModeController.load(_CaptureStore());
@@ -191,17 +191,9 @@ void main() {
         ),
       ),
     );
-    expect(
-      find.byKey(const Key('quest-progress-check-update-button')),
-      findsNothing,
-    );
-    await tester.tap(
-      find.byKey(const Key('settings-data-update-quest-progress')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(const Key('quest-progress-check-update-button')),
-    );
+    final check = find.byKey(const Key('quest-progress-check-update-button'));
+    expect(check, findsOneWidget);
+    await tester.tap(check);
     await tester.pumpAndSettle();
     expect(updater.calls, 1);
     expect(find.textContaining('任务进度资料已经是最新版本'), findsOneWidget);

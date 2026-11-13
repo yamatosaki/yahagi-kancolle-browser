@@ -148,7 +148,7 @@ void main() {
     },
   );
 
-  testWidgets('data update entry opens the complete existing update action', (
+  testWidgets('data update row checks and shows the last check inline', (
     tester,
   ) async {
     final capture = await CaptureModeController.load(_MemoryCaptureModeStore());
@@ -157,12 +157,14 @@ void main() {
     final prototype = PrototypeStatusController();
     final gameState = GameStateController();
     final updater = _FakeFcdUpdater();
+    final checkedAt = DateTime(2026, 11, 13, 14, 25, 36);
     final fcd = FcdMapController(
       dataset: FcdMapDataset.parse(
         '{"meta":{"name":"map","version":"2026/07/01/01"},"data":{"5-6":{"route":{"42":["X","Y"]}}}}',
         minimumMapCount: 1,
       ),
       updater: updater,
+      now: () => checkedAt,
     );
     addTearDown(capture.dispose);
     addTearDown(browser.dispose);
@@ -184,16 +186,23 @@ void main() {
     );
     expect(find.text('资料更新'), findsOneWidget);
     expect(find.textContaining('数据版本：2026-07-01'), findsOneWidget);
-    expect(find.byKey(const Key('fcd-map-check-button')), findsNothing);
-    await tester.tap(find.byKey(const Key('settings-data-update-fcd')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('fcd-map-check-button')), findsOneWidget);
-    expect(find.textContaining('上次检查：'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('fcd-map-check-button')));
+    expect(find.text('上次检查：尚未检查'), findsOneWidget);
+    final check = find.byKey(const Key('fcd-map-check-button'));
+    expect(check, findsOneWidget);
+    expect(
+      find.descendant(of: check, matching: find.byIcon(Icons.sync)),
+      findsOneWidget,
+    );
+    await tester.tap(check);
     await tester.pumpAndSettle();
     expect(updater.calls, 1);
     expect(find.byType(AlertDialog), findsOneWidget);
     expect(find.textContaining('已经是最新'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, '确定'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AppBar), findsNothing);
+    expect(find.text('资料更新'), findsOneWidget);
+    expect(find.text('上次检查：2026-11-13 14:25:36'), findsOneWidget);
   });
 
   testWidgets(
@@ -462,66 +471,59 @@ void main() {
     expect(find.textContaining('成功 1'), findsOneWidget);
   });
 
-  testWidgets(
-    'checks alignment inside GameResourceCacheSection in DataSettingsPage',
-    (tester) async {
-      final capture = await CaptureModeController.load(
-        _MemoryCaptureModeStore(),
-      );
-      final browser = GameBrowserController();
-      final gameCapture = GameCaptureController();
-      final prototype = PrototypeStatusController();
-      final gameState = GameStateController();
-      final cacheController = GameResourceCacheController(
-        store: _MemoryCacheStore(GameResourceCacheMode.full),
-        port: _FakePort(),
-      );
-      await cacheController.initialize();
-      addTearDown(capture.dispose);
-      addTearDown(browser.dispose);
-      addTearDown(gameCapture.dispose);
-      addTearDown(prototype.dispose);
-      addTearDown(gameState.dispose);
-      addTearDown(cacheController.dispose);
+  testWidgets('resource cache controls are available inline and aligned', (
+    tester,
+  ) async {
+    final capture = await CaptureModeController.load(_MemoryCaptureModeStore());
+    final browser = GameBrowserController();
+    final gameCapture = GameCaptureController();
+    final prototype = PrototypeStatusController();
+    final gameState = GameStateController();
+    final cacheController = GameResourceCacheController(
+      store: _MemoryCacheStore(GameResourceCacheMode.full),
+      port: _FakePort(),
+    );
+    await cacheController.initialize();
+    addTearDown(capture.dispose);
+    addTearDown(browser.dispose);
+    addTearDown(gameCapture.dispose);
+    addTearDown(prototype.dispose);
+    addTearDown(gameState.dispose);
+    addTearDown(cacheController.dispose);
 
-      await tester.pumpWidget(
-        withTopNotice(
-          DataSettingsPage(
-            captureModeController: capture,
-            browserController: browser,
-            gameCaptureController: gameCapture,
-            prototypeStatusController: prototype,
-            gameStateController: gameState,
-            gameResourceCacheController: cacheController,
-          ),
+    await tester.pumpWidget(
+      withTopNotice(
+        DataSettingsPage(
+          captureModeController: capture,
+          browserController: browser,
+          gameCaptureController: gameCapture,
+          prototypeStatusController: prototype,
+          gameStateController: gameState,
+          gameResourceCacheController: cacheController,
         ),
-      );
+      ),
+    );
 
-      final entry = find.byKey(const Key('settings-resource-cache-entry'));
-      expect(entry, findsOneWidget);
-      expect(find.textContaining('已缓存'), findsOneWidget);
-      expect(find.byKey(const Key('cache-completeness-line')), findsNothing);
-      final questDx = tester.getTopLeft(find.text('清理任务数据缓存')).dx;
-      final logbookDx = tester.getTopLeft(find.text('清理航海日志主数据')).dx;
-      final webDx = tester.getTopLeft(find.text('清理浏览器网页缓存')).dx;
-      expect(questDx, 32.0);
-      expect(logbookDx, 32.0);
-      expect(webDx, 32.0);
-      await tester.tap(entry);
-      await tester.pumpAndSettle();
-      expect(find.text('游戏资源本地缓存'), findsOneWidget);
-      final noneDx = tester.getTopLeft(find.text('临时缓存')).dx;
-      final fullDx = tester.getTopLeft(find.text('本地缓存')).dx;
-      final completenessDx = tester
-          .getTopLeft(find.byKey(const Key('cache-completeness-line')))
-          .dx;
-      expect(noneDx, 32.0);
-      expect(fullDx, 32.0);
-      expect(completenessDx, 32.0);
-      expect(find.text('检查完整性'), findsOneWidget);
-      expect(find.text('清除本地缓存'), findsOneWidget);
-    },
-  );
+    expect(find.textContaining('已缓存'), findsOneWidget);
+    final questDx = tester.getTopLeft(find.text('清理任务数据缓存')).dx;
+    final logbookDx = tester.getTopLeft(find.text('清理航海日志主数据')).dx;
+    final webDx = tester.getTopLeft(find.text('清理浏览器网页缓存')).dx;
+    expect(questDx, 32.0);
+    expect(logbookDx, 32.0);
+    expect(webDx, 32.0);
+    expect(find.text('游戏资源本地缓存'), findsOneWidget);
+    final noneDx = tester.getTopLeft(find.text('临时缓存')).dx;
+    final fullDx = tester.getTopLeft(find.text('本地缓存')).dx;
+    final completenessDx = tester
+        .getTopLeft(find.byKey(const Key('cache-completeness-line')))
+        .dx;
+    expect(noneDx, 32.0);
+    expect(fullDx, 32.0);
+    expect(completenessDx, 32.0);
+    expect(find.text('检查完整性'), findsOneWidget);
+    expect(find.text('清除本地缓存'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('clearing quest cache reports success in a top notice', (
     tester,
