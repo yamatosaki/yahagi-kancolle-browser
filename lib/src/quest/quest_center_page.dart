@@ -1043,23 +1043,22 @@ class _QuestDetail extends StatelessWidget {
                       const SizedBox(height: 9),
                       _DetailCard(
                         title: l10n.questLocalProgress,
+                        leading: switch (serverQuest) {
+                          final quest? => Text(
+                            l10n.questServerProgress(
+                              quest.serverProgressPercentLabel,
+                            ),
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: quest.serverProgressColor(context),
+                            ),
+                          ),
+                          null => null,
+                        },
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            if (serverQuest case final quest?)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Text(
-                                  l10n.questServerProgress(
-                                    quest.serverProgressPercentLabel,
-                                  ),
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: quest.serverProgressColor(context),
-                                  ),
-                                ),
-                              ),
                             for (final step in steps)
                               Padding(
                                 padding: const EdgeInsets.symmetric(
@@ -1475,9 +1474,10 @@ class _StatusBadge extends StatelessWidget {
 }
 
 class _DetailCard extends StatelessWidget {
-  const _DetailCard({required this.title, required this.child});
+  const _DetailCard({required this.title, this.leading, required this.child});
 
   final String title;
+  final Widget? leading;
   final Widget child;
 
   @override
@@ -1491,6 +1491,7 @@ class _DetailCard extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (leading case final widget?) ...[widget, const SizedBox(height: 8)],
         Text(
           title,
           style: appTextStyle(

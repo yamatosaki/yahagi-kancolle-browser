@@ -244,7 +244,14 @@ void main() {
           findsOneWidget,
         );
         expect(detailText('0/5'), findsOneWidget);
-        expect(detailText('服务器进度：80%'), findsOneWidget);
+        final serverProgress = detailText('服务器进度：80%');
+        final localProgress = detailText('本地进度');
+        expect(serverProgress, findsOneWidget);
+        expect(localProgress, findsOneWidget);
+        expect(
+          tester.getBottomLeft(serverProgress).dy,
+          lessThanOrEqualTo(tester.getTopLeft(localProgress).dy),
+        );
         expect(
           find.byKey(const Key('quest-detail-exact-progress-912')),
           findsOneWidget,
