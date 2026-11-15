@@ -249,6 +249,59 @@ class GameResourceCacheEngineTest {
     }
 
     @Test
+    fun `fresh fetches ignore the warmed cache and leave its original bytes intact`() {
+        val stock = byteArrayOf(1, 2, 3)
+        val firstFresh = byteArrayOf(4, 5, 6)
+        val secondFresh = byteArrayOf(7, 8, 9)
+        val responses = ArrayDeque(listOf(stock, firstFresh, secondFresh))
+        val requests = mutableListOf<GameResourceCacheEntry?>()
+        val engine = engine(GameResourceFetcher { _, _, cached ->
+            requests.add(cached)
+            responses.removeFirstOrNull()?.let { bytes ->
+                val fetched = result(bytes)
+                fetched.copy(headers = fetched.headers + ("cache-control" to "public, max-age=3600"))
+            }
+        })
+        val url = official("/kcs2/resources/ship/full/a.png?version=21")
+
+        assertArrayEquals(stock, engine.fetch(url)?.bytes)
+        listOf(firstFresh, secondFresh).forEach { expected ->
+            val fresh = checkNotNull(engine.fetchFresh(url))
+            assertEquals(GameResourceResponseSource.NETWORK, fresh.source)
+            assertArrayEquals(expected, fresh.bytes)
+            assertEquals(
+                listOf("no-store"),
+                fresh.headers.filterKeys { it.equals("Cache-Control", ignoreCase = true) }.values.toList(),
+            )
+        }
+        assertNull(engine.fetchFresh(url))
+
+        val cached = checkNotNull(engine.fetch(url))
+        assertEquals(GameResourceResponseSource.CACHE, cached.source)
+        assertArrayEquals(stock, cached.bytes)
+        assertEquals(listOf(null, null, null, null), requests)
+    }
+
+    @Test
+    fun `fresh fetch rejects range authorization and requests outside the static resource scope`() {
+        val fetcher = QueueFetcher(result(byteArrayOf(1)))
+        val engine = engine(fetcher, mode = GameResourceCacheMode.NONE)
+        val url = official("/kcs2/js/main.js?version=21")
+
+        assertNull(engine.fetchFresh(url, mapOf("rAnGe" to "bytes=1-")))
+        assertNull(engine.fetchFresh(url, mapOf("aUtHoRiZaTiOn" to "Bearer sample")))
+        assertNull(engine.fetchFresh(url, mapOf("Proxy-Authorization" to "Basic sample")))
+        assertNull(engine.fetchFresh(url, method = "POST"))
+        assertNull(engine.fetchFresh(official("/kcsapi/api_start2/getData")))
+        assertNull(engine.fetchFresh("https://example.test/kcs2/js/main.js"))
+        assertEquals(0, fetcher.calls.get())
+
+        assertArrayEquals(byteArrayOf(1), engine.fetchFresh(url)?.bytes)
+        assertEquals(1, fetcher.calls.get())
+        assertTrue(engine.entries().isEmpty())
+    }
+
+    @Test
     fun `non GET request never enters resource cache`() {
         val fetcher = QueueFetcher(result(byteArrayOf(1)))
         val engine = engine(fetcher)

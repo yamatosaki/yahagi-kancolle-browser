@@ -700,7 +700,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get questDesc => '任務詳細';
 
   @override
-  String get baseReward => '基本報酬';
+  String get questRewards => '任務報酬';
 
   @override
   String get accepted => '受注済';
@@ -2540,6 +2540,24 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get completionConditions => '達成条件';
+
+  @override
+  String get questEligibleFleets => '編成条件を満たしている艦隊：';
+
+  @override
+  String get questNoEligibleFleet => '条件を満たす艦隊なし';
+
+  @override
+  String get questEligibleFleetFirst => '第一艦隊';
+
+  @override
+  String get questEligibleFleetSecond => '第二艦隊';
+
+  @override
+  String get questEligibleFleetThird => '第三艦隊';
+
+  @override
+  String get questEligibleFleetFourth => '第四艦隊';
 
   @override
   String get questRelations => '関連任務';

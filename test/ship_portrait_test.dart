@@ -31,6 +31,7 @@ class _ControlledPortraitCache extends ShipPortraitCache {
   _ControlledPortraitCache({
     required this.files,
     this.evictionCompleters = const <String, Completer<void>>{},
+    this.routeChanges,
   }) : super(
          directoryProvider: () async => Directory.systemTemp,
          client: http.Client(),
@@ -38,9 +39,13 @@ class _ControlledPortraitCache extends ShipPortraitCache {
 
   final List<File?> files;
   final Map<String, Completer<void>> evictionCompleters;
+  final Listenable? routeChanges;
   final List<Uri> resolvedUris = <Uri>[];
   final List<String> resolvedKeys = <String>[];
   final List<Uri> evictedUris = <Uri>[];
+
+  @override
+  Listenable? routeChangesFor(Uri uri) => routeChanges;
 
   @override
   Future<File?> resolve({required String cacheKey, required Uri uri}) {
@@ -51,7 +56,11 @@ class _ControlledPortraitCache extends ShipPortraitCache {
   }
 
   @override
-  Future<void> evict({required String cacheKey, required Uri uri}) {
+  Future<void> evict({
+    required String cacheKey,
+    required Uri uri,
+    File? resolvedFile,
+  }) {
     evictedUris.add(uri);
     return evictionCompleters[uri.toString()]?.future ??
         SynchronousFuture<void>(null);
@@ -206,6 +215,45 @@ void main() {
     final image = tester.widget<Image>(find.byType(Image));
     expect(image.image, isA<ResizeImage>());
     expect((image.image as ResizeImage).height, 106);
+  });
+
+  testWidgets('mounted portrait reloads when the VPN route changes', (
+    tester,
+  ) async {
+    final route = ValueNotifier(false);
+    final image = File('assets/app_icon.png');
+    final cache = _ControlledPortraitCache(
+      files: [null, image],
+      routeChanges: route,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ShipPortrait(
+          ship: const MasterShip(
+            id: 748,
+            name: '扶桑改二補',
+            shipTypeId: 10,
+            portraitVersion: '92',
+          ),
+          serverOrigin: 'https://w00g.kancolle-server.com',
+          cache: cache,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(Image), findsNothing);
+
+    route.value = true;
+    await tester.pumpAndSettle();
+    expect(cache.resolvedKeys, ['748_remodel', '748_remodel']);
+    expect(tester.widget<Image>(find.byType(Image)).image, FileImage(image));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    route.value = false;
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(cache.resolvedKeys, hasLength(2));
+    route.dispose();
   });
 
   testWidgets('missing damaged art uses the separately cached normal art', (

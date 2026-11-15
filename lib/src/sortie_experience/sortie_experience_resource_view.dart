@@ -118,7 +118,7 @@ class _WarehouseSpendingSummary extends StatelessWidget {
     final labelStyle = _secondaryStyle(context);
     final numberStyle = _summaryValueStyle(context);
     final compactNumberStyle = numberStyle.copyWith(
-      fontFamily: 'HarmonyOS_Sans_Condensed',
+      fontFamily: AppFonts.condensed,
     );
     final inheritedStyle = DefaultTextStyle.of(context).style;
     final direction = Directionality.of(context);

@@ -28,8 +28,6 @@ class GameSurfaceViewport extends StatelessWidget {
     this.fullscreenFitAxis,
     this.displayMode = DisplayMode.auto,
     this.fitWithinBounds = false,
-    this.centerAboveBottomInset = false,
-    this.viewPadding,
     this.backgroundColor = const Color(0xff0a1823),
   });
 
@@ -41,11 +39,6 @@ class GameSurfaceViewport extends StatelessWidget {
   final DisplayMode displayMode;
   final bool fitWithinBounds;
 
-  /// Centers the game inside the area above the bottom system inset, ignoring
-  /// width priority. Left/right insets are deliberately not reserved; the
-  /// caller's layout already accounts for them. No effect in fullscreen.
-  final bool centerAboveBottomInset;
-  final EdgeInsets? viewPadding;
   final Color backgroundColor;
 
   /// The native slot uses the actual workspace mode for window permission.
@@ -190,19 +183,13 @@ class GameSurfaceViewport extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final padding = viewPadding ?? MediaQuery.viewPaddingOf(context);
-    final centerAbove = centerAboveBottomInset && !fullscreen;
     final camera = CameraAvoidanceScope.maybeOf(context);
-    final effectivePadding = centerAbove
-        ? EdgeInsets.only(bottom: padding.bottom)
-        : EdgeInsets.zero;
 
     return _GameSurfaceViewportMode(
       fullscreen: fullscreen,
       child: ColoredBox(
         color: appColor(context, backgroundColor),
         child: ClipRect(
-          clipper: fullscreen ? _GameSafeAreaClipper(effectivePadding) : null,
           child: CustomSingleChildLayout(
             delegate: _GameSurfaceLayoutDelegate(
               aspectRatio: aspectRatio,
@@ -213,11 +200,9 @@ class GameSurfaceViewport extends StatelessWidget {
               displayMode: displayMode,
               fitWithinBounds:
                   fitWithinBounds ||
-                  centerAbove ||
                   (camera != null &&
                       camera.enabled &&
                       camera.cutoutEdges.isNotEmpty),
-              padding: effectivePadding,
             ),
             child: child,
           ),
@@ -240,23 +225,6 @@ final class _GameSurfaceViewportMode extends InheritedWidget {
       fullscreen != oldWidget.fullscreen;
 }
 
-final class _GameSafeAreaClipper extends CustomClipper<Rect> {
-  const _GameSafeAreaClipper(this.padding);
-  final EdgeInsets padding;
-
-  @override
-  Rect getClip(Size size) => Rect.fromLTWH(
-    padding.left.clamp(0.0, size.width),
-    padding.top.clamp(0.0, size.height),
-    math.max(0.0, size.width - padding.horizontal),
-    math.max(0.0, size.height - padding.vertical),
-  );
-
-  @override
-  bool shouldReclip(_GameSafeAreaClipper oldClipper) =>
-      padding != oldClipper.padding;
-}
-
 class _GameSurfaceLayoutDelegate extends SingleChildLayoutDelegate {
   const _GameSurfaceLayoutDelegate({
     required this.aspectRatio,
@@ -266,7 +234,6 @@ class _GameSurfaceLayoutDelegate extends SingleChildLayoutDelegate {
     required this.devicePixelRatio,
     required this.displayMode,
     required this.fitWithinBounds,
-    required this.padding,
   });
 
   final double aspectRatio;
@@ -276,7 +243,6 @@ class _GameSurfaceLayoutDelegate extends SingleChildLayoutDelegate {
   final double devicePixelRatio;
   final DisplayMode displayMode;
   final bool fitWithinBounds;
-  final EdgeInsets padding;
 
   Rect _calculateRect(Size size) {
     if (size.width <= 0 || size.height <= 0) {
@@ -291,7 +257,6 @@ class _GameSurfaceLayoutDelegate extends SingleChildLayoutDelegate {
         axis:
             fullscreenFitAxis ??
             (isLandscape ? GameFitAxis.height : GameFitAxis.width),
-        padding: padding,
         devicePixelRatio: devicePixelRatio,
       );
     }
@@ -309,14 +274,12 @@ class _GameSurfaceLayoutDelegate extends SingleChildLayoutDelegate {
         containerWidth: size.width,
         containerHeight: size.height,
         aspectRatio: aspectRatio,
-        padding: padding,
       );
     } else {
       return GameSurfaceViewport.computeContainGameRect(
         containerWidth: size.width,
         containerHeight: size.height,
         aspectRatio: aspectRatio,
-        padding: padding,
       );
     }
   }
@@ -328,10 +291,8 @@ class _GameSurfaceLayoutDelegate extends SingleChildLayoutDelegate {
   }
 
   @override
-  Offset getPositionForChild(Size size, Size childSize) {
-    final rect = _calculateRect(size);
-    return Offset(rect.left, rect.top);
-  }
+  Offset getPositionForChild(Size size, Size childSize) =>
+      _calculateRect(size).topLeft;
 
   @override
   bool shouldRelayout(_GameSurfaceLayoutDelegate oldDelegate) {
@@ -341,7 +302,6 @@ class _GameSurfaceLayoutDelegate extends SingleChildLayoutDelegate {
         oldDelegate.fullscreenFitAxis != fullscreenFitAxis ||
         oldDelegate.devicePixelRatio != devicePixelRatio ||
         oldDelegate.displayMode != displayMode ||
-        oldDelegate.fitWithinBounds != fitWithinBounds ||
-        oldDelegate.padding != padding;
+        oldDelegate.fitWithinBounds != fitWithinBounds;
   }
 }

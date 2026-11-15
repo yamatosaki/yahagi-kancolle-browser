@@ -117,6 +117,7 @@ internal interface NativeGameWebViewLifecycleObserver {
     fun onPageStarted() = Unit
     fun onPageFinished() = Unit
     fun onRenderProcessGone() = Unit
+    fun onDestroyed() = Unit
     fun onCreateFailed() = Unit
 }
 
@@ -1044,6 +1045,7 @@ internal class NativeGameWebViewChannel(
             generation,
             allowDetaching = true,
         ) ?: return
+        safeObserverCall(binding.lifecycleObserver::onDestroyed)
         emit(mapOf("type" to "destroyed", "generationId" to generation))
         if (activityBinding === binding && acceptedGeneration == generation) {
             acceptedGeneration = null

@@ -1115,6 +1115,8 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(changes.value, previousChange + 1);
+        expect(tester.widget<FrozenDataTable>(table).rowHeights, hasLength(1));
+        await _tap(tester, _inCard(table, battleLabel));
         expect(tester.widget<FrozenDataTable>(table).rowHeights, hasLength(4));
         expect(
           _inCard(table, isPractice ? '本次演习经验' : '本次出击经验'),
@@ -1432,6 +1434,8 @@ void main() {
         () => _inCard(table, battleLabel).evaluate().isNotEmpty,
         'combined logbook summary',
       );
+      expect(tester.widget<FrozenDataTable>(table).rowHeights, hasLength(1));
+      await _tap(tester, _inCard(table, battleLabel));
       expect(_inCard(table, '主力舰队'), findsOneWidget);
       expect(_inCard(table, '护卫舰队'), findsOneWidget);
       expect(tester.widget<FrozenDataTable>(table).rowHeights, hasLength(16));
@@ -1441,6 +1445,7 @@ void main() {
           ('value', gain),
           ('level', level),
           ('next', next),
+          ('mvp', '${expectedMvp[id] ?? 0}'),
         ]) {
           final cell = find.byKey(Key('logbook-experience-$field-$id'));
           expect(tester.widget<Text>(cell).data, value);
@@ -1462,6 +1467,9 @@ void main() {
         for (final _ in escortIds) 2,
       ]);
       expect(record.ships.map((ship) => ship.experience), gains);
+      expect(record.ships.map((ship) => ship.mvpCount), [
+        for (final id in ids) expectedMvp[id] ?? 0,
+      ]);
       expect(tester.takeException(), isNull);
     } finally {
       await tester.pumpWidget(const SizedBox.shrink());
@@ -1540,6 +1548,17 @@ void main() {
       expect(tester.widget<LogbookPage>(page).selectedTabIndex, 6);
     }
 
+    Future<void> expandLogbookRecord(String battleLabel) async {
+      final summary = _inCard(table, battleLabel);
+      await _waitForFrame(
+        tester,
+        () => summary.hitTestable().evaluate().isNotEmpty,
+        'collapsed experience record',
+      );
+      expect(tester.widget<FrozenDataTable>(table).rowHeights, hasLength(1));
+      await _tap(tester, summary);
+    }
+
     Future<void> expectLogbook(
       String label,
       List<(int, int, String)> ships,
@@ -1585,6 +1604,7 @@ void main() {
 
       await openLogbook();
       expect(LogbookDatabase.instance, same(databaseA));
+      await expandLogbookRecord('已结算 1 场战斗');
       await expectLogbook('本次出击经验', [(360, 11, '940'), (120, 12, '1,030')]);
       // A's next battle changes live progress while the historical reward stays put.
       await harness.publish(tester, mapStartEvent);
@@ -1631,6 +1651,7 @@ void main() {
         },
         request: const {},
       );
+      await expandLogbookRecord('已结算 1 场战斗');
       await expectLogbook('本次演习经验', [(60, 6, '550'), (40, 7, '70')]);
       final savedB = await store.load(scopeB);
       expect(savedB, isNotNull);
@@ -1656,6 +1677,7 @@ void main() {
       await openLogbook();
       await switchAccount(memberA, _afterSortie);
       expect(LogbookDatabase.instance, same(databaseA));
+      await expandLogbookRecord('已结算 1 场战斗');
       await expectLogbook('本次出击经验', [(360, 11, '850'), (120, 12, '820')]);
       await _tap(tester, game);
       await _tap(tester, totalTab);

@@ -413,13 +413,15 @@ void main() {
           Directionality(
             textDirection: TextDirection.ltr,
             child: MediaQuery(
-              data: const MediaQueryData(size: Size(300, 500)),
+              data: const MediaQueryData(
+                size: Size(300, 500),
+                viewPadding: EdgeInsets.only(top: 10, bottom: 20),
+              ),
               child: Padding(
                 padding: const EdgeInsets.only(left: 40),
                 child: GameSurfaceViewport(
                   fullscreen: true,
                   fullscreenFitAxis: GameFitAxis.height,
-                  viewPadding: const EdgeInsets.only(top: 10, bottom: 20),
                   child: NativeGameSurfaceSlot(
                     onBoundsChanged: (value) async => bounds.add(value),
                     onVisibilityChanged: _ignoreVisibility,

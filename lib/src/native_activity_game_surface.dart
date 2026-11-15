@@ -406,6 +406,12 @@ final class _NativeActivityGameSurfaceState
         );
   }
 
+  // Applying an HTTP proxy can include waiting for its local listener probe.
+  Duration get _networkApplyTimeout =>
+      widget.networkSettingsController?.settings.mode == NetworkMode.httpProxy
+      ? const Duration(seconds: 10)
+      : _cleanupTimeout;
+
   @override
   void didUpdateWidget(covariant NativeActivityGameSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -795,7 +801,7 @@ final class _NativeActivityGameSurfaceState
       }
       if (!_matchesGeneration(port, generationId, operationEpoch)) return;
       final result = await orchestrator.applyNetworkSettings().timeout(
-        _cleanupTimeout,
+        _networkApplyTimeout,
       );
       if (!_matchesGeneration(port, generationId, operationEpoch)) return;
       final settings = widget.networkSettingsController?.settings;
@@ -1657,7 +1663,7 @@ final class _NativeActivityGameSurfaceState
     late final GameSurfaceNetworkResult result;
     try {
       result = await _startupOrchestrator.applyNetworkSettings().timeout(
-        _cleanupTimeout,
+        _networkApplyTimeout,
       );
     } catch (error, stackTrace) {
       debugPrint(

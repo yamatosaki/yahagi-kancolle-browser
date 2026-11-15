@@ -1510,6 +1510,7 @@ LogbookExperienceShip _logbookShip(
   name: ship.name,
   fleetId: ship.fleetId,
   experience: experience,
+  mvpCount: ship.mvpCount,
   retreated: ship.retreated,
 );
 

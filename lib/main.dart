@@ -56,6 +56,7 @@ import 'src/browser/game_application_restart_port.dart';
 import 'src/browser/game_resource_cache_controller.dart';
 import 'src/browser/game_resource_manifest_builder.dart';
 import 'src/browser/game_resource_manifest_consumer.dart';
+import 'src/browser/kanxy_game_route.dart';
 import 'src/subtitles/ship_subtitle_settings.dart';
 import 'src/subtitles/ship_subtitle_catalog_controller.dart';
 import 'src/subtitles/ship_subtitle_runtime_controller.dart';
@@ -75,6 +76,7 @@ import 'src/diagnostics/diagnostic_controller.dart';
 import 'src/diagnostics/diagnostic_event.dart';
 import 'src/diagnostics/diagnostic_export_service.dart';
 import 'src/diagnostics/diagnostic_game_api_observer.dart';
+import 'src/diagnostics/diagnostic_kanxy_observer.dart';
 import 'src/diagnostics/diagnostic_performance_monitor.dart';
 import 'src/diagnostics/diagnostic_platform_port.dart';
 import 'src/telemetry/telemetry_controller.dart';
@@ -108,7 +110,9 @@ import 'src/localization/record_backup_strings.dart';
 import 'src/localization/game_name_catalog.dart';
 import 'src/localization/game_name_localizations.dart';
 import 'src/game_state/game_api_event_pipeline.dart';
+import 'src/game_state/game_state_reducer.dart';
 import 'src/game_state/game_state_store.dart';
+import 'src/game_state/master_ship_names.dart';
 import 'src/layout/adaptive_layout.dart';
 import 'src/layout/display_corners.dart';
 import 'src/layout/hd_workspace_geometry.dart';
@@ -207,6 +211,7 @@ import 'src/senka/senka_store.dart';
 import 'src/sortie_experience/sortie_experience_card.dart';
 import 'src/sortie_experience/sortie_experience_controller.dart';
 import 'src/widgets/top_notice.dart';
+import 'src/widgets/lazy_indexed_stack.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -271,6 +276,30 @@ Future<void> main() async {
   final captureModeController = await CaptureModeController.load(
     SharedPreferencesCaptureModeStore(),
   );
+  const gameFrameReloadChannel = MethodChannel(
+    gameFrameReloadMethodChannelName,
+  );
+  final kanxyGameRoute = Platform.isAndroid
+      ? KanxyGameRoute(
+          reload: (generation) async {
+            final result = await gameFrameReloadChannel.invokeMethod<String>(
+              'reloadKanxyGameFrame',
+              <String, Object>{'generation': generation},
+            );
+            return decodeGameFrameReloadResult(result);
+          },
+          cancelReload: (generation) =>
+              gameFrameReloadChannel.invokeMethod<void>(
+                'cancelKanxyGameFrameReload',
+                <String, Object>{'generation': generation},
+              ),
+          awaitCaptureDispatch: () async {
+            while (gameApiEventPipeline.pendingEventCount > 0) {
+              await gameApiEventPipeline.dispatchIdle;
+            }
+          },
+        )
+      : null;
   final controller = PrototypeStatusController(
     captureEnabled: () => captureModeController.captureEnabled,
   );
@@ -295,7 +324,8 @@ Future<void> main() async {
   final questStore = SharedPreferencesQuestStore(
     accountSession: accountSession,
   );
-  final gameStateStore = GameStateStore();
+  final masterShipNames = await MasterShipNames.loadBundled();
+  final gameStateStore = GameStateStore(masterShipNames: masterShipNames);
   final questProgressDatasetStore = QuestProgressDatasetStore(
     const PreferencesQuestProgressDatasetStorage(),
   );
@@ -303,6 +333,7 @@ Future<void> main() async {
   final questProgressDataset = await questProgressDatasetStore
       .loadBestAvailable(bundledQuestProgressDataset);
   final gameStateController = GameStateController(
+    reducer: GameStateReducer(masterShipNames: masterShipNames),
     accountSession: accountSession,
     questStore: questStore,
     questProgress: QuestProgressEngine(
@@ -603,6 +634,7 @@ Future<void> main() async {
       await gameStateController.idle;
     },
     consumers: <GameApiEventConsumer>[
+      ?kanxyGameRoute,
       accountSession,
       gameStateController,
       sortieExperienceController,
@@ -625,6 +657,7 @@ Future<void> main() async {
   gameCaptureController = GameCaptureController(
     onAcceptedEvent: gameApiEventPipeline.add,
     onCaptureInterrupted: () {
+      kanxyGameRoute?.invalidateDocument();
       gameApiEventPipeline.invalidateQueuedEvents();
       battleController.invalidateCaptureContinuity();
     },
@@ -662,6 +695,10 @@ Future<void> main() async {
     enabled: false,
   );
   const diagnosticPlatform = MethodChannelDiagnosticPlatformPort();
+  final diagnosticKanxyObserver = DiagnosticKanxyObserver(
+    diagnosticRecorder,
+    channel: diagnosticPlatform.channel,
+  );
   final diagnosticApiObserver = DiagnosticGameApiObserver(
     recorder: diagnosticRecorder,
   );
@@ -740,10 +777,12 @@ Future<void> main() async {
     ),
     performanceMonitor: diagnosticPerformanceMonitor,
     onAttachObservers: () {
+      if (Platform.isAndroid) diagnosticKanxyObserver.attach();
       gameApiEventPipeline.observer = diagnosticApiObserver;
       browserController.addListener(recordBrowserState);
     },
     onDetachObservers: () {
+      if (Platform.isAndroid) diagnosticKanxyObserver.detach();
       if (identical(gameApiEventPipeline.observer, diagnosticApiObserver)) {
         gameApiEventPipeline.observer = null;
       }
@@ -822,6 +861,7 @@ Future<void> main() async {
     gameScreenshotController: gameScreenshotController,
     gameCaptureController: gameCaptureController,
     gameApiEventPipeline: gameApiEventPipeline,
+    kanxyGameRoute: kanxyGameRoute,
     kcwikiReportController: kcwikiReportController,
     kcwikiReportConsumer: kcwikiReportConsumer,
     gameStateController: gameStateController,
@@ -1119,6 +1159,7 @@ class YahagiApp extends StatelessWidget {
     required this.toolbarController,
     required this.gameCaptureController,
     this.gameApiEventPipeline,
+    this.kanxyGameRoute,
     this.newShipReminderController,
     this.debuffReminderController,
     this.kcwikiReportController,
@@ -1175,6 +1216,7 @@ class YahagiApp extends StatelessWidget {
   final GameToolbarController toolbarController;
   final GameCaptureController gameCaptureController;
   final GameApiEventPipeline? gameApiEventPipeline;
+  final KanxyGameRoute? kanxyGameRoute;
   final NewShipReminderController? newShipReminderController;
   final DebuffReminderController? debuffReminderController;
   final KcwikiReportController? kcwikiReportController;
@@ -1308,6 +1350,8 @@ class YahagiApp extends StatelessWidget {
                     audioController: audioController,
                     toolbarController: toolbarController,
                     gameCaptureController: gameCaptureController,
+                    kanxyGameRoute: kanxyGameRoute,
+                    gameSurfaceCovered: backupMaintenanceOverlay?.value != null,
                     kcwikiReportController: kcwikiReportController,
                     kcwikiReportConsumer: kcwikiReportConsumer,
                     gameStateController: gameStateController,
@@ -1531,6 +1575,9 @@ class YahagiApp extends StatelessWidget {
     GameLoadEvent event,
     GameRenderingMode? requestedMode,
   ) {
+    if (event.phase == GameLoadPhase.navigationStarted) {
+      kanxyGameRoute?.invalidateDocument();
+    }
     final diagnostics = diagnosticController;
     if (diagnostics == null || !diagnostics.recorder.enabled) return;
     final mode =
@@ -1595,6 +1642,8 @@ class YahagiShell extends StatefulWidget {
     required this.toolbarController,
     required this.gameSurface,
     required this.gameCaptureController,
+    this.kanxyGameRoute,
+    this.gameSurfaceCovered = false,
     this.kcwikiReportController,
     this.kcwikiReportConsumer,
     required this.gameStateController,
@@ -1647,6 +1696,8 @@ class YahagiShell extends StatefulWidget {
   final GameToolbarController toolbarController;
   final Widget gameSurface;
   final GameCaptureController gameCaptureController;
+  final KanxyGameRoute? kanxyGameRoute;
+  final bool gameSurfaceCovered;
   final KcwikiReportController? kcwikiReportController;
   final KcwikiReportConsumer? kcwikiReportConsumer;
   final GameStateController gameStateController;
@@ -1698,14 +1749,20 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   EdgeInsets? _stableFallbackViewPadding;
   EdgeInsets? _stableNativeViewPadding;
   bool _fallbackPaddingGeometryPending = false;
+  bool _gameRouteIsCurrent = false;
   int _workspaceIndex = 0;
   bool _gameFullscreen = false;
   Size? _normalWorkspaceSize;
   bool _gameWorkspaceSizeFrozen = false;
   int? _expeditionCheckFleetId;
   int? _fleetCenterInitialFleetId;
+  int? _fleetCenterInitialShipId;
+  int _fleetOpenRequest = 0;
   int? _repairCenterInitialFleetId;
   int? _questCenterInitialQuestId;
+  int _questOpenRequest = 0;
+  int _sortieListRequest = 0;
+  final _workspaceScrollBuckets = <int, PageStorageBucket>{};
   bool _inventoryShowShips = true;
   bool _inventoryShowOwned = true;
   int _logbookTabIndex = 0;
@@ -1728,16 +1785,24 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   GameReminderDialogPresentation? _headerResourceSettingsPresentation;
   bool? _headerResourceSettingsNative;
 
+  AccountSession get _workspaceAccount =>
+      widget.gameStateController.accountSession ?? AccountSession.shared;
+  late AccountScope _workspaceAccountScope = _workspaceAccount.current;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _workspaceAccountScope = _workspaceAccount.current;
+    _workspaceAccount.addListener(_resetAccountWorkspaceState);
     _windowLayoutController.addListener(_onWindowLayoutChanged);
     unawaited(_windowLayoutController.initialize());
     unawaited(_gameModsController.initialize());
     widget.displayModeController.addListener(_onDisplayModeChanged);
     widget.layoutSettingsController.addListener(_onLayoutSettingsChanged);
     widget.gameRenderingModeController?.addListener(_onHeaderDialogModeChanged);
+    widget.browserController.addListener(_syncKanxyRouteReadiness);
+    widget.captureModeController.addListener(_syncKanxyRouteReadiness);
     _gameFrameReloadChannel.setMethodCallHandler(
       _handleNativeGameFrameReloadMessage,
     );
@@ -1763,10 +1828,15 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _workspaceAccount.removeListener(_resetAccountWorkspaceState);
     _headerResourceSettingsPresentation?.cancel();
     widget.gameRenderingModeController?.removeListener(
       _onHeaderDialogModeChanged,
     );
+    widget.browserController.removeListener(_syncKanxyRouteReadiness);
+    widget.captureModeController.removeListener(_syncKanxyRouteReadiness);
+    widget.kanxyGameRoute?.setReady(false);
+    widget.kanxyGameRoute?.invalidateDocument();
     _gameFrameReloadChannel.setMethodCallHandler(null);
     widget.displayModeController.removeListener(_onDisplayModeChanged);
     widget.layoutSettingsController.removeListener(_onLayoutSettingsChanged);
@@ -1786,6 +1856,24 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   @override
   void didUpdateWidget(covariant YahagiShell oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final oldAccount =
+        oldWidget.gameStateController.accountSession ?? AccountSession.shared;
+    if (!identical(oldAccount, _workspaceAccount)) {
+      oldAccount.removeListener(_resetAccountWorkspaceState);
+      _workspaceAccount.addListener(_resetAccountWorkspaceState);
+      _resetAccountWorkspaceState();
+    }
+    if (oldWidget.browserController != widget.browserController) {
+      oldWidget.browserController.removeListener(_syncKanxyRouteReadiness);
+      widget.browserController.addListener(_syncKanxyRouteReadiness);
+    }
+    if (oldWidget.captureModeController != widget.captureModeController) {
+      oldWidget.captureModeController.removeListener(_syncKanxyRouteReadiness);
+      widget.captureModeController.addListener(_syncKanxyRouteReadiness);
+    }
+    if (oldWidget.kanxyGameRoute != widget.kanxyGameRoute) {
+      oldWidget.kanxyGameRoute?.setReady(false);
+    }
     if (oldWidget.layoutSettingsController != widget.layoutSettingsController) {
       _headerResourceSettingsPresentation?.cancel();
       oldWidget.layoutSettingsController.removeListener(
@@ -1803,6 +1891,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
       );
       _headerResourceSettingsPresentation?.cancel();
     }
+    _syncKanxyRouteReadiness();
   }
 
   void _onHeaderDialogModeChanged() {
@@ -1813,10 +1902,17 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                 (mode?.mode.usesActivityWebView == true))) {
       _headerResourceSettingsPresentation?.cancel();
     }
+    _syncKanxyRouteReadiness();
   }
 
   Future<void> _handleNativeGameFrameReloadMessage(MethodCall call) async {
-    if (call.method != 'shortcutResult' || !mounted) return;
+    if (!mounted) return;
+    if (call.method == 'kanxyRouteChanged') {
+      _syncKanxyRouteReadiness();
+      widget.kanxyGameRoute?.routeChanged(call.arguments);
+      return;
+    }
+    if (call.method != 'shortcutResult') return;
     GameFrameReloadResult result;
     try {
       result = decodeGameFrameReloadResult(call.arguments as String?);
@@ -1836,6 +1932,10 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (widget.kanxyGameRoute != null) {
+      _gameRouteIsCurrent = ModalRoute.isCurrentOf(context) == true;
+      _syncKanxyRouteReadiness();
+    }
     final view = View.of(context);
     _windowMetricsChangeTracker ??= WindowMetricsChangeTracker(
       WindowMetricsSnapshot.fromView(view),
@@ -1919,6 +2019,27 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
     widget.audioController.handleLifecycleState(state);
     widget.screenAwakeController?.handleLifecycleState(state);
     _backgroundGameRetentionCoordinator?.handleLifecycleState(state);
+    _syncKanxyRouteReadiness();
+  }
+
+  void _syncKanxyRouteReadiness() {
+    final route = widget.kanxyGameRoute;
+    if (route == null) return;
+    final captureEnabled = widget.captureModeController.captureEnabled;
+    if (!captureEnabled) route.invalidateDocument();
+    final browser = widget.browserController;
+    route.setReady(
+      mounted &&
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed &&
+          _gameRouteIsCurrent &&
+          _workspaceIndex == 0 &&
+          !widget.gameSurfaceCovered &&
+          captureEnabled &&
+          browser.mode == GameBrowserMode.realWeb &&
+          browser.loadState == GamePageLoadState.ready &&
+          browser.hasAttachedPort &&
+          widget.gameRenderingModeController?.isBusy != true,
+    );
   }
 
   void _scheduleWindowMetricsRecovery() {
@@ -2008,8 +2129,52 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
       if (_gameFullscreen) _setGameFullscreen(false);
     }
     if (_workspaceIndex != index) {
-      setState(() => _workspaceIndex = index);
+      FocusManager.instance.primaryFocus?.unfocus();
+      setState(() {
+        _workspaceIndex = index;
+      });
+      _syncKanxyRouteReadiness();
     }
+  }
+
+  void _resetAccountWorkspaceState() {
+    final scope = _workspaceAccount.current;
+    if (identical(scope, _workspaceAccountScope)) return;
+    setState(() {
+      _workspaceAccountScope = scope;
+      _workspaceScrollBuckets.removeWhere(
+        (index, _) => _isAccountWorkspace(index),
+      );
+      _fleetCenterInitialFleetId = null;
+      _fleetCenterInitialShipId = null;
+      _expeditionCheckFleetId = null;
+      _repairCenterInitialFleetId = null;
+      _questCenterInitialQuestId = null;
+    });
+    _questFilters.clear();
+  }
+
+  bool _isAccountWorkspace(int index) =>
+      (index >= 1 && index <= 7) || index == 9;
+
+  Widget _workspacePane(int index, double scale, Widget page) => PageStorage(
+    // The logbook already keys its tabs by account and keeps its tab controller.
+    key: _isAccountWorkspace(index) && index != 6
+        ? ObjectKey(_workspaceAccountScope)
+        : null,
+    bucket: _workspaceScrollBuckets.putIfAbsent(index, PageStorageBucket.new),
+    child: PrimaryScrollController.none(
+      child: UiScale(scale: scale, child: page),
+    ),
+  );
+
+  void _openFleet(int fleetId, {int? shipId}) {
+    setState(() {
+      _fleetCenterInitialFleetId = fleetId;
+      _fleetCenterInitialShipId = shipId;
+      _fleetOpenRequest++;
+    });
+    _selectWorkspace(1);
   }
 
   void _openDashboardLayoutSettings() {
@@ -2709,9 +2874,17 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                                             _fleetCenterInitialFleetId ??
                                                             1,
                                                         onFleetSelected: (fleetId) {
+                                                          if ((_fleetCenterInitialFleetId ??
+                                                                  1) ==
+                                                              fleetId) {
+                                                            return;
+                                                          }
                                                           setState(() {
+                                                            _fleetCenterInitialShipId =
+                                                                null;
                                                             _fleetCenterInitialFleetId =
                                                                 fleetId;
+                                                            _fleetOpenRequest++;
                                                           });
                                                         },
                                                         inventoryShowShips:
@@ -2797,19 +2970,13 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                                             },
                                                         constructionMode:
                                                             _constructionCenterMode,
-                                                        onConstructionModeChanged: (mode) {
-                                                          setState(() {
-                                                            _constructionCenterMode =
-                                                                mode;
-                                                            if (mode ==
-                                                                ConstructionCenterMode
-                                                                    .development) {
-                                                              _developmentWorkbenchMode =
-                                                                  DevelopmentWorkbenchMode
-                                                                      .calculator;
-                                                            }
-                                                          });
-                                                        },
+                                                        onConstructionModeChanged:
+                                                            (mode) {
+                                                              setState(() {
+                                                                _constructionCenterMode =
+                                                                    mode;
+                                                              });
+                                                            },
                                                         developmentMode:
                                                             _developmentWorkbenchMode,
                                                         onDevelopmentModeChanged:
@@ -2991,16 +3158,6 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                               );
                                           final gameFlex =
                                               (gameAreaRatio * 1000).round();
-                                          // Only a side rail leaves the game
-                                          // column on the bottom screen edge;
-                                          // a stacked workspace puts the
-                                          // panel there. Not tied to the
-                                          // workspace index so the rect holds
-                                          // while the game is offstage.
-                                          final gameTouchesBottom =
-                                              flatShell &&
-                                              isLandscape &&
-                                              !menuHorizontal;
                                           final portraitGamePanelExtra =
                                               portraitGamePanelExtraExtent(
                                                 displayMode: widget
@@ -3013,7 +3170,6 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                           final gameSurfaceWrapper =
                                               GameSurfaceViewport(
                                                 aspectRatio: 1200 / 720,
-                                                viewPadding: gameViewPadding,
                                                 fullscreen: _gameFullscreen,
                                                 isLandscape: isLandscape,
                                                 fullscreenFitAxis:
@@ -3031,8 +3187,6 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                                 fitWithinBounds:
                                                     menuHorizontal &&
                                                     !_gameFullscreen,
-                                                centerAboveBottomInset:
-                                                    gameTouchesBottom,
                                                 child: GameSurfaceBoundary(
                                                   child: widget.gameSurface,
                                                 ),
@@ -3101,13 +3255,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                             battlePredictionSettingsController:
                                                 widget
                                                     .battlePredictionSettingsController,
-                                            onOpenFleet: (fleetId) {
-                                              setState(() {
-                                                _fleetCenterInitialFleetId =
-                                                    fleetId;
-                                              });
-                                              _selectWorkspace(1);
-                                            },
+                                            onOpenFleet: _openFleet,
                                             onOpenRepair: (destination) {
                                               setState(() {
                                                 _repairCenterMode =
@@ -3125,6 +3273,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                               setState(() {
                                                 _questCenterInitialQuestId =
                                                     questId;
+                                                _questOpenRequest++;
                                               });
                                               _selectWorkspace(5);
                                             },
@@ -3472,302 +3621,333 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                     ),
                                   ),
                                 ),
-                                UiScale(
-                                  // Settings keep standard control sizes in every mode.
-                                  scale: _workspaceIndex == 8 ? 1.0 : uiScale,
-                                  child: Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      if (_workspaceIndex == 1)
-                                        FleetInformationCenter(
-                                          controller:
-                                              widget.gameStateController,
-                                          moraleRecoveryTimerController: widget
-                                              .moraleRecoveryTimerController,
-                                          moraleMetricMode: widget
-                                              .layoutSettingsController
-                                              .fleetMoraleMetricMode,
-                                          onToggleMoraleMetricMode: widget
-                                              .layoutSettingsController
-                                              .toggleFleetMoraleMetricMode,
-                                          damagePulseMode: widget
-                                              .safetySettingsController
-                                              .battleStatusEffects
-                                              .pulseFilterFor(
-                                                BattleEffectSurface.fleet,
-                                              ),
-                                          moraleSparkleMode: widget
-                                              .safetySettingsController
-                                              .battleStatusEffects
-                                              .sparkleModeFor(
-                                                BattleEffectSurface.fleet,
-                                              ),
-                                          page: FleetInformationPage.fleet,
-                                          initialFleetId:
-                                              _fleetCenterInitialFleetId,
-                                          showContextHeader: false,
-                                        ),
-                                      if (_workspaceIndex == 2)
-                                        FleetInformationCenter(
-                                          controller:
-                                              widget.gameStateController,
-                                          page: FleetInformationPage.expedition,
-                                          initialFleetId:
-                                              _expeditionCheckFleetId,
-                                          onFleetSelected: (fleetId) {
-                                            setState(() {
-                                              _expeditionCheckFleetId = fleetId;
-                                            });
-                                          },
-                                          showContextHeader: false,
-                                          expeditionMode: _expeditionCenterMode,
-                                          onExpeditionModeChanged: (mode) {
-                                            setState(
-                                              () =>
-                                                  _expeditionCenterMode = mode,
-                                            );
-                                          },
-                                        ),
-                                      if (_workspaceIndex == 3)
-                                        FleetInformationCenter(
-                                          controller:
-                                              widget.gameStateController,
-                                          page: FleetInformationPage.repair,
-                                          initialFleetId:
-                                              _repairCenterInitialFleetId,
-                                          onFleetSelected: (fleetId) {
-                                            setState(() {
-                                              _repairCenterInitialFleetId =
-                                                  fleetId;
-                                            });
-                                          },
-                                          showContextHeader: false,
-                                          repairMode: _repairCenterMode,
-                                          onRepairModeChanged: (mode) {
-                                            setState(
-                                              () => _repairCenterMode = mode,
-                                            );
-                                          },
-                                          showRepairModeTabs: false,
-                                        ),
-                                      if (_workspaceIndex == 4)
-                                        FleetInformationCenter(
-                                          controller:
-                                              widget.gameStateController,
-                                          page:
-                                              FleetInformationPage.construction,
-                                          showContextHeader: false,
-                                          constructionMode:
-                                              _constructionCenterMode,
-                                          developmentRepository:
-                                              _developmentRepository,
-                                          developmentMode:
-                                              _developmentWorkbenchMode,
-                                          onDevelopmentModeChanged: (mode) {
-                                            setState(
-                                              () => _developmentWorkbenchMode =
-                                                  mode,
-                                            );
-                                          },
-                                          improvementController: widget
-                                              .improvementPlannerController,
-                                        ),
-                                      if (_workspaceIndex == 5)
-                                        QuestCenterPage(
-                                          controller:
-                                              widget.gameStateController,
-                                          displayMode: screenDisplayMode,
-                                          catalogController:
-                                              widget.questCatalogController,
-                                          initialQuestId:
-                                              _questCenterInitialQuestId,
-                                          showTitle: false,
-                                          mode: _questCenterMode,
-                                          filterController: _questFilters,
-                                          translationEnabled:
-                                              _questTranslationEnabled,
-                                          onTranslationChanged: (enabled) {
-                                            setState(
-                                              () => _questTranslationEnabled =
-                                                  enabled,
-                                            );
-                                          },
-                                          onModeChanged: (mode) {
-                                            setState(
-                                              () => _questCenterMode = mode,
-                                            );
-                                          },
-                                        ),
-                                      if (_workspaceIndex == 6)
-                                        LogbookPage(
-                                          battleController:
-                                              widget.battleController,
-                                          sortieExperienceController:
-                                              widget.sortieExperienceController,
-                                          selectedTabIndex: _logbookTabIndex,
-                                          onTabChanged: (value) {
-                                            setState(
-                                              () => _logbookTabIndex = value,
-                                            );
-                                          },
-                                        ),
-                                      if (_workspaceIndex == 7)
-                                        OwnedInventoryPage(
-                                          controller:
-                                              widget.gameStateController,
-                                          reminderController:
-                                              widget.newShipReminderController,
-                                          showOwned: _inventoryShowOwned,
-                                          onOwnershipChanged: (value) {
-                                            setState(
-                                              () => _inventoryShowOwned = value,
-                                            );
-                                          },
-                                          showShips: _inventoryShowShips,
-                                          onSectionChanged: (value) {
-                                            setState(
-                                              () => _inventoryShowShips = value,
-                                            );
-                                          },
-                                          showSectionControl: false,
-                                        ),
-                                      if (_workspaceIndex == 8)
-                                        SettingsPage(
-                                          layoutSettingsController:
-                                              widget.layoutSettingsController,
-                                          networkSettingsController:
-                                              widget.networkSettingsController,
-                                          gadgetBypassController:
-                                              widget.gadgetBypassController,
-                                          audioController:
-                                              widget.audioController,
-                                          captureModeController:
-                                              widget.captureModeController,
-                                          browserController:
-                                              widget.browserController,
-                                          gameCaptureController:
-                                              widget.gameCaptureController,
-                                          kcwikiReportController:
-                                              widget.kcwikiReportController,
-                                          prototypeStatusController:
-                                              widget.controller,
-                                          gameStateController:
-                                              widget.gameStateController,
-                                          senkaController:
-                                              widget.senkaController,
-                                          gameResourceCacheController: widget
-                                              .gameResourceCacheController,
-                                          safetySettingsController:
-                                              widget.safetySettingsController,
-                                          notificationSettingsController: widget
-                                              .notificationSettingsController,
-                                          battlePredictionSettingsController: widget
-                                              .battlePredictionSettingsController,
-                                          gameFrameRateSettingsController: widget
-                                              .gameFrameRateSettingsController,
-                                          gameRenderingModeController: widget
-                                              .gameRenderingModeController,
-                                          gameConnectorController:
-                                              widget.gameConnectorController,
-                                          backgroundGameRetentionController: widget
-                                              .backgroundGameRetentionController,
-                                          appExitSettingsController:
-                                              widget.appExitSettingsController,
-                                          isBattleActive:
-                                              widget.battleController.session !=
-                                                  null &&
-                                              !widget
-                                                  .battleController
-                                                  .session!
-                                                  .completed,
-                                          displayModeController:
-                                              widget.displayModeController,
-                                          currentVersion: widget.currentVersion,
-                                          releaseChecker: widget.releaseChecker,
-                                          screenAwakeController:
-                                              widget.screenAwakeController,
-                                          gameMouseWheelSettingsController: widget
-                                              .gameMouseWheelSettingsController,
-                                          gameFrameRefreshShortcutSettings: widget
-                                              .gameFrameRefreshShortcutSettings,
-                                          shipSubtitleSettingsController: widget
-                                              .shipSubtitleSettingsController,
-                                          shipSubtitleCatalogController: widget
-                                              .shipSubtitleCatalogController,
-                                          shipSubtitleRuntimeController: widget
-                                              .shipSubtitleRuntimeController,
-                                          toolbarDisplayController:
-                                              widget.toolbarDisplayController,
-                                          fcdMapController:
-                                              widget.fcdMapController,
-                                          questCatalogController:
-                                              widget.questCatalogController,
-                                          questProgressRulesController: widget
-                                              .questProgressRulesController,
+                                LazyIndexedStack(
+                                  index: _workspaceIndex,
+                                  sizing: StackFit.expand,
+                                  children: [
+                                    const SizedBox.shrink(),
+                                    _workspacePane(
+                                      1,
+                                      uiScale,
+                                      FleetInformationCenter(
+                                        key: ValueKey(_fleetOpenRequest),
+                                        controller: widget.gameStateController,
+                                        moraleRecoveryTimerController: widget
+                                            .moraleRecoveryTimerController,
+                                        moraleMetricMode: widget
+                                            .layoutSettingsController
+                                            .fleetMoraleMetricMode,
+                                        onToggleMoraleMetricMode: widget
+                                            .layoutSettingsController
+                                            .toggleFleetMoraleMetricMode,
+                                        damagePulseMode: widget
+                                            .safetySettingsController
+                                            .battleStatusEffects
+                                            .pulseFilterFor(
+                                              BattleEffectSurface.fleet,
+                                            ),
+                                        moraleSparkleMode: widget
+                                            .safetySettingsController
+                                            .battleStatusEffects
+                                            .sparkleModeFor(
+                                              BattleEffectSurface.fleet,
+                                            ),
+                                        page: FleetInformationPage.fleet,
+                                        initialFleetId:
+                                            _fleetCenterInitialFleetId,
+                                        initialShipId:
+                                            _fleetCenterInitialShipId,
+                                        showContextHeader: false,
+                                      ),
+                                    ),
+                                    _workspacePane(
+                                      2,
+                                      uiScale,
+                                      FleetInformationCenter(
+                                        controller: widget.gameStateController,
+                                        page: FleetInformationPage.expedition,
+                                        initialFleetId: _expeditionCheckFleetId,
+                                        onFleetSelected: (fleetId) {
+                                          setState(() {
+                                            _expeditionCheckFleetId = fleetId;
+                                          });
+                                        },
+                                        showContextHeader: false,
+                                        expeditionMode: _expeditionCenterMode,
+                                        onExpeditionModeChanged: (mode) {
+                                          setState(
+                                            () => _expeditionCenterMode = mode,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    _workspacePane(
+                                      3,
+                                      uiScale,
+                                      FleetInformationCenter(
+                                        controller: widget.gameStateController,
+                                        page: FleetInformationPage.repair,
+                                        initialFleetId:
+                                            _repairCenterInitialFleetId,
+                                        onFleetSelected: (fleetId) {
+                                          setState(() {
+                                            _repairCenterInitialFleetId =
+                                                fleetId;
+                                          });
+                                        },
+                                        showContextHeader: false,
+                                        repairMode: _repairCenterMode,
+                                        onRepairModeChanged: (mode) {
+                                          setState(
+                                            () => _repairCenterMode = mode,
+                                          );
+                                        },
+                                        showRepairModeTabs: false,
+                                      ),
+                                    ),
+                                    _workspacePane(
+                                      4,
+                                      uiScale,
+                                      FleetInformationCenter(
+                                        controller: widget.gameStateController,
+                                        page: FleetInformationPage.construction,
+                                        showContextHeader: false,
+                                        constructionMode:
+                                            _constructionCenterMode,
+                                        developmentRepository:
+                                            _developmentRepository,
+                                        developmentMode:
+                                            _developmentWorkbenchMode,
+                                        onDevelopmentModeChanged: (mode) {
+                                          setState(
+                                            () => _developmentWorkbenchMode =
+                                                mode,
+                                          );
+                                        },
+                                        improvementController:
+                                            widget.improvementPlannerController,
+                                      ),
+                                    ),
+                                    _workspacePane(
+                                      5,
+                                      uiScale,
+                                      QuestCenterPage(
+                                        controller: widget.gameStateController,
+                                        displayMode: screenDisplayMode,
+                                        catalogController:
+                                            widget.questCatalogController,
+                                        initialQuestId:
+                                            _questCenterInitialQuestId,
+                                        questOpenRequest: _questOpenRequest,
+                                        showTitle: false,
+                                        mode: _questCenterMode,
+                                        filterController: _questFilters,
+                                        translationEnabled:
+                                            _questTranslationEnabled,
+                                        onTranslationChanged: (enabled) {
+                                          setState(
+                                            () => _questTranslationEnabled =
+                                                enabled,
+                                          );
+                                        },
+                                        onModeChanged: (mode) {
+                                          setState(
+                                            () => _questCenterMode = mode,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    _workspacePane(
+                                      6,
+                                      uiScale,
+                                      LogbookPage(
+                                        battleController:
+                                            widget.battleController,
+                                        sortieExperienceController:
+                                            widget.sortieExperienceController,
+                                        workspaceVisible: _workspaceIndex == 6,
+                                        sortieListRequest: _sortieListRequest,
+                                        selectedTabIndex: _logbookTabIndex,
+                                        onTabChanged: (value) {
+                                          setState(
+                                            () => _logbookTabIndex = value,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    _workspacePane(
+                                      7,
+                                      uiScale,
+                                      OwnedInventoryPage(
+                                        controller: widget.gameStateController,
+                                        accountSession: _workspaceAccount,
+                                        reminderController:
+                                            widget.newShipReminderController,
+                                        showOwned: _inventoryShowOwned,
+                                        onOwnershipChanged: (value) {
+                                          setState(
+                                            () => _inventoryShowOwned = value,
+                                          );
+                                        },
+                                        showShips: _inventoryShowShips,
+                                        onSectionChanged: (value) {
+                                          setState(
+                                            () => _inventoryShowShips = value,
+                                          );
+                                        },
+                                        showSectionControl: false,
+                                      ),
+                                    ),
+                                    _workspacePane(
+                                      8,
+                                      1,
+                                      SettingsPage(
+                                        layoutSettingsController:
+                                            widget.layoutSettingsController,
+                                        networkSettingsController:
+                                            widget.networkSettingsController,
+                                        gadgetBypassController:
+                                            widget.gadgetBypassController,
+                                        audioController: widget.audioController,
+                                        captureModeController:
+                                            widget.captureModeController,
+                                        browserController:
+                                            widget.browserController,
+                                        gameCaptureController:
+                                            widget.gameCaptureController,
+                                        kcwikiReportController:
+                                            widget.kcwikiReportController,
+                                        prototypeStatusController:
+                                            widget.controller,
+                                        gameStateController:
+                                            widget.gameStateController,
+                                        senkaController: widget.senkaController,
+                                        gameResourceCacheController:
+                                            widget.gameResourceCacheController,
+                                        safetySettingsController:
+                                            widget.safetySettingsController,
+                                        notificationSettingsController: widget
+                                            .notificationSettingsController,
+                                        battlePredictionSettingsController: widget
+                                            .battlePredictionSettingsController,
+                                        gameFrameRateSettingsController: widget
+                                            .gameFrameRateSettingsController,
+                                        gameRenderingModeController:
+                                            widget.gameRenderingModeController,
+                                        gameConnectorController:
+                                            widget.gameConnectorController,
+                                        backgroundGameRetentionController: widget
+                                            .backgroundGameRetentionController,
+                                        appExitSettingsController:
+                                            widget.appExitSettingsController,
+                                        isBattleActive:
+                                            widget.battleController.session !=
+                                                null &&
+                                            !widget
+                                                .battleController
+                                                .session!
+                                                .completed,
+                                        displayModeController:
+                                            widget.displayModeController,
+                                        currentVersion: widget.currentVersion,
+                                        releaseChecker: widget.releaseChecker,
+                                        screenAwakeController:
+                                            widget.screenAwakeController,
+                                        gameMouseWheelSettingsController: widget
+                                            .gameMouseWheelSettingsController,
+                                        gameFrameRefreshShortcutSettings: widget
+                                            .gameFrameRefreshShortcutSettings,
+                                        shipSubtitleSettingsController: widget
+                                            .shipSubtitleSettingsController,
+                                        shipSubtitleCatalogController: widget
+                                            .shipSubtitleCatalogController,
+                                        shipSubtitleRuntimeController: widget
+                                            .shipSubtitleRuntimeController,
+                                        toolbarDisplayController:
+                                            widget.toolbarDisplayController,
+                                        fcdMapController:
+                                            widget.fcdMapController,
+                                        questCatalogController:
+                                            widget.questCatalogController,
+                                        questProgressRulesController:
+                                            widget.questProgressRulesController,
+                                        sortieMapCatalogController:
+                                            widget.sortieMapCatalogController,
+                                        enemyCatalogController:
+                                            widget.enemyCatalogController,
+                                        improvementPlannerController:
+                                            widget.improvementPlannerController,
+                                        showTitle: false,
+                                        showDeveloperDiagnostics:
+                                            widget.showDeveloperDiagnostics,
+                                        diagnosticController:
+                                            widget.diagnosticController,
+                                        telemetryController:
+                                            widget.telemetryController,
+                                        selectedIndex: _settingsTabIndex,
+                                        onEditHeaderResources:
+                                            _openHeaderResourceSettings,
+                                        onEditDashboardLayout:
+                                            _openDashboardLayoutSettings,
+                                        onEditHdLayout:
+                                            widget
+                                                .layoutSettingsController
+                                                .hdSettings
+                                                .enabled
+                                            ? _openDashboardLayoutSettings
+                                            : null,
+                                      ),
+                                    ),
+                                    _workspacePane(
+                                      9,
+                                      uiScale,
+                                      widget.senkaController == null
+                                          ? const SizedBox.shrink()
+                                          : SenkaPage(
+                                              controller:
+                                                  widget.senkaController!,
+                                              accountSession:
+                                                  widget
+                                                      .gameStateController
+                                                      .accountSession ??
+                                                  LogbookDatabase
+                                                      .accountSession,
+                                              mode: _senkaCenterMode,
+                                              workspaceVisible:
+                                                  _workspaceIndex == 9,
+                                              onOpenSortieLog: () {
+                                                setState(() {
+                                                  _logbookTabIndex = 0;
+                                                  _sortieListRequest++;
+                                                });
+                                                _selectWorkspace(6);
+                                              },
+                                            ),
+                                    ),
+                                    _workspacePane(
+                                      10,
+                                      uiScale,
+                                      AnimatedBuilder(
+                                        animation: widget.gameStateController,
+                                        builder: (context, _) => ToolboxPage(
+                                          state:
+                                              widget.gameStateController.state,
+                                          mode: _toolboxMode,
+                                          workspaceVisible:
+                                              _workspaceIndex == 10,
+                                          gameModsController:
+                                              _gameModsController,
+                                          compositionDraftController:
+                                              _compositionDraftController ??=
+                                                  CompositionImageDraftController(),
                                           sortieMapCatalogController:
                                               widget.sortieMapCatalogController,
                                           enemyCatalogController:
                                               widget.enemyCatalogController,
-                                          improvementPlannerController: widget
-                                              .improvementPlannerController,
-                                          showTitle: false,
-                                          showDeveloperDiagnostics:
-                                              widget.showDeveloperDiagnostics,
-                                          diagnosticController:
-                                              widget.diagnosticController,
-                                          telemetryController:
-                                              widget.telemetryController,
-                                          selectedIndex: _settingsTabIndex,
-                                          onEditHeaderResources:
-                                              _openHeaderResourceSettings,
-                                          onEditDashboardLayout:
-                                              _openDashboardLayoutSettings,
-                                          onEditHdLayout:
-                                              widget
-                                                  .layoutSettingsController
-                                                  .hdSettings
-                                                  .enabled
-                                              ? _openDashboardLayoutSettings
-                                              : null,
                                         ),
-                                      if (_workspaceIndex == 9 &&
-                                          widget.senkaController != null)
-                                        SenkaPage(
-                                          controller: widget.senkaController!,
-                                          accountSession:
-                                              widget
-                                                  .gameStateController
-                                                  .accountSession ??
-                                              LogbookDatabase.accountSession,
-                                          mode: _senkaCenterMode,
-                                          onOpenSortieLog: () {
-                                            setState(
-                                              () => _logbookTabIndex = 0,
-                                            );
-                                            _selectWorkspace(6);
-                                          },
-                                        ),
-                                      if (_workspaceIndex == 10)
-                                        AnimatedBuilder(
-                                          animation: widget.gameStateController,
-                                          builder: (context, _) => ToolboxPage(
-                                            state: widget
-                                                .gameStateController
-                                                .state,
-                                            mode: _toolboxMode,
-                                            gameModsController:
-                                                _gameModsController,
-                                            compositionDraftController:
-                                                _compositionDraftController ??=
-                                                    CompositionImageDraftController(),
-                                            sortieMapCatalogController: widget
-                                                .sortieMapCatalogController,
-                                            enemyCatalogController:
-                                                widget.enemyCatalogController,
-                                          ),
-                                        ),
-                                    ],
-                                  ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -4267,7 +4447,7 @@ class _InformationPanel extends StatefulWidget {
   final MoraleRecoveryTimerController? moraleRecoveryTimerController;
   final BattleController battleController;
   final BattlePredictionSettingsController? battlePredictionSettingsController;
-  final ValueChanged<int> onOpenFleet;
+  final void Function(int fleetId, {int? shipId}) onOpenFleet;
   final ValueChanged<RepairDestination> onOpenRepair;
   final VoidCallback onOpenConstruction;
   final VoidCallback onOpenExpedition;
@@ -4498,6 +4678,8 @@ class _InformationPanelState extends State<_InformationPanel> {
                   collapsed: isCollapsed,
                   onToggleCollapse: editing ? () {} : toggle,
                   onOpenFleet: widget.onOpenFleet,
+                  onOpenShip: (fleetId, shipId) =>
+                      widget.onOpenFleet(fleetId, shipId: shipId),
                 ),
                 'land_base' => LandBaseSummaryCard(
                   showLogo: widget.layoutSettingsController.moduleShowLogo(

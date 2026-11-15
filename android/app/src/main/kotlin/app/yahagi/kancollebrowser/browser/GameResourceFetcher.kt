@@ -133,6 +133,7 @@ class HttpUrlConnectionGameResourceFetcher(
             val connection = connectionFactory(current, proxyProvider()) ?: return null
             try {
                 connection.instanceFollowRedirects = false
+                connection.useCaches = false
                 connection.connectTimeout = minOf(connectTimeoutMs.toLong(), remaining).coerceAtLeast(1).toInt()
                 connection.readTimeout = minOf(readTimeoutMs.toLong(), remaining).coerceAtLeast(1).toInt()
                 connection.requestMethod = "GET"

@@ -3940,6 +3940,39 @@ void main() {
     expect(fixture.statusController.loadState, WebViewLoadState.loading);
   });
 
+  testWidgets('HTTP proxy startup waits past the native cleanup deadline', (
+    tester,
+  ) async {
+    final fixture = _SurfaceFixture();
+    addTearDown(fixture.dispose);
+    fixture.networkSettingsController.settingsValue = const NetworkSettings(
+      mode: NetworkMode.httpProxy,
+      host: '127.0.0.1',
+      port: 7410,
+    );
+    final network = Completer<GameSurfaceNetworkResult>();
+    fixture.orchestrator.networkCompleter = network;
+    await fixture.pump(tester);
+    await _pumpUntil(tester, () => fixture.orchestrator.applyNetworkCalls == 1);
+    await tester.pump(const Duration(seconds: 3));
+
+    expect(find.byKey(const Key('native-game-surface-error')), findsNothing);
+    expect(
+      fixture.port.calls.where((call) => call.startsWith('load:')),
+      isEmpty,
+    );
+
+    network.complete(const GameSurfaceNetworkResult.success());
+    await _pumpUntil(
+      tester,
+      () => fixture.port.calls.any((call) => call.startsWith('load:')),
+    );
+    expect(
+      fixture.port.calls.where((call) => call.startsWith('load:')),
+      hasLength(1),
+    );
+  });
+
   testWidgets('network retry resumes initial startup once after success', (
     tester,
   ) async {
@@ -3971,6 +4004,7 @@ void main() {
     fixture.networkSettingsController.emitChange();
     await tester.pump();
     expect(fixture.orchestrator.applyNetworkCalls, 2);
+    await tester.pump(const Duration(seconds: 3));
 
     retry.complete(const GameSurfaceNetworkResult.success());
     await _pumpUntil(

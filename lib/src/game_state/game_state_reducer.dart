@@ -7,11 +7,16 @@ import 'combat_state.dart';
 import 'game_api_decoder.dart';
 import 'game_state.dart';
 import 'land_base_raid.dart';
+import 'master_ship_names.dart';
 import 'quest_text_normalizer.dart';
 
 export 'game_api_decoder.dart' show GameApiParseException;
 
 class GameStateReducer {
+  GameStateReducer({this.masterShipNames = const MasterShipNames()});
+
+  final MasterShipNames masterShipNames;
+
   bool supportsPath(String path) =>
       GameCapturePathCatalog.gameState.contains(path);
 
@@ -1533,10 +1538,17 @@ class GameStateReducer {
     for (final value in _optionalList(data['api_mst_ship'])) {
       final item = _optionalMap(value);
       final id = _asInt(item?['api_id']);
-      final name = _asString(item?['api_name']);
-      if (item == null || id <= 0 || name.isEmpty) {
+      if (item == null || id <= 0) {
         continue;
       }
+      final reading = _asString(item['api_yomi']);
+      final name = masterShipNames.resolve(
+        id,
+        item['api_name'],
+        previous: state.masterShips[id]?.name,
+        reading: reading,
+      );
+      if (name.isEmpty) continue;
       final portrait = portraitData[id];
       final shipTypeId = _asInt(item['api_stype']);
       final shipOverride = _optionalMap(shipEquipOverrides?['$id']);
@@ -1554,7 +1566,7 @@ class GameStateReducer {
       ships[id] = MasterShip(
         id: id,
         name: name,
-        reading: _asString(item['api_yomi'], ''),
+        reading: reading,
         shipTypeId: shipTypeId,
         afterShipId: _asInt(item['api_aftershipid']),
         afterLv: _asInt(item['api_afterlv']),

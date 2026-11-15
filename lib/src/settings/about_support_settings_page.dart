@@ -79,43 +79,57 @@ class AboutSupportSettingsPage extends StatelessWidget with SettingsUIHelpers {
       context,
       'settingsGroupDiagnosticsSupport',
     );
+    Future<void> openDiagnostics() => openSettingsDetail(
+      context,
+      title: title,
+      child: Column(
+        children: [
+          if (diagnosticController case final diagnostics?) ...[
+            AnimatedBuilder(
+              animation: diagnostics,
+              builder: (context, _) => buildSwitchTile(
+                switchKey: const Key('diagnosticLoggingSwitch'),
+                title: l10n.diagnosticLoggingTitle,
+                subtitle: l10n.diagnosticLoggingDesc,
+                value: diagnostics.enabled,
+                onChanged: diagnostics.setEnabled,
+              ),
+            ),
+            const Divider(height: 1),
+            DiagnosticUserSection(controller: diagnostics),
+          ],
+          if (_hasDeveloperDiagnostics) ...[
+            if (diagnosticController != null) const Divider(height: 1),
+            DiagnosticsSection(
+              browserController: browserController!,
+              captureModeController: captureModeController!,
+              gameCaptureController: gameCaptureController!,
+              prototypeStatusController: prototypeStatusController!,
+              gameRenderingModeController: gameRenderingModeController,
+            ),
+          ],
+        ],
+      ),
+    );
+
     final entry = buildActionTile(
       key: const Key('settings-diagnostics-entry'),
       title: title,
       subtitle: l10n.diagnosticLoggingDesc,
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => openSettingsDetail(
-        context,
-        title: title,
-        child: Column(
-          children: [
-            if (diagnosticController case final diagnostics?) ...[
-              AnimatedBuilder(
-                animation: diagnostics,
-                builder: (context, _) => buildSwitchTile(
-                  switchKey: const Key('diagnosticLoggingSwitch'),
-                  title: l10n.diagnosticLoggingTitle,
-                  subtitle: l10n.diagnosticLoggingDesc,
-                  value: diagnostics.enabled,
-                  onChanged: diagnostics.setEnabled,
-                ),
-              ),
-              const Divider(height: 1),
-              DiagnosticUserSection(controller: diagnostics),
-            ],
-            if (_hasDeveloperDiagnostics) ...[
-              if (diagnosticController != null) const Divider(height: 1),
-              DiagnosticsSection(
-                browserController: browserController!,
-                captureModeController: captureModeController!,
-                gameCaptureController: gameCaptureController!,
-                prototypeStatusController: prototypeStatusController!,
-                gameRenderingModeController: gameRenderingModeController,
-              ),
-            ],
-          ],
+      trailing: FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: appColor(context, const Color(0xffd4a85f)),
+          foregroundColor: appOnAccentColor(context, const Color(0xff332914)),
+          minimumSize: const Size(36, 36),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: const StadiumBorder(),
+          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
         ),
+        onPressed: openDiagnostics,
+        child: Text(l10n.diagnosticExportAction),
       ),
+      onTap: openDiagnostics,
     );
     return Column(children: [const Divider(height: 1), entry]);
   }

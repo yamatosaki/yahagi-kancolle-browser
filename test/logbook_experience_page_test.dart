@@ -16,7 +16,7 @@ import 'fixtures/kcsapi_fixtures.dart';
 const _experienceTable = Key('logbook-table-experience');
 
 void main() {
-  testWidgets('experience opens latest and shows unnumbered ships in order', (
+  testWidgets('experience starts collapsed and shows ship details on tap', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -36,6 +36,15 @@ void main() {
       );
       expect(find.text('演习'), findsOneWidget);
       expect(find.text('已结算 1 场战斗'), findsOneWidget);
+      expect(find.text('本次演习经验'), findsNothing);
+      expect(find.text('本次出击经验'), findsNothing);
+      expect(find.text('吹雪改二'), findsNothing);
+
+      await tester.tap(
+        find.byKey(const Key('logbook-experience-record-practice')),
+      );
+      await tester.pumpAndSettle();
+
       expect(find.text('本次演习经验'), findsOneWidget);
       expect(find.text('吹雪改二'), findsOneWidget);
       expect(find.text('深雪改二'), findsOneWidget);
@@ -47,9 +56,12 @@ void main() {
         tester.getTopLeft(find.text('吹雪改二')).dy,
         lessThan(tester.getTopLeft(find.text('深雪改二')).dy),
       );
-      expect(find.text('1'), findsNothing);
+      expect(_mvpText(tester, 41), '1');
+      expect(_mvpText(tester, 22), '0');
       expect(find.text('大和改二'), findsNothing);
 
+      tester.view.physicalSize = const Size(900, 740);
+      await tester.pumpAndSettle();
       await tester.tap(
         find.byKey(const Key('logbook-experience-record-sortie')),
       );
@@ -63,15 +75,25 @@ void main() {
       expect(find.text('矢矧改二乙'), findsOneWidget);
       expect(find.text('未捕获').hitTestable(), findsOneWidget);
       expect(find.text('0').hitTestable(), findsOneWidget);
+      expect(_mvpText(tester, 11), '—');
+      final expX = tester.getTopLeft(find.text('本次出击经验')).dx;
+      final levelX = tester.getTopLeft(find.text('等级')).dx;
+      final mvpX = tester.getTopLeft(find.text('MVP 次数')).dx;
+      expect(expX - levelX, inExclusiveRange(0, 110));
+      expect(mvpX, greaterThan(expX));
       expect(find.text('吹雪改二'), findsNothing);
       expect(tester.takeException(), isNull);
     });
   });
 
-  testWidgets('experience opens a newly completed record on refresh', (
+  testWidgets('experience refresh keeps only the record opened by the user', (
     tester,
   ) async {
     await _withLogbook(tester, [_sortie], (database) async {
+      final sortie = find.byKey(const Key('logbook-experience-record-sortie'));
+      expect(find.text('大和改二'), findsNothing);
+      await tester.tap(sortie);
+      await tester.pumpAndSettle();
       expect(find.text('大和改二'), findsOneWidget);
 
       await tester.runAsync(() async {
@@ -80,8 +102,78 @@ void main() {
       });
       await tester.pumpAndSettle();
 
-      expect(find.text('吹雪改二'), findsOneWidget);
+      expect(find.text('演习'), findsOneWidget);
+      expect(find.text('吹雪改二'), findsNothing);
+      expect(find.text('大和改二'), findsOneWidget);
+
+      await tester.tap(sortie);
+      await tester.pumpAndSettle();
       expect(find.text('大和改二'), findsNothing);
+    });
+  });
+
+  testWidgets('experience details collapse when leaving tab or workspace', (
+    tester,
+  ) async {
+    await _withLogbook(tester, [_sortie], (database) async {
+      final page = tester.widget<LogbookPage>(find.byType(LogbookPage));
+      final sortie = find.byKey(const Key('logbook-experience-record-sortie'));
+
+      await tester.tap(sortie);
+      await tester.pumpAndSettle();
+      expect(find.text('大和改二'), findsOneWidget);
+
+      await tester.pumpWidget(_app(page.battleController, database, tab: 2));
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(_app(page.battleController, database));
+      await tester.pumpAndSettle();
+      expect(sortie, findsOneWidget);
+      expect(find.text('大和改二'), findsNothing);
+
+      await tester.tap(sortie);
+      await tester.pumpAndSettle();
+      expect(find.text('大和改二'), findsOneWidget);
+      await tester.pumpWidget(
+        _app(page.battleController, database, workspaceVisible: false),
+      );
+      await tester.pumpAndSettle();
+      await tester.pumpWidget(_app(page.battleController, database));
+      await tester.pumpAndSettle();
+      expect(sortie, findsOneWidget);
+      expect(find.text('大和改二'), findsNothing);
+    });
+  });
+
+  testWidgets('experience keeps the visible record when a newer one arrives', (
+    tester,
+  ) async {
+    LogbookExperienceRecord record(int index) => LogbookExperienceRecord(
+      eventKey: 'record-$index',
+      completedAt: _sortie.completedAt.add(Duration(minutes: index)),
+      isPractice: false,
+      mapAreaId: _sortie.mapAreaId,
+      mapInfoNo: _sortie.mapInfoNo,
+      deckId: _sortie.deckId,
+      battles: _sortie.battles,
+      ships: _sortie.ships,
+    );
+
+    await _withLogbook(tester, List.generate(24, record), (database) async {
+      final tableScroll = tester
+          .widget<ListView>(
+            find.byKey(const Key('logbook-experience-body-scroll')),
+          )
+          .controller!;
+      tableScroll.jumpTo(225);
+      await tester.pumpAndSettle();
+      await tester.runAsync(() => database.insertExperienceRecord(record(24)));
+      await tester.pumpAndSettle();
+
+      final table = tester.widget<FrozenDataTable>(
+        find.byKey(_experienceTable),
+      );
+      expect(table.rowHeights, hasLength(25));
+      expect(tableScroll.offset, closeTo(225 + table.rowHeights.first, .1));
     });
   });
 
@@ -179,6 +271,10 @@ void main() {
         await database.getExperienceRecords();
       });
       await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const Key('logbook-experience-record-copies')),
+      );
+      await tester.pumpAndSettle();
 
       final names = tester.widgetList<Text>(find.text(name));
       expect(names, hasLength(2));
@@ -232,6 +328,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(controller.progressFor(41), (level: 44, nextExperience: 90));
+      expect(find.text(name), findsNothing);
+      await tester.tap(
+        find.byKey(const Key('logbook-experience-record-copies')),
+      );
+      await tester.pumpAndSettle();
       expectMetric('level', 41, 'Lv.—');
       expectMetric('next', 41, 'Next. —');
       expectMetric('value', 41, '+320');
@@ -246,6 +347,12 @@ void main() {
     }
   });
 }
+
+String? _mvpText(WidgetTester tester, int id) => tester
+    .widget<Text>(
+      find.byKey(ValueKey('logbook-experience-mvp-$id')).hitTestable(),
+    )
+    .data;
 
 Future<void> _withLogbook(
   WidgetTester tester,
@@ -279,6 +386,8 @@ Widget _app(
   LogbookDatabase database, {
   SortieExperienceController? controller,
   double textScale = 1,
+  int tab = 6,
+  bool workspaceVisible = true,
 }) => MaterialApp(
   locale: const Locale('zh'),
   localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -296,7 +405,8 @@ Widget _app(
         battleController: battle,
         database: database,
         sortieExperienceController: controller,
-        selectedTabIndex: 6,
+        selectedTabIndex: tab,
+        workspaceVisible: workspaceVisible,
       ),
     ),
   ),
@@ -317,6 +427,7 @@ final _practice = LogbookExperienceRecord(
       name: '吹雪改二',
       fleetId: 2,
       experience: 320,
+      mvpCount: 1,
     ),
     LogbookExperienceShip(
       ownedShipId: 22,
@@ -324,6 +435,7 @@ final _practice = LogbookExperienceRecord(
       name: '深雪改二',
       fleetId: 2,
       experience: 1240,
+      mvpCount: 0,
     ),
   ],
 );

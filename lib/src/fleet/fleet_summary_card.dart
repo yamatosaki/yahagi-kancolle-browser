@@ -38,6 +38,7 @@ class FleetSummaryCard extends StatefulWidget {
     required this.collapsed,
     required this.onToggleCollapse,
     required this.onOpenFleet,
+    this.onOpenShip,
     this.damagePulseFilter = DamagePulseFilter.all,
     this.moraleSparkleMode = MoraleSparkleMode.blinking,
     this.moraleRecoveryTimerController,
@@ -54,6 +55,7 @@ class FleetSummaryCard extends StatefulWidget {
   final bool collapsed;
   final VoidCallback onToggleCollapse;
   final ValueChanged<int> onOpenFleet;
+  final void Function(int fleetId, int shipId)? onOpenShip;
   final DamagePulseFilter damagePulseFilter;
   final MoraleSparkleMode moraleSparkleMode;
   final MoraleRecoveryTimerController? moraleRecoveryTimerController;
@@ -71,6 +73,15 @@ class FleetSummaryCard extends StatefulWidget {
 
 class _FleetSummaryCardState extends State<FleetSummaryCard> {
   int _selectedFleetId = 1;
+
+  void _openShip(int shipId) {
+    final onOpenShip = widget.onOpenShip;
+    if (onOpenShip == null) {
+      widget.onOpenFleet(_selectedFleetId);
+    } else {
+      onOpenShip(_selectedFleetId, shipId);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -162,7 +173,7 @@ class _FleetSummaryCardState extends State<FleetSummaryCard> {
               moraleSparkleMode: widget.moraleSparkleMode,
               repairStatus: repairStatuses[ships[index].id],
               specialAttack: index == 0 ? specialAttack : null,
-              onTap: () => widget.onOpenFleet(_selectedFleetId),
+              onTap: () => _openShip(ships[index].id),
             );
             return DashboardCard(
               title: AppLocalizations.of(context)?.fleetBrief ?? '编队简报',
@@ -270,7 +281,7 @@ class _FleetSummaryCardState extends State<FleetSummaryCard> {
                               specialAttack: ship == ships.first
                                   ? specialAttack
                                   : null,
-                              onTap: () => widget.onOpenFleet(_selectedFleetId),
+                              onTap: () => _openShip(ship.id),
                             ),
                         ],
                       ),

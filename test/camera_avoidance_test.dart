@@ -617,41 +617,41 @@ void main() {
     },
   );
 
-  testWidgets(
-    'exhausted non-camera safe area never creates overflowing game bounds',
-    (tester) async {
-      tester.view.physicalSize = const Size(456, 60);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(
-        MaterialApp(
-          builder: (context, child) => MediaQuery(
-            data: MediaQueryData(
-              size: const Size(456, 60),
-              viewPadding: const EdgeInsets.only(top: 30, bottom: 70),
-              displayFeatures: [feature(const Rect.fromLTWH(4, 20, 24, 24))],
-            ),
-            child: CameraAvoidanceViewport(
-              enabled: true,
-              distance: 48,
-              child: child!,
-            ),
+  testWidgets('game keeps the manual camera margin with system insets', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(456, 60);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQueryData(
+            size: const Size(456, 60),
+            viewPadding: const EdgeInsets.only(top: 30, bottom: 70),
+            displayFeatures: [feature(const Rect.fromLTWH(4, 20, 24, 24))],
           ),
-          home: const GameSurfaceViewport(
-            centerAboveBottomInset: true,
-            isLandscape: true,
-            child: SizedBox.expand(key: Key('exhausted-game')),
+          child: CameraAvoidanceViewport(
+            enabled: true,
+            distance: 48,
+            child: child!,
           ),
         ),
-      );
-      final game = tester.getRect(find.byKey(const Key('exhausted-game')));
-      expect(game.size, Size.zero);
-      expect(game.left, inInclusiveRange(48, 456));
-      expect(game.top, inInclusiveRange(0, 60));
-      expect(tester.takeException(), isNull);
-    },
-  );
+        home: const GameSurfaceViewport(
+          isLandscape: true,
+          child: SizedBox.expand(key: Key('camera-safe-game')),
+        ),
+      ),
+    );
+    final game = tester.getRect(find.byKey(const Key('camera-safe-game')));
+    expect(game.left, greaterThanOrEqualTo(48));
+    expect(game.right, lessThanOrEqualTo(456));
+    expect(game.top, 0);
+    expect(game.bottom, 60);
+    expect(game.width / game.height, closeTo(5 / 3, .0001));
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'unchanged corner cutout does not change sides across square IME fluctuations',

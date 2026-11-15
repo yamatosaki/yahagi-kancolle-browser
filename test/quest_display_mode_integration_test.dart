@@ -80,7 +80,7 @@ void main() {
           );
           expect(find.text('任务列表与奖励详情遵循保存的显示模式。'), findsOneWidget);
           await _openRewards(tester);
-          expect(find.text('Base rewards'), findsWidgets);
+          expect(find.text('Quest rewards'), findsWidgets);
           expect(find.text(_rewardText), findsOneWidget);
           _expectHorizontal(tester, 'English quest details at $size');
           expect(
@@ -106,7 +106,15 @@ void main() {
       // That is below the old 760px page breakpoint despite saved landscape.
       expect(tester.getSize(page).width, closeTo(752, 0.01));
       _expectHorizontal(tester, 'saved landscape on initial navigation');
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('quest-detail-tab-rewards')),
+          matching: find.text('任务奖励'),
+        ),
+        findsOneWidget,
+      );
       await _openRewards(tester);
+      expect(find.text('任务奖励'), findsNWidgets(2));
       expect(find.text(_rewardText), findsOneWidget);
       expect(tester.takeException(), isNull);
     },

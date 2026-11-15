@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_store.dart';
+import 'package:yahagi_kancolle_browser/src/game_state/master_ship_names.dart';
 
 const _base = GameState(
   memberId: 1001,
@@ -14,6 +15,44 @@ const _base = GameState(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  test(
+    'bundled names restore all affected Kanxy variants from cache',
+    () async {
+      const expected = {
+        26: '扶桑',
+        115: '夕張',
+        139: '矢矧',
+        286: '扶桑改',
+        293: '夕張改',
+        307: '矢矧改',
+        411: '扶桑改二',
+        622: '夕張改二',
+        623: '夕張改二特',
+        624: '夕張改二丁',
+        663: '矢矧改二',
+        668: '矢矧改二乙',
+        748: '扶桑改二補',
+      };
+      SharedPreferences.setMockInitialValues({
+        'game_state.shared.v1': jsonEncode({
+          'masterShips': {
+            for (final id in expected.keys)
+              '$id': {'name': 'false', 'portraitFileName': 'portrait-$id'},
+          },
+        }),
+      });
+      final names = await MasterShipNames.loadBundled();
+      final restored = await GameStateStore(masterShipNames: names).load();
+
+      for (final entry in expected.entries) {
+        final ship = restored.masterShips[entry.key];
+        expect(ship?.name, entry.value);
+        expect(ship?.portraitFileName, 'portrait-${entry.key}');
+      }
+    },
+  );
+
   final changes = <String, GameState>{
     'masterShips': _base.copyWith(
       masterShips: {2: const MasterShip(id: 2, name: 'new', shipTypeId: 2)},

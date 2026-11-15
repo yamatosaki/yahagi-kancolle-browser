@@ -185,7 +185,7 @@ void main() {
           expect(
             find.descendant(
               of: rewardsTab,
-              matching: find.text(strings.baseReward),
+              matching: find.text(strings.questRewards),
             ),
             findsOneWidget,
             reason: 'reward labels still follow the app locale',

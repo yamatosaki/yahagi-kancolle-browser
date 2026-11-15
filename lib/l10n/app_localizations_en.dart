@@ -728,7 +728,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get questDesc => 'Quest description';
 
   @override
-  String get baseReward => 'Base rewards';
+  String get questRewards => 'Quest rewards';
 
   @override
   String get accepted => 'Accepted';
@@ -2634,6 +2634,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get completionConditions => 'Completion conditions';
+
+  @override
+  String get questEligibleFleets => 'Fleets meeting composition requirements:';
+
+  @override
+  String get questNoEligibleFleet => 'No qualifying fleet';
+
+  @override
+  String get questEligibleFleetFirst => '1st Fleet';
+
+  @override
+  String get questEligibleFleetSecond => '2nd Fleet';
+
+  @override
+  String get questEligibleFleetThird => '3rd Fleet';
+
+  @override
+  String get questEligibleFleetFourth => '4th Fleet';
 
   @override
   String get questRelations => 'Quest relationships';

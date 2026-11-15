@@ -1,13 +1,21 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/diagnostics/diagnostic_event.dart';
 import 'package:yahagi_kancolle_browser/src/diagnostics/diagnostic_export_service.dart';
+import 'package:yahagi_kancolle_browser/src/diagnostics/diagnostic_kanxy_observer.dart';
 import 'package:yahagi_kancolle_browser/src/diagnostics/diagnostic_platform_port.dart';
+import 'package:yahagi_kancolle_browser/src/diagnostics/diagnostic_recorder.dart';
 import 'package:yahagi_kancolle_browser/src/diagnostics/diagnostic_storage.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('test/diagnostics/kanxy');
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+
   late Directory root;
   late Directory segments;
   late Directory exports;
@@ -19,7 +27,97 @@ void main() {
   });
 
   tearDown(() async {
+    messenger.setMockMethodCallHandler(channel, null);
     if (await root.exists()) await root.delete(recursive: true);
+  });
+
+  Future<void> sendKanxyEvent(Object? arguments) =>
+      messenger.handlePlatformMessage(
+        channel.name,
+        channel.codec.encodeMethodCall(MethodCall('kanxyEvent', arguments)),
+        (_) {},
+      );
+
+  test('exports only allowlisted native Kanxy statuses', () async {
+    final storage = DiagnosticStorage(directory: segments);
+    final recorder = DiagnosticRecorder(sink: storage);
+    final observer = DiagnosticKanxyObserver(recorder, channel: channel);
+    addTearDown(recorder.dispose);
+    addTearDown(observer.detach);
+    observer.attach();
+    final date = DateTime.utc(2026, 11, 13, 12);
+    final event = <String, Object?>{
+      'status': 'WS_OPEN',
+      'occurredAtMs': date.millisecondsSinceEpoch,
+    };
+
+    await sendKanxyEvent(event);
+    for (final malformed in <Object?>[
+      null,
+      'WS_OPEN',
+      {'status': 'WS_OPEN'},
+      {...event, 'status': 'WS_FUTURE_STATUS'},
+      {...event, 'status': 'ws_open'},
+      {...event, 'status': 'ws://127.0.0.1:5412/private'},
+      {...event, 'occurredAtMs': '${date.millisecondsSinceEpoch}'},
+      {...event, 'occurredAtMs': -1},
+      {...event, 'occurredAtMs': 8640000000000001},
+      {...event, 'port': 5412},
+      {...event, 'data': 'private payload'},
+    ]) {
+      await sendKanxyEvent(malformed);
+    }
+    await recorder.flush();
+
+    final service = DiagnosticExportService(
+      storage: storage,
+      exportDirectory: exports,
+      platform: FakeDiagnosticPlatformPort(),
+      appVersion: '1.10.0-beta.7+40',
+    );
+    final file = await service.exportAndShare();
+    final decoded = jsonDecode(await file.readAsString()) as Map;
+    expect(decoded['records'], <Object?>[
+      <String, Object?>{
+        'occurredAt': date.toIso8601String(),
+        'type': 'kanxy',
+        'fields': <String, Object?>{'status': 'WS_OPEN'},
+      },
+    ]);
+  });
+
+  test('Kanxy observer subscribes only while attached', () async {
+    final changes = <Object?>[];
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'setKanxyRecording');
+      changes.add(call.arguments);
+      return null;
+    });
+    final recorder = DiagnosticRecorder(
+      sink: DiagnosticStorage(directory: segments),
+    );
+    final observer = DiagnosticKanxyObserver(recorder, channel: channel);
+    addTearDown(recorder.dispose);
+    addTearDown(observer.detach);
+    const event = <String, Object?>{'status': 'ROUTE_VPN', 'occurredAtMs': 0};
+
+    await sendKanxyEvent(event);
+    observer.attach();
+    observer.attach();
+    await sendKanxyEvent(event);
+    await recorder.setEnabled(false);
+    await sendKanxyEvent(event);
+    await recorder.setEnabled(true);
+    observer.detach();
+    observer.detach();
+    await sendKanxyEvent(event);
+
+    expect(changes, <bool>[true, false]);
+    expect(
+      await DiagnosticStorage(directory: segments).readRecords().length,
+      1,
+    );
+    expect(recorder.bufferedEventCount, 0);
   });
 
   test('exports and shares one parseable json file', () async {

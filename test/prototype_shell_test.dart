@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yahagi_kancolle_browser/main.dart';
+import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/src/battle/battle_controller.dart';
 import 'package:yahagi_kancolle_browser/src/battle/live_battle_card.dart';
 import 'package:yahagi_kancolle_browser/src/settings/battle_prediction_settings.dart';
@@ -32,6 +33,7 @@ import 'package:yahagi_kancolle_browser/src/settings/display_mode_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/app_exit_settings.dart';
+import 'package:yahagi_kancolle_browser/src/settings/notification_settings_page.dart';
 import 'package:yahagi_kancolle_browser/src/senka/senka_controller.dart';
 import 'package:yahagi_kancolle_browser/src/senka/senka_page.dart';
 import 'package:yahagi_kancolle_browser/src/senka/senka_state.dart';
@@ -52,6 +54,8 @@ import 'package:yahagi_kancolle_browser/src/capture/game_capture_port.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_reducer.dart';
+import 'package:yahagi_kancolle_browser/src/improvement/improvement_dataset.dart';
+import 'package:yahagi_kancolle_browser/src/improvement/improvement_planner_controller.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/anchorage_repair_view.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/fleet_information_center.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/fleet_summary_card.dart';
@@ -61,6 +65,7 @@ import 'package:yahagi_kancolle_browser/src/fleet/repair_summary_card.dart';
 import 'package:yahagi_kancolle_browser/src/logbook/logbook_page.dart';
 import 'package:yahagi_kancolle_browser/src/prototype_status_controller.dart';
 import 'package:yahagi_kancolle_browser/src/toolbox/toolbox_page.dart';
+import 'package:yahagi_kancolle_browser/src/development/development_repository.dart';
 import 'package:yahagi_kancolle_browser/src/development/equipment_development_page.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 import 'package:yahagi_kancolle_browser/src/quest/quest_completion_feedback.dart';
@@ -91,6 +96,8 @@ Future<LayoutSettingsController> _pumpMinimalShell(
   String? localeCode,
   DisplayMode displayMode = DisplayMode.auto,
   GameRenderingModeController? renderingController,
+  ImprovementPlannerController? improvementController,
+  SenkaController? senkaController,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
@@ -129,6 +136,8 @@ Future<LayoutSettingsController> _pumpMinimalShell(
       ),
       gameCaptureController: GameCaptureController(),
       gameStateController: gameStateController,
+      improvementPlannerController: improvementController,
+      senkaController: senkaController,
       battleController: BattleController(
         gameState: () => gameStateController.state,
       ),
@@ -1118,7 +1127,9 @@ void main() {
         findsOneWidget,
       );
       final held = await tester.startGesture(
-        tester.getCenter(find.byKey(const Key('header-resource-filter-dialog'))),
+        tester.getCenter(
+          find.byKey(const Key('header-resource-filter-dialog')),
+        ),
       );
       try {
         await tester.tap(find.byKey(const Key('header-resource-filter-done')));
@@ -3171,6 +3182,379 @@ void main() {
 
     senkaController.dispose();
     toolbarController.dispose();
+  });
+
+  for (final uiSize in [UiDisplaySize.normal, UiDisplaySize.minimal]) {
+    testWidgets('fleet briefing opens the tapped ship at $uiSize', (
+      tester,
+    ) async {
+      final gameState = GameStateController(reducer: _HdMinimalStateReducer())
+        ..accept(portEvent);
+      await gameState.idle;
+      final layout = await _pumpMinimalShell(
+        tester,
+        size: const Size(1280, 800),
+        uiSize: uiSize,
+        gameState: gameState,
+      );
+      addTearDown(layout.dispose);
+      await layout.setDashboardDisplayMode(DashboardDisplayMode.tabs);
+      await tester.pumpAndSettle();
+      await _tapBriefingTab(tester, 'fleet');
+
+      await tester.tap(find.byKey(const Key('fleet-summary-selector-2')));
+      await tester.pumpAndSettle();
+      final ship = find.byKey(
+        Key(uiSize.isMinimal ? 'minimal-ship-row-4' : 'fleet-focus-portrait-4'),
+      );
+      await tester.ensureVisible(ship);
+      expect(ship.hitTestable(), findsOneWidget);
+      await tester.tap(ship);
+      await tester.pump();
+
+      final center = find.byType(FleetInformationCenter);
+      final target = find.byKey(const Key('fleet-focus-ship-4'));
+      final flagship = find.byKey(const Key('fleet-focus-ship-3'));
+      expect(center, findsOneWidget);
+      expect(target, findsOneWidget);
+      expect(flagship, findsNothing);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('fleet-button-1')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('fleet-focus-ship-1')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('fleet-button-2')));
+      await tester.pumpAndSettle();
+      expect(flagship, findsOneWidget);
+      expect(target, findsNothing);
+
+      await tester.tap(find.byKey(const Key('workspace-nav-game')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(ship);
+      expect(ship.hitTestable(), findsOneWidget);
+      await tester.tap(ship);
+      await tester.pumpAndSettle();
+      expect(target, findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('workspace-nav-game')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('workspace-nav-fleet')));
+      await tester.pumpAndSettle();
+      expect(flagship, findsNothing);
+      expect(target, findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'improvement table keeps its scroll position after visiting game',
+    (tester) async {
+      const entryCount = 64;
+      final planner = ImprovementPlannerController(
+        dataset: ImprovementDataset(
+          version: const ImprovementDatasetVersion(
+            dataVersion: 'scroll-test',
+            commitSha: '',
+          ),
+          entries: [
+            for (var id = 1; id <= entryCount; id++)
+              ImprovementEntry(
+                equipmentId: id,
+                baseCost: const ImprovementResourceCost(
+                  fuel: 10,
+                  ammo: 10,
+                  steel: 10,
+                  bauxite: 10,
+                ),
+                arrangements: const [
+                  ImprovementArrangement(
+                    secretaryId: null,
+                    secretaryLabel: '明石',
+                    weekdays: {DateTime.monday},
+                  ),
+                ],
+                stage0: const ImprovementStageCost.legacy([]),
+                stage1: const ImprovementStageCost.legacy([]),
+                upgrades: const [],
+              ),
+          ],
+        ),
+        clock: () => DateTime.utc(2026, 8, 10),
+      );
+      addTearDown(planner.dispose);
+      const gameSurfaceKey = Key('improvement-scroll-smoke-game-surface');
+      await _pumpMinimalShell(
+        tester,
+        size: const Size(1180, 700),
+        gameSurface: const ColoredBox(key: gameSurfaceKey, color: Colors.black),
+        improvementController: planner,
+        gameState: GameStateController(
+          initialState: GameState(
+            hasPortData: true,
+            masterSlotItems: {
+              for (var id = 1; id <= entryCount; id++)
+                id: MasterSlotItem(id: id, name: 'Test equipment $id'),
+            },
+          ),
+        ),
+      );
+
+      final construction = find.byKey(const Key('workspace-nav-construction'));
+      final game = find.byKey(const Key('workspace-nav-game'));
+      final improvement = find.byKey(
+        const Key('construction-mode-improvement'),
+      );
+      Finder tableScroll(String side) =>
+          find.byKey(PageStorageKey<String>('improvement-table-$side-scroll'));
+      final frozen = tableScroll('frozen');
+      final body = tableScroll('body');
+      final horizontal = tableScroll('horizontal');
+      double verticalOffset(Finder finder) =>
+          tester.widget<ListView>(finder).controller!.offset;
+      double horizontalOffset() =>
+          tester.widget<SingleChildScrollView>(horizontal).controller!.offset;
+
+      await tester.tap(construction);
+      await tester.pumpAndSettle();
+      await tester.tap(improvement);
+      await tester.pumpAndSettle();
+      await tester.drag(frozen, const Offset(0, -320));
+      await tester.pumpAndSettle();
+      expect(verticalOffset(body), closeTo(verticalOffset(frozen), .1));
+      expect(verticalOffset(body), greaterThan(100));
+
+      await tester.drag(horizontal, const Offset(0, -280));
+      await tester.pumpAndSettle();
+      final savedVertical = verticalOffset(body);
+      expect(savedVertical, greaterThan(400));
+      expect(verticalOffset(frozen), closeTo(savedVertical, .1));
+      await tester.drag(horizontal, const Offset(-340, 0));
+      await tester.pumpAndSettle();
+      final savedHorizontal = horizontalOffset();
+      expect(savedHorizontal, greaterThan(100));
+      final baseCostHeader = find.byKey(
+        const Key('improvement-header-base-cost-align'),
+      );
+      final savedHeaderX = tester.getTopLeft(baseCostHeader).dx;
+      final visibleRecipe = [
+        for (var id = 1; id <= entryCount; id++)
+          find.byKey(Key('improvement-favorite-$id')).hitTestable(),
+      ].firstWhere((finder) => finder.evaluate().isNotEmpty);
+      final savedRecipeY = tester.getTopLeft(visibleRecipe).dy;
+
+      for (var visit = 0; visit < 2; visit++) {
+        await tester.tap(game);
+        await tester.pumpAndSettle();
+        expect(frozen.hitTestable(), findsNothing);
+        expect(find.byKey(gameSurfaceKey).hitTestable(), findsOneWidget);
+        await tester.tap(construction);
+        await tester.pumpAndSettle();
+
+        expect(verticalOffset(frozen), closeTo(savedVertical, .1));
+        expect(verticalOffset(body), closeTo(savedVertical, .1));
+        expect(horizontalOffset(), closeTo(savedHorizontal, .1));
+        expect(tester.getTopLeft(baseCostHeader).dx, closeTo(savedHeaderX, .1));
+        expect(visibleRecipe, findsOneWidget);
+        expect(tester.getTopLeft(visibleRecipe).dy, closeTo(savedRecipeY, .1));
+      }
+    },
+  );
+
+  testWidgets('workspaces resume their views after visiting game', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    const memberId = 11;
+    final account = AccountSession(initialMemberId: memberId);
+    addTearDown(account.dispose);
+    final senka = SenkaController(store: _MemorySenkaStore(null));
+    addTearDown(senka.dispose);
+    const shipCount = 55;
+    final layout = await _pumpMinimalShell(
+      tester,
+      size: const Size(1280, 760),
+      localeCode: 'zh',
+      senkaController: senka,
+      gameState: GameStateController(
+        accountSession: account,
+        initialState: GameState(
+          memberId: memberId,
+          hasPortData: true,
+          masterShips: {
+            for (var id = 1; id <= shipCount; id++)
+              id: MasterShip(id: id, name: 'Smoke Ship $id', shipTypeId: 2),
+          },
+          ships: {
+            for (var id = 1; id <= shipCount; id++)
+              id: OwnedShip(id: id, masterId: id, level: id),
+          },
+          fleets: const [
+            Fleet(id: 1, name: 'Smoke Fleet', shipIds: [1]),
+          ],
+          quests: {
+            for (final id in [201, 202])
+              id: GameQuest(
+                id: id,
+                title: 'Smoke Quest $id',
+                detail: 'Smoke conditions $id',
+                category: 2,
+                type: 2,
+                state: 2,
+                progressFlag: 0,
+              ),
+          },
+        ),
+      ),
+    );
+    addTearDown(layout.dispose);
+
+    Future<void> open(String id) async {
+      final item = find.byKey(Key('workspace-nav-$id'));
+      await tester.ensureVisible(item);
+      await tester.tap(item);
+      await tester.pumpAndSettle();
+    }
+
+    await open('quests');
+    await tester.tap(find.byKey(const Key('quest-card-202')));
+    await tester.pumpAndSettle();
+    final rewardsTab = find.byKey(const Key('quest-detail-tab-rewards'));
+    await tester.tap(rewardsTab);
+    await tester.pumpAndSettle();
+    expect(find.text('任务奖励'), findsNWidgets(2));
+    await open('game');
+    await open('quests');
+    expect(find.byKey(const Key('quest-detail-title-202')), findsOneWidget);
+    expect(find.text('任务奖励'), findsNWidgets(2));
+
+    await open('owned-inventory');
+    final shipTable = find.byKey(
+      const PageStorageKey('owned-inventory-table-ships'),
+    );
+    final inventoryList = find.descendant(
+      of: shipTable,
+      matching: find.byKey(
+        const PageStorageKey('owned-inventory-frozen-scroll'),
+      ),
+    );
+    ScrollController inventoryScroll() =>
+        tester.widget<ListView>(inventoryList).controller!;
+    final nameSort = find.byKey(const Key('ship-table-frozen-header'));
+    await tester.tap(nameSort);
+    await tester.pumpAndSettle();
+    final sortedTitle = tester
+        .widget<Text>(
+          find.descendant(of: nameSort, matching: find.byType(Text)).first,
+        )
+        .data;
+    expect(sortedTitle, contains(RegExp('[▲▼]')));
+    await tester.drag(inventoryList, const Offset(0, -390));
+    await tester.pumpAndSettle();
+    final inventoryOffset = inventoryScroll().offset;
+    expect(inventoryOffset, greaterThan(200));
+    await open('game');
+    await open('owned-inventory');
+    expect(
+      find.descendant(of: nameSort, matching: find.text(sortedTitle!)),
+      findsOneWidget,
+    );
+    expect(inventoryScroll().offset, closeTo(inventoryOffset, .1));
+
+    await open('settings');
+    await tester.tap(find.byKey(const Key('settings-tab-3')));
+    await tester.pumpAndSettle();
+    final notificationScroll = find.descendant(
+      of: find.byType(NotificationSettingsPage),
+      matching: find.byType(SingleChildScrollView),
+    );
+    final notificationOption = find.byKey(
+      const Key('notification-show-countdown-switch'),
+    );
+    await tester.ensureVisible(notificationOption);
+    await tester.pumpAndSettle();
+    expect(notificationOption.hitTestable(), findsOneWidget);
+    final settingsScroll = find
+        .descendant(of: notificationScroll, matching: find.byType(Scrollable))
+        .first;
+    final settingsOffset = tester
+        .state<ScrollableState>(settingsScroll)
+        .position
+        .pixels;
+    expect(settingsOffset, greaterThan(0));
+    await open('game');
+    await open('settings');
+    expect(notificationOption.hitTestable(), findsOneWidget);
+    expect(
+      tester.state<ScrollableState>(settingsScroll).position.pixels,
+      closeTo(settingsOffset, .1),
+    );
+
+    await open('expedition');
+    await tester.tap(find.byKey(const Key('expedition-mode-check')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('大成功'));
+    await tester.pumpAndSettle();
+    final targetMenu = find.byKey(const Key('expedition-target-menu'));
+    await tester.tap(targetMenu);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('85%').last);
+    await tester.pumpAndSettle();
+    await open('game');
+    await open('expedition');
+    expect(
+      find.descendant(of: targetMenu, matching: find.text('85%')),
+      findsOneWidget,
+    );
+
+    await open('construction');
+    await tester.tap(find.byKey(const Key('construction-mode-development')));
+    // A previous test may have started loading the asset on its fake clock.
+    rootBundle.evict(DevelopmentRepository.assetPath);
+    await tester.runAsync(() async {
+      await tester.pump();
+      await rootBundle.loadString(DevelopmentRepository.assetPath);
+    });
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('development-mode-formula')));
+    await tester.pumpAndSettle();
+    final formula = find.byKey(const Key('development-formula-body'));
+    final formulaElement = tester.element(formula);
+    await open('game');
+    await open('construction');
+    expect(tester.element(formula), same(formulaElement));
+
+    await open('senka');
+    await tester.tap(find.byKey(const Key('senka-tab-calendar')));
+    await tester.pumpAndSettle();
+    final calendarDay = find.byKey(const Key('calendar-cell-2'));
+    await tester.tap(calendarDay);
+    await tester.pumpAndSettle();
+    final selectedDay = find
+        .ancestor(of: calendarDay, matching: find.byType(Semantics))
+        .first;
+    expect(tester.widget<Semantics>(selectedDay).properties.selected, isTrue);
+    await open('game');
+    await open('senka');
+    expect(tester.widget<Semantics>(selectedDay).properties.selected, isTrue);
+
+    final oldInventory = tester.element(
+      find.byKey(
+        const PageStorageKey('owned-inventory-table-ships'),
+        skipOffstage: false,
+      ),
+    );
+    await open('game');
+    account.selectMember(memberId + 1);
+    await tester.pumpAndSettle();
+    expect(oldInventory.mounted, isFalse);
+    await open('owned-inventory');
+    expect(
+      find.descendant(of: nameSort, matching: find.text(sortedTitle)),
+      findsNothing,
+    );
+    await open('quests');
+    expect(find.byKey(const Key('quest-detail-title-202')), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('switches to fleet center without disposing the game surface', (
@@ -5800,24 +6184,37 @@ void main() {
           find.byType(GameSurfaceViewport, skipOffstage: false),
         );
 
-    testWidgets('minimal game reserves the bottom inset only above it', (
+    testWidgets('minimal game centers between the header and bottom edge', (
       tester,
     ) async {
       tester.view.viewPadding = const FakeViewPadding(bottom: 20);
       tester.view.padding = const FakeViewPadding(bottom: 20);
       addTearDown(tester.view.resetViewPadding);
       addTearDown(tester.view.resetPadding);
-      final layout = await _pumpMinimalShell(tester);
-      expect(viewport(tester).centerAboveBottomInset, isTrue);
-
-      // 横屏下「上方」导航栏排在游戏列下面，游戏不贴屏幕底边。
-      await layout.setWorkspaceMenuPosition('top');
+      final layout = await _pumpMinimalShell(
+        tester,
+        gameSurface: const ColoredBox(key: surfaceProbe, color: Colors.black),
+      );
+      await layout.setAutoZoom(false);
+      await layout.setGameAreaRatio(0.75);
       await tester.pumpAndSettle();
-      expect(viewport(tester).centerAboveBottomInset, isFalse);
+      final surface = find.byKey(surfaceProbe);
+      final fullHeight = tester.getRect(surface);
+      expect(fullHeight.top, closeTo(_minimalHeaderHeight, .001));
+      expect(fullHeight.bottom, closeTo(_phoneLandscape.height, .001));
+      expect(fullHeight.width / fullHeight.height, closeTo(1200 / 720, .001));
 
-      await layout.setWorkspaceMenuPosition('bottom');
+      await layout.setGameAreaRatio(0.60);
       await tester.pumpAndSettle();
-      expect(viewport(tester).centerAboveBottomInset, isFalse);
+      final widthLimited = tester.getRect(surface);
+      final topGap = widthLimited.top - _minimalHeaderHeight;
+      final bottomGap = _phoneLandscape.height - widthLimited.bottom;
+      expect(topGap, greaterThan(0));
+      expect(bottomGap, closeTo(topGap, .001));
+      expect(
+        widthLimited.width / widthLimited.height,
+        closeTo(1200 / 720, .001),
+      );
       expect(tester.takeException(), isNull);
     });
 
@@ -5924,7 +6321,6 @@ void main() {
         expect(find.byKey(const Key('minimal-menu-button')), findsNothing);
         // 常驻顶栏后的工作区仍按实际宽高选择游戏方向。
         expect(viewport(tester).isLandscape, isTrue);
-        expect(viewport(tester).centerAboveBottomInset, isTrue);
         expect(tester.takeException(), isNull);
       },
     );
@@ -6118,10 +6514,7 @@ void main() {
                 final column = gameColumn(tester);
                 expect(column.top, closeTo(_minimalHeaderHeight, .001));
                 expect(game.top, greaterThanOrEqualTo(column.top));
-                expect(
-                  game.bottom,
-                  lessThanOrEqualTo(column.bottom - inset + .01),
-                );
+                expect(game.bottom, closeTo(column.bottom, .01));
                 expect(game.width / game.height, closeTo(1200 / 720, .001));
                 expect(tester.takeException(), isNull);
               }

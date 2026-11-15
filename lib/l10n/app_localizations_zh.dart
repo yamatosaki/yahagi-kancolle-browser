@@ -691,7 +691,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get questDesc => '任务说明';
 
   @override
-  String get baseReward => '基础奖励';
+  String get questRewards => '任务奖励';
 
   @override
   String get accepted => '已接受';
@@ -2512,6 +2512,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get completionConditions => '完成条件';
+
+  @override
+  String get questEligibleFleets => '可完成任务编队:';
+
+  @override
+  String get questNoEligibleFleet => '无满足要求舰队';
+
+  @override
+  String get questEligibleFleetFirst => '第一舰队';
+
+  @override
+  String get questEligibleFleetSecond => '第二舰队';
+
+  @override
+  String get questEligibleFleetThird => '第三舰队';
+
+  @override
+  String get questEligibleFleetFourth => '第四舰队';
 
   @override
   String get questRelations => '任务关系';
@@ -4876,7 +4894,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get questDesc => '任務說明';
 
   @override
-  String get baseReward => '基礎獎勵';
+  String get questRewards => '任務獎勵';
 
   @override
   String get accepted => '已接受';
@@ -6698,6 +6716,24 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get completionConditions => '完成條件';
+
+  @override
+  String get questEligibleFleets => '可完成任務編隊:';
+
+  @override
+  String get questNoEligibleFleet => '無滿足要求艦隊';
+
+  @override
+  String get questEligibleFleetFirst => '第一艦隊';
+
+  @override
+  String get questEligibleFleetSecond => '第二艦隊';
+
+  @override
+  String get questEligibleFleetThird => '第三艦隊';
+
+  @override
+  String get questEligibleFleetFourth => '第四艦隊';
 
   @override
   String get questRelations => '任務關係';

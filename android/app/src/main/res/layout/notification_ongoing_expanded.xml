@@ -31,6 +31,15 @@
                 android:textStyle="bold"
                 android:maxLines="1"
                 android:ellipsize="end" />
+            <TextView
+                android:id="@+id/notif_item_1_static_stats"
+                style="@style/TextAppearance.Compat.Notification.Info"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
             <Chronometer
                 android:id="@+id/notif_item_1_stats"
                 style="@style/TextAppearance.Compat.Notification.Info"
@@ -75,6 +84,15 @@
                 android:textStyle="bold"
                 android:maxLines="1"
                 android:ellipsize="end" />
+            <TextView
+                android:id="@+id/notif_item_2_static_stats"
+                style="@style/TextAppearance.Compat.Notification.Info"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
             <Chronometer
                 android:id="@+id/notif_item_2_stats"
                 style="@style/TextAppearance.Compat.Notification.Info"
@@ -119,6 +137,15 @@
                 android:textStyle="bold"
                 android:maxLines="1"
                 android:ellipsize="end" />
+            <TextView
+                android:id="@+id/notif_item_3_static_stats"
+                style="@style/TextAppearance.Compat.Notification.Info"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
             <Chronometer
                 android:id="@+id/notif_item_3_stats"
                 style="@style/TextAppearance.Compat.Notification.Info"
@@ -163,6 +190,15 @@
                 android:textStyle="bold"
                 android:maxLines="1"
                 android:ellipsize="end" />
+            <TextView
+                android:id="@+id/notif_item_4_static_stats"
+                style="@style/TextAppearance.Compat.Notification.Info"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
             <Chronometer
                 android:id="@+id/notif_item_4_stats"
                 style="@style/TextAppearance.Compat.Notification.Info"
@@ -206,6 +242,15 @@
                 android:textStyle="bold"
                 android:maxLines="1"
                 android:ellipsize="end" />
+            <TextView
+                android:id="@+id/notif_item_5_static_stats"
+                style="@style/TextAppearance.Compat.Notification.Info"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
             <Chronometer
                 android:id="@+id/notif_item_5_stats"
                 style="@style/TextAppearance.Compat.Notification.Info"

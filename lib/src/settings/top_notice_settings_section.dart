@@ -18,6 +18,9 @@ class TopNoticeSettingsSection extends StatelessWidget with SettingsUIHelpers {
         lookupAppLocalizations(const Locale('zh'));
     final english = Localizations.localeOf(context).languageCode == 'en';
     final layoutSettingsController = controller;
+    Divider buildDivider() =>
+        Divider(color: appColor(context, const Color(0xff294052)), height: 1);
+
     final groups = [
       (
         l10n.topNoticeGroupFleet,
@@ -81,7 +84,7 @@ class TopNoticeSettingsSection extends StatelessWidget with SettingsUIHelpers {
                   value: layoutSettingsController.topNoticeEnabled,
                   onChanged: layoutSettingsController.setTopNoticeEnabled,
                 ),
-                Divider(color: appColor(context, Color(0xff294052)), height: 1),
+                buildDivider(),
                 Opacity(
                   opacity: layoutSettingsController.topNoticeEnabled
                       ? 1.0
@@ -183,10 +186,7 @@ class TopNoticeSettingsSection extends StatelessWidget with SettingsUIHelpers {
                   ),
                 ),
                 for (final (title, items) in groups) ...[
-                  Divider(
-                    color: appColor(context, Color(0xff294052)),
-                    height: 1,
-                  ),
+                  buildDivider(),
                   Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: Padding(
@@ -206,7 +206,8 @@ class TopNoticeSettingsSection extends StatelessWidget with SettingsUIHelpers {
                       ),
                     ),
                   ),
-                  for (final (kind, label) in items)
+                  for (final (index, (kind, label)) in items.indexed) ...[
+                    if (index > 0) buildDivider(),
                     MergeSemantics(
                       child: buildSwitchTile(
                         title: label,
@@ -220,6 +221,7 @@ class TopNoticeSettingsSection extends StatelessWidget with SettingsUIHelpers {
                             : null,
                       ),
                     ),
+                  ],
                 ],
               ],
             ),

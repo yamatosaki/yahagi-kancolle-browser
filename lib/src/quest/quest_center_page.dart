@@ -23,6 +23,7 @@ class QuestCenterPage extends StatefulWidget {
     super.key,
     required this.controller,
     this.initialQuestId,
+    this.questOpenRequest = 0,
     this.showTitle = true,
     this.displayMode = DisplayMode.auto,
     this.mode = QuestCenterMode.active,
@@ -36,6 +37,7 @@ class QuestCenterPage extends StatefulWidget {
 
   final GameStateController controller;
   final int? initialQuestId;
+  final int questOpenRequest;
   final bool showTitle;
   final DisplayMode displayMode;
   final QuestCenterMode mode;
@@ -106,18 +108,22 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
   @override
   void didUpdateWidget(QuestCenterPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.initialQuestId != null &&
-        widget.initialQuestId != oldWidget.initialQuestId) {
+    final openRequested =
+        widget.initialQuestId != null &&
+        (widget.initialQuestId != oldWidget.initialQuestId ||
+            widget.questOpenRequest != oldWidget.questOpenRequest);
+    if (openRequested) {
       _selectedQuestId = _targetQuestId = widget.initialQuestId;
       _explicitTarget = true;
       _selectionRequired = false;
       _history.clear();
       _detailTab = 0;
+      _restoreDetailOffset(0);
     }
     if (widget.mode != oldWidget.mode) {
       _mode = widget.mode;
       _history.clear();
-      if (widget.initialQuestId == oldWidget.initialQuestId) {
+      if (!openRequested) {
         _explicitTarget = false;
       }
     }
@@ -327,6 +333,8 @@ class _QuestCenterPageState extends State<QuestCenterPage> {
                 steps:
                     widget.controller.questProgress?.stepsFor(selected.id) ??
                     const [],
+                qualifyingFleetIds: widget.controller.questProgress
+                    ?.qualifyingFleetIds(selected.id, widget.controller.state),
                 controller: _detailController,
                 tab: _detailTab,
                 onTabChanged: (index) {
@@ -862,6 +870,7 @@ class _QuestDetail extends StatelessWidget {
     this.onReturnToTarget,
     this.steps = const [],
     this.serverQuest,
+    this.qualifyingFleetIds,
   });
   final _QuestViewEntry entry;
   final String title, detail;
@@ -874,6 +883,7 @@ class _QuestDetail extends StatelessWidget {
   final VoidCallback? onBack, onReturnToTarget;
   final List<QuestStepProgress> steps;
   final GameQuest? serverQuest;
+  final List<int>? qualifyingFleetIds;
 
   @override
   Widget build(BuildContext context) {
@@ -985,7 +995,7 @@ class _QuestDetail extends StatelessWidget {
                     builder: (context, constraints) {
                       final labels = [
                         l10n.questConditionsAndProgress,
-                        l10n.baseReward,
+                        l10n.questRewards,
                         l10n.questRelations,
                       ];
                       return Wrap(
@@ -1032,6 +1042,13 @@ class _QuestDetail extends StatelessWidget {
                   if (tab == 0) ...[
                     _DetailCard(
                       title: l10n.completionConditions,
+                      leading: switch (qualifyingFleetIds) {
+                        final ids? => _QualifyingFleets(
+                          fleetIds: ids,
+                          l10n: l10n,
+                        ),
+                        null => null,
+                      },
                       child: Text(
                         detail.isEmpty
                             ? l10n.noDescription
@@ -1111,7 +1128,7 @@ class _QuestDetail extends StatelessWidget {
                   ],
                   if (tab == 1)
                     _DetailCard(
-                      title: l10n.baseReward,
+                      title: l10n.questRewards,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -1473,6 +1490,53 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
+class _QualifyingFleets extends StatelessWidget {
+  const _QualifyingFleets({required this.fleetIds, required this.l10n});
+
+  final List<int> fleetIds;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final names = [
+      l10n.questEligibleFleetFirst,
+      l10n.questEligibleFleetSecond,
+      l10n.questEligibleFleetThird,
+      l10n.questEligibleFleetFourth,
+    ];
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(l10n.questEligibleFleets, style: _detailCardHeadingStyle(context)),
+        if (fleetIds.isEmpty)
+          _SmallTag(
+            label: l10n.questNoEligibleFleet,
+            color: appColor(context, const Color(0xffffd268)),
+            pill: true,
+          )
+        else
+          for (final id in fleetIds)
+            _SmallTag(
+              label: names[id - 1],
+              color: AppPalette.of(context).success,
+              pill: true,
+            ),
+      ],
+    );
+  }
+}
+
+TextStyle _detailCardHeadingStyle(BuildContext context) => appTextStyle(
+  context,
+  TextStyle(
+    color: appColor(context, const Color(0xffd4a85f)),
+    fontSize: 12.5,
+    fontWeight: FontWeight.w800,
+  ),
+);
+
 class _DetailCard extends StatelessWidget {
   const _DetailCard({required this.title, this.leading, required this.child});
 
@@ -1492,17 +1556,7 @@ class _DetailCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (leading case final widget?) ...[widget, const SizedBox(height: 8)],
-        Text(
-          title,
-          style: appTextStyle(
-            context,
-            TextStyle(
-              color: appColor(context, Color(0xffd4a85f)),
-              fontSize: 12.5,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ),
+        Text(title, style: _detailCardHeadingStyle(context)),
         const SizedBox(height: 8),
         child,
       ],

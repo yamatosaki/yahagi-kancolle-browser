@@ -52,6 +52,39 @@ void main() {
       );
     });
 
+    test('Kanxy exports allow only a known status and UTC timestamp', () {
+      final record = <String, Object?>{
+        'type': 'kanxy',
+        'occurredAt': '2026-11-13T12:00:00.000Z',
+        'fields': <String, Object?>{'status': 'WS_OPEN'},
+      };
+      void audit(Map<String, Object?> entry) {
+        policy.validateExportDocument(<String, Object?>{
+          'records': <Object?>[entry],
+        });
+      }
+
+      expect(() => audit(record), returnsNormally);
+      for (final invalid in <Map<String, Object?>>[
+        {
+          ...record,
+          'fields': <String, Object?>{'status': 'WS_FUTURE_STATUS'},
+        },
+        {
+          ...record,
+          'fields': <String, Object?>{'status': 'WS_OPEN', 'port': 5412},
+        },
+        {...record, 'fields': <String, Object?>{}},
+        {...record, 'extra': 1},
+        {...record, 'occurredAt': 'unexpected'},
+      ]) {
+        expect(
+          () => audit(invalid),
+          throwsA(isA<DiagnosticPrivacyViolation>()),
+        );
+      }
+    });
+
     test('safe stack keeps symbols but removes paths and arguments', () {
       final stack = StackTrace.fromString('''
 #0      Login.submit (package:yahagi_kancolle_browser/src/login.dart:42:7)

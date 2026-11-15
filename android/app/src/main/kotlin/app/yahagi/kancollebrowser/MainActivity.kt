@@ -28,6 +28,7 @@ import android.view.ViewGroup
 import android.view.PixelCopy
 import android.view.ViewTreeObserver
 import android.view.WindowManager
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.widget.FrameLayout
 import androidx.annotation.RequiresApi
@@ -66,6 +67,14 @@ import app.yahagi.kancollebrowser.browser.OriginCookieManagerChannel
 import app.yahagi.kancollebrowser.browser.GameResourceCacheManager
 import app.yahagi.kancollebrowser.browser.GameResourceDownloadCoordinator
 import app.yahagi.kancollebrowser.browser.GameResourceNetworkMonitor
+import app.yahagi.kancollebrowser.browser.KanxyVpnMonitor
+import app.yahagi.kancollebrowser.browser.KanxyHttpProxyMonitor
+import app.yahagi.kancollebrowser.browser.KanxyWebSocketObserver
+import app.yahagi.kancollebrowser.browser.KanxyWebViewCachePolicy
+import app.yahagi.kancollebrowser.browser.KanxyGameRouteState
+import app.yahagi.kancollebrowser.browser.KanxyResourceRoute
+import app.yahagi.kancollebrowser.browser.hasEnabledKanxy
+import app.yahagi.kancollebrowser.browser.isLoopbackHttpProxy
 import app.yahagi.kancollebrowser.capture.GameCaptureBridge
 import app.yahagi.kancollebrowser.capture.ScreenshotCaptureAttempt
 import app.yahagi.kancollebrowser.capture.ScreenshotCapturePolicy
@@ -77,12 +86,15 @@ import app.yahagi.kancollebrowser.capture.ScreenshotExportWorker
 import app.yahagi.kancollebrowser.capture.writeScreenshotExport
 import app.yahagi.kancollebrowser.capture.ScreenshotViewCandidate
 import app.yahagi.kancollebrowser.composition.CompositionImageHandler
+import app.yahagi.kancollebrowser.fleet.ShipPortraitChannel
 import app.yahagi.kancollebrowser.backup.RecordBackupHandler
 import app.yahagi.kancollebrowser.fonts.CustomFontManager
 import app.yahagi.kancollebrowser.diagnostics.DiagnosticExportDirectoryHost
 import app.yahagi.kancollebrowser.diagnostics.DiagnosticDirectoryPickerUi
 import app.yahagi.kancollebrowser.diagnostics.DiagnosticPickerSystemBars
 import app.yahagi.kancollebrowser.diagnostics.DiagnosticPlatformHandler
+import app.yahagi.kancollebrowser.diagnostics.KanxyDiagnosticChannel
+import app.yahagi.kancollebrowser.diagnostics.KanxyDiagnosticStatus
 import app.yahagi.kancollebrowser.nativewebview.ActivityNativeGameWebViewHostOperations
 import app.yahagi.kancollebrowser.nativewebview.ActivityWebViewHost
 import app.yahagi.kancollebrowser.nativewebview.NativeGameWebViewChannel
@@ -104,9 +116,12 @@ import app.yahagi.kancollebrowser.subtitles.ShipSubtitleBridge
 import java.io.File
 import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
+import java.net.Proxy
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 
 class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExportDirectoryHost {
     private var pendingNotificationPermissionResult: MethodChannel.Result? = null
@@ -145,10 +160,12 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
 
     override fun onResume() {
         super.onResume()
+        kanxyVpnMonitor?.refresh()
         restoreGameWebViewAudio(force = true)
         gameWindowLayoutChannel?.refresh()
         nativeGameWarningDialogChannel?.setForeground(true)
         gameSurfacesResumed = true
+        reconcileKanxyGameRoute()
         gameFrameRateManager?.setForeground(true)
         nativeWebViewStartup?.setForeground(true)
         gameSurfaceRecoveryTrigger.onResume()
@@ -250,6 +267,22 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
     }
 
     private var gameCaptureBridge: GameCaptureBridge? = null
+    @Volatile private var kanxyWebSocketObserver: KanxyWebSocketObserver? = null
+    @Volatile private var kanxyDiagnosticChannel: KanxyDiagnosticChannel? = null
+    @Volatile private var kanxyVpnMonitor: KanxyVpnMonitor? = null
+    private var kanxyHttpProxyMonitor: KanxyHttpProxyMonitor? = null
+    private var verifiedKanxyHttpProxy: Proxy? = null
+    @Volatile private var kanxyHttpProxyConfigured = false
+    @Volatile private var kanxyResourceRoute: KanxyResourceRoute? = null
+    private var kanxyGameRoute = KanxyGameRouteState()
+    private var latestKanxyGameRoute: Pair<Int, Map<String, Any>>? = null
+    private var shipPortraitChannel: ShipPortraitChannel? = null
+    private val kanxyWebViewCache = KanxyWebViewCachePolicy<WebView>(
+        freshCacheMode = WebSettings.LOAD_NO_CACHE,
+        readCacheMode = { it.settings.cacheMode },
+        writeCacheMode = { view, mode -> view.settings.cacheMode = mode },
+        clearMemoryCache = { it.clearCache(false) },
+    )
     private var webViewProxyManager: WebViewProxyManager? = null
     private var gadgetBypassManager: GadgetBypassManager? = null
     private var gameFrameRateManager: GameFrameRateManager? = null
@@ -352,6 +385,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
                 }
 
                 override fun onPageStarted() {
+                    kanxyWebSocketObserver?.onPageStarted(nativeGameWebViewHost?.currentWebView)
                     // Keep the current canvas binding until the new document is
                     // positively classified as game or web by the injected script.
                     // Its URL can be unchanged on reload; a fit in the old
@@ -365,8 +399,14 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
                 }
 
                 override fun onRenderProcessGone() {
+                    kanxyWebSocketObserver?.detach()
                     gameCaptureBridge?.onRenderProcessGone()
                     nativeWebViewStartup?.onRenderProcessGone()
+                }
+
+                override fun onDestroyed() {
+                    kanxyWebSocketObserver?.detach()
+                    kanxyWebViewCache.update(null, null)
                 }
 
                 override fun onCreateFailed() {
@@ -378,6 +418,11 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        disposeKanxyIntegration()
+        val diagnosticsChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DIAGNOSTICS_CHANNEL)
+        val kanxyDiagnostics = KanxyDiagnosticChannel(diagnosticsChannel)
+        kanxyDiagnosticChannel = kanxyDiagnostics
+        kanxyWebSocketObserver = KanxyWebSocketObserver(kanxyDiagnostics::record)
         shipSubtitleBridge?.dispose()
         shipSubtitleBridge = ShipSubtitleBridge(
             this,
@@ -480,11 +525,6 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
             }
         }
         
-        webViewProxyManager = WebViewProxyManager(context)
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            PROXY_CHANNEL,
-        ).setMethodCallHandler(webViewProxyManager)
         val resourceCacheRoot = File(filesDir, "game_resource_cache")
         val resourceEngine = GameResourceCacheEngine(
             GameResourceCacheStore(
@@ -506,18 +546,21 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
             ),
             HttpUrlConnectionGameResourceFetcher(
                 proxyProvider = {
-                    webViewProxyManager?.currentNativeProxy()
+                    if (isKanxyVpnActive()) null else webViewProxyManager?.currentNativeProxy()
                 },
                 temporaryDirectory = cacheDir.resolve("resource-downloads"),
             ),
-        ) { gameResourceCacheMode }
+        ) { if (useFreshGameResources()) GameResourceCacheMode.NONE else gameResourceCacheMode }
         gameResourceCacheEngine = resourceEngine
         val resourceNetworkMonitor = GameResourceNetworkMonitor(context)
         val resourceCoordinator = GameResourceDownloadCoordinator(
             resourceEngine,
             { gameResourceCacheMode },
             File(resourceCacheRoot, "download_state.json"),
-            resourceNetworkMonitor::state,
+            {
+                val network = resourceNetworkMonitor.state()
+                if (useFreshGameResources()) network.copy(connected = false) else network
+            },
         )
         val resourceManager = GameResourceCacheManager(
             resourceEngine,
@@ -531,6 +574,45 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
         )
         resourceNetworkMonitor.start(resourceCoordinator::onNetworkChanged)
         gameResourceCacheManager = resourceManager
+        val httpMonitor = KanxyHttpProxyMonitor(
+            CoroutineScope(Dispatchers.Main.immediate),
+            isKanxyInstalled = { packageManager.hasEnabledKanxy() },
+            onChanged = { proxy ->
+                if (kanxyHttpProxyMonitor != null) {
+                    verifiedKanxyHttpProxy = proxy
+                    if (updateKanxyResourceRoute()) resourceCoordinator.onNetworkChanged()
+                }
+            },
+            onDiagnostic = kanxyDiagnostics::record,
+        )
+        kanxyHttpProxyMonitor = httpMonitor
+        webViewProxyManager = WebViewProxyManager(context) { proxy ->
+            if (kanxyHttpProxyMonitor === httpMonitor) {
+                val wasConfigured = kanxyHttpProxyConfigured
+                kanxyHttpProxyConfigured = isLoopbackHttpProxy(proxy) && packageManager.hasEnabledKanxy()
+                val cachePolicyChanged = wasConfigured != kanxyHttpProxyConfigured
+                val routeChanged = updateKanxyResourceRoute()
+                if (cachePolicyChanged && !routeChanged) configureKanxyWebView()
+                if (routeChanged || cachePolicyChanged) {
+                    resourceCoordinator.onNetworkChanged()
+                }
+                httpMonitor.setProxy(proxy)
+            }
+        }
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            PROXY_CHANNEL,
+        ).setMethodCallHandler(webViewProxyManager)
+        shipPortraitChannel = ShipPortraitChannel(flutterEngine.dartExecutor.binaryMessenger, false)
+        val kanxyMonitor = KanxyVpnMonitor(this) { active ->
+            Log.i("YahagiKanxy", "Kanxy VPN resource routing active=$active")
+            // The monitor only reports the initial sample or a changed Android VPN network.
+            kanxyGameRoute.observe(active, renewActive = active)
+            if (updateKanxyResourceRoute(refreshVpn = active)) resourceCoordinator.onNetworkChanged()
+            reconcileKanxyGameRoute()
+        }
+        kanxyVpnMonitor = kanxyMonitor
+        kanxyMonitor.start()
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             GAME_RESOURCE_CACHE_CHANNEL,
@@ -724,11 +806,26 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
             }
         }
 
-        diagnosticPlatformHandler = DiagnosticPlatformHandler(applicationContext, this)
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            DIAGNOSTICS_CHANNEL,
-        ).setMethodCallHandler(diagnosticPlatformHandler)
+        val diagnosticHandler = DiagnosticPlatformHandler(applicationContext, this)
+        diagnosticPlatformHandler = diagnosticHandler
+        diagnosticsChannel.setMethodCallHandler { call, result ->
+            if (call.method != "setKanxyRecording") {
+                diagnosticHandler.onMethodCall(call, result)
+            } else {
+                val enabled = call.arguments as? Boolean
+                if (enabled == null) {
+                    result.error("invalid_request", null, null)
+                } else {
+                    val starting = enabled && !kanxyDiagnostics.recording
+                    kanxyDiagnostics.setRecording(enabled)
+                    if (starting) {
+                        kanxyDiagnostics.record(kanxyRouteDiagnostic())
+                        kanxyHttpProxyMonitor?.diagnosticStatus?.let(kanxyDiagnostics::record)
+                    }
+                    result.success(null)
+                }
+            }
+        }
 
         val captureChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
@@ -751,6 +848,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
                         )
                         return@setMethodCallHandler
                     }
+                    configureKanxyWebView()
                     gameCaptureBridge?.configure(enabled, script, result)
                         ?: result.error(
                             "capture_unavailable",
@@ -813,18 +911,58 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
         val frameReloadManager = GameFrameReloadManager(frameReloadBridge)
         gameFrameReloadManager = frameReloadManager
         gameFrameReloadChannel = frameReloadChannel
+        latestKanxyGameRoute?.let { frameReloadChannel.invokeMethod("kanxyRouteChanged", it.second) }
+        var pendingKanxyReload: Pair<Int, Any>? = null
         frameReloadChannel.setMethodCallHandler { call, result ->
-            // Both WebView hosts already await this configure call before their
-            // first real navigation. Install the dormant subtitle bridge here
-            // without adding another startup wait to the Dart navigation path.
+            if (call.method == "cancelKanxyGameFrameReload") {
+                if (pendingKanxyReload?.first == call.argument<Int>("generation")) {
+                    pendingKanxyReload = null
+                }
+                result.success(null)
+                return@setMethodCallHandler
+            }
+            if (call.method == "reloadKanxyGameFrame") {
+                val generation = call.argument<Int>("generation")
+                if (generation == null || pendingKanxyReload != null) {
+                    result.success("blocked")
+                    return@setMethodCallHandler
+                }
+                val request = generation to Any()
+                pendingKanxyReload = request
+                frameReloadBridge.reloadWhen(
+                    canDispatch = {
+                        val httpSelected = kanxyHttpProxyConfigured && !isKanxyVpnActive()
+                        val verifiedHttp = kanxyResourceRoute?.proxy
+                        val httpReady = verifiedHttp != null && verifiedHttp == webViewProxyManager?.currentNativeProxy()
+                        pendingKanxyReload === request &&
+                            (!httpSelected || httpReady) &&
+                            kanxyGameRoute.canReload(generation, httpSelected) &&
+                            gameSurfacesResumed && !isFinishing && !isDestroyed &&
+                            (Build.VERSION.SDK_INT < Build.VERSION_CODES.N || !isInPictureInPictureMode) &&
+                            gameAudioWebViews().singleOrNull()?.isShown == true
+                    },
+                    beforeDispatch = {
+                        // An iframe reload can reuse the old main.js from Blink's RAM cache.
+                        gameAudioWebViews().singleOrNull()?.clearCache(false)
+                    },
+                ) { status, _ ->
+                    if (pendingKanxyReload === request) pendingKanxyReload = null
+                    Log.i("YahagiKanxy", "Game route refresh generation=$generation result=$status")
+                    result.success(status)
+                }
+                return@setMethodCallHandler
+            }
+            // Both WebView hosts await this call before first navigation. Bind
+            // the document-start bridges and the Kanxy script fallback here.
             if (call.method == "configure") {
-                runCatching { shipSubtitleBridge?.ensureInstalled() }
+                runCatching { ensureGadgetBypassWrap() }
+                latestKanxyGameRoute?.let { frameReloadChannel.invokeMethod("kanxyRouteChanged", it.second) }
             }
             frameReloadManager.onMethodCall(call, result)
         }
         disposeGameMods()
         var lastPortraitToken: String? = null
-        val mods = GameModManager(this, frameReloadBridge) {
+        val mods = GameModManager(this, frameReloadBridge, kanxyRoute = { kanxyResourceRoute }) {
             installGadgetBypassLayoutListener()
             ensureGadgetBypassWrap()
             val token = gameModManager?.portraitToken()
@@ -843,6 +981,8 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
     }
 
     override fun onDestroy() {
+        kanxyWebSocketObserver?.retireLegacyWebView(nativeGameWebViewHost?.currentWebView)
+        disposeKanxyIntegration()
         gameWindowLayoutChannel?.dispose()
         gameWindowLayoutChannel = null
         nativeGameWarningDialogChannel?.dispose()
@@ -915,6 +1055,8 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        kanxyWebSocketObserver?.retireLegacyWebView(nativeGameWebViewHost?.currentWebView)
+        disposeKanxyIntegration()
         gameWindowLayoutChannel?.dispose()
         gameWindowLayoutChannel = null
         nativeGameWarningDialogChannel?.dispose()
@@ -1143,19 +1285,12 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
         // Successful same-view layout callbacks are coalesced by the state.
         restoreGameWebViewAudio()
         runCatching { shipSubtitleBridge?.ensureInstalled() }
+        configureKanxyWebView()
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.GET_WEB_VIEW_CLIENT)) return
         val manager = gadgetBypassManager ?: return
         if (!manager.enabled && gameResourceCacheMode == GameResourceCacheMode.NONE && gameModManager == null) return
 
-        val webViews = mutableListOf<WebView>()
-        collectWebViews(window.decorView, webViews)
-        if (webViews.size != 1) {
-            if (webViews.size > 1) {
-                Log.w("GadgetBypass", "resource cache wrapper skipped: ${webViews.size} WebViews found")
-            }
-            return
-        }
-        val webView = webViews.single()
+        val webView = gameAudioWebViews().singleOrNull() ?: return
 
         val current = WebViewCompat.getWebViewClient(webView)
         if (current is GadgetBypassWebViewClient && current.ownerToken === gadgetBypassClientOwner) return
@@ -1182,13 +1317,20 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
             GadgetBypassWebViewClient(
                 original = originalClient,
                 engine = manager.engine,
-                isEnabled = { manager.enabled },
+                isEnabled = { manager.enabled && !kanxyHttpProxyConfigured },
                 endpoint = { manager.endpoint },
                 gameResourceEngine = gameResourceCacheEngine,
                 cookiesIncludedInRequestHeaders = cookieInterceptSupported,
                 modResourceInterceptor = { url, method, headers -> gameModManager?.intercept(url, method, headers) },
+                useFreshGameResources = ::useFreshGameResources,
+                needsKanxyScriptFallback = { view -> kanxyWebSocketObserver?.needsScriptFallback(view) == true },
+                isKanxyDiagnosticsEnabled = { kanxyDiagnosticChannel?.recording == true },
+                onKanxyMainScript = { status -> kanxyDiagnosticChannel?.record(status) },
                 ownerToken = gadgetBypassClientOwner,
                 onDocumentStarted = { view ->
+                    if (view !== nativeGameWebViewHost?.currentWebView) {
+                        kanxyWebSocketObserver?.onPageStarted(view)
+                    }
                     if (view === boundWebView) {
                         fixedCanvasScaleApplier.cancel()
                         fixedCanvasScalePolicy.reset()
@@ -1289,6 +1431,103 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
             ?.takeIf { it.isAttachedToWindow }
             ?.let { return listOf(it) }
         return mutableListOf<WebView>().also { collectWebViews(window.decorView, it) }
+    }
+
+    private fun isKanxyVpnActive(): Boolean = kanxyVpnMonitor?.active == true
+
+    private fun isKanxyResourceRouteActive(): Boolean = kanxyResourceRoute != null
+
+    private fun useFreshGameResources(): Boolean =
+        isKanxyResourceRouteActive() || kanxyHttpProxyConfigured
+
+    private fun kanxyRouteDiagnostic(): KanxyDiagnosticStatus {
+        val route = kanxyResourceRoute ?: return KanxyDiagnosticStatus.ROUTE_INACTIVE
+        return if (route.proxy == null) KanxyDiagnosticStatus.ROUTE_VPN else KanxyDiagnosticStatus.ROUTE_HTTP
+    }
+
+    private fun updateKanxyResourceRoute(refreshVpn: Boolean = false): Boolean {
+        val vpnActive = isKanxyVpnActive()
+        val proxy = if (vpnActive) null else webViewProxyManager?.currentNativeProxy()
+        val httpActive = proxy != null && proxy == verifiedKanxyHttpProxy
+        val previous = kanxyResourceRoute
+        val route = when {
+            !vpnActive && !httpActive -> null
+            previous != null && previous.proxy == proxy && !refreshVpn -> previous
+            else -> KanxyResourceRoute(proxy)
+        }
+        kanxyResourceRoute = route
+        val changed = previous !== route
+        // A loopback proxy may already serve modified bytes while identity is being checked.
+        shipPortraitChannel?.onRouteChanged(useFreshGameResources(), proxy, refresh = changed)
+        if (changed) {
+            kanxyDiagnosticChannel?.record(kanxyRouteDiagnostic())
+            Log.i("YahagiKanxy", "Kanxy resource route active=${route != null} http=$httpActive")
+            configureKanxyWebView()
+            if (!vpnActive && (httpActive || previous?.proxy != null)) {
+                publishKanxyGameRoute(kanxyGameRoute.observeHttp(httpActive), http = true)
+            }
+        }
+        return changed
+    }
+
+    private fun reconcileKanxyGameRoute(allowRetry: Boolean = true) {
+        val proxy = webViewProxyManager ?: return
+        val state = kanxyGameRoute
+        val route = state.beginReconcile() ?: return
+        proxy.setKanxyVpnActive(route.active) { success ->
+            if (kanxyGameRoute !== state) return@setKanxyVpnActive
+            val change = state.finishReconcile(route, success)
+            if (!success && allowRetry) {
+                // AndroidX can finish a proxy update after the first wait timed out.
+                NATIVE_WEB_VIEW_MAIN_HANDLER.postDelayed({
+                    if (kanxyGameRoute === state) reconcileKanxyGameRoute(allowRetry = false)
+                }, 500L)
+            }
+            if (change != null) publishKanxyGameRoute(change)
+        }
+    }
+
+    private fun publishKanxyGameRoute(change: KanxyGameRouteState.Change, http: Boolean = false) {
+        val route = change.route
+        if ((latestKanxyGameRoute?.first ?: 0) >= route.generation) return
+        Log.i("YahagiKanxy", "Game route ready active=${route.active} http=$http renewed=${change.renewed} generation=${route.generation}")
+        val arguments = mapOf(
+            "active" to route.active,
+            "previous" to change.previous,
+            "generation" to route.generation,
+            "readyAt" to System.currentTimeMillis(),
+            "http" to http,
+            "renewed" to change.renewed,
+        )
+        latestKanxyGameRoute = route.generation to arguments
+        if (route.active) kanxyWebSocketObserver?.reconnect(route.generation)
+        gameFrameReloadChannel?.invokeMethod("kanxyRouteChanged", arguments)
+    }
+
+    private fun configureKanxyWebView() {
+        val webView = gameAudioWebViews().singleOrNull()
+        kanxyWebViewCache.update(webView.takeIf { useFreshGameResources() }, kanxyResourceRoute)
+        kanxyWebSocketObserver?.ensureInstalled(webView)
+    }
+
+    private fun disposeKanxyIntegration() {
+        kanxyDiagnosticChannel?.setRecording(false)
+        kanxyDiagnosticChannel = null
+        val httpMonitor = kanxyHttpProxyMonitor
+        kanxyHttpProxyMonitor = null
+        httpMonitor?.stop()
+        verifiedKanxyHttpProxy = null
+        kanxyHttpProxyConfigured = false
+        kanxyResourceRoute = null
+        kanxyVpnMonitor?.stop()
+        kanxyVpnMonitor = null
+        kanxyGameRoute = KanxyGameRouteState()
+        latestKanxyGameRoute = null
+        shipPortraitChannel?.dispose()
+        shipPortraitChannel = null
+        kanxyWebViewCache.update(null, null)
+        kanxyWebSocketObserver?.detach()
+        kanxyWebSocketObserver = null
     }
 
     private fun restoreGameWebViewAudio(force: Boolean = false) {

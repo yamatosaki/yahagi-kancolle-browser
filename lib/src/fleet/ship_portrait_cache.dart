@@ -1,9 +1,12 @@
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+
+import 'ship_portrait_network.dart';
 
 typedef ShipPortraitCacheDirectoryProvider = Future<Directory> Function();
 
@@ -13,6 +16,7 @@ class ShipPortraitCache {
   ShipPortraitCache({
     required this.directoryProvider,
     required this.client,
+    this.network,
     this.requestTimeout = const Duration(seconds: 15),
     this.maximumResponseBytes = 8 * 1024 * 1024,
   });
@@ -23,81 +27,127 @@ class ShipPortraitCache {
       return Directory(path.join(support.path, 'ship_portraits'));
     },
     client: http.Client(),
+    network: Platform.isAndroid ? ShipPortraitNetwork() : null,
   );
 
   final ShipPortraitCacheDirectoryProvider directoryProvider;
   final http.Client client;
+  final ShipPortraitNetwork? network;
   final Duration requestTimeout;
   final int maximumResponseBytes;
   final Map<String, Future<File?>> _inFlight = <String, Future<File?>>{};
   final Map<String, Future<void>> _serialTails = <String, Future<void>>{};
 
-  Future<File?> resolve({required String cacheKey, required Uri uri}) {
+  Listenable? routeChangesFor(Uri uri) =>
+      ShipPortraitNetwork.appliesTo(uri) ? network : null;
+
+  Future<File?> resolve({required String cacheKey, required Uri uri}) async {
     if ((uri.scheme != 'http' && uri.scheme != 'https') || uri.host.isEmpty) {
-      return Future<File?>.value();
+      return null;
     }
-    final requestKey = '$cacheKey|$uri';
+    ShipPortraitRoute? route;
+    final portraitNetwork = network;
+    if (portraitNetwork != null && ShipPortraitNetwork.appliesTo(uri)) {
+      try {
+        route = await portraitNetwork.currentRoute();
+      } catch (_) {
+        return null;
+      }
+      if (route == null || !portraitNetwork.isCurrent(route)) return null;
+    }
+    final requestKey = '$cacheKey|$uri|${route?.token ?? ''}';
     final existing = _inFlight[requestKey];
     if (existing != null) return existing;
 
-    final previous = _serialTails[cacheKey] ?? Future<void>.value();
+    final serialKey = route?.kanxyActive == true ? 'kanxy|$cacheKey' : cacheKey;
+    final previous = _serialTails[serialKey] ?? Future<void>.value();
     final operation = previous.then(
-      (_) => _resolve(cacheKey: cacheKey, uri: uri),
+      (_) => _resolve(cacheKey: cacheKey, uri: uri, route: route),
     );
     _inFlight[requestKey] = operation;
     final tail = operation.then<void>((_) {});
-    _serialTails[cacheKey] = tail;
+    _serialTails[serialKey] = tail;
     operation.whenComplete(() {
       if (identical(_inFlight[requestKey], operation)) {
         _inFlight.remove(requestKey);
       }
     });
     tail.whenComplete(() {
-      if (identical(_serialTails[cacheKey], tail)) {
-        _serialTails.remove(cacheKey);
+      if (identical(_serialTails[serialKey], tail)) {
+        _serialTails.remove(serialKey);
       }
     });
     return operation;
   }
 
-  Future<void> evict({required String cacheKey, required Uri uri}) async {
+  Future<void> evict({
+    required String cacheKey,
+    required Uri uri,
+    File? resolvedFile,
+  }) async {
     try {
-      final directory = await directoryProvider();
-      final file = _cacheFile(
-        directory: directory,
-        cacheKey: cacheKey,
-        uri: uri,
-      );
+      final file =
+          resolvedFile ??
+          _cacheFile(
+            directory: await directoryProvider(),
+            cacheKey: cacheKey,
+            uri: uri,
+          );
       if (await file.exists()) await file.delete();
     } catch (_) {
       // Decode failure eviction is best-effort; the placeholder remains usable.
     }
   }
 
-  Future<File?> _resolve({required String cacheKey, required Uri uri}) async {
+  Future<File?> _resolve({
+    required String cacheKey,
+    required Uri uri,
+    required ShipPortraitRoute? route,
+  }) async {
     File? temporary;
+    bool currentRoute() => route == null || network!.isCurrent(route);
     try {
-      final directory = await directoryProvider();
+      if (!currentRoute()) return null;
+      final cacheDirectory = await directoryProvider();
+      final kanxyActive = route?.kanxyActive == true;
+      final directory = kanxyActive
+          ? Directory(path.join(cacheDirectory.path, 'kanxy'))
+          : cacheDirectory;
       await directory.create(recursive: true);
       final safeKey = _safeCacheKey(cacheKey);
-      final file = _cacheFile(
+      final ordinaryFile = _cacheFile(
         directory: directory,
         cacheKey: cacheKey,
         uri: uri,
       );
-      if (await _isValidPngFile(file)) return file;
-      if (await file.exists()) await file.delete();
-
-      final response = await client.get(uri).timeout(requestTimeout);
-      if (response.statusCode != HttpStatus.ok ||
-          response.bodyBytes.isEmpty ||
-          response.bodyBytes.length > maximumResponseBytes ||
-          !_hasPngSignature(response.bodyBytes)) {
+      if (!kanxyActive) {
+        if (await _isValidPngFile(ordinaryFile)) {
+          return currentRoute() ? ordinaryFile : null;
+        }
+        if (await ordinaryFile.exists()) await ordinaryFile.delete();
+      }
+      if (!currentRoute()) return null;
+      final bytes = await _download(uri, route).timeout(requestTimeout);
+      if (!currentRoute() ||
+          bytes == null ||
+          bytes.length > maximumResponseBytes ||
+          !_hasPngSignature(bytes)) {
         return null;
       }
 
+      // Kanxy can change a response without changing its URL or version.
+      final file = kanxyActive
+          ? _cacheFile(
+              directory: directory,
+              cacheKey: cacheKey,
+              uri: uri,
+              contentHash: sha256.convert(bytes).toString(),
+            )
+          : ordinaryFile;
+
       temporary = File('${file.path}.${pid}_${_temporaryFileSequence++}.tmp');
-      await temporary.writeAsBytes(response.bodyBytes, flush: true);
+      await temporary.writeAsBytes(bytes, flush: true);
+      if (!currentRoute()) return null;
       if (await file.exists()) {
         if (await _isValidPngFile(file)) {
           await temporary.delete();
@@ -122,7 +172,7 @@ class ShipPortraitCache {
         safeKey: safeKey,
         keepPath: file.path,
       );
-      return file;
+      return currentRoute() ? file : null;
     } catch (_) {
       return null;
     } finally {
@@ -136,14 +186,22 @@ class ShipPortraitCache {
     }
   }
 
+  Future<Uint8List?> _download(Uri uri, ShipPortraitRoute? route) async {
+    if (route != null) return network!.fetch(uri, route);
+    final response = await client.get(uri);
+    return response.statusCode == HttpStatus.ok ? response.bodyBytes : null;
+  }
+
   File _cacheFile({
     required Directory directory,
     required String cacheKey,
     required Uri uri,
+    String? contentHash,
   }) {
     final digest = sha256.convert(uri.toString().codeUnits).toString();
+    final variant = contentHash == null ? digest : '$digest-$contentHash';
     return File(
-      path.join(directory.path, '${_safeCacheKey(cacheKey)}-$digest.png'),
+      path.join(directory.path, '${_safeCacheKey(cacheKey)}-$variant.png'),
     );
   }
 

@@ -137,7 +137,11 @@ class _Official extends ShipPortraitCache {
   }
 
   @override
-  Future<void> evict({required String cacheKey, required Uri uri}) async {
+  Future<void> evict({
+    required String cacheKey,
+    required Uri uri,
+    File? resolvedFile,
+  }) async {
     evictions++;
   }
 }

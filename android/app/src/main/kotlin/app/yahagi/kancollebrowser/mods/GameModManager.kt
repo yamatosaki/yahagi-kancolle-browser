@@ -10,7 +10,10 @@ import android.provider.OpenableColumns
 import android.webkit.WebResourceResponse
 import app.yahagi.kancollebrowser.browser.GameModApplyCoordinator
 import app.yahagi.kancollebrowser.browser.GameModPagePresence
+import app.yahagi.kancollebrowser.browser.KanxyResourceRoute
 import app.yahagi.kancollebrowser.browser.PreparedGameFrameReloadBridgePort
+import com.google.gson.JsonParser
+import io.flutter.FlutterInjector
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
@@ -26,6 +29,7 @@ import kotlinx.coroutines.sync.withLock
 internal class GameModManager(
     private val activity: Activity,
     private val reloadBridge: PreparedGameFrameReloadBridgePort,
+    private val kanxyRoute: () -> KanxyResourceRoute? = { null },
     private val onStateChanged: () -> Unit,
 ) : MethodChannel.MethodCallHandler {
     companion object {
@@ -58,13 +62,36 @@ internal class GameModManager(
     @Volatile private var libraryCoordinator: GameModLibraryCoordinator? = null
     @Volatile private var libraryError: String? = null
     @Volatile private var defaultMigrationWarning: String? = null
+    private val stockShipNames: Map<String, String> by lazy {
+        try {
+            val asset = FlutterInjector.instance().flutterLoader()
+                .getLookupKeyForAsset("assets/data/master_ship_names.json")
+            activity.assets.open(asset).bufferedReader().use { input ->
+                JsonParser.parseReader(input).asJsonObject.getAsJsonObject("names").entrySet()
+                    .mapNotNull { (id, value) ->
+                        if (value.isJsonPrimitive && value.asJsonPrimitive.isString) id to value.asString
+                        else null
+                    }.toMap()
+            }
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
     private val coordinateEndpoint = GameModCoordinateEndpoint(
-        snapshot = { if (disposed || initializationFailed || ready.count != 0L) null else repository?.activeCoordinateSnapshot() },
+        snapshot = {
+            if (disposed || initializationFailed || ready.count != 0L) null
+            else repository?.activeCoordinateSnapshot(kanxyVpnActive = kanxyRoute() != null)
+        },
         record = { session, token, ids, failure ->
             if (!disposed && !initializationFailed && ready.count == 0L) {
                 repository?.recordCoordinateResult(session, token, ids, failure)
             }
         },
+        kanxyActive = { !disposed && kanxyRoute() != null },
+        stockShipNames = { stockShipNames },
+    )
+    private val kanxyCoordinates = KanxyGameCoordinateEndpoint(
+        currentRoute = { if (disposed) null else kanxyRoute() },
     )
     private val initialization = scope.async(Dispatchers.IO) {
         try {
@@ -465,6 +492,8 @@ internal class GameModManager(
 
     fun intercept(url: String, method: String, headers: Map<String, String>): WebResourceResponse? {
         if (!url.contains(".kancolle-server.com")) return null
+        // This is a live Kanxy response. It does not depend on Yahagi's local library.
+        kanxyCoordinates.open(url, method)?.let { return it.toWebResourceResponse() }
         // Only the first startup request may wait for the independent native state load.
         val initialized = ready.await(5, TimeUnit.SECONDS) && !initializationFailed && !disposed
         val response = coordinateEndpoint.open(url, method)

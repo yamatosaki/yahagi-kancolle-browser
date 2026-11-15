@@ -85,6 +85,22 @@ void main() {
     expect(restored.masterShips[1]?.portraitVersion, isNull);
   });
 
+  test('restoring a cached false ship name keeps the master record', () {
+    final restored = GameStateSerializer.deserialize('''
+      {"masterShips":{
+        "623":{"name":"false","reading":"ゆうばり","maxHp":60},
+        "748":{"name":false,"portraitFileName":"ibcavjzuajrb"},
+        "411":{"name":"扶桑（战后）"}
+      }}
+    ''');
+
+    expect(restored.masterShips[623]?.name, 'ゆうばり');
+    expect(restored.masterShips[623]?.maxHp, 60);
+    expect(restored.masterShips[748]?.name, '#748');
+    expect(restored.masterShips[748]?.portraitFileName, 'ibcavjzuajrb');
+    expect(restored.masterShips[411]?.name, '扶桑（战后）');
+  });
+
   test('equipment compatibility master data survives cache serialization', () {
     const state = GameState(
       masterShipTypes: <int, MasterShipType>{

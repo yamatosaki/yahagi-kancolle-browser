@@ -50,7 +50,7 @@ Future<void> _pumpViewport(
   double dpr = 1,
   bool isLandscape = true,
   bool fullscreen = false,
-  bool centerAboveBottomInset = false,
+  bool applyOuterPadding = true,
   GameFitAxis? fullscreenFitAxis,
   DisplayMode displayMode = DisplayMode.auto,
 }) async {
@@ -66,13 +66,10 @@ Future<void> _pumpViewport(
       child: Directionality(
         textDirection: TextDirection.ltr,
         child: Padding(
-          padding: (fullscreen || centerAboveBottomInset)
-              ? EdgeInsets.zero
-              : padding,
+          padding: fullscreen || !applyOuterPadding ? EdgeInsets.zero : padding,
           child: GameSurfaceViewport(
             aspectRatio: _gameAspectRatio,
             fullscreen: fullscreen,
-            centerAboveBottomInset: centerAboveBottomInset,
             fullscreenFitAxis: fullscreenFitAxis,
             isLandscape: isLandscape,
             displayMode: displayMode,
@@ -142,7 +139,7 @@ void main() {
   );
 
   testWidgets(
-    'non-fullscreen with centerAboveBottomInset applies bottom safe inset',
+    'windowed game uses the full viewport height despite system padding',
     (tester) async {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -153,14 +150,17 @@ void main() {
         size: containerSize,
         padding: systemPadding,
         fullscreen: false,
-        centerAboveBottomInset: true,
+        applyOuterPadding: false,
         isLandscape: true,
       );
       final rect = tester.getRect(find.byKey(_surfaceKey));
-      expect(rect.height, 388);
-      expect(rect.width, closeTo(388 * _gameAspectRatio, 0.001));
+      expect(rect.height, containerSize.height);
+      expect(
+        rect.width,
+        closeTo(containerSize.height * _gameAspectRatio, 0.001),
+      );
       expect(rect.top, 0);
-      expect(rect.bottom, 388);
+      expect(rect.bottom, containerSize.height);
     },
   );
 
@@ -461,7 +461,7 @@ void main() {
       expect(rect.top, inInclusiveRange(0, 40));
     });
 
-    test('minimal centers contain rect above bottom inset', () {
+    test('contain centers inside an explicit bottom inset', () {
       const ratio = 1200.0 / 720.0;
       const padding = EdgeInsets.only(bottom: 16);
 
@@ -646,41 +646,25 @@ void main() {
       },
     );
 
-    testWidgets('minimal centers contain rect above bottom inset', (
+    testWidgets('width-limited game centers with equal vertical gaps', (
       tester,
     ) async {
-      tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      for (final (size, expected) in [
-        (const Size(629, 393), const Rect.fromLTWH(0.33, 0, 628.33, 377)),
-        (const Size(500, 393), const Rect.fromLTWH(0, 38.5, 500, 300)),
-      ]) {
-        tester.view.physicalSize = size;
-        await tester.pumpWidget(
-          MediaQuery(
-            data: MediaQueryData(
-              size: size,
-              viewPadding: const EdgeInsets.only(left: 30, bottom: 16),
-            ),
-            child: const Directionality(
-              textDirection: TextDirection.ltr,
-              child: GameSurfaceViewport(
-                isLandscape: true,
-                centerAboveBottomInset: true,
-                child: SizedBox.expand(key: Key('test-game-surface')),
-              ),
-            ),
-          ),
+      for (final size in [const Size(629, 393), const Size(500, 393)]) {
+        await _pumpViewport(
+          tester,
+          size: size,
+          padding: const EdgeInsets.only(left: 30, bottom: 16),
+          applyOuterPadding: false,
         );
-        await tester.pumpAndSettle();
 
-        final rect = tester.getRect(find.byKey(const Key('test-game-surface')));
-        expect(rect.left, closeTo(expected.left, 0.01));
-        expect(rect.top, closeTo(expected.top, 0.01));
-        expect(rect.width, closeTo(expected.width, 0.01));
-        expect(rect.height, closeTo(expected.height, 0.01));
+        final rect = tester.getRect(find.byKey(_surfaceKey));
+        _expectFullyVisible(rect, size, EdgeInsets.zero);
+        expect(rect.width, closeTo(size.width, 0.01));
+        expect(rect.top, greaterThan(0));
+        expect(size.height - rect.bottom, closeTo(rect.top, 0.01));
       }
     });
   });

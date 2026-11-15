@@ -9,8 +9,15 @@ import java.net.URLDecoder
 /** Private virtual routes. They never forward configuration or acknowledgements to the network. */
 internal class GameModCoordinateEndpoint(
     private val snapshot: () -> Map<String, Any?>?,
+    private val kanxyActive: () -> Boolean,
+    private val stockShipNames: () -> Map<String, String> = { emptyMap() },
     private val record: (Long, String, List<String>, String?) -> Unit,
 ) {
+    constructor(
+        snapshot: () -> Map<String, Any?>?,
+        record: (Long, String, List<String>, String?) -> Unit,
+    ) : this(snapshot, { false }, record = record)
+
     private val gson = Gson()
 
     fun open(url: String, method: String): GameModResponse? {
@@ -24,7 +31,11 @@ internal class GameModCoordinateEndpoint(
         return try {
             if (base.rawPath == CONFIG_PATH) {
                 if (url.contains('?') || url.contains('#')) return response(400, "Bad Request")
-                response(200, "OK", snapshot() ?: mapOf("sessionId" to 0, "token" to "", "ships" to emptyMap<String, Any>()))
+                val local = snapshot() ?: mapOf("sessionId" to 0, "token" to "", "ships" to emptyMap<String, Any>())
+                val config = if (kanxyActive()) {
+                    local + mapOf("kanxy" to true, "stockShipNames" to stockShipNames())
+                } else local
+                response(200, "OK", config)
             } else {
                 val raw = url.substringAfter('?', "")
                 if (raw.length > 65_536 || !raw.startsWith("payload=") || raw.contains('&') || raw.contains('#')) {

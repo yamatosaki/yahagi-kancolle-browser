@@ -11,14 +11,21 @@ class FrozenDataTable extends StatefulWidget {
     required this.scrollableHeaders,
     required this.scrollableCells,
     required this.rowHeights,
+    this.scrollableRowWidths,
     this.headerExtent = headerHeight,
     this.keyPrefix = 'frozen-table',
+    this.restoreScrollOffsets = false,
+    this.verticalAnchorKeys,
     this.onEndReached,
     this.onRowTap,
     this.rowTapEnabled,
     this.selectedRowIndex,
   }) : assert(frozenColumnWidths.length == frozenHeaders.length),
-       assert(scrollableColumnWidths.length == scrollableHeaders.length);
+       assert(scrollableColumnWidths.length == scrollableHeaders.length),
+       assert(
+         verticalAnchorKeys == null ||
+             verticalAnchorKeys.length == rowHeights.length,
+       );
 
   static const double headerHeight = 34;
   static const double minimumRowHeight = 44;
@@ -29,9 +36,18 @@ class FrozenDataTable extends StatefulWidget {
   final List<double> scrollableColumnWidths;
   final List<Widget> scrollableHeaders;
   final List<Widget> Function(int index) scrollableCells;
+
+  /// Alternate body column widths that still fill the scrollable pane.
+  final List<double> Function(int index)? scrollableRowWidths;
   final List<double> rowHeights;
   final double headerExtent;
   final String keyPrefix;
+
+  /// Restores each pane's offset when remounted under the same page storage.
+  final bool restoreScrollOffsets;
+
+  /// Preserves the first visible row across insertions or removals before it.
+  final List<Object?>? verticalAnchorKeys;
   final VoidCallback? onEndReached;
   final ValueChanged<int>? onRowTap;
   final bool Function(int index)? rowTapEnabled;
@@ -42,17 +58,34 @@ class FrozenDataTable extends StatefulWidget {
 }
 
 class _FrozenDataTableState extends State<FrozenDataTable> {
-  final _horizontal = ScrollController();
+  late final _horizontal = ScrollController(onAttach: _onHorizontalAttach);
   final _vertical = ScrollController();
   final _frozenVertical = ScrollController();
   bool _syncingFrozen = false;
   bool _syncingMainVertical = false;
+
+  Key _scrollKey(String pane) {
+    final name = '${widget.keyPrefix}-$pane-scroll';
+    return widget.restoreScrollOffsets
+        ? PageStorageKey<String>(name)
+        : Key(name);
+  }
 
   @override
   void initState() {
     super.initState();
     _vertical.addListener(_syncFrozen);
     _frozenVertical.addListener(_syncMainVertical);
+  }
+
+  void _onHorizontalAttach(ScrollPosition position) {
+    if (!widget.restoreScrollOffsets) return;
+    // PageStorage restores pixels before attachment without notifying the header.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _horizontal.hasClients && _horizontal.offset != 0) {
+        setState(() {});
+      }
+    });
   }
 
   @override
@@ -64,13 +97,41 @@ class _FrozenDataTableState extends State<FrozenDataTable> {
           widget.scrollableColumnWidths,
         ) ||
         !identical(oldWidget.frozenColumnWidths, widget.frozenColumnWidths)) {
+      final anchoredOffset = _anchorOffset(oldWidget);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _clampOffset(_horizontal);
-        _clampOffset(_vertical);
+        _clampOffset(_vertical, targetOffset: anchoredOffset);
         _syncFrozen();
       });
     }
+  }
+
+  double? _anchorOffset(FrozenDataTable oldWidget) {
+    final oldKeys = oldWidget.verticalAnchorKeys;
+    final keys = widget.verticalAnchorKeys;
+    if (oldKeys == null || keys == null || !_vertical.hasClients) return null;
+    final offset = _vertical.offset;
+    if (offset <= 0.1) return null;
+
+    var oldTop = 0.0;
+    for (var index = 0; index < oldKeys.length; index++) {
+      final height = oldWidget.rowHeights[index];
+      if (offset < oldTop + height) {
+        final key = oldKeys[index];
+        if (key == null) return null;
+        final newIndex = keys.indexOf(key);
+        if (newIndex < 0) return null;
+        var newTop = 0.0;
+        for (var preceding = 0; preceding < newIndex; preceding++) {
+          newTop += widget.rowHeights[preceding];
+        }
+        return newTop +
+            (offset - oldTop).clamp(0.0, widget.rowHeights[newIndex]);
+      }
+      oldTop += height;
+    }
+    return null;
   }
 
   void _syncFrozen() {
@@ -109,9 +170,9 @@ class _FrozenDataTableState extends State<FrozenDataTable> {
     }
   }
 
-  void _clampOffset(ScrollController controller) {
+  void _clampOffset(ScrollController controller, {double? targetOffset}) {
     if (!controller.hasClients) return;
-    final target = controller.offset
+    final target = (targetOffset ?? controller.offset)
         .clamp(
           controller.position.minScrollExtent,
           controller.position.maxScrollExtent,
@@ -274,7 +335,7 @@ class _FrozenDataTableState extends State<FrozenDataTable> {
                       width: frozenWidth,
                       child: ClipRect(
                         child: ListView.builder(
-                          key: Key('${widget.keyPrefix}-frozen-scroll'),
+                          key: _scrollKey('frozen'),
                           controller: _frozenVertical,
                           physics: const ClampingScrollPhysics(),
                           padding: EdgeInsets.zero,
@@ -309,7 +370,7 @@ class _FrozenDataTableState extends State<FrozenDataTable> {
                         thumbVisibility: true,
                         scrollbarOrientation: ScrollbarOrientation.bottom,
                         child: SingleChildScrollView(
-                          key: Key('${widget.keyPrefix}-horizontal-scroll'),
+                          key: _scrollKey('horizontal'),
                           controller: _horizontal,
                           scrollDirection: Axis.horizontal,
                           physics: const ClampingScrollPhysics(),
@@ -319,7 +380,7 @@ class _FrozenDataTableState extends State<FrozenDataTable> {
                               controller: _vertical,
                               thumbVisibility: true,
                               child: ListView.builder(
-                                key: Key('${widget.keyPrefix}-body-scroll'),
+                                key: _scrollKey('body'),
                                 controller: _vertical,
                                 physics: const ClampingScrollPhysics(),
                                 padding: EdgeInsets.zero,
@@ -337,7 +398,10 @@ class _FrozenDataTableState extends State<FrozenDataTable> {
                                         index,
                                         row(
                                           widget.scrollableCells(index),
-                                          widget.scrollableColumnWidths,
+                                          widget.scrollableRowWidths?.call(
+                                                index,
+                                              ) ??
+                                              widget.scrollableColumnWidths,
                                           widget.rowHeights[index],
                                           background:
                                               widget.selectedRowIndex == index

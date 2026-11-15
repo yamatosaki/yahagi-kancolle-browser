@@ -705,7 +705,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get questDesc => '임무 설명';
 
   @override
-  String get baseReward => '기본 보상';
+  String get questRewards => '임무 보상';
 
   @override
   String get accepted => '수락함';
@@ -2564,6 +2564,24 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get completionConditions => '완료 조건';
+
+  @override
+  String get questEligibleFleets => '편성 조건을 충족하는 함대:';
+
+  @override
+  String get questNoEligibleFleet => '조건을 충족하는 함대 없음';
+
+  @override
+  String get questEligibleFleetFirst => '제1함대';
+
+  @override
+  String get questEligibleFleetSecond => '제2함대';
+
+  @override
+  String get questEligibleFleetThird => '제3함대';
+
+  @override
+  String get questEligibleFleetFourth => '제4함대';
 
   @override
   String get questRelations => '임무 관계';

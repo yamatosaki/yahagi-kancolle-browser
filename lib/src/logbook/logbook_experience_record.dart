@@ -7,6 +7,7 @@ final class LogbookExperienceShip {
     required this.name,
     required this.fleetId,
     required this.experience,
+    this.mvpCount,
     this.retreated = false,
   });
 
@@ -15,6 +16,7 @@ final class LogbookExperienceShip {
   final String name;
   final int fleetId;
   final int? experience;
+  final int? mvpCount;
   final bool retreated;
 
   Map<String, Object?> _toJson() => {
@@ -23,6 +25,7 @@ final class LogbookExperienceShip {
     'name': name,
     'fleetId': fleetId,
     'experience': experience,
+    if (mvpCount != null) 'mvpCount': mvpCount,
     'retreated': retreated,
   };
 
@@ -34,12 +37,19 @@ final class LogbookExperienceShip {
     if (experience != null && experience < 0) {
       throw const FormatException('Invalid logbook ship experience');
     }
+    final mvpCount = value.containsKey('mvpCount')
+        ? _field<int?>(value, 'mvpCount')
+        : null;
+    if (mvpCount != null && mvpCount < 0) {
+      throw const FormatException('Invalid logbook ship MVP count');
+    }
     return LogbookExperienceShip(
       ownedShipId: _nonnegative(value, 'ownedShipId', minimum: 1),
       masterShipId: _nonnegative(value, 'masterShipId'),
       name: _field<String>(value, 'name'),
       fleetId: _nonnegative(value, 'fleetId', minimum: 1),
       experience: experience,
+      mvpCount: mvpCount,
       retreated: _field<bool>(value, 'retreated'),
     );
   }

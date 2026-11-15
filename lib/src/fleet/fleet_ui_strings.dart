@@ -174,13 +174,7 @@ String fleetText(BuildContext context, String source) {
       "Battle briefing display",
     ),
     "地图": ("地图", "地圖", "マップ", "지도", "Map"),
-    "提前剧透": (
-      "提前剧透",
-      "提前劇透",
-      "敵編成の先読み",
-      "적 편성 미리 보기",
-      "Enemy preview",
-    ),
+    "提前剧透": ("提前剧透", "提前劇透", "敵編成の先読み", "적 편성 미리 보기", "Enemy preview"),
     "结果剧透": (
       "结果剧透",
       "結果劇透",

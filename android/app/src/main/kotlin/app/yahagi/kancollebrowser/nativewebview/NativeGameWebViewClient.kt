@@ -140,6 +140,7 @@ internal class NativeGameWebViewClient(
     acceptsGeneration: () -> Boolean,
     prepareRenderProcessGone: (Long) -> Boolean,
     onRenderProcessGone: (Long) -> Unit,
+    private val onMainFrameNavigationStarted: (WebView?) -> Unit,
 ) : WebViewClient() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var presentationBridge: NativeGamePresentationBridge? = null
@@ -176,6 +177,7 @@ internal class NativeGameWebViewClient(
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         documentEpoch++
         presentationBridge?.resetForNavigation()
+        onMainFrameNavigationStarted(view)
         delegate.pageStarted(url.orEmpty())
     }
 

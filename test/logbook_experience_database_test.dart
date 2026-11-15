@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -75,21 +76,34 @@ void main() {
       final record = (await restored.getExperienceRecords()).single;
       expect(record.eventKey, 'experience-a');
       expect(record.ships.map((ship) => ship.experience), [120, 0, null]);
+      expect(record.ships.map((ship) => ship.mvpCount), [2, 0, null]);
 
       const table = LogbookDatabase.experienceTable;
-      final invalidTables = {
-        ...decoded.tables,
-        table: [
-          {
-            ...decoded.tables[table]!.single,
-            'ships_json': '[{"experience":-1}]',
-          },
-        ],
-      };
-      await expectLater(
-        restored.restoreSnapshot(invalidTables),
-        throwsFormatException,
-      );
+      final row = decoded.tables[table]!.single;
+      final ships = (jsonDecode(row['ships_json']! as String) as List)
+          .cast<Map<String, dynamic>>();
+      for (final invalid in [
+        {'experience': -1},
+        {'mvpCount': -1},
+        {'mvpCount': '1'},
+      ]) {
+        final invalidTables = {
+          ...decoded.tables,
+          table: [
+            {
+              ...row,
+              'ships_json': jsonEncode([
+                {...ships.first, ...invalid},
+                ...ships.skip(1),
+              ]),
+            },
+          ],
+        };
+        await expectLater(
+          restored.restoreSnapshot(invalidTables),
+          throwsFormatException,
+        );
+      }
       expect(
         (await restored.getExperienceRecords()).single.eventKey,
         'experience-a',
@@ -179,22 +193,24 @@ LogbookExperienceRecord _record(
   deckId: 1,
   battles: isPractice ? 1 : 2,
   incomplete: true,
-  ships: const [
+  ships: [
     LogbookExperienceShip(
       ownedShipId: 30,
       masterShipId: 1,
       name: '矢矧',
       fleetId: 1,
       experience: 120,
+      mvpCount: isPractice ? 1 : 2,
     ),
-    LogbookExperienceShip(
+    const LogbookExperienceShip(
       ownedShipId: 10,
       masterShipId: 2,
       name: '最上',
       fleetId: 1,
       experience: 0,
+      mvpCount: 0,
     ),
-    LogbookExperienceShip(
+    const LogbookExperienceShip(
       ownedShipId: 20,
       masterShipId: 3,
       name: '夕立',

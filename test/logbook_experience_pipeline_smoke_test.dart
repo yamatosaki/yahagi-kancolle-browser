@@ -37,6 +37,7 @@ void main() {
     expect(sortie.isPractice, isFalse);
     expect(sortie.battles, 1);
     expect(_logbookExp(sortie), {9001: 360, 9002: 120});
+    expect(_logbookMvp(sortie), {9001: 1, 9002: 0});
     expect(_snapshotExp(experience.sortie!), _logbookExp(sortie));
     expect(experience.totalSorties, 0);
 
@@ -48,6 +49,7 @@ void main() {
     );
     final practiceResult = {
       'api_win_rank': 'S',
+      'api_mvp': 2,
       'api_get_ship_exp': [-1, 420, 780, -1, -1, -1, -1],
       'api_get_exp_lvup': [
         [1850, 2100, 2800],
@@ -69,6 +71,7 @@ void main() {
     expect(experience.sortie!.isPractice, isTrue);
     expect(_snapshotExp(experience.sortie!), {9001: 420, 9002: 780});
     expect(_snapshotExp(experience.sortie!), _logbookExp(practice));
+    expect(_logbookMvp(practice), {9001: 0, 9002: 1});
     expect(_homeExp(experience.totals), _logbookExp(practice));
 
     await experience.clearTotal();
@@ -125,6 +128,7 @@ void main() {
     expect((run.mapAreaId, run.mapInfoNo, run.deckId), (1, 1, 1));
     expect(run.battles, 2);
     expect(_logbookExp(run), {9001: 630, 9002: 660});
+    expect(_logbookMvp(run), {9001: 2, 9002: 0});
     expect(_snapshotExp(last), _logbookExp(run));
     expect(experience.totalSorties, 1);
     expect(_homeExp(experience.totals), {9001: 270, 9002: 540});
@@ -159,6 +163,7 @@ void main() {
       escortLevelUps: [
         [5490, 5500, 6600],
       ],
+      escortMvp: 1,
     );
     _expectProgress(experience, {
       9001: (6, 550),
@@ -184,6 +189,7 @@ void main() {
       escortLevelUps: [
         [5560, 6600],
       ],
+      escortMvp: 1,
     );
     const latest = {9001: (6, 470), 9002: (8, 730), 9003: (11, 860)};
     _expectProgress(experience, latest);
@@ -207,6 +213,7 @@ void main() {
     expect(run.ships.map((ship) => ship.fleetId), [1, 1, 2]);
     expect(run.ships.first.name, run.ships.last.name);
     expect(_logbookExp(run), gained);
+    expect(_logbookMvp(run), {9001: 2, 9002: 0, 9003: 2});
 
     await fixture.port({9003: (11, 5840, 760)});
     _expectProgress(experience, {
@@ -247,6 +254,7 @@ void main() {
     expect(run.incomplete, isTrue);
     expect(run.battles, last.battles);
     expect(_logbookExp(run), {9001: 0, 9002: 300, 9003: null});
+    expect(_logbookMvp(run), {9001: 1, 9002: 0, 9003: null});
     expect(last.unverifiedShipIds, {9003});
     expect(_snapshotExp(last), _logbookExp(run));
     expect(_homeExp(experience.totals), {9001: 0, 9002: 300});
@@ -640,6 +648,7 @@ final class _ExperiencePipelineFixture {
     required List<List<int>> mainLevelUps,
     required List<int> escort,
     required List<List<int>> escortLevelUps,
+    int? escortMvp,
     int? staleDocument,
     bool waitForLog = true,
   }) => publish(
@@ -654,6 +663,7 @@ final class _ExperiencePipelineFixture {
         if (escort.isNotEmpty) ...[-1, -1, -1, -1, -1],
       ],
       'api_get_exp_lvup_combined': escortLevelUps,
+      'api_mvp_combined': ?escortMvp,
     },
     staleDocument: staleDocument,
     waitForLog: waitForLog,
@@ -704,6 +714,10 @@ Map<int, int?> _snapshotExp(SortieExperienceSnapshot snapshot) => {
 
 Map<int, int?> _logbookExp(LogbookExperienceRecord record) => {
   for (final ship in record.ships) ship.ownedShipId: ship.experience,
+};
+
+Map<int, int?> _logbookMvp(LogbookExperienceRecord record) => {
+  for (final ship in record.ships) ship.ownedShipId: ship.mvpCount,
 };
 
 Map<String, Object?> _fixtureData(CapturedApiEvent event) =>

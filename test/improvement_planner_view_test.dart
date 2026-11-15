@@ -344,11 +344,11 @@ void main() {
       expect(find.text('可进化'), findsWidgets);
       expect(find.text('进化装备'), findsOneWidget);
       expect(
-        find.byKey(const Key('improvement-table-horizontal-scroll')),
+        find.byKey(const PageStorageKey('improvement-table-horizontal-scroll')),
         findsOneWidget,
       );
       expect(
-        find.byKey(const Key('improvement-table-frozen-scroll')),
+        find.byKey(const PageStorageKey('improvement-table-frozen-scroll')),
         findsOneWidget,
       );
       expect(
@@ -942,7 +942,7 @@ void main() {
     }
 
     await tester.drag(
-      find.byKey(const Key('improvement-table-horizontal-scroll')),
+      find.byKey(const PageStorageKey('improvement-table-horizontal-scroll')),
       const Offset(-120, 0),
     );
     await tester.pumpAndSettle();
@@ -969,7 +969,7 @@ void main() {
     }
 
     await tester.drag(
-      find.byKey(const Key('improvement-table-horizontal-scroll')),
+      find.byKey(const PageStorageKey('improvement-table-horizontal-scroll')),
       const Offset(-900, 0),
     );
     await tester.pumpAndSettle();

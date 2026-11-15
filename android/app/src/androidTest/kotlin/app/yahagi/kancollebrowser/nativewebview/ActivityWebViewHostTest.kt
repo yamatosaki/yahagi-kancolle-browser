@@ -10,6 +10,8 @@ import android.widget.FrameLayout
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -98,6 +100,80 @@ class ActivityWebViewHostTest {
         assertTrue(NativeGameWebViewConfigurationAction.WEB_VIEW_CLIENT_SET in configurationActions)
         assertTrue(NativeGameWebViewConfigurationAction.WEB_CHROME_CLIENT_SET in configurationActions)
         assertEquals(listOf("created:$generation"), events)
+    }
+
+    @Test
+    fun nativeScrollbarsStayHiddenOnGameReturnAndAreRestoredForWebContent() {
+        val presentations = LinkedBlockingQueue<String>()
+        val pageFinishes = LinkedBlockingQueue<String>()
+        lateinit var gameHost: ActivityWebViewHost
+        lateinit var webView: WebView
+        var generation = 0L
+        onMain {
+            gameHost = ActivityWebViewHost(
+                context,
+                sizedRoot(),
+                object : NativeGameWebViewEventSink by recordingSink(mutableListOf()) {
+                    override fun pageFinished(generation: Long, url: String) {
+                        pageFinishes.add(url)
+                    }
+
+                    override fun presentationChanged(generation: Long, isGame: Boolean) {
+                        presentations.add(if (isGame) "game" else "web")
+                    }
+
+                    override fun presentationPending(generation: Long) {
+                        presentations.add("pending")
+                    }
+                },
+            )
+            host = gameHost
+            generation = requireNotNull(gameHost.create())
+            webView = requireNotNull(gameHost.currentWebView)
+            check(gameHost.setBounds(generation, NativeGameWebViewBounds(0.0, 0.0, 400.0, 240.0, 1.0)))
+            check(gameHost.setVisible(generation, true))
+        }
+
+        fun assertScrollbars(message: String, expected: Boolean) {
+            var enabled = false to false
+            onMain { enabled = webView.isHorizontalScrollBarEnabled to webView.isVerticalScrollBarEnabled }
+            assertEquals(message, expected to expected, enabled)
+        }
+
+        fun present(state: String) {
+            onMain {
+                webView.evaluateJavascript(
+                    "window.__yahagiMobileReadPresentation = () => '$state'; YahagiPresentation.postMessage('$state');",
+                    null,
+                )
+            }
+            assertEquals("Native host observes $state", state, presentations.poll(10, TimeUnit.SECONDS))
+        }
+
+        fun load(url: String, html: String) {
+            onMain { webView.loadDataWithBaseURL(url, html, "text/html", "UTF-8", null) }
+            assertEquals(url, pageFinishes.poll(10, TimeUnit.SECONDS))
+        }
+
+        load("https://example.test/game", "<canvas width='1200' height='720'></canvas>")
+        assertScrollbars("An ordinary page starts with both scrollbars", true)
+        present("game")
+        assertScrollbars("Game mode hides both native scrollbars", false)
+        repeat(3) {
+            onMain {
+                check(gameHost.setVisible(generation, false))
+                check(gameHost.setVisible(generation, true))
+            }
+            assertScrollbars("Returning to the same game keeps both scrollbars hidden", false)
+        }
+        present("web")
+        assertScrollbars("An in-page web view restores both scrollbars", true)
+        present("game")
+        present("pending")
+        assertScrollbars("An unconfirmed game surface restores both scrollbars", true)
+        present("game")
+        load("https://example.test/login", "<form><input type='password'></form>")
+        assertScrollbars("A login navigation restores both scrollbars without a presentation hint", true)
     }
 
     @Test

@@ -293,7 +293,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('horizontal table gestures cannot switch logbook categories', (
+  testWidgets('logbook keeps horizontal scroll on returning to a category', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -314,6 +314,8 @@ void main() {
     );
     final controller = BattleController(gameState: () => GameState.empty);
     addTearDown(controller.dispose);
+    var selected = 0;
+    late StateSetter updateSelection;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -321,7 +323,16 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: LogbookPage(battleController: controller, database: database),
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              updateSelection = setState;
+              return LogbookPage(
+                battleController: controller,
+                database: database,
+                selectedTabIndex: selected,
+              );
+            },
+          ),
         ),
       ),
     );
@@ -352,6 +363,13 @@ void main() {
     expect(tester.getRect(find.text('东部奥廖尔海 (2-3)')).left, mapBefore);
     expect(tester.getRect(find.text('节点')).left, lessThan(nodeBefore));
     expect(find.byKey(const Key('logbook-table-sortie')), findsOneWidget);
+
+    updateSelection(() => selected = 2);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('logbook-table-construction')), findsOneWidget);
+    updateSelection(() => selected = 0);
+    await tester.pumpAndSettle();
+    expect(tester.state<ScrollableState>(scrollable).position.pixels, after);
   });
 
   testWidgets('only a new battle row with captured detail opens the viewer', (
@@ -2156,20 +2174,21 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     final database = await LogbookDatabase.openForTesting();
     addTearDown(database.close);
+    Future<void> insert(int index) => database.insertDevelopmentRecord(
+      timestamp: index,
+      success: true,
+      equipmentId: index,
+      equipmentName: '装备$index',
+      equipmentType: '主炮',
+      equipmentIconId: 1,
+      fuel: 10,
+      ammo: 10,
+      steel: 10,
+      bauxite: 10,
+      secretaryName: '矢矧改二乙',
+    );
     for (var index = 0; index < 55; index++) {
-      await database.insertDevelopmentRecord(
-        timestamp: index,
-        success: true,
-        equipmentId: index,
-        equipmentName: '装备$index',
-        equipmentType: '主炮',
-        equipmentIconId: 1,
-        fuel: 10,
-        ammo: 10,
-        steel: 10,
-        bauxite: 10,
-        secretaryName: '矢矧改二乙',
-      );
+      await insert(index);
     }
     final controller = BattleController(gameState: () => GameState.empty);
     addTearDown(controller.dispose);
@@ -2210,6 +2229,20 @@ void main() {
           )
           .rowHeights,
       hasLength(55),
+    );
+
+    final tableScroll = tester
+        .widget<ListView>(
+          find.byKey(const Key('logbook-development-body-scroll')),
+        )
+        .controller!;
+    tableScroll.jumpTo(225);
+    await tester.pumpAndSettle();
+    await insert(55);
+    await tester.pumpAndSettle();
+    expect(
+      tableScroll.offset,
+      closeTo(225 + FrozenDataTable.minimumRowHeight, .1),
     );
   });
 

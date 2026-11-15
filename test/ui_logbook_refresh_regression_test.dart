@@ -178,7 +178,7 @@ void main() {
     },
   );
   testWidgets(
-    'pagination drains inserts without duplicates or resetting scroll',
+    'pagination drains inserts without duplicates or moving the visible row',
     (tester) async {
       final backing = await LogbookDatabase.openForTesting();
       addTearDown(backing.close);
@@ -208,7 +208,7 @@ void main() {
       gate.release.complete();
       await tester.pumpAndSettle();
       expect(rowCount(tester), 103);
-      expect(scroll.offset, position);
+      expect(scroll.offset, position + 3 * FrozenDataTable.minimumRowHeight);
       expect(proxy.queries, 3);
       scroll.jumpTo(0);
       await tester.pumpAndSettle();

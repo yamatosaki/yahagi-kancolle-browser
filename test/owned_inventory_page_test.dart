@@ -575,7 +575,7 @@ void main() {
     await tester.pump();
 
     final table = tester.widget<FrozenDataTable>(
-      find.byKey(const Key('owned-inventory-table-equipment')),
+      find.byKey(const PageStorageKey('owned-inventory-table-equipment')),
     );
     expect(
       table.scrollableHeaders.last.key,
@@ -2093,7 +2093,7 @@ void main() {
     );
 
     final table = tester.widget<FrozenDataTable>(
-      find.byKey(const Key('owned-inventory-table-ships')),
+      find.byKey(const PageStorageKey('owned-inventory-table-ships')),
     );
     expect(
       table.scrollableHeaders
@@ -2106,7 +2106,7 @@ void main() {
       ],
     );
     final horizontal = tester.widget<SingleChildScrollView>(
-      find.byKey(const Key('owned-inventory-horizontal-scroll')),
+      find.byKey(const PageStorageKey('owned-inventory-horizontal-scroll')),
     );
     horizontal.controller!.jumpTo(
       horizontal.controller!.position.maxScrollExtent,
@@ -2157,7 +2157,7 @@ void main() {
     await tester.pump();
 
     final table = tester.widget<FrozenDataTable>(
-      find.byKey(const Key('owned-inventory-table-equipment')),
+      find.byKey(const PageStorageKey('owned-inventory-table-equipment')),
     );
     expect(
       table.frozenHeaders.single.key,
@@ -2190,7 +2190,7 @@ void main() {
     );
 
     final table = tester.widget<FrozenDataTable>(
-      find.byKey(const Key('owned-inventory-table-ships')),
+      find.byKey(const PageStorageKey('owned-inventory-table-ships')),
     );
 
     expect(table.frozenColumnWidths, const <double>[240]);
@@ -2506,7 +2506,7 @@ void main() {
     expect(find.text('火力 ▲①'), findsOneWidget);
 
     final table = tester.widget(
-      find.byKey(const Key('owned-inventory-table-ships')),
+      find.byKey(const PageStorageKey('owned-inventory-table-ships')),
     );
     await tester.longPress(firepowerHeader);
     await tester.pump();
@@ -2517,7 +2517,9 @@ void main() {
       findsNothing,
     );
     expect(
-      tester.widget(find.byKey(const Key('owned-inventory-table-ships'))),
+      tester.widget(
+        find.byKey(const PageStorageKey('owned-inventory-table-ships')),
+      ),
       isNot(same(table)),
     );
     expect(tester.takeException(), isNull);
@@ -2886,7 +2888,7 @@ void main() {
     );
 
     final horizontal = tester.widget<SingleChildScrollView>(
-      find.byKey(const Key('owned-inventory-horizontal-scroll')),
+      find.byKey(const PageStorageKey('owned-inventory-horizontal-scroll')),
     );
     horizontal.controller!.jumpTo(
       horizontal.controller!.position.maxScrollExtent - 202,
@@ -3255,7 +3257,9 @@ void main() {
     final lastPortrait = find.byKey(const Key('owned-ship-portrait-9100'));
     expect(firstPortrait, findsOneWidget);
     expect(lastPortrait, findsNothing);
-    final bodyList = find.byKey(const Key('owned-inventory-body-scroll'));
+    final bodyList = find.byKey(
+      const PageStorageKey('owned-inventory-body-scroll'),
+    );
     expect(bodyList, findsOneWidget);
     final bodyListWidget = tester.widget<ListView>(bodyList);
     bodyListWidget.controller!.jumpTo(
@@ -3289,7 +3293,9 @@ void main() {
         ),
       );
 
-      final tableFinder = find.byKey(const Key('owned-inventory-table-ships'));
+      final tableFinder = find.byKey(
+        const PageStorageKey('owned-inventory-table-ships'),
+      );
       expect(tableFinder, findsOneWidget);
       final initialTable = tester.widget(tableFinder);
 
@@ -3376,14 +3382,14 @@ void main() {
       );
 
       final bodyListFinder = find.byKey(
-        const Key('owned-inventory-body-scroll'),
+        const PageStorageKey('owned-inventory-body-scroll'),
       );
       final bodyList = tester.widget<ListView>(bodyListFinder);
       bodyList.controller!.jumpTo(500);
       await tester.pump();
 
       final frozenList = tester.widget<ListView>(
-        find.byKey(const Key('owned-inventory-frozen-scroll')),
+        find.byKey(const PageStorageKey('owned-inventory-frozen-scroll')),
       );
       expect(bodyList.controller!.offset, greaterThan(0));
       expect(
@@ -3392,7 +3398,7 @@ void main() {
       );
 
       final horizontalFinder = find.byKey(
-        const Key('owned-inventory-horizontal-scroll'),
+        const PageStorageKey('owned-inventory-horizontal-scroll'),
       );
       expect(horizontalFinder, findsOneWidget);
       final horizontal = tester.widget<SingleChildScrollView>(horizontalFinder);
@@ -3400,7 +3406,7 @@ void main() {
       await tester.pump();
 
       final headerTranslation = find.descendant(
-        of: find.byKey(const Key('owned-inventory-table-ships')),
+        of: find.byKey(const PageStorageKey('owned-inventory-table-ships')),
         matching: find.byWidgetPredicate((widget) {
           if (widget is! Transform) return false;
           final translation = widget.transform.getTranslation();
@@ -3466,10 +3472,10 @@ void main() {
     await tester.pump();
 
     final frozenList = tester.widget<ListView>(
-      find.byKey(const Key('owned-inventory-frozen-scroll')),
+      find.byKey(const PageStorageKey('owned-inventory-frozen-scroll')),
     );
     final bodyList = tester.widget<ListView>(
-      find.byKey(const Key('owned-inventory-body-scroll')),
+      find.byKey(const PageStorageKey('owned-inventory-body-scroll')),
     );
     expect(frozenList.itemExtentBuilder, isNotNull);
     expect(bodyList.itemExtentBuilder, isNotNull);
@@ -3496,7 +3502,7 @@ void main() {
     await tester.pump();
 
     final tableFinder = find.byKey(
-      const Key('owned-inventory-table-equipment'),
+      const PageStorageKey('owned-inventory-table-equipment'),
     );
     final initialTable = tester.widget(tableFinder);
 

@@ -83,6 +83,34 @@ void main() {
     expect(find.text('智能进击损管提示'), findsNothing);
   });
 
+  testWidgets('adjacent notice rows use the same divider style', (
+    tester,
+  ) async {
+    final controller = await LayoutSettingsController.load(
+      SharedPreferencesLayoutSettingsStore(),
+    );
+    addTearDown(controller.dispose);
+    await _pumpSection(tester, controller);
+
+    final dividers = {
+      for (final divider in tester.widgetList<Divider>(find.byType(Divider)))
+        divider: tester.getCenter(find.byWidget(divider)).dy,
+    };
+    final rows = _titles.keys.map(_kindSwitch).toList();
+    final reference = dividers.keys.first;
+    for (var index = 1; index < rows.length; index++) {
+      final previousY = tester.getCenter(rows[index - 1]).dy;
+      final currentY = tester.getCenter(rows[index]).dy;
+      final betweenRows = dividers.entries.where(
+        (entry) => previousY < entry.value && entry.value < currentY,
+      );
+      expect(betweenRows, hasLength(1));
+      final rowDivider = betweenRows.single.key;
+      expect(rowDivider.color, reference.color);
+      expect(rowDivider.height, reference.height);
+    }
+  });
+
   testWidgets('turning off the master keeps and disables each preference', (
     tester,
   ) async {

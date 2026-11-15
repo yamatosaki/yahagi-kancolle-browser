@@ -80,6 +80,8 @@
         </provider>
     </application>
     <queries>
+        <package android:name="com.axis000.kanxy" />
+        <package android:name="com.kanxy.android" />
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>

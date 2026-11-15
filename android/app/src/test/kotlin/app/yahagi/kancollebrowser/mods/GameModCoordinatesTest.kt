@@ -42,6 +42,43 @@ class GameModCoordinatesTest {
         assertEquals(emptyMap<String, Any>(), repo.activeCoordinateSnapshot()["ships"])
         assertArrayEquals(png(), repo.openResource(url, "GET", emptyMap())!!.inputStream.use { it.readBytes() })
     }
+    @Test fun `exact Yubari portrait and coordinates enter and leave the same applied session`() {
+        val repo = GameModRepository(temporary.newFolder())
+        val full = "kcs2/resources/ship/full/0623_5644_tuzbqjvyptyt.png"
+        val config = "kcs/resources/swf/ships/tuzbqjvyptyt.config.json"
+        val portraitUrl = "https://w20h.kancolle-server.com/$full?version=1"
+        val imageBytes = png()
+        val pair = mapOf("api_boko_n" to listOf(261, 221))
+        val preview = repo.preflight(zip(mapOf(full to imageBytes, config to json(pair))), "yubari.zip")
+        assertEquals(2, preview["supportedCount"])
+        val pack = repo.commitImport(preview["token"] as String)
+        val imageId = resources(pack).single { it["kind"] == "ship" }["id"]
+        val coordinateId = coordinate(pack)["id"]
+        enable(repo)
+
+        assertNull(repo.openResource(portraitUrl, "GET", emptyMap()))
+        assertEquals(emptyList<Int>(), repo.activeCoordinateSnapshot(kanxyVpnActive = true)["localArtShips"])
+        apply(repo)
+
+        val snapshot = repo.activeCoordinateSnapshot(kanxyVpnActive = true)
+        assertEquals(listOf(623), snapshot["localArtShips"])
+        assertEquals(mapOf("623" to mapOf("graph" to pair, "resourceIds" to listOf(coordinateId))), snapshot["ships"])
+        assertArrayEquals(imageBytes, repo.openResource(portraitUrl, "GET", emptyMap())!!.inputStream.use { it.readBytes() })
+        val reopenedPortraitUrl = "$portraitUrl-yahagi-newdocument"
+        assertArrayEquals(imageBytes, repo.openResource(reopenedPortraitUrl, "GET", emptyMap())!!.inputStream.use { it.readBytes() })
+        assertTrue((repo.status()["hits"] as List<*>).contains(imageId))
+        assertNull(repo.openResource(portraitUrl.replace("5644", "1000"), "GET", emptyMap()))
+
+        repo.resetAll()
+        assertEquals(listOf(623), repo.activeCoordinateSnapshot(kanxyVpnActive = true)["localArtShips"])
+        apply(repo)
+        assertNull(repo.openResource(portraitUrl, "GET", emptyMap()))
+        val reset = repo.activeCoordinateSnapshot(kanxyVpnActive = true)
+        assertEquals(emptyList<Int>(), reset["localArtShips"])
+        assertEquals(emptyMap<String, Any>(), reset["ships"])
+        assertNull(repo.activeCoordinateSnapshot()["localArtShips"])
+    }
+
     @Test fun `coordinate fields use first package priority while complementary fields combine`() {
         val repo = GameModRepository(temporary.newFolder())
         val first = import(repo, mapOf("api_boko_n" to listOf(1,2), "api_boko_d" to listOf(3,4)))

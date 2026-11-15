@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../account/account_session.dart';
+import '../widgets/lazy_indexed_stack.dart';
 import 'senka_calculation.dart';
 import 'senka_calendar_view.dart';
 import 'senka_calculator_view.dart';
@@ -34,6 +35,7 @@ class SenkaPage extends StatefulWidget {
     required this.controller,
     this.now,
     this.mode = SenkaCenterMode.info,
+    this.workspaceVisible = true,
     this.onOpenSortieLog,
     this.accountSession,
   });
@@ -41,6 +43,7 @@ class SenkaPage extends StatefulWidget {
   final SenkaController controller;
   final DateTime? now;
   final SenkaCenterMode mode;
+  final bool workspaceVisible;
   final VoidCallback? onOpenSortieLog;
   final AccountSession? accountSession;
 
@@ -65,7 +68,8 @@ class _SenkaPageState extends State<SenkaPage> with WidgetsBindingObserver {
   void didUpdateWidget(covariant SenkaPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.now != oldWidget.now ||
-        widget.controller != oldWidget.controller) {
+        widget.controller != oldWidget.controller ||
+        widget.workspaceVisible != oldWidget.workspaceVisible) {
       _refreshTimer?.cancel();
       _instant = widget.now?.toUtc() ?? DateTime.now().toUtc();
       _queueRefresh();
@@ -82,13 +86,15 @@ class _SenkaPageState extends State<SenkaPage> with WidgetsBindingObserver {
   }
 
   void _queueRefresh() {
-    if (widget.now != null || _refreshQueued) return;
+    if (!widget.workspaceVisible || widget.now != null || _refreshQueued) {
+      return;
+    }
     _refreshQueued = true;
     // A controller listener may be an ancestor currently building this page.
     // Wait until the frame ends before synchronously notifying its listeners.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshQueued = false;
-      if (mounted && widget.now == null) _refreshAtBoundary();
+      _refreshAtBoundary();
     });
     WidgetsBinding.instance.ensureVisualUpdate();
   }
@@ -102,7 +108,7 @@ class _SenkaPageState extends State<SenkaPage> with WidgetsBindingObserver {
   }
 
   void _refreshAtBoundary() {
-    if (!mounted || widget.now != null) return;
+    if (!mounted || !widget.workspaceVisible || widget.now != null) return;
     _instant = DateTime.now().toUtc();
     widget.controller.refreshForCurrentTime();
     setState(() {});
@@ -163,27 +169,31 @@ class _SenkaPageState extends State<SenkaPage> with WidgetsBindingObserver {
                   SizedBox(height: compact ? 3 : 6),
                 ],
                 Expanded(
-                  child: switch (widget.mode) {
-                    SenkaCenterMode.info => SenkaInfoView(
-                      state: state,
-                      controller: widget.controller,
-                      accountSession: widget.accountSession,
-                      now: instant,
-                      compact: compact,
-                      onOpenSortieLog: widget.onOpenSortieLog,
-                    ),
-                    SenkaCenterMode.calendar => SenkaCalendarView(
-                      state: state,
-                      now: instant,
-                      compact: compact,
-                    ),
-                    SenkaCenterMode.calculator => SenkaCalculatorView(
-                      state: state,
-                      controller: widget.controller,
-                      now: instant,
-                      compact: compact,
-                    ),
-                  },
+                  child: LazyIndexedStack(
+                    index: widget.mode.index,
+                    sizing: StackFit.expand,
+                    children: [
+                      SenkaInfoView(
+                        state: state,
+                        controller: widget.controller,
+                        accountSession: widget.accountSession,
+                        now: instant,
+                        compact: compact,
+                        onOpenSortieLog: widget.onOpenSortieLog,
+                      ),
+                      SenkaCalendarView(
+                        state: state,
+                        now: instant,
+                        compact: compact,
+                      ),
+                      SenkaCalculatorView(
+                        state: state,
+                        controller: widget.controller,
+                        now: instant,
+                        compact: compact,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

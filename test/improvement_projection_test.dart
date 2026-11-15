@@ -32,6 +32,85 @@ void main() {
     4: MasterSlotItem(id: 4, name: 'Delta Radar', type: <int>[0, 0, 12, 11]),
   };
 
+  group('owned equipment order', () {
+    const masters = <int, MasterSlotItem>{
+      2: MasterSlotItem(id: 2, name: 'Twin Medium Gun', type: [1, 0, 2]),
+      11: MasterSlotItem(id: 11, name: 'Single Gun', type: [1, 0, 1]),
+      12: MasterSlotItem(
+        id: 12,
+        name: 'Twin Gun B',
+        sortNo: 20,
+        type: [1, 0, 1],
+      ),
+      13: MasterSlotItem(
+        id: 13,
+        name: 'Twin Gun A',
+        sortNo: 10,
+        type: [1, 0, 1],
+      ),
+      14: MasterSlotItem(
+        id: 14,
+        name: 'Single Gun A',
+        sortNo: 10,
+        type: [1, 0, 1],
+      ),
+      21: MasterSlotItem(id: 21, name: 'Radar', sortNo: 1, type: [6, 0, 12]),
+    };
+    final orderedDataset = ImprovementDataset(
+      version: dataset.version,
+      entries: [
+        for (final id in [2, 3, 11, 12, 13, 14, 21])
+          _entry(
+            id,
+            evolvable: false,
+            weekday: id == 14 ? DateTime.tuesday : DateTime.monday,
+          ),
+      ],
+    );
+
+    Iterable<int> equipmentIds({
+      int weekday = improvementAllWeekdays,
+      Set<int> favorites = const {},
+      String query = '',
+    }) => projectImprovementRows(
+      orderedDataset,
+      weekday: weekday,
+      equipmentMasters: masters,
+      favoriteEquipmentIds: favorites,
+      favoritesOnly: favorites.isNotEmpty,
+      query: query,
+    ).map((row) => row.entry.equipmentId);
+
+    test('matches the inventory and keeps unowned and unknown recipes', () {
+      final inventoryIds = OwnedInventoryProjection(
+        GameState(
+          masterSlotItems: masters,
+          slotItems: {
+            for (final id in [2, 11, 12, 14, 21])
+              id: OwnedSlotItem(id: id, masterId: id),
+          },
+        ),
+      ).equipmentGroups().map((group) => group.master.id);
+      final improvementIds = equipmentIds();
+
+      expect(improvementIds, [13, 14, 11, 12, 2, 21, 3]);
+      expect(improvementIds.where(inventoryIds.contains), inventoryIds);
+    });
+
+    test('keeps inventory order when selecting a weekday', () {
+      expect(equipmentIds(weekday: DateTime.monday), [13, 11, 12, 2, 21, 3]);
+      expect(equipmentIds(weekday: DateTime.tuesday), [14]);
+    });
+
+    test('keeps inventory order when showing favorites', () {
+      expect(equipmentIds(favorites: {2, 13, 14, 21}), [13, 14, 2, 21]);
+    });
+
+    test('keeps inventory order when searching for equipment', () {
+      expect(equipmentIds(query: ' twin '), [13, 12, 2]);
+    });
+  });
+
   test('filters daily rows by evolvable state', () {
     expect(
       projectImprovementRows(
@@ -420,6 +499,7 @@ ImprovementEntry _entry(
   int id, {
   required bool evolvable,
   bool evolutionAvailableToday = true,
+  int weekday = DateTime.monday,
 }) => ImprovementEntry(
   equipmentId: id,
   baseCost: const ImprovementResourceCost(
@@ -432,7 +512,7 @@ ImprovementEntry _entry(
     ImprovementArrangement(
       secretaryId: 1,
       secretaryLabel: '秘书舰',
-      weekdays: Set<int>.unmodifiable(<int>{DateTime.monday}),
+      weekdays: Set<int>.unmodifiable(<int>{weekday}),
       routeKind: evolutionAvailableToday ? null : 'kind1',
     ),
   ],

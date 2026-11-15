@@ -327,7 +327,6 @@ class NotificationSnapshotTest {
     fun `countdown format escapes the visible percent sign`() {
         assertEquals("53%%  %s", NotificationChronometer.countdownFormat(53, true))
         assertEquals("%s", NotificationChronometer.countdownFormat(53, false))
-        assertEquals("53%%", NotificationChronometer.percentOnlyFormat(53))
     }
 
     @Test

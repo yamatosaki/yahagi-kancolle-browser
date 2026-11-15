@@ -472,6 +472,7 @@ object AppNotificationManager {
             items.first(),
             R.id.notif_collapsed_title,
             R.id.notif_collapsed_stats,
+            R.id.notif_collapsed_static_stats,
             R.id.notif_collapsed_progress,
             presentation,
         )
@@ -479,11 +480,18 @@ object AppNotificationManager {
         val containers = intArrayOf(R.id.notif_item_1, R.id.notif_item_2, R.id.notif_item_3, R.id.notif_item_4, R.id.notif_item_5)
         val titles = intArrayOf(R.id.notif_item_1_title, R.id.notif_item_2_title, R.id.notif_item_3_title, R.id.notif_item_4_title, R.id.notif_item_5_title)
         val stats = intArrayOf(R.id.notif_item_1_stats, R.id.notif_item_2_stats, R.id.notif_item_3_stats, R.id.notif_item_4_stats, R.id.notif_item_5_stats)
+        val staticStats = intArrayOf(
+            R.id.notif_item_1_static_stats,
+            R.id.notif_item_2_static_stats,
+            R.id.notif_item_3_static_stats,
+            R.id.notif_item_4_static_stats,
+            R.id.notif_item_5_static_stats,
+        )
         val progress = intArrayOf(R.id.notif_item_1_progress, R.id.notif_item_2_progress, R.id.notif_item_3_progress, R.id.notif_item_4_progress, R.id.notif_item_5_progress)
         containers.indices.forEach { index ->
             if (index < items.size) {
                 expanded.setViewVisibility(containers[index], View.VISIBLE)
-                bindItem(expanded, items[index], titles[index], stats[index], progress[index], presentation)
+                bindItem(expanded, items[index], titles[index], stats[index], staticStats[index], progress[index], presentation)
             } else {
                 expanded.setViewVisibility(containers[index], View.GONE)
             }
@@ -534,81 +542,56 @@ object AppNotificationManager {
         item: OngoingNotificationItem,
         titleId: Int,
         statsId: Int,
+        staticStatsId: Int,
         progressId: Int,
         presentation: NotificationPresentation,
     ) {
         val percent = (item.progress * 100).toInt().coerceIn(0, 100)
         views.setTextViewText(titleId, item.title)
-        if (item.type == "overflow") {
-            views.setViewVisibility(progressId, View.GONE)
-            if (item.state == "completed") {
-                views.setViewVisibility(statsId, View.VISIBLE)
-                views.setChronometer(statsId, SystemClock.elapsedRealtime(), NotificationStrings(presentation.localeCode).completed, false)
-            } else if (presentation.showCountdown && item.targetEpochMs != null) {
-                val base = SystemClock.elapsedRealtime() +
-                    (item.targetEpochMs - System.currentTimeMillis()).coerceAtLeast(0L)
-                views.setViewVisibility(statsId, View.VISIBLE)
-                views.setChronometer(statsId, base, "%s", true)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    views.setChronometerCountDown(statsId, true)
-                }
-            } else {
-                views.setViewVisibility(statsId, View.GONE)
+        val overflow = item.type == "overflow"
+        val elapsed = !overflow && item.clockMode == "elapsed" && item.anchorEpochMs != null
+        val completed = !elapsed && item.state == "completed"
+        val showPercent = !overflow && presentation.showPercent
+        val now = System.currentTimeMillis()
+        val elapsedRealtime = SystemClock.elapsedRealtime()
+        val clockBase = when {
+            !presentation.showCountdown || completed -> null
+            elapsed -> NotificationChronometer.elapsedRealtimeBase(
+                nowEpochMs = now,
+                elapsedRealtimeMs = elapsedRealtime,
+                anchorEpochMs = checkNotNull(item.anchorEpochMs),
+            )
+            item.targetEpochMs != null -> {
+                val remaining = item.targetEpochMs - now
+                elapsedRealtime + if (overflow) remaining.coerceAtLeast(0L) else remaining
             }
-            return
+            else -> null
         }
-        if (item.clockMode == "elapsed" && item.anchorEpochMs != null) {
-            if (presentation.showCountdown) {
-                val base = NotificationChronometer.elapsedRealtimeBase(
-                    nowEpochMs = System.currentTimeMillis(),
-                    elapsedRealtimeMs = SystemClock.elapsedRealtime(),
-                    anchorEpochMs = item.anchorEpochMs,
-                )
-                val format = NotificationChronometer.countdownFormat(percent, presentation.showPercent)
-                views.setViewVisibility(statsId, View.VISIBLE)
-                views.setChronometer(statsId, base, format, true)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    views.setChronometerCountDown(statsId, false)
-                }
-            } else if (presentation.showPercent) {
-                views.setViewVisibility(statsId, View.VISIBLE)
-                views.setChronometer(
-                    statsId,
-                    SystemClock.elapsedRealtime(),
-                    NotificationChronometer.percentOnlyFormat(percent),
-                    false,
-                )
-            } else {
-                views.setViewVisibility(statsId, View.GONE)
-            }
-        } else if (item.state == "completed") {
-            views.setViewVisibility(statsId, View.VISIBLE)
-            views.setChronometer(statsId, SystemClock.elapsedRealtime(), NotificationStrings(presentation.localeCode).completed, false)
-        } else if (presentation.showCountdown && item.targetEpochMs != null) {
-            val base = SystemClock.elapsedRealtime() + (item.targetEpochMs - System.currentTimeMillis())
+        val staticText = when {
+            completed -> NotificationStrings(presentation.localeCode).completed
+            clockBase == null && showPercent -> "$percent%"
+            else -> null
+        }
+        views.setViewVisibility(staticStatsId, if (staticText == null) View.GONE else View.VISIBLE)
+        if (staticText != null) views.setTextViewText(staticStatsId, staticText)
+        if (clockBase != null) {
             views.setViewVisibility(statsId, View.VISIBLE)
             views.setChronometer(
                 statsId,
-                base,
-                NotificationChronometer.countdownFormat(percent, presentation.showPercent),
+                clockBase,
+                NotificationChronometer.countdownFormat(percent, showPercent),
                 true,
             )
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                views.setChronometerCountDown(statsId, true)
+                views.setChronometerCountDown(statsId, !elapsed)
             }
-        } else if (presentation.showPercent) {
-            views.setViewVisibility(statsId, View.VISIBLE)
-            views.setChronometer(
-                statsId,
-                SystemClock.elapsedRealtime(),
-                NotificationChronometer.percentOnlyFormat(percent),
-                false,
-            )
         } else {
             views.setViewVisibility(statsId, View.GONE)
+            views.setChronometer(statsId, elapsedRealtime, null, false)
         }
-        views.setViewVisibility(progressId, if (presentation.showProgress) View.VISIBLE else View.GONE)
-        if (presentation.showProgress) views.setProgressBar(progressId, 100, percent, false)
+        val showProgress = !overflow && presentation.showProgress
+        views.setViewVisibility(progressId, if (showProgress) View.VISIBLE else View.GONE)
+        if (showProgress) views.setProgressBar(progressId, 100, percent, false)
     }
 
     internal fun channelId(type: String, sound: Boolean, vibration: Boolean): String =

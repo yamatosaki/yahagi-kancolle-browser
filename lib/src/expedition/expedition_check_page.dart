@@ -63,6 +63,19 @@ class _ExpeditionCheckPageState extends State<ExpeditionCheckPage> {
     _restoreMissionForFleet(fleetId);
   }
 
+  @override
+  void didUpdateWidget(covariant ExpeditionCheckPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final requestedFleet = widget.initialFleetId;
+    if (requestedFleet != null &&
+        requestedFleet != oldWidget.initialFleetId &&
+        requestedFleet != fleetId) {
+      fleetId = requestedFleet;
+      missionId = expeditionRules.keys.first;
+      _restoreMissionForFleet(fleetId);
+    }
+  }
+
   Future<void> _restoreMissionForFleet(int restoredFleetId) async {
     final generation = ++_restoreGeneration;
     final scope = _accountSession.current;

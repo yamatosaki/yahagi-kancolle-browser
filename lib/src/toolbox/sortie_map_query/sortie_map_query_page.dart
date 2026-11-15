@@ -44,6 +44,8 @@ class SortieMapQueryPage extends StatefulWidget {
 }
 
 class _SortieMapQueryPageState extends State<SortieMapQueryPage> {
+  final _routePanelKey = GlobalKey();
+  final _scrollStorage = PageStorageBucket();
   Future<SortieMapCatalogData>? _catalogFuture;
   String? _selectedMapId;
   String? _selectedNodePoint;
@@ -96,7 +98,7 @@ class _SortieMapQueryPageState extends State<SortieMapQueryPage> {
       : (widget.catalogLoader ?? SortieMapCatalog.loadAsset)();
 
   void _onCatalogChanged() {
-    if (!mounted) return;
+    if (!mounted || (!widget.visible && _catalogFuture == null)) return;
     setState(() => _catalogFuture = _loadCatalog());
   }
 
@@ -158,10 +160,10 @@ class _SortieMapQueryPageState extends State<SortieMapQueryPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.visible) return const SizedBox.shrink();
+    if (_catalogFuture == null) return const SizedBox.shrink();
 
     final strings = SortieMapQueryStrings.of(context);
-    return ColoredBox(
+    final content = ColoredBox(
       color: appColor(context, const Color(0xff091923)),
       child: FutureBuilder<SortieMapCatalogData>(
         future: _catalogFuture,
@@ -189,6 +191,13 @@ class _SortieMapQueryPageState extends State<SortieMapQueryPage> {
           }
           return _buildCatalog(context, catalog, strings);
         },
+      ),
+    );
+    return TickerMode(
+      enabled: widget.visible,
+      child: Offstage(
+        offstage: !widget.visible,
+        child: PageStorage(bucket: _scrollStorage, child: content),
       ),
     );
   }
@@ -237,6 +246,7 @@ class _SortieMapQueryPageState extends State<SortieMapQueryPage> {
           resolveCachedImage: widget.catalogController?.resolveCachedImage,
         );
         final route = _RoutePanel(
+          key: _routePanelKey,
           map: map,
           selectedNode: node,
           strings: strings,
@@ -245,6 +255,7 @@ class _SortieMapQueryPageState extends State<SortieMapQueryPage> {
           resolveCachedImage: widget.catalogController?.resolveCachedImage,
         );
         final detail = _NodeDetailPanel(
+          mapId: map.id,
           node: node,
           strings: strings,
           compact: compact,
@@ -268,7 +279,7 @@ class _SortieMapQueryPageState extends State<SortieMapQueryPage> {
             textScaler: textScaler,
           );
           return _scrollableContentWithAttribution(
-            key: const Key('sortie-map-wide-portrait-layout'),
+            storageId: 'sortie-map-wide-portrait-layout',
             strings: strings,
             content: Padding(
               padding: EdgeInsets.all(gap),
@@ -296,7 +307,7 @@ class _SortieMapQueryPageState extends State<SortieMapQueryPage> {
 
         if (verticalWorkspace) {
           return _scrollableContentWithAttribution(
-            key: const Key('sortie-map-portrait-layout'),
+            storageId: 'sortie-map-portrait-layout',
             strings: strings,
             content: Padding(
               padding: const EdgeInsets.all(10),
@@ -352,7 +363,7 @@ class _SortieMapQueryPageState extends State<SortieMapQueryPage> {
                       ))
                   .clamp(0.0, availableHeight);
           return _scrollableContentWithAttribution(
-            key: const Key('sortie-map-tablet-scroll'),
+            storageId: 'sortie-map-tablet-scroll',
             strings: strings,
             content: SizedBox(
               height: contentHeight,
@@ -423,7 +434,7 @@ class _SortieMapQueryPageState extends State<SortieMapQueryPage> {
           contentHeight - outerPadding * 2,
         );
         return _scrollableContentWithAttribution(
-          key: const Key('sortie-map-wide-scroll'),
+          storageId: 'sortie-map-wide-scroll',
           strings: strings,
           content: SizedBox(
             height: contentHeight,
@@ -476,12 +487,13 @@ class _SortieMapQueryPageState extends State<SortieMapQueryPage> {
 const double _attributionFooterHeight = 22;
 
 Widget _scrollableContentWithAttribution({
-  required Key key,
+  required String storageId,
   required Widget content,
   required SortieMapQueryStrings strings,
-}) {
-  return CustomScrollView(
-    key: key,
+}) => KeyedSubtree(
+  key: PageStorageKey(storageId),
+  child: CustomScrollView(
+    key: Key(storageId),
     slivers: [
       SliverToBoxAdapter(
         child: Builder(
@@ -515,8 +527,8 @@ Widget _scrollableContentWithAttribution({
         ),
       ),
     ],
-  );
-}
+  ),
+);
 
 class _OverviewPanel extends StatelessWidget {
   const _OverviewPanel({
@@ -543,6 +555,7 @@ class _OverviewPanel extends StatelessWidget {
       return _Panel(
         key: const Key('sortie-map-overview'),
         child: SingleChildScrollView(
+          key: const PageStorageKey('sortie-map-overview-scroll'),
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
@@ -770,13 +783,17 @@ class _OverviewPanel extends StatelessWidget {
 
     return _Panel(
       key: const Key('sortie-map-overview'),
-      child: SingleChildScrollView(child: content),
+      child: SingleChildScrollView(
+        key: const PageStorageKey('sortie-map-overview-scroll'),
+        child: content,
+      ),
     );
   }
 }
 
 class _RoutePanel extends StatelessWidget {
   const _RoutePanel({
+    super.key,
     required this.map,
     required this.selectedNode,
     required this.strings,
@@ -813,6 +830,7 @@ class _RoutePanel extends StatelessWidget {
           child: _Panel(
             key: const Key('sortie-map-route'),
             child: SingleChildScrollView(
+              key: const PageStorageKey('sortie-map-route-scroll'),
               padding: EdgeInsets.all(padding),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -853,6 +871,7 @@ class _RoutePanel extends StatelessWidget {
                     )
                   else
                     SingleChildScrollView(
+                      key: const PageStorageKey('sortie-map-nodes-scroll'),
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
@@ -892,6 +911,7 @@ double _routePanelDesiredHeight({
 
 class _NodeDetailPanel extends StatelessWidget {
   const _NodeDetailPanel({
+    required this.mapId,
     required this.node,
     required this.strings,
     required this.compact,
@@ -900,6 +920,7 @@ class _NodeDetailPanel extends StatelessWidget {
     required this.enemyCatalog,
   });
 
+  final String mapId;
   final SortieMapNode? node;
   final SortieMapQueryStrings strings;
   final bool compact;
@@ -928,6 +949,7 @@ class _NodeDetailPanel extends StatelessWidget {
     return _Panel(
       key: const Key('sortie-map-detail'),
       child: SingleChildScrollView(
+        key: PageStorageKey((mapId, node?.point)),
         padding: EdgeInsets.all(compact ? 8 : 12),
         child: node == null
             ? Text(

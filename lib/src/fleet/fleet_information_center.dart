@@ -33,6 +33,7 @@ import '../improvement/improvement_planner_view.dart';
 import '../performance/second_tick_scope.dart';
 import '../settings/layout_settings_store.dart';
 import '../settings/battle_status_effect_settings.dart';
+import '../widgets/lazy_indexed_stack.dart';
 import 'expedition_summary_card.dart'
     show ExpeditionSummaryMode, ExpeditionModeSelector;
 import 'fleet_air_power_details.dart';
@@ -52,6 +53,7 @@ class FleetInformationCenter extends StatefulWidget {
     required this.controller,
     this.page = FleetInformationPage.fleet,
     this.initialFleetId,
+    this.initialShipId,
     this.showContextHeader = true,
     this.repairMode,
     this.onRepairModeChanged,
@@ -76,6 +78,7 @@ class FleetInformationCenter extends StatefulWidget {
   final GameStateController controller;
   final FleetInformationPage page;
   final int? initialFleetId;
+  final int? initialShipId;
   final bool showContextHeader;
   final RepairCenterMode? repairMode;
   final ValueChanged<RepairCenterMode>? onRepairModeChanged;
@@ -102,6 +105,8 @@ class FleetInformationCenter extends StatefulWidget {
 
 class _FleetInformationCenterState extends State<FleetInformationCenter> {
   late int _selectedFleetId = widget.initialFleetId ?? 1;
+  late final int _initialMemberId =
+      widget.controller.fleetDisplayState.memberId;
 
   @override
   void didUpdateWidget(FleetInformationCenter oldWidget) {
@@ -130,6 +135,9 @@ class _FleetInformationCenterState extends State<FleetInformationCenter> {
             final state = widget.page == FleetInformationPage.fleet
                 ? widget.controller.fleetDisplayState
                 : widget.controller.state;
+            final initialShipId = state.memberId == _initialMemberId
+                ? widget.initialShipId
+                : null;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -142,9 +150,7 @@ class _FleetInformationCenterState extends State<FleetInformationCenter> {
                     onExpeditionModeChanged: widget.onExpeditionModeChanged,
                   ),
                 if (!state.hasPortData &&
-                    !(widget.page == FleetInformationPage.construction &&
-                        widget.constructionMode ==
-                            ConstructionCenterMode.development))
+                    widget.page != FleetInformationPage.construction)
                   const Expanded(child: _WaitingState())
                 else
                   Expanded(
@@ -157,6 +163,7 @@ class _FleetInformationCenterState extends State<FleetInformationCenter> {
                             widget.controller.nosakiSparkleStartedAt,
                         now: now,
                         selectedFleetId: _selectedFleetId,
+                        initialShipId: initialShipId,
                         damagePulseMode: widget.damagePulseMode,
                         moraleSparkleMode: widget.moraleSparkleMode,
                         onFleetSelected: (id) {
@@ -169,19 +176,25 @@ class _FleetInformationCenterState extends State<FleetInformationCenter> {
                         onToggleMoraleMetricMode:
                             widget.onToggleMoraleMetricMode,
                       ),
-                      FleetInformationPage.expedition =>
-                        widget.expeditionMode == ExpeditionSummaryMode.check
-                            ? ExpeditionCheckPage(
-                                controller: widget.controller,
-                                showHeader: false,
-                                initialFleetId: _selectedFleetId,
-                                onFleetSelected: (fleetId) {
-                                  setState(() => _selectedFleetId = fleetId);
-                                  widget.onFleetSelected?.call(fleetId);
-                                },
-                                onBack: () {},
-                              )
-                            : ExpeditionStatusView(state: state),
+                      FleetInformationPage.expedition => LazyIndexedStack(
+                        index:
+                            (widget.expeditionMode ??
+                                    ExpeditionSummaryMode.summary)
+                                .index,
+                        children: [
+                          ExpeditionStatusView(state: state),
+                          ExpeditionCheckPage(
+                            controller: widget.controller,
+                            showHeader: false,
+                            initialFleetId: _selectedFleetId,
+                            onFleetSelected: (fleetId) {
+                              setState(() => _selectedFleetId = fleetId);
+                              widget.onFleetSelected?.call(fleetId);
+                            },
+                            onBack: () {},
+                          ),
+                        ],
+                      ),
                       FleetInformationPage.repair => RepairCenterView(
                         controller: widget.controller,
                         initialFleetId: widget.initialFleetId,
@@ -190,26 +203,32 @@ class _FleetInformationCenterState extends State<FleetInformationCenter> {
                         onModeChanged: widget.onRepairModeChanged,
                         showModeTabs: widget.showRepairModeTabs,
                       ),
-                      FleetInformationPage.construction =>
-                        switch (widget.constructionMode) {
-                          ConstructionCenterMode.construction =>
-                            ConstructionDockStatusView(state: state),
-                          ConstructionCenterMode.development =>
-                            EquipmentDevelopmentPage(
+                      FleetInformationPage.construction => LazyIndexedStack(
+                        index: widget.constructionMode.index,
+                        children: [
+                          if (state.hasPortData)
+                            ConstructionDockStatusView(state: state)
+                          else
+                            const _WaitingState(),
+                          EquipmentDevelopmentPage(
+                            state: state,
+                            repository: widget.developmentRepository,
+                            stateStore: widget.developmentStateStore,
+                            mode: widget.developmentMode,
+                            onModeChanged: widget.onDevelopmentModeChanged,
+                          ),
+                          if (!state.hasPortData)
+                            const _WaitingState()
+                          else if (widget.improvementController
+                              case final planner?)
+                            ImprovementPlannerView(
+                              controller: planner,
                               state: state,
-                              repository: widget.developmentRepository,
-                              stateStore: widget.developmentStateStore,
-                              mode: widget.developmentMode,
-                              onModeChanged: widget.onDevelopmentModeChanged,
-                            ),
-                          ConstructionCenterMode.improvement =>
-                            widget.improvementController != null
-                                ? ImprovementPlannerView(
-                                    controller: widget.improvementController!,
-                                    state: state,
-                                  )
-                                : ConstructionDockStatusView(state: state),
-                        },
+                            )
+                          else
+                            ConstructionDockStatusView(state: state),
+                        ],
+                      ),
                     },
                   ),
               ],
@@ -322,6 +341,7 @@ class _FleetView extends StatefulWidget {
     this.nosakiSparkleStartedAt,
     required this.now,
     required this.selectedFleetId,
+    required this.initialShipId,
     required this.damagePulseMode,
     required this.moraleSparkleMode,
     required this.onFleetSelected,
@@ -336,6 +356,7 @@ class _FleetView extends StatefulWidget {
   final DateTime? nosakiSparkleStartedAt;
   final DateTime now;
   final int selectedFleetId;
+  final int? initialShipId;
   final DamagePulseFilter damagePulseMode;
   final MoraleSparkleMode moraleSparkleMode;
   final ValueChanged<int> onFleetSelected;
@@ -354,7 +375,7 @@ class _FleetViewState extends State<_FleetView> {
   int _lastFleetId = 0;
   FleetMetrics? _cachedMetrics;
   List<Fleet>? _cachedFleetButtons;
-  int? _selectedShipId;
+  late int? _selectedShipId = widget.initialShipId;
   int? _selectedEquipmentIndex;
 
   @override

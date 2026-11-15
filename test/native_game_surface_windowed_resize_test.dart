@@ -23,9 +23,6 @@ void main() {
           physicalSize: physicalSize,
           devicePixelRatio: dpr,
           pane: physicalSize / dpr,
-          // The shell supplies the stable padding; this test independently
-          // checks the native slot's response to raw metrics notifications.
-          viewPadding: const EdgeInsets.only(bottom: 16),
         );
         final originalSlot = h.slot;
         final originalBounds = h.slot.readStableBounds()!.toMap();
@@ -77,7 +74,6 @@ void main() {
         physicalSize: const Size(1220, 824),
         devicePixelRatio: dpr,
         pane: const Size(1220, 824) / dpr,
-        viewPadding: const EdgeInsets.only(bottom: 16),
       );
       final originalSlot = h.slot;
       final oldWrites = h.bounds.length;
@@ -134,7 +130,6 @@ void main() {
         physicalSize: const Size(1220, 824),
         devicePixelRatio: dpr,
         pane: const Size(1220, 824) / dpr,
-        viewPadding: const EdgeInsets.only(bottom: 16),
       );
       final originalSlot = h.slot;
       final oldWrites = h.bounds.length;
@@ -177,7 +172,6 @@ void main() {
           physicalSize: const Size(1220, 824),
           devicePixelRatio: dpr,
           pane: const Size(1220, 824) / dpr,
-          viewPadding: const EdgeInsets.only(bottom: 16),
         );
         final originalSlot = h.slot;
         final oldWrites = h.bounds.length;
@@ -578,7 +572,6 @@ Future<_Harness> _mount(
   Size physicalSize = const Size(800, 600),
   double devicePixelRatio = 1,
   Size pane = const Size(600, 360),
-  EdgeInsets? viewPadding,
 }) async {
   tester.view.devicePixelRatio = devicePixelRatio;
   tester.view.physicalSize = physicalSize;
@@ -621,7 +614,6 @@ Future<_Harness> _mount(
             height: value.pane.height,
             child: GameSurfaceViewport(
               fullscreen: value.fullscreen,
-              viewPadding: viewPadding,
               child: child!,
             ),
           ),

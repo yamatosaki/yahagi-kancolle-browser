@@ -255,7 +255,7 @@ class ShipPortrait extends StatelessWidget {
     final horizontalOffset = height * (enemyBanner ? 1.6 : 0.555);
     final verticalOffset = (height / 176) * 3;
     Widget cachedImage(Uri imageUri, bool damaged, Widget fallback) =>
-        _PersistentPortraitImage(
+        CachedGamePortraitImage(
           uri: imageUri,
           cacheKey: '${ship!.id}_${resourceType._nameFor(damaged)}',
           cache: cache ?? ShipPortraitCache.shared,
@@ -413,16 +413,17 @@ class _ModPortraitImageState extends State<_ModPortraitImage> {
   }
 }
 
-class _PersistentPortraitImage extends StatefulWidget {
-  const _PersistentPortraitImage({
+class CachedGamePortraitImage extends StatefulWidget {
+  const CachedGamePortraitImage({
+    super.key,
     required this.uri,
     required this.cacheKey,
     required this.cache,
     required this.height,
-    required this.decodeHeight,
     required this.fit,
     required this.placeholder,
-    required this.imageProviderBuilder,
+    this.decodeHeight,
+    this.imageProviderBuilder,
   });
 
   final Uri uri;
@@ -435,11 +436,11 @@ class _PersistentPortraitImage extends StatefulWidget {
   final ShipPortraitFileImageProviderBuilder? imageProviderBuilder;
 
   @override
-  State<_PersistentPortraitImage> createState() =>
-      _PersistentPortraitImageState();
+  State<CachedGamePortraitImage> createState() =>
+      _CachedGamePortraitImageState();
 }
 
-class _PersistentPortraitImageState extends State<_PersistentPortraitImage> {
+class _CachedGamePortraitImageState extends State<CachedGamePortraitImage> {
   late Future<File?> _file;
   int _decodeAttempt = 0;
   int? _handledDecodeErrorAttempt;
@@ -448,53 +449,73 @@ class _PersistentPortraitImageState extends State<_PersistentPortraitImage> {
   @override
   void initState() {
     super.initState();
+    widget.cache.routeChangesFor(widget.uri)?.addListener(_onRouteChanged);
     _resolve();
   }
 
   @override
-  void didUpdateWidget(covariant _PersistentPortraitImage oldWidget) {
+  void didUpdateWidget(covariant CachedGamePortraitImage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.uri != widget.uri ||
         oldWidget.cacheKey != widget.cacheKey ||
         oldWidget.cache != widget.cache) {
-      _generation++;
-      _decodeAttempt = 0;
-      _handledDecodeErrorAttempt = null;
-      _resolve();
+      oldWidget.cache
+          .routeChangesFor(oldWidget.uri)
+          ?.removeListener(_onRouteChanged);
+      widget.cache.routeChangesFor(widget.uri)?.addListener(_onRouteChanged);
+      _restart();
     }
+  }
+
+  @override
+  void dispose() {
+    widget.cache.routeChangesFor(widget.uri)?.removeListener(_onRouteChanged);
+    super.dispose();
+  }
+
+  void _onRouteChanged() => setState(_restart);
+
+  void _restart() {
+    _generation++;
+    _decodeAttempt = 0;
+    _handledDecodeErrorAttempt = null;
+    _resolve();
   }
 
   void _resolve() {
     _file = widget.cache.resolve(cacheKey: widget.cacheKey, uri: widget.uri);
   }
 
-  void _handleDecodeError(int failedAttempt) {
-    if (failedAttempt != _decodeAttempt) return;
+  void _handleDecodeError(int failedGeneration, int failedAttempt, File file) {
+    if (failedGeneration != _generation || failedAttempt != _decodeAttempt) {
+      return;
+    }
     if (_handledDecodeErrorAttempt == _decodeAttempt) return;
     _handledDecodeErrorAttempt = _decodeAttempt;
-    final failedGeneration = _generation;
     final failedUri = widget.uri;
     final failedCacheKey = widget.cacheKey;
     final failedCache = widget.cache;
     final retry = failedAttempt == 0;
     unawaited(
-      failedCache.evict(cacheKey: failedCacheKey, uri: failedUri).then((_) {
-        scheduleMicrotask(() {
-          if (!mounted ||
-              !retry ||
-              _generation != failedGeneration ||
-              _decodeAttempt != failedAttempt ||
-              widget.uri != failedUri ||
-              widget.cacheKey != failedCacheKey ||
-              widget.cache != failedCache) {
-            return;
-          }
-          setState(() {
-            _decodeAttempt++;
-            _resolve();
-          });
-        });
-      }),
+      failedCache
+          .evict(cacheKey: failedCacheKey, uri: failedUri, resolvedFile: file)
+          .then((_) {
+            scheduleMicrotask(() {
+              if (!mounted ||
+                  !retry ||
+                  _generation != failedGeneration ||
+                  _decodeAttempt != failedAttempt ||
+                  widget.uri != failedUri ||
+                  widget.cacheKey != failedCacheKey ||
+                  widget.cache != failedCache) {
+                return;
+              }
+              setState(() {
+                _decodeAttempt++;
+                _resolve();
+              });
+            });
+          }),
     );
   }
 
@@ -507,6 +528,7 @@ class _PersistentPortraitImageState extends State<_PersistentPortraitImage> {
         return widget.placeholder;
       }
       final renderedAttempt = _decodeAttempt;
+      final renderedGeneration = _generation;
       final imageProvider =
           widget.imageProviderBuilder?.call(file, widget.decodeHeight) ??
           ResizeImage.resizeIfNeeded(
@@ -522,7 +544,7 @@ class _PersistentPortraitImageState extends State<_PersistentPortraitImage> {
         height: widget.height,
         fit: widget.fit,
         errorBuilder: (context, error, stackTrace) {
-          _handleDecodeError(renderedAttempt);
+          _handleDecodeError(renderedGeneration, renderedAttempt, file);
           return widget.placeholder;
         },
       );

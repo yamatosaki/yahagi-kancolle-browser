@@ -81,6 +81,30 @@ class GameResourceCacheEngine(
             false
         }
 
+    /** Resolve against the active VPN without reading or changing the stock resource cache. */
+    internal fun fetchFresh(
+        url: String,
+        requestHeaders: Map<String, String> = emptyMap(),
+        method: String = "GET",
+    ): GameResourceResponse? {
+        if (!GameResourceCacheRules.shouldCache(url, method) ||
+            requestHeaders.keys.any { name -> FRESH_BYPASS_HEADERS.any { it.equals(name, true) } }
+        ) return null
+        val fetched = runCatching { fetcher.fetch(url, requestHeaders, null) }.getOrNull() ?: return null
+        val length = fetched.headers.value("Content-Length")?.toLongOrNull()
+        if (fetched.statusCode != HttpURLConnection.HTTP_OK ||
+            fetched.headers.value("Set-Cookie") != null || fetched.headers.value("Set-Cookie2") != null ||
+            fetched.bodyLength > HttpUrlConnectionGameResourceFetcher.MAX_RESOURCE_BYTES ||
+            (length != null && length != fetched.bodyLength)
+        ) {
+            fetched.file?.delete()
+            return null
+        }
+        val headers = fetched.headers.filterKeys { !it.equals("Cache-Control", ignoreCase = true) } +
+            ("Cache-Control" to "no-store")
+        return fetched.toNetworkResponse(url, headers)
+    }
+
     fun fetch(
         url: String,
         requestHeaders: Map<String, String> = emptyMap(),
@@ -208,19 +232,8 @@ class GameResourceCacheEngine(
             // The fetched body was already bounded and the store checks its own copy.
             // Keep the owned download for this response instead of reopening/rehashing
             // the newly committed cache file. A concurrent clear cannot delete it.
-            val responseFile = fetched.file
-            retainFetchedFile = responseFile != null && responseFile == fetched.file
-            return GameResourceResponse(
-                bodyBytes = fetched.bytes,
-                mimeType = mimeType,
-                encoding = mimeInfo.encoding,
-                statusCode = fetched.statusCode,
-                reasonPhrase = fetched.reasonPhrase,
-                headers = fetched.headers,
-                source = GameResourceResponseSource.NETWORK,
-                file = responseFile,
-                deleteFileOnClose = retainFetchedFile,
-            )
+            retainFetchedFile = fetched.file != null
+            return fetched.toNetworkResponse(url, mimeType = mimeType)
             } finally {
                 if (!retainFetchedFile) fetched.file?.delete()
             }
@@ -320,6 +333,27 @@ class GameResourceCacheEngine(
         )
     }
 
+    private fun GameResourceFetchResult.toNetworkResponse(
+        url: String,
+        responseHeaders: Map<String, String> = headers,
+        mimeType: String? = null,
+    ): GameResourceResponse {
+        val fallback = GameResourceCacheRules.mimeTypeFor(url)
+        val mime = mimeType ?: headers.value("Content-Type")?.substringBefore(';')?.trim()
+            ?.takeIf { it.isNotEmpty() } ?: fallback.mime
+        return GameResourceResponse(
+            bodyBytes = bytes,
+            mimeType = mime,
+            encoding = fallback.encoding,
+            statusCode = statusCode,
+            reasonPhrase = reasonPhrase,
+            headers = responseHeaders,
+            source = GameResourceResponseSource.NETWORK,
+            file = file,
+            deleteFileOnClose = file != null,
+        )
+    }
+
     private fun Map<String, String>.value(name: String): String? =
         entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value
 
@@ -348,6 +382,7 @@ class GameResourceCacheEngine(
             "Range", "If-Range", "If-None-Match", "If-Modified-Since",
             "If-Match", "If-Unmodified-Since", "Authorization", "Proxy-Authorization",
         )
+        private val FRESH_BYPASS_HEADERS = BYPASS_REQUEST_HEADERS - setOf("If-None-Match", "If-Modified-Since")
     }
 }
 

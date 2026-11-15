@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -1334,6 +1335,87 @@ void main() {
     expect(find.text('难度：★★'), findsOneWidget);
     expect(find.byKey(const ValueKey('sortie-map-viewer-1-2')), findsOneWidget);
   });
+
+  for (final rotate in [false, true]) {
+    testWidgets(
+      'retains route transform and enemy details after ${rotate ? 'rotation' : 'hiding'}',
+      (tester) async {
+        const landscape = Size(900, 400);
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = landscape;
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        final selectionStore = _MemorySortieMapSelectionStore();
+        Future<SortieMapCatalogData> loader() async => _catalog;
+
+        Widget app({required bool visible}) => MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SortieMapQueryPage(
+              visible: visible,
+              catalogLoader: loader,
+              selectionStore: selectionStore,
+            ),
+          ),
+        );
+
+        await tester.pumpWidget(app(visible: true));
+        await tester.pumpAndSettle();
+
+        final viewer = find.byKey(const ValueKey('sortie-map-viewer-1-1'));
+        final transform = find
+            .descendant(of: viewer, matching: find.byType(Transform))
+            .first;
+        final detailScroll = find
+            .descendant(
+              of: find.byKey(const Key('sortie-map-detail')),
+              matching: find.byType(Scrollable),
+            )
+            .first;
+        ScrollPosition detailPosition() =>
+            tester.state<ScrollableState>(detailScroll).position;
+
+        await tester.sendEventToBinding(
+          PointerScrollEvent(
+            kind: PointerDeviceKind.mouse,
+            position: tester.getCenter(viewer),
+            scrollDelta: const Offset(0, -120),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final savedTransform = tester.widget<Transform>(transform).transform;
+        expect(savedTransform.getMaxScaleOnAxis(), greaterThan(1));
+        expect(savedTransform.getTranslation().length, greaterThan(0));
+        final savedOffset = detailPosition().maxScrollExtent;
+        expect(savedOffset, greaterThan(0));
+        detailPosition().jumpTo(savedOffset);
+        await tester.pumpAndSettle();
+
+        if (rotate) {
+          tester.view.physicalSize = const Size(430, 844);
+          await tester.pumpAndSettle();
+          expect(
+            find.byKey(const Key('sortie-map-portrait-layout')),
+            findsOneWidget,
+          );
+          expect(tester.widget<Transform>(transform).transform, savedTransform);
+          tester.view.physicalSize = landscape;
+        } else {
+          await tester.pumpWidget(app(visible: false));
+          await tester.pumpAndSettle();
+          expect(viewer, findsNothing);
+          await tester.pumpWidget(app(visible: true));
+        }
+        await tester.pumpAndSettle();
+
+        expect(tester.widget<Transform>(transform).transform, savedTransform);
+        expect(detailPosition().pixels, closeTo(savedOffset, .1));
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 }
 
 Future<void> _pumpAt(

@@ -22,6 +22,7 @@ class ToolboxPage extends StatelessWidget {
     super.key,
     required this.state,
     this.mode = ToolboxMode.export,
+    this.workspaceVisible = true,
     this.sortieMapCatalogController,
     this.enemyCatalogController,
     this.compositionInitiallyShowSaved = true,
@@ -31,6 +32,7 @@ class ToolboxPage extends StatelessWidget {
 
   final GameState state;
   final ToolboxMode mode;
+  final bool workspaceVisible;
   final SortieMapCatalogController? sortieMapCatalogController;
   final EnemyCatalogController? enemyCatalogController;
   final bool compositionInitiallyShowSaved;
@@ -45,20 +47,20 @@ class ToolboxPage extends StatelessWidget {
       CompositionImagePage(
         state: state,
         sortieMapCatalogController: sortieMapCatalogController,
-        visible: mode == ToolboxMode.composition,
+        visible: workspaceVisible && mode == ToolboxMode.composition,
         initiallyShowSaved: compositionInitiallyShowSaved,
         draftController: compositionDraftController,
       ),
       ExpCalcPage(state: state, catalogController: sortieMapCatalogController),
       SortieMapQueryPage(
         state: state,
-        visible: mode == ToolboxMode.mapQuery,
+        visible: workspaceVisible && mode == ToolboxMode.mapQuery,
         catalogController: sortieMapCatalogController,
         enemyCatalogController: enemyCatalogController,
       ),
       GameModsPage(
         controller: gameModsController,
-        visible: mode == ToolboxMode.mods,
+        visible: workspaceVisible && mode == ToolboxMode.mods,
       ),
       ColoredBox(
         key: const Key('toolbox-other-page'),

@@ -19,6 +19,7 @@ Widget wrap(
   DateTime Function()? now,
   Locale locale = const Locale('zh'),
   double textScale = 1,
+  bool visible = true,
 }) => MaterialApp(
   locale: locale,
   localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -31,10 +32,47 @@ Widget wrap(
     child: child!,
   ),
   home: Scaffold(
-    body: ResourceTrendPage(loadLogs: loader, now: now),
+    body: ResourceTrendPage(loadLogs: loader, now: now, visible: visible),
   ),
 );
 void main() {
+  testWidgets('hidden resource chart defers refresh and retains the view', (
+    tester,
+  ) async {
+    var clock = DateTime.parse('2026-09-05T23:59:00.000+09:00');
+    DateTime now() => clock;
+    final requests = <int>[];
+    Future<List<Map<String, dynamic>>> load(int days) async {
+      requests.add(days);
+      return [row(clock, 1200)];
+    }
+
+    await tester.pumpWidget(wrap(load, now: now));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('resource-range-7')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('resource-card-ammo')));
+    await tester.pumpAndSettle();
+    ResourceTrendChart chart() =>
+        tester.widget<ResourceTrendChart>(find.byType(ResourceTrendChart));
+    expect(chart().resourceKey, 'ammo');
+    expect(requests, [1, 7]);
+
+    await tester.pumpWidget(wrap(load, now: now, visible: false));
+    clock = clock.add(const Duration(minutes: 2));
+    await tester.pump(const Duration(minutes: 2));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(requests, [1, 7]);
+
+    await tester.pumpWidget(wrap(load, now: now));
+    await tester.pumpAndSettle();
+    expect(requests, [1, 7, 7]);
+    expect(chart().resourceKey, 'ammo');
+    expect(chart().data.window.days, 7);
+  });
+
   testWidgets('JST midnight rolls the range and resume reloads observations', (
     tester,
   ) async {

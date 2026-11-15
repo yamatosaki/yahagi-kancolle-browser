@@ -143,6 +143,40 @@ void main() {
     expect(find.text('20'), findsWidgets);
   });
 
+  testWidgets('calculator and formula have separate scroll positions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 320);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(_app(size: const Size(800, 320)));
+    await tester.pumpAndSettle();
+
+    final scroll = find
+        .ancestor(
+          of: find.byKey(const Key('development-command-card')),
+          matching: find.byType(SingleChildScrollView),
+        )
+        .first;
+    double offset() => tester
+        .state<ScrollableState>(
+          find.descendant(of: scroll, matching: find.byType(Scrollable)).first,
+        )
+        .position
+        .pixels;
+    await tester.drag(scroll, const Offset(0, -120));
+    await tester.pumpAndSettle();
+    final calculatorOffset = offset();
+    expect(calculatorOffset, greaterThan(0));
+
+    await _openFormula(tester);
+    expect(offset(), 0);
+    await tester.tap(find.byKey(const Key('development-mode-calculator')));
+    await tester.pumpAndSettle();
+    expect(offset(), closeTo(calculatorOffset, .1));
+  });
+
   testWidgets('workbench state survives page recreation', (tester) async {
     final store = _MemoryDevelopmentWorkbenchStateStore();
     await tester.pumpWidget(

@@ -126,6 +126,37 @@ void main() {
       expect(state.masterSlotItems[101]?.resourceVersion, '4');
     });
 
+    test('start2 retains ship names and records on Kanxy false overrides', () {
+      final reducer = GameStateReducer();
+      final state = reducer.reduce(
+        const GameState(
+          masterShips: {
+            623: MasterShip(id: 623, name: '夕張改二特', shipTypeId: 3),
+            748: MasterShip(id: 748, name: '扶桑改二補', shipTypeId: 10),
+          },
+        ),
+        kcsapiEvent('/kcsapi/api_start2/getData', {
+          'api_mst_ship': [
+            {'api_id': 623, 'api_name': 'false', 'api_fuel_max': 45},
+            {'api_id': 748, 'api_name': false, 'api_bull_max': 140},
+            {'api_id': 411, 'api_name': '扶桑（战后）'},
+            {'api_id': 9999, 'api_name': false, 'api_yomi': '新艦'},
+          ],
+          'api_mst_shipgraph': [
+            {'api_id': 623, 'api_filename': 'tuzbqjvyptyt'},
+          ],
+        }),
+      );
+
+      expect(state.masterShips[623]?.name, '夕張改二特');
+      expect(state.masterShips[623]?.maxFuel, 45);
+      expect(state.masterShips[623]?.portraitFileName, 'tuzbqjvyptyt');
+      expect(state.masterShips[748]?.name, '扶桑改二補');
+      expect(state.masterShips[748]?.maxAmmo, 140);
+      expect(state.masterShips[411]?.name, '扶桑（战后）');
+      expect(state.masterShips[9999]?.name, '新艦');
+    });
+
     test('start2 preserves a present zero modernization range', () {
       final state = GameStateReducer().reduce(
         GameState.empty,

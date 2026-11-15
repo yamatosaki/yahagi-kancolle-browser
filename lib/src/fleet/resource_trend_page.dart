@@ -43,10 +43,17 @@ const _resources = [
 ];
 
 class ResourceTrendPage extends StatefulWidget {
-  const ResourceTrendPage({super.key, this.database, this.loadLogs, this.now});
+  const ResourceTrendPage({
+    super.key,
+    this.database,
+    this.loadLogs,
+    this.now,
+    this.visible = true,
+  });
   final LogbookDatabase? database;
   final ResourceTrendLoader? loadLogs;
   final DateTime Function()? now;
+  final bool visible;
   @override
   State<ResourceTrendPage> createState() => _ResourceTrendPageState();
 }
@@ -58,6 +65,7 @@ class _ResourceTrendPageState extends State<ResourceTrendPage>
   Set<String> _visible = _resources.map((r) => r.key).toSet();
   ResourceTrendData? _data;
   bool _loading = true, _error = false, _preferencesEdited = false;
+  bool _refreshPending = false;
   Timer? _midnight, _refreshDebounce;
   final _chartRevision = ValueNotifier(0);
   late LogbookDatabase _database;
@@ -93,10 +101,24 @@ class _ResourceTrendPageState extends State<ResourceTrendPage>
           .changesFor(LogbookChangeCategory.resource)
           .addListener(_recordsChanged);
     }
-    if (oldWidget.database != widget.database ||
+    final sourceChanged =
+        oldWidget.database != widget.database ||
         oldWidget.loadLogs != widget.loadLogs ||
-        oldWidget.now != widget.now) {
+        oldWidget.now != widget.now;
+    if (sourceChanged) {
       _load(clear: true);
+    }
+    if (!widget.visible) {
+      _midnight?.cancel();
+      _refreshDebounce?.cancel();
+      _closeAccountDialogs();
+    } else if (!oldWidget.visible || sourceChanged) {
+      final windowChanged =
+          _data != null &&
+          _data!.window.start != ResourceTrendWindow.at(_now, _days).start;
+      if (!sourceChanged && (_refreshPending || windowChanged)) {
+        _load(clear: windowChanged);
+      }
       _scheduleMidnight();
     }
   }
@@ -159,12 +181,15 @@ class _ResourceTrendPageState extends State<ResourceTrendPage>
   }
 
   void _recordsChanged() {
+    _refreshPending = true;
+    if (!widget.visible) return;
     _refreshDebounce?.cancel();
     _refreshDebounce = Timer(const Duration(milliseconds: 200), _load);
   }
 
   void _scheduleMidnight() {
     _midnight?.cancel();
+    if (!widget.visible) return;
     final now = _now;
     final today = ResourceTrendWindow.at(now, 1).start;
     _midnight = Timer(
@@ -203,6 +228,15 @@ class _ResourceTrendPageState extends State<ResourceTrendPage>
   }
 
   Future<void> _load({bool clear = false}) async {
+    if (!widget.visible) {
+      _refreshPending = true;
+      if (clear) {
+        _generation++;
+        _data = null;
+      }
+      return;
+    }
+    _refreshPending = false;
     final generation = ++_generation;
     final window = ResourceTrendWindow.at(_now, _days);
     setState(() {

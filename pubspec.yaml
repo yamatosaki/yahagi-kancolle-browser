@@ -17,8 +17,8 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
 # Public release sequence: 1.10, 1.11, 1.12; Flutter keeps the zero patch.
-# User-facing version: 1.10 Beta6. Every distributed build increments the code.
-version: 1.10.0-beta.6+35
+# User-facing version: 1.10 Beta9. Every distributed build increments the code.
+version: 1.10.0-beta.9+47
 
 environment:
   sdk: ^3.12.2
@@ -95,6 +95,7 @@ flutter:
     - assets/data/improvement/
     - assets/data/development/
     - assets/data/game_resource_static_catalog.json
+    - assets/data/master_ship_names.json
     - assets/data/game_resource_baseline_manifest.json.gz
     - assets/data/sortie_map_catalog.json
     - assets/data/enemy_catalog.json

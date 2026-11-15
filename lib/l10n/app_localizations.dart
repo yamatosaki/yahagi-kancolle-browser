@@ -1405,11 +1405,11 @@ abstract class AppLocalizations {
   /// **'任务说明'**
   String get questDesc;
 
-  /// No description provided for @baseReward.
+  /// No description provided for @questRewards.
   ///
   /// In zh, this message translates to:
-  /// **'基础奖励'**
-  String get baseReward;
+  /// **'任务奖励'**
+  String get questRewards;
 
   /// No description provided for @accepted.
   ///
@@ -4832,6 +4832,42 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'完成条件'**
   String get completionConditions;
+
+  /// No description provided for @questEligibleFleets.
+  ///
+  /// In zh, this message translates to:
+  /// **'可完成任务编队:'**
+  String get questEligibleFleets;
+
+  /// No description provided for @questNoEligibleFleet.
+  ///
+  /// In zh, this message translates to:
+  /// **'无满足要求舰队'**
+  String get questNoEligibleFleet;
+
+  /// No description provided for @questEligibleFleetFirst.
+  ///
+  /// In zh, this message translates to:
+  /// **'第一舰队'**
+  String get questEligibleFleetFirst;
+
+  /// No description provided for @questEligibleFleetSecond.
+  ///
+  /// In zh, this message translates to:
+  /// **'第二舰队'**
+  String get questEligibleFleetSecond;
+
+  /// No description provided for @questEligibleFleetThird.
+  ///
+  /// In zh, this message translates to:
+  /// **'第三舰队'**
+  String get questEligibleFleetThird;
+
+  /// No description provided for @questEligibleFleetFourth.
+  ///
+  /// In zh, this message translates to:
+  /// **'第四舰队'**
+  String get questEligibleFleetFourth;
 
   /// No description provided for @questRelations.
   ///

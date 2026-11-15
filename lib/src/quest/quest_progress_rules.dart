@@ -1,6 +1,32 @@
 import '../game_state/game_state.dart';
 
+const _questFleetIdFields = {
+  'flagshipId',
+  'secondshipId',
+  'escortshipId',
+  'escortshipIdAll',
+};
+
+const _questFleetFields = {
+  ..._questFleetIdFields,
+  'flagship',
+  'secondship',
+  'escortship',
+  'shipNamesAll',
+  'flagshiptype',
+  'escortshiptype',
+  'flagshipclass',
+  'secondshipclass',
+  'escortshipclass',
+  'fleetlimit',
+  'banshiptype',
+};
+
+bool questStepUsesShipIds(Map<String, dynamic> step) =>
+    step.keys.any(_questFleetIdFields.contains);
+
 const _knownQuestStepFields = {
+  ..._questFleetFields,
   'description',
   'required',
   'init',
@@ -13,21 +39,6 @@ const _knownQuestStepFields = {
   'mapcell',
   'materialShipType',
   'materialShipMinCount',
-  'flagshipId',
-  'secondshipId',
-  'escortshipId',
-  'escortshipIdAll',
-  'flagship',
-  'secondship',
-  'escortship',
-  'shipNamesAll',
-  'flagshiptype',
-  'escortshiptype',
-  'flagshipclass',
-  'secondshipclass',
-  'escortshipclass',
-  'fleetlimit',
-  'banshiptype',
 };
 
 String questPeriodKey(int ruleType, int apiType, DateTime now) {
@@ -63,6 +74,18 @@ class QuestProgressGoal {
     for (final e in raw.entries)
       if (e.value is Map) e.key: Map<String, dynamic>.from(e.value as Map),
   };
+  List<Map<String, dynamic>>? get fleetSteps {
+    final subgoals = steps.values;
+    if (subgoals.any(
+      (step) => !step.keys.every(_knownQuestStepFields.contains),
+    )) {
+      return null;
+    }
+    return subgoals
+        .where((step) => step.keys.any(_questFleetFields.contains))
+        .toList(growable: false);
+  }
+
   // Incomplete fleet/equipment rules may provide reference counts, but those
   // counts cannot prove completion. Unknown constraints also fail closed when
   // restoring counts written by an older version of the rule engine.
@@ -118,6 +141,21 @@ bool matchesQuestStep(Map<String, dynamic> goal, QuestProgressEvent event) {
   final shipIds = event.options['shipIds'] is List
       ? event.options['shipIds'] as List
       : const [];
+  return matchesQuestFleet(goal, event.ships, shipIds: shipIds) == true;
+}
+
+/// Null means the fleet data is insufficient to check this composition.
+bool? matchesQuestFleet(
+  Map<String, dynamic> goal,
+  List<MasterShip> ships, {
+  List shipIds = const [],
+}) {
+  var incomplete = false;
+  bool canMatch(bool? match) {
+    incomplete |= match == null;
+    return match != false;
+  }
+
   bool idMatches(int index, List allowed) {
     if (index >= shipIds.length || shipIds[index] is! List) return false;
     return (shipIds[index] as List).any(
@@ -148,7 +186,6 @@ bool matchesQuestStep(Map<String, dynamic> goal, QuestProgressEvent event) {
   if (goal['escortshipIdAll'] case final List groups) {
     if (!groups.every(idGroupMatches)) return false;
   }
-  final ships = event.ships;
   if (ships.isEmpty &&
       goal.keys.any(
         (k) => {
@@ -167,11 +204,16 @@ bool matchesQuestStep(Map<String, dynamic> goal, QuestProgressEvent event) {
       )) {
     return false;
   }
-  bool nameMatches(MasterShip ship, List names) =>
-      names.any((name) => ship.name.contains(name.toString()));
+  bool? nameMatches(MasterShip ship, List names) => ship.name.trim().isEmpty
+      ? null
+      : names.any((name) => ship.name.contains(name.toString()));
+  bool? numberMatches(int id, List allowed) =>
+      id <= 0 ? null : allowed.contains(id);
+
   for (final pair in [(0, 'flagship'), (1, 'secondship')]) {
     if (goal[pair.$2] case final List names) {
-      if (ships.length <= pair.$1 || !nameMatches(ships[pair.$1], names)) {
+      if (ships.length <= pair.$1 ||
+          !canMatch(nameMatches(ships[pair.$1], names))) {
         return false;
       }
     }
@@ -183,36 +225,48 @@ bool matchesQuestStep(Map<String, dynamic> goal, QuestProgressEvent event) {
   ]) {
     if (goal[pair.$2] case final List allowed) {
       if (ships.length <= pair.$1) return false;
-      if (!allowed.contains(
-        pair.$2.endsWith('type')
-            ? ships[pair.$1].shipTypeId
-            : ships[pair.$1].classTypeId,
+      if (!canMatch(
+        numberMatches(
+          pair.$2.endsWith('type')
+              ? ships[pair.$1].shipTypeId
+              : ships[pair.$1].classTypeId,
+          allowed,
+        ),
       )) {
         return false;
       }
     }
   }
-  bool groupMatches(dynamic raw, String kind) {
+  bool? groupMatches(dynamic raw, String kind) {
     final group = raw as List;
+    final allowed = group[0] as List;
+    final required = group[1] as num;
     final candidates = group.length > 2 && group[2] == true
         ? ships.skip(1)
         : ships;
-    return candidates
-            .where(
-              (ship) => kind == 'name'
-                  ? nameMatches(ship, group[0] as List)
-                  : (group[0] as List).contains(
-                      kind == 'type' ? ship.shipTypeId : ship.classTypeId,
-                    ),
-            )
-            .length >=
-        (group[1] as num);
+    var matches = 0, unknown = 0;
+    for (final ship in candidates) {
+      final match = kind == 'name'
+          ? nameMatches(ship, allowed)
+          : numberMatches(
+              kind == 'type' ? ship.shipTypeId : ship.classTypeId,
+              allowed,
+            );
+      if (match == true) matches++;
+      if (match == null) unknown++;
+    }
+    if (matches >= required) return true;
+    return matches + unknown < required ? false : null;
   }
 
-  if (goal['escortship'] case final List alternatives) {
-    if (alternatives.isNotEmpty &&
-        !alternatives.any((g) => groupMatches(g, 'name'))) {
-      return false;
+  if (goal['escortship'] case final List alternatives
+      when alternatives.isNotEmpty) {
+    final matches = alternatives
+        .map((group) => groupMatches(group, 'name'))
+        .toSet();
+    if (!matches.contains(true)) {
+      if (!matches.contains(null)) return false;
+      incomplete = true;
     }
   }
   for (final pair in [
@@ -221,14 +275,20 @@ bool matchesQuestStep(Map<String, dynamic> goal, QuestProgressEvent event) {
     ('escortshipclass', 'class'),
   ]) {
     if (goal[pair.$1] case final List groups) {
-      if (!groups.every((g) => groupMatches(g, pair.$2))) return false;
+      if (!groups.every((group) => canMatch(groupMatches(group, pair.$2)))) {
+        return false;
+      }
     }
   }
   if (goal['fleetlimit'] case final num limit) {
     if (ships.length > limit) return false;
   }
   if (goal['banshiptype'] case final List banned) {
-    if (ships.any((s) => banned.contains(s.shipTypeId))) return false;
+    for (final ship in ships) {
+      final bannedType = numberMatches(ship.shipTypeId, banned);
+      if (bannedType == true) return false;
+      incomplete |= bannedType == null;
+    }
   }
-  return true;
+  return incomplete ? null : true;
 }

@@ -53,8 +53,9 @@ class QuestProgressEngine {
   final Set<String> _seen = {};
   String _nodeToken = '';
   String _countedBattle = '';
-  int _fleetId = 1, _map = 0, _cell = 0;
+  int _fleetId = 0, _map = 0, _cell = 0, _bossCell = 0;
   bool _boss = false;
+  bool? _practice;
   String? _lastSaved;
   String? persistenceError;
 
@@ -193,6 +194,39 @@ class QuestProgressEngine {
     ];
   }
 
+  /// Null hides the hint when the rule or current fleet data is unavailable.
+  List<int>? qualifyingFleetIds(int questId, GameState state) {
+    final goal = goals[questId];
+    if (goal == null || !_knownGoalShape(goal) || state.memberId <= 0) {
+      return null;
+    }
+    final steps = goal.fleetSteps;
+    if (steps == null || steps.isEmpty) return null;
+
+    final fleets = state.fleets.where(
+      (fleet) => fleet.id >= 1 && fleet.id <= 4,
+    );
+    if (fleets.isEmpty) return null;
+    final remodelGraph = steps.any(questStepUsesShipIds)
+        ? _QuestShipRemodelGraph(state.masterShips)
+        : null;
+    final qualifying = <int>[];
+    for (final fleet in fleets) {
+      final ships = _fleetShips(state, fleet.shipIds);
+      if (ships == null) return null;
+      if (ships.isEmpty) continue;
+      final shipIds = remodelGraph?.forShips(ships) ?? const <List<int>>[];
+      var allMatch = true;
+      for (final step in steps) {
+        final match = matchesQuestFleet(step, ships, shipIds: shipIds);
+        if (match == null) return null;
+        allMatch &= match;
+      }
+      if (allMatch) qualifying.add(fleet.id);
+    }
+    return qualifying..sort();
+  }
+
   String periodFor(GameQuest quest, DateTime now) => questPeriodKey(
     _records[quest.id]?.ruleType ??
         _ruleTypes[quest.id] ??
@@ -224,11 +258,6 @@ class QuestProgressEngine {
     _records.clear();
     _active = {};
     _seen.clear();
-    _nodeToken = '';
-    _countedBattle = '';
-    _map = 0;
-    _cell = 0;
-    _boss = false;
     _lastSaved = null;
     var found = false;
     final expiredIds = <int>{};
@@ -278,10 +307,12 @@ class QuestProgressEngine {
           // A result retransmission after a reconnect must not count twice.
           _nodeToken = data['node']?.toString() ?? '';
           _countedBattle = data['counted']?.toString() ?? '';
-          _fleetId = _int(data['fleet'], 1);
+          _fleetId = _int(data['fleet']);
           _map = _int(data['map']);
           _cell = _int(data['cell']);
+          _bossCell = _int(data['bossCell']);
           _boss = data['boss'] == true;
+          _practice = data['practice'] as bool?;
         }
       }
     } catch (error) {
@@ -294,6 +325,8 @@ class QuestProgressEngine {
       _records.clear();
       _ruleTypes.clear();
       _active.clear();
+      _seen.clear();
+      _resetBattleContext();
     }
     if (!found && allowLegacy) {
       _active = {
@@ -428,7 +461,7 @@ class QuestProgressEngine {
       next = next.copyWith(quests: valid, hasCompleteQuestData: false);
     }
     if (!RegExp(
-      r'/(questlist|clearitemget|start|stop|next|battle|battleresult|battle_result|result|charge|createitem|createship|destroyship|remodel_slot|powerup|destroyitem2)$',
+      r'/(questlist|clearitemget|start|stop|next|battle|battleresult|battle_result|result|port|charge|createitem|createship|destroyship|remodel_slot|powerup|destroyitem2)$',
     ).hasMatch(event.path)) {
       return _project(next, now);
     }
@@ -801,17 +834,77 @@ class QuestProgressEngine {
     return changed ? state.copyWith(quests: quests) : state;
   }
 
-  List<MasterShip> _ships(GameState state, int fleetId) {
-    final fleet = state.fleets.where((f) => f.id == fleetId).firstOrNull;
-    if (fleet == null) return [];
+  List<MasterShip>? _fleetShips(GameState state, Iterable<int> ownedIds) {
     final result = <MasterShip>[];
-    for (final id in fleet.shipIds.where(
-      (id) => id > 0 && !state.combatState.escapedShipIds.contains(id),
-    )) {
-      final ship = state.ships[id];
-      final master = state.masterShips[ship?.masterId];
-      // Unknown ship data must not satisfy a maximum fleet size / flagship rule.
-      if (master == null) return [];
+    for (final id in ownedIds.where((id) => id > 0)) {
+      final master = state.masterShips[state.ships[id]?.masterId];
+      // Missing ship data cannot satisfy a fleet size or flagship rule.
+      if (master == null) return null;
+      result.add(master);
+    }
+    return result;
+  }
+
+  List<int>? _sortieFleetSlots(GameState state, int fleetId) {
+    if (fleetId <= 0) return null;
+    final fleet = state.fleets.where((f) => f.id == fleetId).firstOrNull;
+    return fleet?.shipIds;
+  }
+
+  List<MasterShip> _sortieShips(
+    GameState state,
+    int fleetId, {
+    bool includeEscort = false,
+  }) {
+    final main = _sortieFleetSlots(state, fleetId);
+    final escort = includeEscort ? _sortieFleetSlots(state, 2) : null;
+    if (main == null || (includeEscort && (escort == null || escort.isEmpty))) {
+      return const [];
+    }
+    final slots = escort == null ? main : [...main, ...escort];
+    return _fleetShips(
+          state,
+          slots.where((id) => !state.combatState.escapedShipIds.contains(id)),
+        ) ??
+        const [];
+  }
+
+  List<MasterShip> _battleShips(GameState state, LiveBattle battle) {
+    final hasEscort =
+        battle.context.combinedFleetType != CombinedFleetType.none ||
+        battle.friendEscort.isNotEmpty;
+    if (battle.friendMain.isEmpty && battle.friendEscort.isEmpty) {
+      return _sortieShips(
+        state,
+        battle.context.deckId,
+        includeEscort: hasEscort,
+      );
+    }
+    if (battle.friendMain.isEmpty ||
+        (hasEscort && battle.friendEscort.isEmpty)) {
+      return const [];
+    }
+    final escapedIds = state.combatState.escapedShipIds;
+    final fleets = [battle.context.deckId, if (hasEscort) 2];
+    for (final id in fleets) {
+      final slots = _sortieFleetSlots(state, id);
+      // Battle snapshots can omit occupied slots whose owned data is missing.
+      // Do not treat such a snapshot as a shorter fleet for quest matching.
+      if (slots != null &&
+          slots.any(
+            (id) =>
+                id > 0 &&
+                !escapedIds.contains(id) &&
+                !state.ships.containsKey(id),
+          )) {
+        return const [];
+      }
+    }
+    final result = <MasterShip>[];
+    for (final ship in battle.friendShips) {
+      if (ship.isEscaped || escapedIds.contains(ship.ownedShipId)) continue;
+      final master = state.masterShips[ship.masterId];
+      if (master == null) return const [];
       result.add(master);
     }
     return result;
@@ -829,22 +922,16 @@ class QuestProgressEngine {
     final path = event.path;
     final result = <QuestProgressEvent>[];
     final options = <String, dynamic>{'maparea': _map, 'mapcell': _cell};
-    var ships = _ships(previous, _fleetId);
+    var ships = _sortieShips(previous, _fleetId);
+    bool isCombinedSortie() =>
+        _fleetId == 1 && previous.combinedFleetType != CombinedFleetType.none;
     final shipIdEvents = <String>{
       for (final quest in next.quests.values)
         if (quest.isAccepted)
           for (final step
               in goals[quest.id]?.steps.entries ??
                   const <MapEntry<String, Map<String, dynamic>>>[])
-            if (step.value.keys.any(
-              const {
-                'flagshipId',
-                'secondshipId',
-                'escortshipId',
-                'escortshipIdAll',
-              }.contains,
-            ))
-              step.key.split('@').first,
+            if (questStepUsesShipIds(step.value)) step.key.split('@').first,
     };
     _QuestShipRemodelGraph? remodelGraph;
     void add(String kind, {int delta = 1, Map<String, dynamic>? extra}) {
@@ -865,33 +952,68 @@ class QuestProgressEngine {
       }
     }
 
-    if (path.endsWith('/api_req_map/start') ||
+    if (path == '/kcsapi/api_port/port') {
+      _resetBattleContext();
+    } else if (path.endsWith('/api_req_map/start') ||
         path.endsWith('/api_req_map/next')) {
-      if (path.endsWith('/start')) {
-        _fleetId = _int(event.requestParams['api_deck_id'], 1);
+      final isStart = path.endsWith('/start');
+      if (isStart) {
+        _fleetId = _int(event.requestParams['api_deck_id']);
       }
-      _map = _int(data['api_maparea_id']) * 10 + _int(data['api_mapinfo_no']);
+      var area = _int(data['api_maparea_id']);
+      var map = _int(data['api_mapinfo_no']);
+      final previousArea = _map ~/ 10, previousMap = _map % 10;
+      if (!isStart &&
+          (area <= 0 || area == previousArea) &&
+          (map <= 0 || map == previousMap)) {
+        if (area <= 0) area = previousArea;
+        if (map <= 0) map = previousMap;
+      }
+      final mapCode = area * 10 + map;
+      final bossCell = _int(data['api_bosscell_no']);
+      _bossCell = bossCell > 0
+          ? bossCell
+          : isStart || mapCode != _map
+          ? 0
+          : _bossCell;
+      _map = mapCode;
       _cell = _int(data['api_no']);
-      _boss = _int(data['api_event_id']) == 5;
+      _boss =
+          (_bossCell > 0 && _cell == _bossCell) ||
+          _int(data['api_color_no']) == 5 ||
+          _int(data['api_event_id']) == 5;
+      _practice = false;
       _nodeToken = token;
       _countedBattle = '';
-      ships = _ships(previous, _fleetId);
+      ships = _sortieShips(
+        previous,
+        _fleetId,
+        includeEscort: isCombinedSortie(),
+      );
       options.addAll({'maparea': _map, 'mapcell': _cell});
-      if (path.endsWith('/start')) add('sally');
-      if (path.endsWith('/next')) add('reach_mapcell');
+      add(isStart ? 'sally' : 'reach_mapcell');
     } else if (path.endsWith('/api_req_practice/battle')) {
+      _resetBattleContext();
       _fleetId = _int(
         data['api_deck_id'],
-        _int(event.requestParams['api_deck_id'], 1),
+        _int(event.requestParams['api_deck_id']),
       );
       _nodeToken = token;
-      _countedBattle = '';
+      _practice = true;
     } else if (path.endsWith('/battleresult') ||
         path.endsWith('/api_req_practice/battle_result')) {
-      if (_nodeToken.isEmpty || _countedBattle == _nodeToken) return [];
-      _countedBattle = _nodeToken;
       final practice = path.contains('practice');
-      final rank = data['api_win_rank']?.toString() ?? '';
+      final rank = BattleRank.parse(data['api_win_rank']);
+      if (_nodeToken.isEmpty ||
+          _countedBattle == _nodeToken ||
+          (_practice != null && practice != _practice) ||
+          rank == BattleRank.unknown) {
+        return [];
+      }
+      _countedBattle = _nodeToken;
+      if (!practice && isCombinedSortie()) {
+        ships = _sortieShips(previous, _fleetId, includeEscort: true);
+      }
       // Use the actual participating fleet and map snapshot, not a later edited fleet.
       if (battle != null &&
           battle.context.practice == practice &&
@@ -899,7 +1021,9 @@ class QuestProgressEngine {
               (battle.context.mapAreaId * 10 + battle.context.mapInfoNo ==
                       _map &&
                   battle.context.node == _cell))) {
-        ships = _ships(previous, battle.context.deckId);
+        if (battle.displayStage != BattleDisplayStage.navigation) {
+          ships = _battleShips(previous, battle);
+        }
         if (!practice && trusted) {
           for (final enemy in battle.enemyShips) {
             if (enemy.hpUnknown || !enemy.isSunk) continue;
@@ -908,20 +1032,23 @@ class QuestProgressEngine {
           }
         }
       }
+      final isS = rank == BattleRank.s;
+      final isAOrBetter = isS || rank == BattleRank.a;
+      final isWin = isAOrBetter || rank == BattleRank.b;
       if (practice) {
         add('practice');
-        if (['S', 'A', 'B'].contains(rank)) add('practice_win');
-        if (['S', 'A'].contains(rank)) add('practice_win_a');
-        if (rank == 'S') add('practice_win_s');
+        if (isWin) add('practice_win');
+        if (isAOrBetter) add('practice_win_a');
+        if (isS) add('practice_win_s');
       } else {
         add('battle');
-        if (['S', 'A', 'B'].contains(rank)) add('battle_win');
-        if (rank == 'S') add('battle_rank_s');
+        if (isWin) add('battle_win');
+        if (isS) add('battle_rank_s');
         if (_boss) {
           add('battle_boss');
-          if (['S', 'A', 'B'].contains(rank)) add('battle_boss_win');
-          if (['S', 'A'].contains(rank)) add('battle_boss_win_rank_a');
-          if (rank == 'S') add('battle_boss_win_rank_s');
+          if (isWin) add('battle_boss_win');
+          if (isAOrBetter) add('battle_boss_win_rank_a');
+          if (isS) add('battle_boss_win_rank_s');
         }
       }
     } else if (path.endsWith('/api_req_mission/result')) {
@@ -982,6 +1109,14 @@ class QuestProgressEngine {
     return result;
   }
 
+  void _resetBattleContext() {
+    _nodeToken = _countedBattle = '';
+    _fleetId = 0;
+    _map = _cell = _bossCell = 0;
+    _boss = false;
+    _practice = null;
+  }
+
   /// Invalidate in-flight restores without deleting this account's ledger.
   void resetSession() {
     _generation++;
@@ -991,11 +1126,7 @@ class QuestProgressEngine {
     _ruleTypes.clear();
     _active.clear();
     _seen.clear();
-    _nodeToken = '';
-    _countedBattle = '';
-    _fleetId = 1;
-    _map = _cell = 0;
-    _boss = false;
+    _resetBattleContext();
     _lastSaved = null;
     persistenceError = null;
   }
@@ -1005,10 +1136,7 @@ class QuestProgressEngine {
     _ruleTypes.clear();
     _active.clear();
     _seen.clear();
-    _nodeToken = '';
-    _countedBattle = '';
-    _map = _cell = 0;
-    _boss = false;
+    _resetBattleContext();
     _lastSaved = null;
     await _save();
   }
@@ -1032,7 +1160,9 @@ class QuestProgressEngine {
       'fleet': _fleetId,
       'map': _map,
       'cell': _cell,
+      'bossCell': _bossCell,
       'boss': _boss,
+      'practice': _practice,
     });
     if (raw == _lastSaved) return;
     await storage.write(account, raw);

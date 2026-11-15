@@ -137,12 +137,23 @@ class ActivityWebViewHost internal constructor(
                 return null
             }
             resources.webView = createdWebView
+            val horizontalScrollbar = createdWebView.isHorizontalScrollBarEnabled
+            val verticalScrollbar = createdWebView.isVerticalScrollBarEnabled
+            fun updateScrollbars(isGame: Boolean) {
+                createdWebView.isHorizontalScrollBarEnabled = !isGame && horizontalScrollbar
+                createdWebView.isVerticalScrollBarEnabled = !isGame && verticalScrollbar
+            }
             val client = NativeGameWebViewClient(
                 generation = generation,
                 sink = eventSink,
                 acceptsGeneration = { state.accepts(generation) },
                 prepareRenderProcessGone = ::prepareRenderProcessGone,
                 onRenderProcessGone = ::onRenderProcessGone,
+                onMainFrameNavigationStarted = { view ->
+                    if (view === createdWebView && state.accepts(generation) && ownedResources === resources) {
+                        updateScrollbars(isGame = false)
+                    }
+                },
             )
             val presentationQuery = NativeGamePresentationQuery()
             client.setPresentationHintHandler {
@@ -152,12 +163,17 @@ class ActivityWebViewHost internal constructor(
                         createdWebView.evaluateJavascript(NativeGamePresentationQuery.SCRIPT) { result ->
                             if (state.accepts(generation) && ownedResources?.webView === createdWebView) {
                                 when (presentationQuery.resolve(token, client.documentEpoch, result)) {
-                                    "pending" -> eventSink.presentationPending(generation)
+                                    "pending" -> {
+                                        updateScrollbars(isGame = false)
+                                        eventSink.presentationPending(generation)
+                                    }
                                     "web" -> {
+                                        updateScrollbars(isGame = false)
                                         eventSink.presentationChanged(generation, false)
                                         onPresentationStateChanged(false)
                                     }
                                     "game" -> {
+                                        updateScrollbars(isGame = true)
                                         eventSink.presentationChanged(generation, true)
                                         onPresentationStateChanged(true)
                                     }

@@ -4,11 +4,13 @@ class _LogbookExperiencePage extends StatefulWidget {
   const _LogbookExperiencePage({
     required this.database,
     required this.memberId,
+    required this.visible,
     this.sortieExperienceController,
   });
 
   final LogbookDatabase database;
   final int memberId;
+  final bool visible;
   final SortieExperienceController? sortieExperienceController;
 
   @override
@@ -24,6 +26,7 @@ class _LogbookExperiencePageState extends State<_LogbookExperiencePage> {
   bool _loading = false;
   bool _hasMore = true;
   bool _loadFailed = false;
+  bool _refreshPending = false;
 
   @override
   void initState() {
@@ -32,6 +35,16 @@ class _LogbookExperiencePageState extends State<_LogbookExperiencePage> {
         .changesFor(LogbookChangeCategory.experience)
         .addListener(_refresh);
     _refresh();
+  }
+
+  @override
+  void didUpdateWidget(covariant _LogbookExperiencePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.visible) {
+      _expandedEventKey = null;
+    } else if (!oldWidget.visible && _refreshPending) {
+      _refresh();
+    }
   }
 
   @override
@@ -45,29 +58,33 @@ class _LogbookExperiencePageState extends State<_LogbookExperiencePage> {
   void _refresh() => unawaited(_load(refresh: true));
 
   Future<void> _load({bool refresh = false}) async {
+    if (!widget.visible) {
+      if (refresh) _refreshPending = true;
+      return;
+    }
     if (!refresh && (_loading || !_hasMore)) return;
+    if (refresh) _refreshPending = false;
     final generation = ++_queryGeneration;
     final offset = refresh ? 0 : _records.length;
+    final pageSize = refresh && _records.length > _batchSize
+        ? _records.length
+        : _batchSize;
     setState(() => _loading = true);
     try {
       final page = await widget.database.getExperienceRecords(
-        limit: _batchSize,
+        limit: refresh ? pageSize + 1 : pageSize,
         offset: offset,
       );
       if (!mounted || generation != _queryGeneration) return;
+      final records = refresh ? page.take(pageSize).toList() : page;
       setState(() {
-        if (refresh) {
-          final latestKey = page.firstOrNull?.eventKey;
-          if (latestKey != _records.firstOrNull?.eventKey ||
-              (_expandedEventKey != null &&
-                  !page.any(
-                    (record) => record.eventKey == _expandedEventKey,
-                  ))) {
-            _expandedEventKey = latestKey;
-          }
+        if (refresh &&
+            _expandedEventKey != null &&
+            !records.any((record) => record.eventKey == _expandedEventKey)) {
+          _expandedEventKey = null;
         }
-        _records = refresh ? page : [..._records, ...page];
-        _hasMore = page.length == _batchSize;
+        _records = refresh ? records : [..._records, ...records];
+        _hasMore = refresh ? page.length > pageSize : page.length == pageSize;
         _loadFailed = false;
         _loading = false;
       });
@@ -246,6 +263,9 @@ class _LogbookExperiencePageState extends State<_LogbookExperiencePage> {
       if (!compact) fleetWidth,
       resultWidth,
     ];
+    final detailWidth = width - frozenWidth;
+    final amountWidth = (detailWidth * .60).clamp(0.0, 132.0);
+    final metricWidths = [amountWidth, detailWidth - amountWidth];
     final locale = Localizations.localeOf(context);
     final l10n =
         AppLocalizations.of(context) ??
@@ -254,14 +274,49 @@ class _LogbookExperiencePageState extends State<_LogbookExperiencePage> {
     final names = gameNames(context);
     final expColor = appColor(context, const Color(0xff8adac7));
     final mutedColor = appColor(context, const Color(0xff9fb3bf));
+    final mvpColor = appColor(context, const Color(0xffe4bc76));
     final textLine = (MediaQuery.textScalerOf(context).scale(12) * 1.3)
         .ceilToDouble();
+    final rowKeys = <Object>[];
+    String? eventKey;
+    var detailIndex = 0;
+    for (final row in rows) {
+      if (row case _ExperienceSummaryRow(:final record)) {
+        eventKey = record.eventKey;
+        detailIndex = 0;
+      }
+      rowKeys.add((eventKey, detailIndex++));
+    }
 
     Widget shipColumns(Widget name, Widget progress) => Row(
       children: [
         Expanded(child: name),
         SizedBox(width: progressWidth, child: progress),
       ],
+    );
+
+    Widget metricCell(Widget child) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Align(alignment: Alignment.centerLeft, child: child),
+    );
+
+    Widget metricHeading(String label, {String? shortLabel}) => metricCell(
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          shortLabel ?? label,
+          semanticsLabel: label,
+          maxLines: 1,
+          style: appTextStyle(
+            context,
+            TextStyle(
+              color: mutedColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ),
     );
 
     Widget result(LogbookExperienceRecord record, String fleet, String area) {
@@ -280,10 +335,7 @@ class _LogbookExperiencePageState extends State<_LogbookExperiencePage> {
                 if (compact) _ExperienceCell(fleet),
                 _ExperienceCell(battles, maxLines: 2),
                 if (record.incomplete)
-                  _ExperienceCell(
-                    strings.partial,
-                    color: appColor(context, const Color(0xffe4bc76)),
-                  ),
+                  _ExperienceCell(strings.partial, color: mvpColor),
               ],
             ),
           ),
@@ -338,6 +390,11 @@ class _LogbookExperiencePageState extends State<_LogbookExperiencePage> {
         },
       ],
       scrollableColumnWidths: scrollWidths,
+      scrollableRowWidths: (index) => switch (rows[index]) {
+        _ExperienceSummaryRow() => scrollWidths,
+        _ExperienceHeadingRow(amountLabel: null) => [detailWidth],
+        _ => metricWidths,
+      },
       scrollableHeaders: [
         if (hasTypeColumn)
           _HeaderCell(compact ? strings.type : strings.areaType),
@@ -371,38 +428,43 @@ class _LogbookExperiencePageState extends State<_LogbookExperiencePage> {
             result(record, fleet, area),
           ];
         }
-        final amount = switch (row) {
-          _ExperienceHeadingRow(:final amountLabel) =>
-            amountLabel == null
-                ? const SizedBox.shrink()
-                : _ExperienceCell(
-                    amountLabel,
-                    trailing: true,
-                    color: mutedColor,
-                  ),
-          _ExperienceShipRow(:final ship) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: SortieExperienceAmount(
-                value: switch (ship.experience) {
-                  final exp? => '${exp > 0 ? '+' : ''}${format.format(exp)}',
-                  null => sortieStrings.uncaptured,
-                },
-                unit: ship.experience == null ? null : 'EXP',
-                color: ship.experience == null ? mutedColor : expColor,
-                valueKey: ValueKey(
-                  'logbook-experience-value-${ship.ownedShipId}',
-                ),
+        if (row is _ExperienceHeadingRow) {
+          final amountLabel = row.amountLabel;
+          if (amountLabel == null) return [const SizedBox.shrink()];
+          return [
+            metricHeading(
+              amountLabel,
+              shortLabel: amountWidth < 48 ? strings.tab : null,
+            ),
+            metricHeading(
+              strings.mvpCount,
+              shortLabel: metricWidths.last < 64 ? 'MVP' : null,
+            ),
+          ];
+        }
+        final ship = (row as _ExperienceShipRow).ship;
+        final mvp = ship.mvpCount;
+        return [
+          metricCell(
+            SortieExperienceAmount(
+              value: switch (ship.experience) {
+                final exp? => '${exp > 0 ? '+' : ''}${format.format(exp)}',
+                null => sortieStrings.uncaptured,
+              },
+              unit: ship.experience == null ? null : 'EXP',
+              color: ship.experience == null ? mutedColor : expColor,
+              valueKey: ValueKey(
+                'logbook-experience-value-${ship.ownedShipId}',
               ),
             ),
           ),
-          _ExperienceSummaryRow() => const SizedBox.shrink(),
-        };
-        return [
-          for (var column = 1; column < scrollWidths.length; column++)
-            const SizedBox.shrink(),
-          amount,
+          metricCell(
+            SortieExperienceAmount(
+              value: mvp == null ? '—' : format.format(mvp),
+              color: mvp == null || mvp == 0 ? mutedColor : mvpColor,
+              valueKey: ValueKey('logbook-experience-mvp-${ship.ownedShipId}'),
+            ),
+          ),
         ];
       },
       rowHeights: [
@@ -426,6 +488,7 @@ class _LogbookExperiencePageState extends State<_LogbookExperiencePage> {
             ),
           },
       ],
+      verticalAnchorKeys: rowKeys,
       onEndReached: () => unawaited(_load()),
       rowTapEnabled: (index) => rows[index] is _ExperienceSummaryRow,
       onRowTap: (index) {
@@ -466,15 +529,9 @@ final class _ExperienceShipRow extends _ExperienceTableRow {
 }
 
 class _ExperienceCell extends StatelessWidget {
-  const _ExperienceCell(
-    this.text, {
-    this.trailing = false,
-    this.maxLines = 1,
-    this.color,
-  });
+  const _ExperienceCell(this.text, {this.maxLines = 1, this.color});
 
   final String text;
-  final bool trailing;
   final int maxLines;
   final Color? color;
 
@@ -482,10 +539,9 @@ class _ExperienceCell extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 6),
     child: Align(
-      alignment: trailing ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: Alignment.centerLeft,
       child: Text(
         text,
-        textAlign: trailing ? TextAlign.right : TextAlign.left,
         maxLines: maxLines,
         overflow: TextOverflow.ellipsis,
         style: appTextStyle(

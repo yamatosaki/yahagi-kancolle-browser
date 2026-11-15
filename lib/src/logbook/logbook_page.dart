@@ -64,6 +64,8 @@ class LogbookPage extends StatefulWidget {
     this.sortieExperienceController,
     this.selectedTabIndex = 0,
     this.onTabChanged,
+    this.workspaceVisible = true,
+    this.sortieListRequest = 0,
   });
 
   final BattleController battleController;
@@ -71,6 +73,8 @@ class LogbookPage extends StatefulWidget {
   final SortieExperienceController? sortieExperienceController;
   final int selectedTabIndex;
   final ValueChanged<int>? onTabChanged;
+  final bool workspaceVisible;
+  final int sortieListRequest;
 
   @override
   State<LogbookPage> createState() => _LogbookPageState();
@@ -137,35 +141,107 @@ class _LogbookPageState extends State<LogbookPage>
     final scope = LogbookDatabase.accountSession.current;
     return KeyedSubtree(
       key: ValueKey((database, scope.generation)),
-      child: ColoredBox(
-        color: appColor(context, Color(0xff081521)),
-        child: TabBarView(
-          controller: _tabController,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            for (final index in _logbookTabOrder)
-              if (index == _experienceTabIndex)
-                _LogbookExperiencePage(
-                  database: database,
-                  memberId: scope.memberId,
-                  sortieExperienceController:
-                      scope.isKnown &&
-                          identical(database, LogbookDatabase.instance)
-                      ? widget.sortieExperienceController
-                      : null,
-                )
-              else if (index == _LogbookCategory.resource.index)
-                ResourceTrendPage(database: database)
-              else
-                _LogbookTablePage(
-                  category: _LogbookCategory.values[index],
-                  database: database,
-                  battleController: widget.battleController,
+      child: _LogbookVisibility(
+        visibleIndex: widget.workspaceVisible
+            ? _logbookTabOrder[_tabController.index]
+            : null,
+        child: ColoredBox(
+          color: appColor(context, Color(0xff081521)),
+          child: TabBarView(
+            controller: _tabController,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              for (final index in _logbookTabOrder)
+                _RetainedLogbookTab(
+                  index: index,
+                  builder: (visible) {
+                    if (index == _experienceTabIndex) {
+                      return _LogbookExperiencePage(
+                        database: database,
+                        memberId: scope.memberId,
+                        visible: visible,
+                        sortieExperienceController:
+                            scope.isKnown &&
+                                identical(database, LogbookDatabase.instance)
+                            ? widget.sortieExperienceController
+                            : null,
+                      );
+                    }
+                    if (index == _LogbookCategory.resource.index) {
+                      return ResourceTrendPage(
+                        database: database,
+                        visible: visible,
+                      );
+                    }
+                    return _LogbookTablePage(
+                      category: _LogbookCategory.values[index],
+                      database: database,
+                      battleController: widget.battleController,
+                      visible: visible,
+                      listRequest: index == _LogbookCategory.sortie.index
+                          ? widget.sortieListRequest
+                          : 0,
+                    );
+                  },
                 ),
-          ],
+            ],
+          ),
         ),
       ),
     );
+  }
+}
+
+class _LogbookVisibility extends InheritedWidget {
+  const _LogbookVisibility({required this.visibleIndex, required super.child});
+
+  final int? visibleIndex;
+
+  static bool isVisible(BuildContext context, int index) =>
+      context
+          .dependOnInheritedWidgetOfExactType<_LogbookVisibility>()!
+          .visibleIndex ==
+      index;
+
+  @override
+  bool updateShouldNotify(_LogbookVisibility oldWidget) =>
+      visibleIndex != oldWidget.visibleIndex;
+}
+
+class _RetainedLogbookTab extends StatefulWidget {
+  const _RetainedLogbookTab({required this.index, required this.builder});
+
+  final int index;
+  final Widget Function(bool visible) builder;
+
+  @override
+  State<_RetainedLogbookTab> createState() => _RetainedLogbookTabState();
+}
+
+class _RetainedLogbookTabState extends State<_RetainedLogbookTab>
+    with AutomaticKeepAliveClientMixin<_RetainedLogbookTab> {
+  bool _visited = false;
+
+  @override
+  bool get wantKeepAlive => _visited;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = _LogbookVisibility.isVisible(context, widget.index);
+    if (!_visited && visible) {
+      _visited = true;
+      updateKeepAlive();
+    }
+    super.build(context);
+    return _visited
+        ? TickerMode(
+            enabled: visible,
+            child: ExcludeFocus(
+              excluding: !visible,
+              child: widget.builder(visible),
+            ),
+          )
+        : const SizedBox.shrink();
   }
 }
 
@@ -356,11 +432,15 @@ class _LogbookTablePage extends StatefulWidget {
     required this.category,
     required this.database,
     required this.battleController,
+    required this.visible,
+    required this.listRequest,
   });
 
   final _LogbookCategory category;
   final LogbookDatabase database;
   final BattleController battleController;
+  final bool visible;
+  final int listRequest;
 
   @override
   State<_LogbookTablePage> createState() => _LogbookTablePageState();
@@ -415,8 +495,16 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
       _refreshQueued = false;
       _hasMore = true;
       _loadSortieFilterCatalog();
+      _refreshLatest();
     }
-    _refreshLatest();
+    if (oldWidget.listRequest != widget.listRequest) {
+      _selectedDetail = null;
+      _loadingDetailRowId = null;
+    }
+    if (widget.visible && !oldWidget.visible && _refreshQueued) {
+      _refreshQueued = false;
+      _refreshLatest();
+    }
   }
 
   @override
@@ -437,7 +525,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
 
   Future<void> _refreshLatest() async {
     if (!mounted) return;
-    if (_refreshing || _loading) {
+    if (!widget.visible || _refreshing || _loading) {
       _refreshQueued = true;
       return;
     }
@@ -489,7 +577,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
   }
 
   Future<void> _loadMore() async {
-    if (_loading || _refreshing || !_hasMore) return;
+    if (!widget.visible || _loading || _refreshing || !_hasMore) return;
     _loading = true;
     final generation = _queryGeneration;
     try {
@@ -516,7 +604,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
         _loading = false;
       }
     });
-    if (_refreshQueued && !_loading && !_refreshing) {
+    if (widget.visible && _refreshQueued && !_loading && !_refreshing) {
       _refreshQueued = false;
       Future<void>.microtask(() {
         if (mounted && generation == _queryGeneration) _refreshLatest();
@@ -952,7 +1040,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
 
   Future<void> _showFilter() async {
     await _loadSortieFilterCatalog();
-    if (!mounted) return;
+    if (!mounted || !widget.visible) return;
     final button =
         _filterButtonAnchor.currentContext?.findRenderObject() as RenderBox?;
     if (button == null) return;
@@ -966,7 +1054,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
       values: <String, String>{...defaults, ..._filters},
       defaults: defaults,
     );
-    if (selected == null || !mounted) return;
+    if (selected == null || !mounted || !widget.visible) return;
     _queryGeneration += 1;
     _loading = false;
     _refreshing = false;
@@ -1085,6 +1173,7 @@ class _LogbookTablePageState extends State<_LogbookTablePage> {
           scrollableHeaders: spec.headers,
           scrollableCells: (index) => spec.cells(rows[index]),
           rowHeights: [for (final row in rows) _rowHeight(row, context)],
+          verticalAnchorKeys: [for (final row in rows) row['id']],
           onEndReached: _loadMore,
           onRowTap: widget.category == _LogbookCategory.sortie
               ? (index) => _openBattleDetail(rows[index])

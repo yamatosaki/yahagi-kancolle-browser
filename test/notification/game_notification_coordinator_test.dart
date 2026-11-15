@@ -458,6 +458,58 @@ void main() {
       coordinator.dispose();
     });
 
+    test('forwards each ongoing display setting independently', () async {
+      testState = testState.copyWith(
+        constructionDocks: [
+          ConstructionDock(
+            id: 1,
+            state: 1,
+            completionTime: testNow.add(const Duration(minutes: 30)),
+          ),
+        ],
+      );
+      final coordinator = GameNotificationCoordinator(
+        gameStateController: gameStateController,
+        settingsController: settingsController,
+        notificationPort: fakePort,
+        gameStateProvider: () => testState,
+        nowProvider: () => testNow,
+      );
+      addTearDown(coordinator.dispose);
+      coordinator.start();
+
+      const defaults = {
+        'showProgress': true,
+        'showPercent': true,
+        'showCountdown': true,
+      };
+      final toggles = {
+        'showProgress': settingsController.setShowProgress,
+        'showPercent': settingsController.setShowPercent,
+        'showCountdown': settingsController.setShowCountdown,
+      };
+      void expectPresentation(Map<String, bool> expected) {
+        final snapshot = fakePort.latestSnapshot!;
+        final presentation = snapshot.toMap()['presentation'] as Map;
+        for (final entry in expected.entries) {
+          expect(presentation, containsPair(entry.key, entry.value));
+        }
+        expect(snapshot.presentation.ongoingLive, isTrue);
+        expect(snapshot.ongoingItems.single.id, 'construction:1');
+      }
+
+      expectPresentation(defaults);
+      for (final toggle in toggles.entries) {
+        await toggle.value(false);
+        await Future<void>.delayed(Duration.zero);
+        expectPresentation({...defaults, toggle.key: false});
+
+        await toggle.value(true);
+        await Future<void>.delayed(Duration.zero);
+        expectPresentation(defaults);
+      }
+    });
+
     test('uses the game expedition display number in ongoing titles', () async {
       final returnTime = testNow.add(const Duration(minutes: 30));
       testState = testState.copyWith(

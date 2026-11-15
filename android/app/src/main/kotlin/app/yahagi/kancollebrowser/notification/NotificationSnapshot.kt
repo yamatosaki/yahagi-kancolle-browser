@@ -261,8 +261,6 @@ object NotificationChronometer {
 
     fun countdownFormat(percent: Int, showPercent: Boolean): String =
         if (showPercent) "$percent%%  %s" else "%s"
-
-    fun percentOnlyFormat(percent: Int): String = "$percent%%"
 }
 
 object NotificationDelivery {

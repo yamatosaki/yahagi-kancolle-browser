@@ -46,15 +46,13 @@ void main() {
     await _pumpPage(tester, controller);
 
     final switches = tester.widgetList<Switch>(find.byType(Switch)).toList();
-    expect(switches, hasLength(9));
+    expect(switches, hasLength(12));
     expect(switches.first.onChanged, isNotNull);
     for (final dependentSwitch in switches.skip(1)) {
       expect(dependentSwitch.onChanged, isNull);
     }
 
-    for (final checkbox in tester.widgetList<Checkbox>(find.byType(Checkbox))) {
-      expect(checkbox.onChanged, isNull);
-    }
+    expect(find.byType(Checkbox), findsNothing);
     final menus = find.byWidgetPredicate((widget) => widget is DropdownButton);
     expect(menus, findsNWidgets(5));
     for (final element in menus.evaluate()) {
@@ -63,6 +61,87 @@ void main() {
     }
     expect(find.byKey(const Key('debuff-reminder-style-menu')), findsNothing);
   });
+
+  testWidgets(
+    'ongoing notification switches align, toggle and save independently',
+    (tester) async {
+      final controller = NotificationSettingsController();
+      addTearDown(controller.dispose);
+      await _pumpPage(tester, controller);
+
+      final rows = [
+        ('常驻实时进度条卡片', 'ongoing-live'),
+        ('进度条', 'show-progress'),
+        ('百分比', 'show-percent'),
+        ('实时倒计时', 'show-countdown'),
+      ];
+      final switches = [
+        for (final (_, id) in rows) find.byKey(Key('notification-$id-switch')),
+      ];
+      final parent = switches.first;
+      final options = switches.skip(1).toList();
+      expect(find.byType(Checkbox), findsNothing);
+      final parentSwitch = tester.widget<Switch>(parent);
+      final parentTitleX = tester.getTopLeft(find.text(rows.first.$1)).dx;
+      final parentSwitchRight = tester.getTopRight(parent).dx;
+      var previousY = tester.getCenter(parent).dy;
+      for (var index = 1; index < rows.length; index++) {
+        final label = find.text(rows[index].$1);
+        final toggle = switches[index];
+        final switchWidget = tester.widget<Switch>(toggle);
+        expect(tester.getTopLeft(label).dx, parentTitleX);
+        expect(tester.getTopRight(toggle).dx, parentSwitchRight);
+        expect(tester.getSize(toggle), tester.getSize(parent));
+        expect(switchWidget.activeThumbColor, parentSwitch.activeThumbColor);
+        expect(tester.getCenter(toggle).dy, greaterThan(previousY));
+        previousY = tester.getCenter(toggle).dy;
+      }
+
+      List<bool> values(NotificationSettings settings) => [
+        settings.showProgress,
+        settings.showPercent,
+        settings.showCountdown,
+      ];
+
+      final expected = [true, true, true];
+      for (var index = 0; index < options.length; index++) {
+        await tester.ensureVisible(options[index]);
+        await tester.tap(options[index]);
+        await tester.pumpAndSettle();
+        expected[index] = false;
+        expect(values(controller.settings), expected);
+        expect(
+          values(
+            await const SharedPreferencesNotificationSettingsStore().load(),
+          ),
+          expected,
+        );
+      }
+
+      await tester.ensureVisible(options[1]);
+      await tester.tap(options[1]);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(parent);
+      await tester.tap(parent);
+      await tester.pumpAndSettle();
+      for (final toggle in options) {
+        expect(tester.widget<Switch>(toggle).onChanged, isNull);
+      }
+      expect(values(controller.settings), [false, true, false]);
+
+      await tester.tap(parent);
+      await tester.pumpAndSettle();
+      final restored = NotificationSettingsController();
+      addTearDown(restored.dispose);
+      await restored.initialize();
+      await _pumpPage(tester, restored);
+      for (final (index, toggle) in options.indexed) {
+        final switchWidget = tester.widget<Switch>(toggle);
+        expect(switchWidget.onChanged, isNotNull);
+        expect(switchWidget.value, index == 1);
+      }
+    },
+  );
 
   testWidgets(
     'top notices stay editable after system notifications are disabled',
@@ -135,11 +214,11 @@ void main() {
       addTearDown(layout.dispose);
       await _pumpPage(tester, controller, layout: layout);
       final sections = [
+        '系统通知状态',
         '系统通知',
         '通知类型与时机',
         '后台常驻进行中进度',
         lookupAppLocalizations(const Locale('zh')).topNoticeSectionTitle,
-        '系统通知状态',
       ];
       for (var index = 1; index < sections.length; index++) {
         expect(

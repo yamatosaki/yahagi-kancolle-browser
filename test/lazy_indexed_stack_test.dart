@@ -4,6 +4,42 @@ import 'package:yahagi_kancolle_browser/src/performance/second_tick_scope.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/lazy_indexed_stack.dart';
 
 void main() {
+  testWidgets('hidden tabs lose focus and reset only when their key changes', (
+    tester,
+  ) async {
+    final focus = FocusNode();
+    addTearDown(focus.dispose);
+    Widget app(int index, int generation) => MaterialApp(
+      home: Scaffold(
+        body: LazyIndexedStack(
+          index: index,
+          children: [
+            const Text('game'),
+            Builder(
+              key: ValueKey(generation),
+              builder: (context) => TextField(focusNode: focus),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(app(1, 0));
+    final field = find.byType(TextField);
+    await tester.tap(field);
+    await tester.enterText(field, 'keep me');
+    expect(focus.hasFocus, isTrue);
+    await tester.pumpWidget(app(0, 0));
+    expect(focus.hasFocus, isFalse);
+    await tester.pumpWidget(app(1, 0));
+    expect(find.text('keep me'), findsOneWidget);
+
+    await tester.pumpWidget(app(0, 1));
+    expect(find.byType(TextField, skipOffstage: false), findsNothing);
+    await tester.pumpWidget(app(1, 1));
+    expect(find.text('keep me'), findsNothing);
+  });
+
   testWidgets('tabs initialize once, retain state, and stop hidden ticks', (
     tester,
   ) async {

@@ -60,12 +60,12 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage>
 
   Future<void> _requestNotificationPermission() async {
     await widget.notificationPort.requestNotificationPermission();
-    setState(_refreshCapabilities);
+    if (mounted) setState(_refreshCapabilities);
   }
 
   Future<void> _requestExactAlarmPermission() async {
     await widget.notificationPort.requestExactAlarmPermission();
-    setState(_refreshCapabilities);
+    if (mounted) setState(_refreshCapabilities);
   }
 
   @override
@@ -80,11 +80,14 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage>
         animation: controller,
         builder: (context, _) {
           final settings = controller.settings;
+          final ongoingOptionsEnabled = settings.master && settings.ongoingLive;
           return SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                _buildSystemStatus(l10n),
+                const SizedBox(height: 24),
                 buildSectionTitle(
                   settingsOrganizationText(
                     context,
@@ -313,139 +316,63 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage>
                     children: [
                       buildSwitchTile(
                         title: l10n.notificationOngoingLive,
+                        switchKey: const Key(
+                          'notification-ongoing-live-switch',
+                        ),
                         value: settings.ongoingLive,
                         onChanged: settings.master
-                            ? (v) => controller.setOngoingLive(v)
+                            ? controller.setOngoingLive
                             : null,
                       ),
                       Divider(
                         color: appColor(context, Color(0xff294052)),
                         height: 1,
                       ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
+                      buildSwitchTile(
+                        title: l10n.notificationProgress,
+                        switchKey: const Key(
+                          'notification-show-progress-switch',
                         ),
-                        child: Wrap(
-                          alignment: WrapAlignment.spaceBetween,
-                          spacing: 8,
-                          children: [
-                            _buildCheckItem(
-                              label: l10n.notificationProgress,
-                              value: settings.showProgress,
-                              enabled: settings.master && settings.ongoingLive,
-                              onChanged: (v) =>
-                                  controller.setShowProgress(v ?? true),
-                            ),
-                            _buildCheckItem(
-                              label: l10n.notificationPercent,
-                              value: settings.showPercent,
-                              enabled: settings.master && settings.ongoingLive,
-                              onChanged: (v) =>
-                                  controller.setShowPercent(v ?? true),
-                            ),
-                            _buildCheckItem(
-                              label: l10n.notificationCountdown,
-                              value: settings.showCountdown,
-                              enabled: settings.master && settings.ongoingLive,
-                              onChanged: (v) =>
-                                  controller.setShowCountdown(v ?? true),
-                            ),
-                          ],
+                        value: settings.showProgress,
+                        onChanged: ongoingOptionsEnabled
+                            ? controller.setShowProgress
+                            : null,
+                      ),
+                      Divider(
+                        color: appColor(context, Color(0xff294052)),
+                        height: 1,
+                      ),
+                      buildSwitchTile(
+                        title: l10n.notificationPercent,
+                        switchKey: const Key(
+                          'notification-show-percent-switch',
                         ),
+                        value: settings.showPercent,
+                        onChanged: ongoingOptionsEnabled
+                            ? controller.setShowPercent
+                            : null,
+                      ),
+                      Divider(
+                        color: appColor(context, Color(0xff294052)),
+                        height: 1,
+                      ),
+                      buildSwitchTile(
+                        title: l10n.notificationCountdown,
+                        switchKey: const Key(
+                          'notification-show-countdown-switch',
+                        ),
+                        value: settings.showCountdown,
+                        onChanged: ongoingOptionsEnabled
+                            ? controller.setShowCountdown
+                            : null,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
-
                 if (widget.layoutSettingsController case final layout?) ...[
-                  TopNoticeSettingsSection(controller: layout),
                   const SizedBox(height: 24),
+                  TopNoticeSettingsSection(controller: layout),
                 ],
-                buildSectionTitle(l10n.notificationSectionSystem),
-                FutureBuilder<NotificationPlatformCapabilities>(
-                  future: _capabilities,
-                  builder: (context, snapshot) {
-                    final capabilities = snapshot.data;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        buildCard(
-                          child: Column(
-                            children: [
-                              buildActionTile(
-                                title:
-                                    capabilities?.notificationsGranted == true
-                                    ? l10n.notificationPermissionGranted
-                                    : l10n.notificationPermissionDenied,
-                                trailing: Icon(
-                                  capabilities?.notificationsGranted == true
-                                      ? Icons.check_circle_outline
-                                      : Icons.notifications_off_outlined,
-                                ),
-                                onTap:
-                                    capabilities?.notificationsGranted == true
-                                    ? widget
-                                          .notificationPort
-                                          .openSystemNotificationSettings
-                                    : _requestNotificationPermission,
-                              ),
-                              Divider(
-                                color: appColor(context, Color(0xff294052)),
-                                height: 1,
-                              ),
-                              buildActionTile(
-                                title: capabilities?.exactAlarmsGranted == true
-                                    ? l10n.notificationExactAlarmGranted
-                                    : l10n.notificationExactAlarmDenied,
-                                trailing: Icon(
-                                  capabilities?.exactAlarmsGranted == true
-                                      ? Icons.alarm_on_outlined
-                                      : Icons.alarm_off_outlined,
-                                ),
-                                onTap: _requestExactAlarmPermission,
-                              ),
-                              Divider(
-                                color: appColor(context, Color(0xff294052)),
-                                height: 1,
-                              ),
-                              buildActionTile(
-                                title: capabilities?.channelsEnabled == true
-                                    ? l10n.notificationChannelsEnabled
-                                    : l10n.notificationChannelsDisabled,
-                                trailing: Icon(
-                                  capabilities?.channelsEnabled == true
-                                      ? Icons.tune_outlined
-                                      : Icons.block_outlined,
-                                ),
-                                onTap: widget
-                                    .notificationPort
-                                    .openSystemNotificationSettings,
-                              ),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            top: 8,
-                            left: 4,
-                            right: 4,
-                          ),
-                          child: Text(
-                            l10n.notificationSectionSystemDesc,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: appColor(context, Color(0xff8197a5)),
-                              height: 1.4,
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
                 const SizedBox(height: 40),
               ],
             ),
@@ -455,48 +382,96 @@ class _NotificationSettingsPageState extends State<NotificationSettingsPage>
     );
   }
 
-  Widget _buildCheckItem({
-    required String label,
-    required bool value,
-    required bool enabled,
-    required ValueChanged<bool?> onChanged,
-  }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(6),
-      onTap: enabled ? () => onChanged(!value) : null,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+  Widget _buildSystemStatus(AppLocalizations l10n) {
+    return FutureBuilder<NotificationPlatformCapabilities>(
+      future: _capabilities,
+      builder: (context, snapshot) {
+        final capabilities = snapshot.data;
+        final notificationsGranted = capabilities?.notificationsGranted == true;
+        final exactAlarmsGranted = capabilities?.exactAlarmsGranted == true;
+        final channelsEnabled = capabilities?.channelsEnabled == true;
+        final enabledCount = [
+          notificationsGranted,
+          exactAlarmsGranted,
+          channelsEnabled,
+        ].where((enabled) => enabled).length;
+        final allEnabled = enabledCount == 3;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: Checkbox(
-                value: value,
-                onChanged: enabled ? onChanged : null,
-                activeColor: appColor(context, Color(0xffd4a85f)),
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
+            buildSectionTitle(
+              l10n.notificationSectionSystem,
+              indicator: capabilities == null
+                  ? const SizedBox.square(dimension: 18)
+                  : Icon(
+                      allEnabled ? Icons.check : Icons.close,
+                      key: const Key('notification-system-status-indicator'),
+                      size: 18,
+                      color: allEnabled
+                          ? AppPalette.of(context).success
+                          : appColor(context, const Color(0xffff6f68)),
+                      semanticLabel:
+                          '${l10n.settingsStatusEnabled} $enabledCount/3',
+                    ),
+            ),
+            buildCard(
+              child: Column(
+                children: [
+                  buildActionTile(
+                    title: notificationsGranted
+                        ? l10n.notificationPermissionGranted
+                        : l10n.notificationPermissionDenied,
+                    trailing: Icon(
+                      notificationsGranted
+                          ? Icons.check_circle_outline
+                          : Icons.notifications_off_outlined,
+                    ),
+                    onTap: notificationsGranted
+                        ? widget.notificationPort.openSystemNotificationSettings
+                        : _requestNotificationPermission,
+                  ),
+                  Divider(color: AppPalette.of(context).border, height: 1),
+                  buildActionTile(
+                    title: exactAlarmsGranted
+                        ? l10n.notificationExactAlarmGranted
+                        : l10n.notificationExactAlarmDenied,
+                    trailing: Icon(
+                      exactAlarmsGranted
+                          ? Icons.alarm_on_outlined
+                          : Icons.alarm_off_outlined,
+                    ),
+                    onTap: _requestExactAlarmPermission,
+                  ),
+                  Divider(color: AppPalette.of(context).border, height: 1),
+                  buildActionTile(
+                    title: channelsEnabled
+                        ? l10n.notificationChannelsEnabled
+                        : l10n.notificationChannelsDisabled,
+                    trailing: Icon(
+                      channelsEnabled
+                          ? Icons.tune_outlined
+                          : Icons.block_outlined,
+                    ),
+                    onTap:
+                        widget.notificationPort.openSystemNotificationSettings,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: appTextStyle(
-                context,
-                TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: enabled
-                      ? const Color(0xffc7d5dc)
-                      : const Color(0xff526776),
+            Padding(
+              padding: const EdgeInsets.only(top: 8, left: 4, right: 4),
+              child: Text(
+                l10n.notificationSectionSystemDesc,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: appColor(context, const Color(0xff8197a5)),
+                  height: 1.4,
                 ),
               ),
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 

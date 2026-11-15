@@ -46,6 +46,15 @@ final class DiagnosticEvent {
   final String type;
   final Map<String, Object?> fields;
 
+  factory DiagnosticEvent.kanxy({
+    required DateTime occurredAt,
+    required DiagnosticKanxyStatus status,
+  }) => DiagnosticEvent._(
+    occurredAt: occurredAt.toUtc(),
+    type: 'kanxy',
+    fields: <String, Object?>{'status': status.wireName},
+  );
+
   factory DiagnosticEvent.gameLoad({
     required DateTime occurredAt,
     required GameLoadEvent event,

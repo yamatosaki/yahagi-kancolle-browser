@@ -117,6 +117,7 @@ test/fixtures/*
 !test/fixtures/native_capture_session_test.cjs
 !test/fixtures/game_mod_coordinate_script_test.cjs
 !test/fixtures/game_mod_coordinate_game_consumer_test.cjs
+!test/fixtures/kanxy_websocket_script_test.cjs
 !test/fixtures/record_backup_v12_empty.yhb
 !test/fixtures/battle_detail_poi_3_0_5.json
 !test/fixtures/poi_ezexped/

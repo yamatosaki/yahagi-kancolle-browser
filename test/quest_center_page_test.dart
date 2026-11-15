@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
 import 'package:yahagi_kancolle_browser/src/quest/quest_center_page.dart';
@@ -11,11 +13,197 @@ import 'package:yahagi_kancolle_browser/src/quest/quest_catalog.dart';
 import 'package:yahagi_kancolle_browser/src/quest/quest_catalog_controller.dart';
 import 'package:yahagi_kancolle_browser/src/quest/quest_catalog_dataset.dart';
 import 'package:yahagi_kancolle_browser/src/quest/quest_catalog_update_service.dart';
+import 'package:yahagi_kancolle_browser/src/quest/quest_progress_engine.dart';
+import 'package:yahagi_kancolle_browser/src/quest/quest_progress_rules.dart';
 import 'package:yahagi_kancolle_browser/src/quest/quest_store.dart';
 
 import 'fixtures/kcsapi_fixtures.dart';
 
 void main() {
+  testWidgets(
+    'qualifying fleets above completion conditions follow live fleets',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(290, 760);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      SharedPreferences.setMockInitialValues({});
+      final account = AccountSession(initialMemberId: 100);
+      addTearDown(account.dispose);
+      final controller = GameStateController(
+        accountSession: account,
+        questProgress: QuestProgressEngine(
+          goals: {
+            9001: QuestProgressGoal(9001, {
+              'type': 1,
+              'battle_boss_win_rank_s': {
+                'maparea': [11],
+                'flagshiptype': [3],
+                'required': 1,
+                'init': 0,
+              },
+            }),
+          },
+          storage: PreferencesQuestProgressStorage(),
+        ),
+        initialState: const GameState(
+          memberId: 100,
+          hasMasterData: true,
+          hasPortData: true,
+          fleets: [
+            Fleet(id: 1, name: 'custom fleet name', shipIds: [1]),
+            Fleet(id: 2, name: 'two', shipIds: [2]),
+            Fleet(id: 3, name: 'three', shipIds: [3]),
+            Fleet(id: 4, name: 'four', shipIds: [4]),
+          ],
+          ships: {
+            1: OwnedShip(id: 1, masterId: 1, level: 1),
+            2: OwnedShip(id: 2, masterId: 2, level: 1),
+            3: OwnedShip(id: 3, masterId: 1, level: 1),
+            4: OwnedShip(id: 4, masterId: 2, level: 1),
+            5: OwnedShip(id: 5, masterId: 2, level: 1),
+            6: OwnedShip(id: 6, masterId: 2, level: 1),
+            7: OwnedShip(id: 7, masterId: 1, level: 1),
+            8: OwnedShip(id: 8, masterId: 1, level: 1),
+          },
+          masterShips: {
+            1: MasterShip(id: 1, name: '軽巡', shipTypeId: 3),
+            2: MasterShip(id: 2, name: '駆逐', shipTypeId: 2),
+          },
+        ),
+      );
+      addTearDown(controller.dispose);
+      await controller.initialize();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: QuestCenterPage(
+            controller: controller,
+            catalog: QuestCatalog(const [
+              QuestCatalogEntry(
+                gameId: 9001,
+                code: 'B9001',
+                name: '轻巡出击',
+                description: '由轻巡担任旗舰，在 1-1 Boss 点取得 S 胜。',
+              ),
+              QuestCatalogEntry(
+                gameId: 9002,
+                code: 'B9002',
+                name: '没有可判定规则的任务',
+                description: '规则尚未录入。',
+              ),
+            ]),
+            mode: QuestCenterMode.all,
+            initialQuestId: 9001,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final label = find.text('可完成任务编队:');
+      final heading = find.text('完成条件');
+      final noMatch = find.text('无满足要求舰队');
+      final fleetPills = [
+        for (final name in ['第一舰队', '第二舰队', '第三舰队', '第四舰队']) find.text(name),
+      ];
+      const green = Color(0xff65d493);
+      const yellow = Color(0xffffd268);
+
+      Container nearestContainer(Finder text) =>
+          tester.element(text).findAncestorWidgetOfExactType<Container>()!;
+
+      Container expectPill(Finder text, Color color) {
+        expect(text, findsOneWidget);
+        final container = nearestContainer(text);
+        final decoration = container.decoration! as BoxDecoration;
+        expect(decoration.borderRadius, BorderRadius.circular(20));
+        expect(decoration.color, color.withValues(alpha: 0.2));
+        expect(tester.widget<Text>(text).style?.color, color);
+        return container;
+      }
+
+      var sequence = 0;
+      Future<void> changeFlagships(List<(int, int)> changes) async {
+        for (final (fleet, ship) in changes) {
+          controller.accept(
+            kcsapiEvent(
+              '/kcsapi/api_req_hensei/change',
+              null,
+              includeApiData: false,
+              requestParams: {
+                'api_id': fleet,
+                'api_ship_idx': 0,
+                'api_ship_id': ship,
+              },
+              sequence: ++sequence,
+            ),
+          );
+          await controller.idle;
+        }
+        await tester.pumpAndSettle();
+      }
+
+      expect(label, findsOneWidget);
+      expect(
+        tester.getBottomLeft(label).dy,
+        lessThan(tester.getTopLeft(heading).dy),
+      );
+      expect(
+        tester.widget<Text>(label).style,
+        tester.widget<Text>(heading).style,
+      );
+      expect(nearestContainer(label), same(nearestContainer(heading)));
+      expectPill(fleetPills[0], green);
+      expect(fleetPills[1], findsNothing);
+      expectPill(fleetPills[2], green);
+      expect(fleetPills[3], findsNothing);
+      expect(noMatch, findsNothing);
+      expect(find.text('custom fleet name'), findsNothing);
+
+      await changeFlagships([(2, 7), (4, 8)]);
+      expect({
+        for (final pill in fleetPills) expectPill(pill, green),
+      }, hasLength(4));
+      expect(
+        tester.getTopLeft(fleetPills.last).dy,
+        greaterThan(tester.getTopLeft(label).dy),
+      );
+      expect(
+        tester.getBottomLeft(fleetPills.last).dy,
+        lessThan(tester.getTopLeft(heading).dy),
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.byKey(const Key('quest-card-9002')));
+      await tester.pumpAndSettle();
+      expect(find.text('规则尚未录入。'), findsOneWidget);
+      expect(heading, findsOneWidget);
+      expect(label, findsNothing);
+      expect(noMatch, findsNothing);
+      for (final pill in fleetPills) {
+        expect(pill, findsNothing);
+      }
+      await tester.tap(find.byKey(const Key('quest-card-9001')));
+      await tester.pumpAndSettle();
+
+      await changeFlagships([(1, 5), (2, 2), (3, 6), (4, 4)]);
+      expect(label, findsOneWidget);
+      expectPill(noMatch, yellow);
+      for (final pill in fleetPills) {
+        expect(pill, findsNothing);
+      }
+
+      await changeFlagships([(1, 1)]);
+      expectPill(fleetPills[0], green);
+      account.selectMember(200);
+      await tester.pumpAndSettle();
+      expect(heading, findsOneWidget);
+      expect(label, findsNothing);
+      expect(noMatch, findsNothing);
+      expect(fleetPills[0], findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets(
     'resources and choice rewards survive quest states and mode changes',
     (tester) async {

@@ -18,6 +18,7 @@ import '../layout/hd_dashboard_content.dart';
 import '../layout/panel_style.dart';
 import '../localization/game_name_localizations.dart';
 import '../settings/module_display_settings.dart';
+import '../theme/app_fonts.dart';
 import '../theme/app_palette.dart';
 import '../widgets/app_segmented_style.dart';
 import 'sortie_experience_controller.dart';

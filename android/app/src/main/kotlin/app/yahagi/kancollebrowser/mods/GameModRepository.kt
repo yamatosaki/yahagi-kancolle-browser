@@ -15,6 +15,10 @@ import java.net.URI
 import java.util.UUID
 
 private const val MAX_INDEX_BYTES = 64L * 1024 * 1024
+private val coordinateArtKinds = setOf(
+    "full", "full_dmg", "full_x2", "full_x2_dmg", "character_full", "character_full_dmg",
+    "character_up", "character_up_dmg",
+)
 
 /** Private mod storage, durable drafts and immutable request sessions. */
 class GameModRepository @JvmOverloads constructor(root: File, private val progress: GameModProgress? = null) {
@@ -69,11 +73,21 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
         }
     }
 
-    fun activeCoordinateSnapshot(): Map<String,Any?> {
+    fun activeCoordinateSnapshot(): Map<String, Any?> = activeCoordinateSnapshot(kanxyVpnActive = false)
+
+    fun activeCoordinateSnapshot(kanxyVpnActive: Boolean): Map<String,Any?> {
         val snapshot = synchronized(this) { active }
         val ships = snapshot.coordinateShips.mapValues { (_, ship) -> linkedMapOf(
             "graph" to ship.graph.mapValues { it.value.toList() }, "resourceIds" to ship.resourceIds.toList()) }
-        return linkedMapOf("sessionId" to snapshot.id, "token" to snapshot.token, "ships" to ships)
+        val config = linkedMapOf<String, Any?>("sessionId" to snapshot.id, "token" to snapshot.token, "ships" to ships)
+        if (kanxyVpnActive) {
+            config["localArtShips"] = snapshot.winners.values.asSequence()
+                .map { it.resource }
+                .filter { it.kind == "ship" && it.path.split('/').getOrNull(3)?.let(coordinateArtKinds::contains) == true }
+                .mapNotNull { it.groupId?.removePrefix("ship:")?.toIntOrNull() }
+                .distinct().toList()
+        }
+        return config
     }
     @Synchronized fun recordCoordinateResult(sessionId: Long, token: String, resourceIds: List<String>, failure: String? = null) {
         val session = active

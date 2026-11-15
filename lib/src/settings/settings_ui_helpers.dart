@@ -57,19 +57,30 @@ class SettingsControlRow extends StatelessWidget {
 }
 
 mixin SettingsUIHelpers {
-  Widget buildSectionTitle(String title) {
+  Widget buildSectionTitle(String title, {Widget? indicator}) {
     return Builder(
-      builder: (BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 12, left: 4),
-        child: Text(
+      builder: (BuildContext context) {
+        final label = Text(
           title,
           style: TextStyle(
             color: appColor(context, Color(0xffd4a85f)),
             fontWeight: FontWeight.w700,
             fontSize: 14,
           ),
-        ),
-      ),
+        );
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12, left: 4),
+          child: indicator == null
+              ? label
+              : Row(
+                  children: [
+                    Flexible(child: label),
+                    const SizedBox(width: 6),
+                    indicator,
+                  ],
+                ),
+        );
+      },
     );
   }
 

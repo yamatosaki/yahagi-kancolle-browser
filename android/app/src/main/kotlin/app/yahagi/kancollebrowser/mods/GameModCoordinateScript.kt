@@ -1,6 +1,6 @@
 package app.yahagi.kancollebrowser.mods
 
-/** Runs before game code. Only the local view of successful startup data is modified. */
+/** Runs before game code. Only the game's view of successful startup data is modified. */
 internal object GameModCoordinateScript {
     val allowedOriginRules = setOf("https://*.kancolle-server.com")
 
@@ -27,12 +27,88 @@ internal object GameModCoordinateScript {
             if (request.status !== 200) return;
             config = JSON.parse(textDescriptor.get.call(request));
           } catch (_) { return; }
-          if (!config || !config.ships || !Object.keys(config.ships).length ||
+          if (!config || !config.ships || (config.kanxy !== true && !Object.keys(config.ships).length) ||
               !Number.isSafeInteger(config.sessionId) || typeof config.token !== 'string') return;
           window.__yahagiModCoordinatesInstalled = true;
           const xhrState = new WeakMap();
           const rawFetch = new WeakMap();
           const knownIds = [...new Set(Object.values(config.ships).flatMap(ship => ship.resourceIds))];
+          const nativeParse = JSON.parse;
+          const kanxy = config.kanxy === true;
+          if (kanxy) {
+            // PIXI can reuse Chromium's cached image before native interception.
+            // Keep the resource path intact so Yahagi's local replacements still win.
+            const imageProto = window.HTMLImageElement?.prototype;
+            const src = imageProto && Object.getOwnPropertyDescriptor(imageProto, 'src');
+            const documentVersion = 'yahagi-' + Date.now().toString(36) + Math.random().toString(36).slice(2);
+            const origin = new URL(location.href).origin;
+            const shipArtPath = /^\/kcs2\/resources\/ship\/[a-z0-9_]+\/[A-Za-z0-9_-]+\.png$/;
+            if (src?.configurable && src.set) {
+              Object.defineProperty(imageProto, 'src', {...src, set(value) {
+                let target = value;
+                if (typeof value === 'string') {
+                  try {
+                    const url = new URL(value, window.document?.baseURI || location.href);
+                    if (url.origin === origin && !url.username && !url.password && !url.hash &&
+                        shipArtPath.test(url.pathname) && (!url.search || /^\?version=[A-Za-z0-9._~-]+$/.test(url.search))) {
+                      url.search = (url.search ? url.search + '-' : '?version=') + documentVersion;
+                      target = url.href;
+                    }
+                  } catch (_) {}
+                }
+                src.set.call(this, target);
+              }});
+            }
+          }
+          const localArtShips = new Set(config.localArtShips || []);
+          const externalCoordinates = new Map();
+          const retryAfter = new Map();
+          const startupBodies = new Set();
+          const coordinateField = /^api_(?:(?:boko|kaisyu|kaizo|map|ensyuf|ensyue|battle)_[nd]|wed[a-d])$/;
+          const readKanxy = (filename) => {
+            if (externalCoordinates.has(filename)) return externalCoordinates.get(filename);
+            if ((retryAfter.get(filename) || 0) > Date.now()) return null;
+            let graph = null;
+            try {
+              const request = new NativeXhr();
+              nativeOpen.call(request, 'GET', '/__yahagi_mods__/kanxy-coordinates/' + filename + '.json', false);
+              nativeSend.call(request);
+              if (request.status === 200) graph = nativeParse(textDescriptor.get.call(request));
+            } catch (_) {}
+            // A temporary connection failure or a pack switch can change the next result.
+            if (graph) {
+              externalCoordinates.set(filename, graph);
+              retryAfter.delete(filename);
+            } else retryAfter.set(filename, Date.now() + 2_000);
+            return graph;
+          };
+          const attachKanxy = (data) => {
+            const ships = data?.api_data?.api_mst_shipgraph;
+            if (!Array.isArray(ships)) return data;
+            for (const [index, ship] of ships.entries()) {
+              const filename = ship?.api_filename;
+              if (!/^[a-z0-9]{12}$/.test(filename || '') || localArtShips.has(ship.api_id)) continue;
+              const local = config.ships[ship.api_id]?.graph;
+              ships[index] = new Proxy(ship, {
+                get(row, field, receiver) {
+                  if (field === 'toJSON' && !Object.hasOwn(row, field)) return () => row;
+                  if (typeof field === 'string' && coordinateField.test(field) && (!local || !Object.hasOwn(local, field))) {
+                    const pair = readKanxy(filename)?.[field];
+                    if (Array.isArray(pair) && pair.length === 2 && pair.every(Number.isSafeInteger)) return pair;
+                  }
+                  return Reflect.get(row, field, receiver);
+                },
+              });
+            }
+            return data;
+          };
+          if (kanxy) {
+            // The game parses a marked text response; capture still sees the original body.
+            JSON.parse = function (...args) {
+              const data = Reflect.apply(nativeParse, this, args);
+              return startupBodies.has(args[0]) ? attachKanxy(data) : data;
+            };
+          }
           const report = (resourceIds, failure) => {
             if (!resourceIds.length) return;
             if (resourceIds.length > 256) {
@@ -56,9 +132,30 @@ internal object GameModCoordinateScript {
               return url.origin === current.origin && url.pathname === '/kcsapi/api_start2/getData';
             } catch (_) { return false; }
           };
+          const isFalseName = (value) => value === false ||
+            (typeof value === 'string' && value.trim().toLowerCase() === 'false');
+          const usableName = (value) => typeof value === 'string' && value.trim() && !isFalseName(value)
+            ? value : null;
+          const repairNames = (rows) => {
+            if (!kanxy || !Array.isArray(rows)) return false;
+            let repaired = false;
+            for (const row of rows) {
+              if (!row || !isFalseName(row.api_name)) continue;
+              const id = typeof row.api_id === 'string' && /^[1-9][0-9]*$/.test(row.api_id)
+                ? Number(row.api_id) : row.api_id;
+              if (!Number.isSafeInteger(id) || id <= 0) continue;
+              row.api_name = usableName(config.stockShipNames?.[id]) ?? usableName(row.api_yomi) ?? '#' + id;
+              repaired = true;
+            }
+            return repaired;
+          };
           const patchObject = (data) => {
-            if (!data || data.api_result !== 1 || !data.api_data ||
-                !Array.isArray(data.api_data.api_mst_shipgraph)) throw new Error('startup_shape');
+            if (!data || data.api_result !== 1 || !data.api_data) throw new Error('startup_shape');
+            const namesRepaired = repairNames(data.api_data.api_mst_ship);
+            if (!Array.isArray(data.api_data.api_mst_shipgraph)) {
+              if (namesRepaired) return {data, applied: [], failed: knownIds};
+              throw new Error('startup_shape');
+            }
             const ships = new Map(data.api_data.api_mst_shipgraph.map(ship => [String(ship.api_id), ship]));
             const applied = [], failed = [];
             for (const [id, selected] of Object.entries(config.ships)) {
@@ -71,8 +168,14 @@ internal object GameModCoordinateScript {
           };
           const patchText = (text) => {
             const prefix = text.startsWith('svdata=') ? 'svdata=' : '';
-            const result = patchObject(JSON.parse(text.slice(prefix.length)));
-            return {...result, text: prefix + JSON.stringify(result.data)};
+            const result = patchObject(nativeParse(text.slice(prefix.length)));
+            let body = JSON.stringify(result.data);
+            if (kanxy) {
+              body = ' \n' + body;
+              startupBodies.add(body);
+              if (startupBodies.size > 4) startupBodies.delete(startupBodies.values().next().value);
+            }
+            return {...result, text: prefix + body};
           };
           const acknowledge = (result) => {
             report(result.applied);
@@ -94,7 +197,14 @@ internal object GameModCoordinateScript {
               let result;
               if (xhr.responseType === 'json') {
                 // Never mutate the native object: capture and other consumers retain the original.
-                result = patchObject(JSON.parse(JSON.stringify(responseDescriptor.get.call(xhr))));
+                const original = responseDescriptor.get.call(xhr);
+                if (typeof original === 'string') {
+                  result = patchText(original);
+                  result.data = result.text;
+                } else {
+                  result = patchObject(nativeParse(JSON.stringify(original)));
+                  if (kanxy) attachKanxy(result.data);
+                }
               } else if (xhr.responseType === '' || xhr.responseType === 'text') {
                 result = patchText(textDescriptor.get.call(xhr));
               } else throw new Error('response_type');
@@ -123,6 +233,7 @@ internal object GameModCoordinateScript {
             const nativeFetch = window.fetch;
             const decorate = (modified, original) => {
               rawFetch.set(modified, original);
+              if (kanxy) Object.defineProperty(modified, 'json', {value: async () => JSON.parse(await modified.text())});
               for (const key of ['url', 'redirected', 'type']) {
                 Object.defineProperty(modified, key, {value: original[key], configurable: true});
               }

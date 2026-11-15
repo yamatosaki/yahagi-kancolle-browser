@@ -36,6 +36,8 @@ final class LogbookExperienceStrings {
   String get areaType =>
       _text('海域 / 类型', '海域 / 類型', '海域 / 種別', '해역 / 유형', 'Area / type');
   String get fleet => _text('舰队', '艦隊', '艦隊', '함대', 'Fleet');
+  String get mvpCount =>
+      _text('MVP 次数', 'MVP 次數', 'MVP 回数', 'MVP 횟수', 'MVP count');
   String get battles => _text('战斗结算', '戰鬥結算', '戦闘結果', '전투 결과', 'Battles');
   String get fleetAndBattles =>
       _text('舰队 / 战斗', '艦隊 / 戰鬥', '艦隊 / 戦闘', '함대 / 전투', 'Fleet / battles');

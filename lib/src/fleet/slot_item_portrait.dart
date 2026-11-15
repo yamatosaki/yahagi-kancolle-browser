@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../game_state/game_state.dart';
 import 'equipment_type_icon.dart';
 import 'ship_portrait.dart';
+import 'ship_portrait_cache.dart';
 
 abstract final class SlotItemPortraitUriBuilder {
   static Uri? build({
@@ -41,6 +42,7 @@ class SlotItemPortrait extends StatelessWidget {
     this.width = 108,
     this.height = 52,
     this.fit = BoxFit.cover,
+    this.cache,
   });
 
   final MasterSlotItem? item;
@@ -48,6 +50,7 @@ class SlotItemPortrait extends StatelessWidget {
   final double width;
   final double height;
   final BoxFit fit;
+  final ShipPortraitCache? cache;
 
   @override
   Widget build(BuildContext context) {
@@ -68,19 +71,27 @@ class SlotItemPortrait extends StatelessWidget {
         ),
       ),
     );
-    return SizedBox(
-      width: width,
-      height: height,
-      child: uri == null
-          ? fallback
-          : Image.network(
+    Widget portrait = fallback;
+    if (uri != null) {
+      final portraitCache = cache ?? ShipPortraitCache.shared;
+      portrait = portraitCache.routeChangesFor(uri) == null
+          ? Image.network(
               uri.toString(),
               width: width,
               height: height,
               fit: fit,
               filterQuality: FilterQuality.medium,
               errorBuilder: (context, error, stackTrace) => fallback,
-            ),
-    );
+            )
+          : CachedGamePortraitImage(
+              uri: uri,
+              cacheKey: 'slot_${item!.id}_item_up',
+              cache: portraitCache,
+              height: height,
+              fit: fit,
+              placeholder: fallback,
+            );
+    }
+    return SizedBox(width: width, height: height, child: portrait);
   }
 }

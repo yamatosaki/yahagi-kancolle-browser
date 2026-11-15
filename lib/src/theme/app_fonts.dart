@@ -2,6 +2,7 @@ abstract final class AppFonts {
   static const simplifiedChinese = 'HarmonyOS_Sans_SC';
   static const traditionalChinese = 'HarmonyOS_Sans_TC';
   static const common = 'HarmonyOS_Sans';
+  static const condensed = 'HarmonyOS_Sans_Condensed';
 
   static String forLocale(String localeCode) => switch (localeCode) {
     'zh_Hant' => traditionalChinese,

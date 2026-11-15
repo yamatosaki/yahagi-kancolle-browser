@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'game_state.dart';
+import 'master_ship_names.dart';
 import 'quest_text_normalizer.dart';
 
 class GameStateSerializer {
@@ -246,7 +247,10 @@ class GameStateSerializer {
     'hasMasterData': state.hasMasterData,
   };
 
-  static GameState deserialize(String jsonStr) {
+  static GameState deserialize(
+    String jsonStr, {
+    MasterShipNames masterShipNames = const MasterShipNames(),
+  }) {
     try {
       final decoded = jsonDecode(jsonStr);
       if (decoded is! Map) {
@@ -565,10 +569,11 @@ class GameStateSerializer {
             int max(int index) => modernizationRanges[index].isEmpty
                 ? 0
                 : modernizationRanges[index][1];
+            final reading = _string(v['reading']);
             masterShips[id] = MasterShip(
               id: id,
-              name: _string(v['name']),
-              reading: _string(v['reading']),
+              name: masterShipNames.resolve(id, v['name'], reading: reading),
+              reading: reading,
               portraitFileName: v['portraitFileName']?.toString(),
               portraitVersion: v['portraitVersion']?.toString(),
               shipTypeId: _int(v['shipTypeId']) ?? 0,

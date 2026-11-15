@@ -7,6 +7,7 @@ import '../account/account_session.dart';
 import '../fleet/equipment_type_icon.dart';
 import '../game_state/game_state.dart';
 import '../localization/game_name_localizations.dart';
+import '../widgets/lazy_indexed_stack.dart';
 import '../widgets/top_notice.dart';
 import 'development_equipment_picker.dart';
 import 'development_name_labels.dart';
@@ -125,31 +126,36 @@ class _EquipmentDevelopmentPageState extends State<EquipmentDevelopmentPage> {
     }
     final locale = Localizations.localeOf(context);
     final activeMode = widget.mode ?? controller.mode;
+    Widget workbench(Widget body) => SingleChildScrollView(
+      primary: false,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
+      child: Container(
+        key: const Key('development-command-card'),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: appColor(context, const Color(0xff142735)),
+          border: Border.all(color: appColor(context, const Color(0xff294052))),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: appColor(context, Color(0x33000000)),
+              blurRadius: 12,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: body,
+      ),
+    );
     return ColoredBox(
       color: appColor(context, const Color(0xff081521)),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 28),
-        child: Container(
-          key: const Key('development-command-card'),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: appColor(context, const Color(0xff142735)),
-            border: Border.all(
-              color: appColor(context, const Color(0xff294052)),
-            ),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: appColor(context, Color(0x33000000)),
-                blurRadius: 12,
-                offset: Offset(0, 5),
-              ),
-            ],
-          ),
-          child: activeMode == DevelopmentWorkbenchMode.calculator
-              ? _CalculatorBody(controller: controller, locale: locale)
-              : _FormulaBody(controller: controller, locale: locale),
-        ),
+      child: LazyIndexedStack(
+        index: activeMode.index,
+        sizing: StackFit.expand,
+        children: [
+          workbench(_CalculatorBody(controller: controller, locale: locale)),
+          workbench(_FormulaBody(controller: controller, locale: locale)),
+        ],
       ),
     );
   }

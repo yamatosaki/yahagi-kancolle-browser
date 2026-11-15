@@ -4,11 +4,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../account/shared_game_data.dart';
 import 'game_state.dart';
 import 'game_state_serializer.dart';
+import 'master_ship_names.dart';
 
 class GameStateStore {
   GameStateStore({
     this.saveDelay = const Duration(seconds: 5),
     this.writeString,
+    this.masterShipNames = const MasterShipNames(),
   });
 
   static const String _key = 'yahagi_kancolle_browser_game_state';
@@ -17,6 +19,7 @@ class GameStateStore {
   static String _accountKey(int memberId) => 'account.$memberId.game_state.v1';
   final Duration saveDelay;
   final Future<bool> Function(SharedPreferences, String, String)? writeString;
+  final MasterShipNames masterShipNames;
   Timer? _debounceTimer;
   final Map<int, GameState> _pendingStates = {};
   Map<String, Object?>? _pendingMaster;
@@ -40,7 +43,12 @@ class GameStateStore {
       await _migrateLegacy(prefs);
       final jsonStr = prefs.getString(_sharedKey);
       if (jsonStr != null && jsonStr.isNotEmpty) {
-        return sharedGameData(GameStateSerializer.deserialize(jsonStr));
+        return sharedGameData(
+          GameStateSerializer.deserialize(
+            jsonStr,
+            masterShipNames: masterShipNames,
+          ),
+        );
       }
     } catch (e) {
       // Ignore load errors and return empty state
@@ -66,6 +74,7 @@ class GameStateStore {
           : _pendingMaster!;
       return GameStateSerializer.deserialize(
         jsonEncode({...shared, ...account}),
+        masterShipNames: masterShipNames,
       );
     } catch (_) {
       return _pendingStates[memberId] ?? GameState.empty;
@@ -76,7 +85,10 @@ class GameStateStore {
     if (prefs.getBool(_migrationKey) == true) return;
     final raw = prefs.getString(_key);
     if (raw != null) {
-      final legacy = GameStateSerializer.deserialize(raw);
+      final legacy = GameStateSerializer.deserialize(
+        raw,
+        masterShipNames: masterShipNames,
+      );
       // Keep the original global value as a backup, never as login identity.
       if (legacy.memberId > 0 &&
           !prefs.containsKey(_accountKey(legacy.memberId))) {

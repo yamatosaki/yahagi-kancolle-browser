@@ -45,4 +45,25 @@ class GameModCoordinateEndpointTest {
         assertEquals(400, endpoint.open("$origin/__yahagi_mods__/coordinates-report?payload=%", "GET")!!.statusCode)
         assertEquals(400, endpoint.open("$origin/__yahagi_mods__/coordinates-report?payload=${"x".repeat(65_537)}", "GET")!!.statusCode)
     }
+
+    @Test fun kanxyRouteIsAvailableWithoutALocalLibrary() {
+        var active = true
+        var nameReads = 0
+        val endpoint = GameModCoordinateEndpoint(
+            snapshot = { null },
+            kanxyActive = { active },
+            stockShipNames = { nameReads++; mapOf("623" to "Stock 623") },
+        ) { _, _, _, _ -> fail() }
+        fun config() = endpoint.open("$origin/__yahagi_mods__/coordinates.json", "GET")!!
+            .inputStream.bufferedReader().use { it.readText() }
+        val activeConfig = config()
+        assertTrue(activeConfig.contains("\"kanxy\":true"))
+        assertTrue(activeConfig.contains("\"ships\":{}"))
+        assertTrue(activeConfig.contains("\"stockShipNames\":{\"623\":\"Stock 623\"}"))
+        active = false
+        val inactiveConfig = config()
+        assertFalse(inactiveConfig.contains("\"kanxy\""))
+        assertFalse(inactiveConfig.contains("\"stockShipNames\""))
+        assertEquals(1, nameReads)
+    }
 }

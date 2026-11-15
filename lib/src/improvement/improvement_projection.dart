@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show mergeSort;
+
 import '../game_state/game_state.dart';
 import '../inventory/owned_inventory_projection.dart';
 import 'improvement_dataset.dart';
@@ -164,7 +166,36 @@ List<ImprovementPlannerRow> projectImprovementRows(
       );
     }
   }
+  mergeSort(
+    rows,
+    compare: (left, right) => _compareEquipmentOrder(
+      equipmentMasters[left.entry.equipmentId],
+      equipmentMasters[right.entry.equipmentId],
+    ),
+  );
   return List.unmodifiable(rows);
+}
+
+int _compareEquipmentOrder(MasterSlotItem? left, MasterSlotItem? right) {
+  // Missing master data leaves recipes at the end in their dataset order.
+  if (left == null) return right == null ? 0 : 1;
+  if (right == null) return -1;
+
+  // Match the default order of OwnedInventoryProjection.equipmentGroups.
+  final leftType = left.type;
+  final rightType = right.type;
+  final byBroad = (leftType.isNotEmpty ? leftType[0] : 0).compareTo(
+    rightType.isNotEmpty ? rightType[0] : 0,
+  );
+  if (byBroad != 0) return byBroad;
+  final byFine = (leftType.length > 2 ? leftType[2] : 0).compareTo(
+    rightType.length > 2 ? rightType[2] : 0,
+  );
+  if (byFine != 0) return byFine;
+  final leftSort = left.sortNo > 0 ? left.sortNo : left.id;
+  final rightSort = right.sortNo > 0 ? right.sortNo : right.id;
+  final bySort = leftSort.compareTo(rightSort);
+  return bySort != 0 ? bySort : left.id.compareTo(right.id);
 }
 
 List<ImprovementSecretarySchedule> _secretarySchedules(

@@ -12,9 +12,9 @@ class NotificationCustomLayoutStyleTest {
         val expanded = layout("notification_ongoing_expanded.xml")
 
         assertEquals(1, collapsed.countStyle("TextAppearance.Compat.Notification.Title"))
-        assertEquals(1, collapsed.countStyle("TextAppearance.Compat.Notification.Info"))
+        assertEquals(2, collapsed.countStyle("TextAppearance.Compat.Notification.Info"))
         assertEquals(5, expanded.countStyle("TextAppearance.Compat.Notification.Title"))
-        assertEquals(5, expanded.countStyle("TextAppearance.Compat.Notification.Info"))
+        assertEquals(10, expanded.countStyle("TextAppearance.Compat.Notification.Info"))
         assertFalse(collapsed.contains("?android:attr/textColorPrimary"))
         assertFalse(expanded.contains("?android:attr/textColorPrimary"))
     }

@@ -583,6 +583,7 @@ class _ImprovementTableState extends State<_ImprovementTable> {
     return FrozenDataTable(
       key: const Key('improvement-planner-table'),
       keyPrefix: 'improvement-table',
+      restoreScrollOffsets: true,
       rowHeights: heights,
       headerExtent: FrozenDataTable.headerHeight * scale,
       frozenColumnWidths: const <double>[48, 190],

@@ -230,6 +230,7 @@ internal class AndroidGameFrameReloadBridge(
     private var mainDocumentId: String? = null
     private var mainFrameProxy: JavaScriptReplyProxy? = null
     private var beforeReloadDispatch: (() -> Unit)? = null
+    private var canReloadDispatch: (() -> Boolean)? = null
     private var reloadPosted = false
 
     override fun gamePagePresence(): GameModPagePresence {
@@ -300,7 +301,18 @@ internal class AndroidGameFrameReloadBridge(
     override fun reload(onComplete: (String) -> Unit) =
         reloadPrepared({}) { result, _ -> onComplete(result) }
 
-    override fun reloadPrepared(beforeDispatch: () -> Unit, onComplete: (String, Boolean) -> Unit) {
+    override fun reloadPrepared(beforeDispatch: () -> Unit, onComplete: (String, Boolean) -> Unit) =
+        reloadWhen({ true }, beforeDispatch, onComplete)
+
+    fun reloadWhen(
+        canDispatch: () -> Boolean,
+        beforeDispatch: () -> Unit = {},
+        onComplete: (String, Boolean) -> Unit,
+    ) {
+        if (!canDispatch()) {
+            onComplete("blocked", false)
+            return
+        }
         if (!isSupported()) {
             onComplete("unsupported", false)
             return
@@ -322,6 +334,7 @@ internal class AndroidGameFrameReloadBridge(
         }
 
         beforeReloadDispatch = beforeDispatch
+        canReloadDispatch = canDispatch
         reloadPosted = false
         lateinit var requestId: String
         requestId = coordinator.start { result ->
@@ -330,6 +343,7 @@ internal class AndroidGameFrameReloadBridge(
             activeRequestId = null
             reloadDelivered = false
             beforeReloadDispatch = null
+            canReloadDispatch = null
             reloadPosted = false
             Log.i(TAG, "request=$requestId result=$result")
             onComplete(result, posted)
@@ -411,6 +425,10 @@ internal class AndroidGameFrameReloadBridge(
                 if (requestId.isNotEmpty() && requestId == activeRequestId &&
                     payload.optBoolean("available", false) && !reloadDelivered
                 ) {
+                    if (canReloadDispatch?.invoke() == false) {
+                        coordinator.cancel("blocked")
+                        return
+                    }
                     reloadDelivered = true
                     armTimeout("blocked", RELOAD_TIMEOUT_MILLIS)
                     try {

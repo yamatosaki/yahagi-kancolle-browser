@@ -708,6 +708,7 @@ class _UnownedShipsView extends StatelessWidget {
   Widget build(BuildContext context) {
     final excluded = reminderController?.excludedFamilyIds ?? const <int>{};
     return SingleChildScrollView(
+      key: const PageStorageKey('inventory-unowned-ships'),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
         child: Align(
@@ -756,6 +757,7 @@ class _UnownedEquipmentView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
+      key: const PageStorageKey('inventory-unowned-equipment'),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
         child: Align(
@@ -1500,8 +1502,9 @@ class _ShipInventoryTable extends StatelessWidget {
       (row) => row.ship.id == selectedShipInstanceId,
     );
     return FrozenDataTable(
-      key: const Key('owned-inventory-table-ships'),
+      key: const PageStorageKey('owned-inventory-table-ships'),
       keyPrefix: 'owned-inventory',
+      restoreScrollOffsets: true,
       rowHeights: List<double>.filled(rows.length, 56),
       selectedRowIndex: selectedRowIndex >= 0 ? selectedRowIndex : null,
       onRowTap: (index) => onShipTap(rows[index].ship.id),
@@ -1776,8 +1779,9 @@ class _EquipmentInventoryTableState extends State<_EquipmentInventoryTable> {
     }
 
     return FrozenDataTable(
-      key: const Key('owned-inventory-table-equipment'),
+      key: const PageStorageKey('owned-inventory-table-equipment'),
       keyPrefix: 'owned-inventory',
+      restoreScrollOffsets: true,
       rowHeights: rowHeights,
       selectedRowIndex: groups.indexWhere(
         (group) => group.master.id == widget.selectedEquipmentMasterId,

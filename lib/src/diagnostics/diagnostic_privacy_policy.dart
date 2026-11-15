@@ -7,6 +7,58 @@ final class DiagnosticPrivacyViolation implements Exception {
   String toString() => 'DiagnosticPrivacyViolation($reason)';
 }
 
+// Keep the wire names in sync with Android's KanxyDiagnosticStatus enum.
+enum DiagnosticKanxyStatus {
+  routeVpn('ROUTE_VPN'),
+  routeHttp('ROUTE_HTTP'),
+  routeInactive('ROUTE_INACTIVE'),
+  httpPackageUnrecognized('HTTP_PACKAGE_UNRECOGNIZED'),
+  httpListenerUnavailable('HTTP_LISTENER_UNAVAILABLE'),
+  httpTlsUntrusted('HTTP_TLS_UNTRUSTED'),
+  httpCaMismatch('HTTP_CA_MISMATCH'),
+  httpTunnelFailed('HTTP_TUNNEL_FAILED'),
+  httpVerified('HTTP_VERIFIED'),
+  mainScriptRequested('MAIN_SCRIPT_REQUESTED'),
+  mainScriptServed('MAIN_SCRIPT_SERVED'),
+  mainScriptWebViewFallback('MAIN_SCRIPT_WEBVIEW_FALLBACK'),
+  mainScriptBridgePrefixed('MAIN_SCRIPT_BRIDGE_PREFIXED'),
+  mainScriptDropdownPatched('MAIN_SCRIPT_DROPDOWN_PATCHED'),
+  mainScriptKanxyMarker('MAIN_SCRIPT_KANXY_MARKER'),
+  mainScriptMarkerMissing('MAIN_SCRIPT_MARKER_MISSING'),
+  bridgeDocumentStart('BRIDGE_DOCUMENT_START'),
+  bridgeMainScript('BRIDGE_MAIN_SCRIPT'),
+  bridgeUnsupported('BRIDGE_UNSUPPORTED'),
+  bridgeInstallFailed('BRIDGE_INSTALL_FAILED'),
+  bridgePackageUnrecognized('BRIDGE_PACKAGE_UNRECOGNIZED'),
+  wsRequested('WS_REQUESTED'),
+  wsRouteInactive('WS_ROUTE_INACTIVE'),
+  wsPackageUnrecognized('WS_PACKAGE_UNRECOGNIZED'),
+  wsLimitReached('WS_LIMIT_REACHED'),
+  wsOpen('WS_OPEN'),
+  wsSphReceived('WS_SPH_RECEIVED'),
+  wsConnectTimeout('WS_CONNECT_TIMEOUT'),
+  wsListenerUnavailable('WS_LISTENER_UNAVAILABLE'),
+  wsUpgradeFailed('WS_UPGRADE_FAILED'),
+  wsTransportFailed('WS_TRANSPORT_FAILED'),
+  wsChannelFailed('WS_CHANNEL_FAILED'),
+  wsRouteClosed('WS_ROUTE_CLOSED'),
+  wsDocumentClosed('WS_DOCUMENT_CLOSED'),
+  wsConnectionClosed('WS_CONNECTION_CLOSED'),
+  wsPeerClosed('WS_PEER_CLOSED');
+
+  const DiagnosticKanxyStatus(this.wireName);
+
+  final String wireName;
+
+  static DiagnosticKanxyStatus? fromWire(Object? value) {
+    if (value is! String) return null;
+    for (final status in values) {
+      if (status.wireName == value) return status;
+    }
+    return null;
+  }
+}
+
 final class DiagnosticPrivacyPolicy {
   const DiagnosticPrivacyPolicy._();
 
@@ -74,7 +126,22 @@ final class DiagnosticPrivacyPolicy {
           throw const DiagnosticPrivacyViolation('invalid-record');
         }
         validateRecord(record);
+        if (record['type'] == 'kanxy') _validateKanxyRecord(record);
       }
+    }
+  }
+
+  void _validateKanxyRecord(Map<String, Object?> record) {
+    final occurredAt = record['occurredAt'];
+    final fields = record['fields'];
+    if (record.length != 3 ||
+        occurredAt is! String ||
+        DateTime.tryParse(occurredAt)?.toUtc().toIso8601String() !=
+            occurredAt ||
+        fields is! Map<String, Object?> ||
+        fields.length != 1 ||
+        DiagnosticKanxyStatus.fromWire(fields['status']) == null) {
+      throw const DiagnosticPrivacyViolation('invalid-kanxy-record');
     }
   }
 
