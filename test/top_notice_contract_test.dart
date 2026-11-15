@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yahagi_kancolle_browser/main.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_controller.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_store.dart';
@@ -17,17 +18,11 @@ import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dar
 import 'package:yahagi_kancolle_browser/src/prototype_status_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/display_mode_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/display_mode_store.dart';
-import 'package:yahagi_kancolle_browser/src/settings/dashboard_display_mode.dart';
-import 'package:yahagi_kancolle_browser/src/settings/header_resource_settings.dart';
-import 'package:yahagi_kancolle_browser/src/settings/hd_layout_settings.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/network_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_store.dart';
-import 'package:yahagi_kancolle_browser/src/settings/ui_font_size.dart';
-import 'package:yahagi_kancolle_browser/src/theme/app_theme.dart';
-import 'package:yahagi_kancolle_browser/src/theme/custom_font_controller.dart';
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 
 Map<String, String> collectBusinessDartSources(Directory projectRoot) {
@@ -315,10 +310,15 @@ void main() {
 
     GameStateController.disableTimerForTest = true;
     addTearDown(() => GameStateController.disableTimerForTest = false);
-    final layoutSettingsController = _LayoutSettingsControllerStub();
+    SharedPreferences.setMockInitialValues({});
+    final layoutSettingsController = await LayoutSettingsController.load(
+      SharedPreferencesLayoutSettingsStore(),
+    );
     final networkSettingsController = _NetworkSettingsControllerStub();
     final gadgetBypassController = _GadgetBypassControllerStub();
-    final safetySettingsController = _SafetySettingsControllerStub();
+    final safetySettingsController = await SafetySettingsController.load(
+      MemorySafetySettingsStore(),
+    );
     final displayModeController = _DisplayModeControllerStub();
     final controller = PrototypeStatusController();
     final browserController = GameBrowserController();
@@ -374,95 +374,6 @@ void main() {
   });
 }
 
-class _LayoutSettingsControllerStub extends ChangeNotifier
-    implements LayoutSettingsController {
-  @override
-  AppThemeMode get appThemeMode => AppThemeMode.dark;
-
-  @override
-  bool get cameraAvoidanceEnabled => false;
-
-  @override
-  double get cameraAvoidanceDistance => 0;
-
-  @override
-  bool get autoZoom => false;
-
-  @override
-  DashboardDisplayMode get dashboardDisplayMode =>
-      DashboardDisplayMode.accordion;
-
-  @override
-  List<String> get dashboardCardCollapsed => const <String>[];
-
-  @override
-  List<String> get dashboardCardHidden => const <String>[];
-
-  @override
-  List<String> get dashboardCardOrder => const <String>[];
-
-  @override
-  bool get enhancedDamagePulse => false;
-
-  @override
-  CustomFontController? get customFontController => null;
-
-  @override
-  String get fontFamily => 'sans-serif';
-
-  @override
-  List<String> get fontFamilyFallback => const <String>[];
-
-  @override
-  double get gameAreaRatio => 0.65;
-
-  @override
-  List<String> get headerResourceOrder => allHeaderResourceIds;
-
-  @override
-  String? get localeCode => null;
-
-  @override
-  List<String> get visibleHeaderResourceIds => defaultVisibleHeaderResourceIds;
-
-  @override
-  List<String> get workspaceMenuOrder =>
-      LayoutSettingsStore.defaultWorkspaceMenuOrder;
-
-  @override
-  bool get workspaceMenuOnRight => false;
-
-  @override
-  bool get informationPanelOnLeft => false;
-
-  @override
-  bool get workspaceMenuHorizontal => false;
-
-  @override
-  String get workspaceMenuPosition => 'left';
-
-  @override
-  HdLayoutSettings get hdSettings => const HdLayoutSettings();
-
-  @override
-  UiDisplaySize get uiDisplaySize => UiDisplaySize.normal;
-
-  @override
-  UiFontSize get uiFontSize => UiFontSize.system;
-
-  @override
-  bool get topNoticeEnabled => true;
-
-  @override
-  bool get uiLocked => false;
-
-  @override
-  int get topNoticeDurationSeconds => 5;
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => _unexpected(invocation);
-}
-
 class _NetworkSettingsControllerStub extends ChangeNotifier
     implements NetworkSettingsController {
   @override
@@ -471,16 +382,6 @@ class _NetworkSettingsControllerStub extends ChangeNotifier
 
 class _GadgetBypassControllerStub extends ChangeNotifier
     implements GadgetBypassController {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => _unexpected(invocation);
-}
-
-class _SafetySettingsControllerStub extends ChangeNotifier
-    implements SafetySettingsController {
-  @override
-  AdvanceWarningDisplayMode get advanceWarningDisplayMode =>
-      AdvanceWarningDisplayMode.alwaysConfirm;
-
   @override
   dynamic noSuchMethod(Invocation invocation) => _unexpected(invocation);
 }

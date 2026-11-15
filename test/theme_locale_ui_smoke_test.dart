@@ -224,12 +224,31 @@ void main() {
                   }
                   final los = find.byKey(const Key('fleet-los-metric'));
                   if (los.evaluate().isNotEmpty) {
+                    await tester.ensureVisible(los);
+                    await tester.pump();
                     await tester.tap(los);
+                    await tester.pump();
                     await tester.pump(const Duration(milliseconds: 300));
-                    expect(find.byType(AlertDialog), findsOneWidget);
-                    _collectException(tester, failures, '$label/los-dialog');
-                    tester.state<NavigatorState>(find.byType(Navigator)).pop();
+                    final details = find.byKey(
+                      const Key('fleet-los-details-popover'),
+                    );
+                    expect(details, findsOneWidget);
+                    expect(
+                      find.descendant(
+                        of: details,
+                        matching: find.text(
+                          lookupAppLocalizations(locale).losDetails,
+                        ),
+                      ),
+                      findsOneWidget,
+                    );
+                    _collectException(tester, failures, '$label/los-popover');
+                    await tester.tap(
+                      find.byKey(const Key('fleet-los-details-close')),
+                    );
+                    await tester.pump();
                     await tester.pump(const Duration(milliseconds: 300));
+                    expect(details, findsNothing);
                   }
                 }
 
