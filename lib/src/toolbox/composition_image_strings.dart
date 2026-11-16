@@ -221,6 +221,25 @@ class CompositionImageStrings {
     _text('输送护卫部队', '輸送護衛部隊', '輸送護衛部隊', '수송호위부대', 'Transport escort force'),
     _text('游击部队', '遊擊部隊', '遊撃部隊', '유격부대', 'Striking force'),
   ];
+
+  /// Older snapshots only retain the label in the locale used at save time.
+  static bool isLegacyCombinedFleetForm(String label) {
+    final trimmed = label.trim();
+    if (trimmed == '运送护卫部队' || trimmed == '運送護衛部隊') return true;
+    const locales = [
+      Locale('zh'),
+      Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
+      Locale('ja'),
+      Locale('ko'),
+      Locale('en'),
+    ];
+    return locales.any(
+      (locale) => CompositionImageStrings(
+        locale,
+      ).fleetForms.getRange(2, 5).contains(trimmed),
+    );
+  }
+
   String get subtitle => _text(
     '把此刻的舰队，保存成一张图。',
     '把此刻的艦隊，儲存成一張圖。',

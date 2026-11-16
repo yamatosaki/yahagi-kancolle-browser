@@ -1249,6 +1249,48 @@ abstract class AppLocalizations {
   /// **'编队简报'**
   String get fleetBrief;
 
+  /// No description provided for @fleetTransportPoints.
+  ///
+  /// In zh, this message translates to:
+  /// **'运输量'**
+  String get fleetTransportPoints;
+
+  /// No description provided for @fleetCombinedTransportPoints.
+  ///
+  /// In zh, this message translates to:
+  /// **'联合运输量'**
+  String get fleetCombinedTransportPoints;
+
+  /// No description provided for @fleetShowTransportDetails.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看运输量详情'**
+  String get fleetShowTransportDetails;
+
+  /// No description provided for @fleetTransportContribution.
+  ///
+  /// In zh, this message translates to:
+  /// **'本队基础 TP'**
+  String get fleetTransportContribution;
+
+  /// No description provided for @fleetTransportTotal.
+  ///
+  /// In zh, this message translates to:
+  /// **'合计'**
+  String get fleetTransportTotal;
+
+  /// No description provided for @fleetTransportKinuBonus.
+  ///
+  /// In zh, this message translates to:
+  /// **'鬼怒改二内置加成'**
+  String get fleetTransportKinuBonus;
+
+  /// No description provided for @fleetTransportRankValues.
+  ///
+  /// In zh, this message translates to:
+  /// **'S：{s}（A：{a}）'**
+  String fleetTransportRankValues(int s, int a);
+
   /// No description provided for @expeditionBrief.
   ///
   /// In zh, this message translates to:

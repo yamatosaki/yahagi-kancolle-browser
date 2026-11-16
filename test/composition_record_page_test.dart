@@ -17,6 +17,148 @@ import 'package:yahagi_kancolle_browser/src/toolbox/sortie_map_query/sortie_map_
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 
 void main() {
+  testWidgets('saved transport uses the selected formation and frozen fleet', (
+    tester,
+  ) async {
+    const savedState = GameState(
+      memberId: 7,
+      ships: {
+        1: OwnedShip(id: 1, masterId: 100, level: 99),
+        2: OwnedShip(id: 2, masterId: 101, level: 95),
+      },
+      masterShips: {
+        100: MasterShip(id: 100, name: '曉改二', shipTypeId: 2),
+        101: MasterShip(id: 101, name: '最上改二', shipTypeId: 6),
+      },
+      fleets: [
+        Fleet(id: 1, name: '主力', shipIds: [1]),
+        Fleet(id: 2, name: '护卫', shipIds: [2]),
+      ],
+    );
+    final oldSnapshot = serializeCompositionSnapshot(
+      savedState,
+      fleetIds: {1, 2},
+      landBaseAreaId: null,
+      landBaseIds: {},
+    );
+    final store = _MemoryStore()
+      ..records.addAll([
+        CompositionRecord(
+          id: 'legacy-combined',
+          createdAt: DateTime(2026, 11, 15),
+          note: '',
+          name: '旧联合记录',
+          fleetForm: '運送護衛部隊',
+          targetMap: '',
+          fleetIds: const [1, 2],
+          landBaseCount: 0,
+          snapshotJson: oldSnapshot,
+        ),
+        CompositionRecord(
+          id: 'ordinary',
+          createdAt: DateTime(2026, 11, 14),
+          note: '',
+          name: '普通记录',
+          fleetForm: '普通舰队',
+          targetMap: '',
+          fleetIds: const [1, 2],
+          landBaseCount: 0,
+          snapshotJson: oldSnapshot,
+        ),
+        CompositionRecord(
+          id: 'partial-combined',
+          createdAt: DateTime(2026, 11, 13),
+          note: '',
+          name: '仅保存主力',
+          fleetForm: '联合记录',
+          targetMap: '',
+          fleetIds: const [1],
+          landBaseCount: 0,
+          snapshotJson: serializeCompositionSnapshot(
+            savedState,
+            fleetIds: {1},
+            landBaseAreaId: null,
+            landBaseIds: {},
+            combinedFleetType: CombinedFleetType.transportEscort,
+          ),
+        ),
+      ]);
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: TopNoticeHost(
+          child: Scaffold(
+            body: CompositionImagePage(
+              state: const GameState(memberId: 7),
+              recordStore: store,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final main = find.byKey(const Key('composition-metric-1-transport-points'));
+    final escort = find.byKey(
+      const Key('composition-metric-2-transport-points'),
+    );
+    final scouting = find.byKey(
+      const Key('composition-metric-1-line-of-sight'),
+    );
+    expect(tester.getTopRight(scouting).dx, tester.getTopLeft(main).dx);
+    expect(tester.getSize(main), tester.getSize(scouting));
+    expect(find.descendant(of: main, matching: find.text('9')), findsOneWidget);
+    expect(
+      find.descendant(of: escort, matching: find.text('4')),
+      findsOneWidget,
+    );
+    await tester.tap(main);
+    await tester.pumpAndSettle();
+    final popup = find.byKey(const Key('fleet-transport-details-popover'));
+    expect(popup, findsOneWidget);
+    for (final value in ['5 TP', '4 TP']) {
+      expect(
+        find.descendant(of: popup, matching: find.text(value)),
+        findsOneWidget,
+      );
+    }
+    expect(
+      find.descendant(of: popup, matching: find.text('S：9（A：6）')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('fleet-transport-details-close')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('composition-record-ordinary')));
+    await tester.pumpAndSettle();
+    expect(find.descendant(of: main, matching: find.text('5')), findsOneWidget);
+    expect(
+      find.descendant(of: escort, matching: find.text('4')),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.byKey(const Key('composition-record-partial-combined')),
+    );
+    await tester.pumpAndSettle();
+    final l10n = lookupAppLocalizations(const Locale('zh'));
+    expect(
+      find.descendant(
+        of: main,
+        matching: find.text(l10n.fleetCombinedTransportPoints),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: main, matching: find.text(l10n.noValue)),
+      findsOneWidget,
+    );
+    expect(escort, findsNothing);
+    await tester.tap(main);
+    await tester.pumpAndSettle();
+    expect(popup, findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('100 saved records show the limit notice without capturing', (
     tester,
   ) async {

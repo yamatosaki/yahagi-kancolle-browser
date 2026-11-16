@@ -106,20 +106,21 @@ void main() {
             : h.settings.fleetDisplayFields;
         final limit = hd ? 7 : 5;
         expect(current.intersection(summaryFields), hasLength(limit));
-        final disabled = summaryFields.firstWhere(
-          (field) => !current.contains(field),
-        );
-        expect(h.row('field-$disabled')['enabled'], isFalse);
-        h.port.toggle('field-$disabled', true);
+        const transportField = 'transport-points';
+        const transportRow = 'field-$transportField';
+        expect(h.row(transportRow)['checked'], isFalse);
+        expect(h.row(transportRow)['enabled'], isFalse);
+        h.port.toggle(transportRow, true);
         expect(
           (hd ? h.settings.hdFleetDisplayFields : h.settings.fleetDisplayFields)
-              .contains(disabled),
+              .contains(transportField),
           isFalse,
         );
         final selected = current.intersection(summaryFields).first;
         h.port.toggle('field-$selected', false);
-        expect(h.row('field-$disabled')['enabled'], isTrue);
-        h.port.toggle('field-$disabled', true);
+        expect(h.row(transportRow)['enabled'], isTrue);
+        h.port.toggle(transportRow, true);
+        expect(h.row(transportRow)['checked'], isTrue);
         expect(
           (hd ? h.settings.hdFleetDisplayFields : h.settings.fleetDisplayFields)
               .intersection(summaryFields),
@@ -140,6 +141,7 @@ void main() {
         h.port.toggle('appearance-logo', false);
         h.port.reset();
         await tester.pump();
+        expect(h.row(transportRow)['checked'], isFalse);
         expect(h.settings.moduleShowLogo('fleet'), isTrue);
         expect(
           h.settings.fleetSelectorLabelMode,

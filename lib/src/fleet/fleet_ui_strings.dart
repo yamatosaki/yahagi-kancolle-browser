@@ -56,6 +56,7 @@ abstract final class FleetUiKeys {
       'anti-sub': '对潜',
       'air-power': '制空',
       'line-of-sight': '索敌',
+      'transport-points': '运输量',
       'minimum-condition': '最低疲劳',
       'recovery-countdown': '恢复倒计时',
     },
@@ -521,6 +522,8 @@ String fleetText(BuildContext context, String source) {
       return l10n.notificationExpedition;
     case "退避":
       return l10n.landBaseActionRetreat;
+    case "运输量":
+      return l10n.fleetTransportPoints;
     case "速度":
       return l10n.speed;
     case "雷装":

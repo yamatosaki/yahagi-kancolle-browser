@@ -86,7 +86,10 @@ void main() {
     expect(find.text('最多同时显示 7 项；先取消一项即可选择其他指标。'), findsOneWidget);
     final firepower = find.byKey(const Key('fleet-display-firepower'));
     final antiAir = find.byKey(const Key('fleet-display-anti-air'));
+    final transport = find.byKey(const Key('fleet-display-transport-points'));
     expect(tester.widget<FilterChip>(antiAir).onSelected, isNull);
+    expect(tester.widget<FilterChip>(transport).selected, isFalse);
+    expect(tester.widget<FilterChip>(transport).onSelected, isNull);
     await tester.ensureVisible(firepower);
     await tester.tap(firepower);
     await tester.pumpAndSettle();
@@ -100,6 +103,13 @@ void main() {
     expect(controller.hdFleetDisplayFields, contains('anti-air'));
     expect(controller.hdFleetDisplayFields, isNot(contains('firepower')));
     expect(controller.fleetDisplayFields.intersection(summaryFields).length, 5);
+    await tester.tap(antiAir);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(transport);
+    await tester.tap(transport);
+    await tester.pumpAndSettle();
+    expect(controller.hdFleetDisplayFields, contains('transport-points'));
+    expect(controller.fleetDisplayFields, isNot(contains('transport-points')));
     final restored = await LayoutSettingsController.load(store);
     addTearDown(restored.dispose);
     expect(restored.hdFleetDisplayFields, controller.hdFleetDisplayFields);
@@ -241,9 +251,8 @@ void main() {
     'settings allow replacement at five and a single mechanism switch',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
-      final controller = await LayoutSettingsController.load(
-        SharedPreferencesLayoutSettingsStore(),
-      );
+      final store = SharedPreferencesLayoutSettingsStore();
+      final controller = await LayoutSettingsController.load(store);
       addTearDown(controller.dispose);
       await tester.pumpWidget(
         MaterialApp(
@@ -260,6 +269,8 @@ void main() {
       FilterChip checkbox(String id) =>
           tester.widget(find.byKey(Key('fleet-display-$id')));
       expect(checkbox('firepower').onSelected, isNull);
+      expect(checkbox('transport-points').selected, isFalse);
+      expect(checkbox('transport-points').onSelected, isNull);
       checkbox('total-level').onSelected!(false);
       await tester.pump();
       expect(checkbox('firepower').onSelected, isNotNull);
@@ -270,6 +281,15 @@ void main() {
         5,
       );
       expect(checkbox('torpedo').onSelected, isNull);
+      checkbox('firepower').onSelected!(false);
+      await tester.pump();
+      checkbox('transport-points').onSelected!(true);
+      await tester.pumpAndSettle();
+      expect(checkbox('transport-points').selected, isTrue);
+      expect(find.text('运输量'), findsOneWidget);
+      final restored = await LayoutSettingsController.load(store);
+      addTearDown(restored.dispose);
+      expect(restored.fleetDisplayFields, contains('transport-points'));
       final mechanisms = tester.widget<FilterChip>(
         find.byKey(const Key('fleet-display-mechanisms')),
       );

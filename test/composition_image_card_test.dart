@@ -49,9 +49,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('record ship rows share the eight-column metrics grid', (
-    tester,
-  ) async {
+  testWidgets('record ship rows align with the metrics grid', (tester) async {
     final fixture = compositionImageFixture();
     final state = fixture.copyWith(
       masterShips: {
@@ -745,7 +743,7 @@ void main() {
         of: find.byKey(const Key('composition-fleet-metrics-1')),
         matching: find.text(lookupAppLocalizations(const Locale('ja')).noValue),
       ),
-      findsNWidgets(8),
+      findsNWidgets(9),
     );
     expect(tester.takeException(), isNull);
     await _pump(tester, state: GameState.empty);

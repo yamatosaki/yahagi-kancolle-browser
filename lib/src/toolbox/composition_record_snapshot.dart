@@ -10,6 +10,7 @@ String serializeCompositionSnapshot(
   required Set<int> fleetIds,
   required int? landBaseAreaId,
   required Set<int> landBaseIds,
+  CombinedFleetType combinedFleetType = CombinedFleetType.none,
 }) {
   final fleets = state.fleets
       .where((fleet) => fleetIds.contains(fleet.id))
@@ -67,6 +68,9 @@ String serializeCompositionSnapshot(
   final data =
       jsonDecode(GameStateSerializer.serialize(reduced))
           as Map<String, dynamic>;
+  if (combinedFleetType != CombinedFleetType.none) {
+    data['combinedFleetType'] = combinedFleetType.apiValue;
+  }
   data['serverOrigin'] = state.serverOrigin;
   data['ships'] = ships.map(
     (id, ship) => MapEntry('$id', {
@@ -222,6 +226,9 @@ GameState deserializeCompositionSnapshot(String value) {
   }
   return base.copyWith(
     serverOrigin: data['serverOrigin'] as String? ?? '',
+    combinedFleetType: CombinedFleetType.fromApiValue(
+      number(data['combinedFleetType']),
+    ),
     ships: ships,
     slotItems: slotItems,
     masterShips: masterShips,

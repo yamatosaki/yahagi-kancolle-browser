@@ -6,6 +6,7 @@ import 'package:yahagi_kancolle_browser/src/fleet/fleet_ship_status_capsule.dart
 import 'package:yahagi_kancolle_browser/src/fleet/fleet_summary_card.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/separated_wrap.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/morale_recovery_timer_controller.dart';
+import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
 import 'package:yahagi_kancolle_browser/src/layout/panel_style.dart';
 import 'package:yahagi_kancolle_browser/src/notification/notification_timer_anchor_store.dart';
@@ -364,6 +365,81 @@ void main() {
     expect(find.text('× 4'), findsOneWidget);
   });
 
+  testWidgets(
+    'opt-in transport metric shows a single value and joint details',
+    (tester) async {
+      final fixture = await _controllerWithPortData();
+      addTearDown(fixture.dispose);
+      final controller = GameStateController(
+        initialState: fixture.state.copyWith(
+          combinedFleetType: CombinedFleetType.transportEscort,
+          fleets: const [
+            Fleet(id: 1, name: '主力', shipIds: [9001]),
+            Fleet(id: 2, name: '护卫', shipIds: [9002]),
+          ],
+        ),
+      );
+      addTearDown(controller.dispose);
+      final transport = find.byKey(
+        const Key('fleet-summary-metric-transport-points'),
+      );
+      final transportValue = find.byKey(
+        const Key('fleet-summary-metric-transport-points-value'),
+      );
+      const totalText = 'S：7（A：4）';
+
+      await tester.pumpWidget(_card(controller: controller));
+      expect(transport, findsNothing);
+
+      await tester.pumpWidget(
+        _card(
+          controller: controller,
+          visible: const {
+            'line-of-sight',
+            'transport-points',
+            'recovery-countdown',
+          },
+        ),
+      );
+      expect(tester.widget<Text>(transportValue).data, '7');
+      expect(find.text('联合运输量'), findsOneWidget);
+      expect(find.text(totalText), findsNothing);
+      final transportX = tester.getCenter(transport).dx;
+      expect(
+        tester
+            .getCenter(
+              find.byKey(const Key('fleet-summary-metric-line-of-sight')),
+            )
+            .dx,
+        lessThan(transportX),
+      );
+      expect(
+        tester
+            .getCenter(
+              find.byKey(const Key('fleet-summary-metric-recovery-countdown')),
+            )
+            .dx,
+        greaterThan(transportX),
+      );
+
+      await tester.tap(transport);
+      await tester.pumpAndSettle();
+      final popover = find.byKey(const Key('fleet-transport-details-popover'));
+      for (final value in [totalText, '第一舰队', '第二舰队', '5 TP', '2 TP']) {
+        expect(
+          find.descendant(of: popover, matching: find.text(value)),
+          findsOneWidget,
+        );
+      }
+      await tester.tap(find.byKey(const Key('fleet-transport-details-close')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('fleet-summary-selector-2')));
+      await tester.pump();
+      expect(tester.widget<Text>(transportValue).data, '7');
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('air power metric opens the shared air power details', (
     tester,
   ) async {
@@ -459,6 +535,7 @@ Widget _card({
   DateTime Function()? clock,
   FleetShipTypeLabelMode shipTypeLabelMode =
       FleetShipTypeLabelMode.localizedName,
+  Set<String>? visible,
 }) => MaterialApp(
   locale: const Locale('zh'),
   localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -470,11 +547,13 @@ Widget _card({
       onToggleCollapse: () {},
       onOpenFleet: onOpenFleet ?? (_) {},
       moraleRecoveryTimerController: moraleRecoveryTimerController,
-      visible: moraleMetricMode == FleetMoraleMetricMode.recoveryCountdown
-          ? ({...defaultFields}
-              ..remove('minimum-condition')
-              ..add('recovery-countdown'))
-          : defaultFields,
+      visible:
+          visible ??
+          (moraleMetricMode == FleetMoraleMetricMode.recoveryCountdown
+              ? ({...defaultFields}
+                  ..remove('minimum-condition')
+                  ..add('recovery-countdown'))
+              : defaultFields),
       shipTypeLabelMode: shipTypeLabelMode,
       clock: clock,
     ),

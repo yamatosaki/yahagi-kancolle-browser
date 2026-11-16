@@ -317,6 +317,12 @@ class _CompositionImagePageState extends State<CompositionImagePage> {
     _ => {1, 2, 3, 4},
   };
   Set<int> get _activeFleetIds => _fleetIds.intersection(_allowedFleetIds);
+  CombinedFleetType get _selectedCombinedFleetType => switch (_fleetFormIndex) {
+    2 => CombinedFleetType.surfaceTaskForce,
+    3 => CombinedFleetType.carrierTaskForce,
+    4 => CombinedFleetType.transportEscort,
+    _ => CombinedFleetType.none,
+  };
 
   void _selectFleetForm(int index) => setState(() {
     _fleetFormIndex = index;
@@ -493,6 +499,7 @@ class _CompositionImagePageState extends State<CompositionImagePage> {
             fleetIds: selectedFleetIds,
             landBaseAreaId: selectedAreaId,
             landBaseIds: selectedBaseIds,
+            combinedFleetType: _selectedCombinedFleetType,
           )
         : null;
     final generation = ++_generation;
@@ -1389,6 +1396,11 @@ class _CompositionImagePageState extends State<CompositionImagePage> {
                       CompositionPlaneCountMode.maximum,
                   generatedAt: record.createdAt,
                   recordMode: true,
+                  isCombinedFleet:
+                      snapshot.combinedFleetType != CombinedFleetType.none ||
+                      CompositionImageStrings.isLegacyCombinedFleetForm(
+                        record.fleetForm,
+                      ),
                 ),
               ),
             )
@@ -1965,6 +1977,8 @@ class _CompositionImagePageState extends State<CompositionImagePage> {
                 landBaseAreaId: _effectiveArea,
                 landBaseIds: _landBaseIds,
                 planeCountMode: _planeCounts,
+                isCombinedFleet:
+                    _selectedCombinedFleetType != CombinedFleetType.none,
               ),
             ),
           ),

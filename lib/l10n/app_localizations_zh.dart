@@ -613,6 +613,29 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fleetBrief => '编队简报';
 
   @override
+  String get fleetTransportPoints => '运输量';
+
+  @override
+  String get fleetCombinedTransportPoints => '联合运输量';
+
+  @override
+  String get fleetShowTransportDetails => '查看运输量详情';
+
+  @override
+  String get fleetTransportContribution => '本队基础 TP';
+
+  @override
+  String get fleetTransportTotal => '合计';
+
+  @override
+  String get fleetTransportKinuBonus => '鬼怒改二内置加成';
+
+  @override
+  String fleetTransportRankValues(int s, int a) {
+    return 'S：$s（A：$a）';
+  }
+
+  @override
   String get expeditionBrief => '远征简报';
 
   @override
@@ -4814,6 +4837,29 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get fleetBrief => '艦隊簡報';
+
+  @override
+  String get fleetTransportPoints => '運輸量';
+
+  @override
+  String get fleetCombinedTransportPoints => '聯合運輸量';
+
+  @override
+  String get fleetShowTransportDetails => '查看運輸量詳情';
+
+  @override
+  String get fleetTransportContribution => '本隊基礎 TP';
+
+  @override
+  String get fleetTransportTotal => '合計';
+
+  @override
+  String get fleetTransportKinuBonus => '鬼怒改二內建加成';
+
+  @override
+  String fleetTransportRankValues(int s, int a) {
+    return 'S：$s（A：$a）';
+  }
 
   @override
   String get expeditionBrief => '遠征簡報';

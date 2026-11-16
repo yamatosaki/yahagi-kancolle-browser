@@ -28,6 +28,8 @@ import '../layout/panel_style.dart';
 import '../settings/battle_status_effect_settings.dart';
 import '../settings/module_display_settings.dart';
 import 'fleet_air_power_details.dart';
+import 'fleet_transport_details.dart';
+import 'fleet_transport_points.dart';
 import 'morale_recovery_display.dart';
 import 'morale_recovery_timer_controller.dart';
 
@@ -105,6 +107,12 @@ class _FleetSummaryCardState extends State<FleetSummaryCard> {
         final metrics = selectedFleet == null
             ? null
             : FleetMetrics.fromState(state, selectedFleet);
+        final transportPoints =
+            selectedFleet != null &&
+                !widget.collapsed &&
+                summaryVisible.contains('transport-points')
+            ? FleetTransportPoints.forFleet(state, selectedFleet)
+            : null;
         final specialAttack = selectedFleet == null
             ? null
             : detectFleetSpecialAttack(state, selectedFleet);
@@ -212,6 +220,7 @@ class _FleetSummaryCardState extends State<FleetSummaryCard> {
                         state: state,
                         fleetId: _selectedFleetId,
                         metrics: metrics,
+                        transportPoints: transportPoints,
                         now: now,
                         moraleRecoveryTimerController:
                             widget.moraleRecoveryTimerController,
@@ -397,6 +406,7 @@ class _FleetSummaryMetrics extends StatelessWidget {
     required this.fleetId,
     required this.visible,
     required this.metrics,
+    required this.transportPoints,
     required this.now,
     required this.moraleRecoveryTimerController,
   });
@@ -405,6 +415,7 @@ class _FleetSummaryMetrics extends StatelessWidget {
   final int fleetId;
   final Set<String> visible;
   final FleetMetrics? metrics;
+  final FleetTransportPoints? transportPoints;
   final DateTime now;
   final MoraleRecoveryTimerController? moraleRecoveryTimerController;
 
@@ -414,6 +425,10 @@ class _FleetSummaryMetrics extends StatelessWidget {
     final requiredL10n = l10n ?? lookupAppLocalizations(const Locale('zh'));
     final noValue = l10n?.noValue ?? '—';
     final current = metrics;
+    final transport = transportPoints;
+    final combinedTransport =
+        (fleetId == 1 || fleetId == 2) &&
+        state.combinedFleetType != CombinedFleetType.none;
     final airPower = current?.airPower;
     final airPowerMaximum = current?.airPowerMaximum;
     final hasAirPowerDetails =
@@ -479,6 +494,13 @@ class _FleetSummaryMetrics extends StatelessWidget {
                     : current.formula33.first.total.toStringAsFixed(2),
               ),
               (
+                'transport-points',
+                combinedTransport
+                    ? requiredL10n.fleetCombinedTransportPoints
+                    : requiredL10n.fleetTransportPoints,
+                transport == null ? noValue : '${transport.sRank}',
+              ),
+              (
                 'minimum-condition',
                 fleetText(context, '最低疲劳'),
                 current == null ? noValue : '${current.minimumCondition}',
@@ -495,6 +517,8 @@ class _FleetSummaryMetrics extends StatelessWidget {
     if (values.isEmpty) return const SizedBox.shrink();
     String? semanticLabelAt(int index) => switch (values[index].$1) {
       'air-power' when hasAirPowerDetails => requiredL10n.showAirPowerDetails,
+      'transport-points' when transport != null =>
+        requiredL10n.fleetShowTransportDetails,
       _ => null,
     };
     Widget metricAt(int index, {bool flat = false}) {
@@ -522,6 +546,9 @@ class _FleetSummaryMetrics extends StatelessWidget {
       }
       if (id == 'air-power' && hasAirPowerDetails && current != null) {
         return FleetAirPowerDetails(metrics: current, builder: buildMetric);
+      }
+      if (id == 'transport-points' && transport != null) {
+        return FleetTransportDetails(points: transport, builder: buildMetric);
       }
       return buildMetric(null);
     }

@@ -622,6 +622,29 @@ class AppLocalizationsJa extends AppLocalizations {
   String get fleetBrief => '編成情報';
 
   @override
+  String get fleetTransportPoints => '輸送量';
+
+  @override
+  String get fleetCombinedTransportPoints => '連合輸送量';
+
+  @override
+  String get fleetShowTransportDetails => '輸送量の詳細を表示';
+
+  @override
+  String get fleetTransportContribution => '艦隊基礎TP';
+
+  @override
+  String get fleetTransportTotal => '合計';
+
+  @override
+  String get fleetTransportKinuBonus => '鬼怒改二の内蔵補正';
+
+  @override
+  String fleetTransportRankValues(int s, int a) {
+    return 'S：$s（A：$a）';
+  }
+
+  @override
   String get expeditionBrief => '遠征情報';
 
   @override

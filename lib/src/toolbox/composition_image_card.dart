@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../fleet/equipment_type_icon.dart';
+import '../fleet/fleet_transport_details.dart';
+import '../fleet/fleet_transport_points.dart';
 import '../fleet/ship_portrait.dart';
 import '../fleet/slot_item_portrait.dart';
 import '../fleet/fleet_ui_strings.dart';
@@ -28,6 +30,7 @@ class CompositionImageCard extends StatelessWidget {
     required this.planeCountMode,
     required this.generatedAt,
     this.recordMode = false,
+    this.isCombinedFleet = false,
   });
 
   final GameState state;
@@ -37,6 +40,7 @@ class CompositionImageCard extends StatelessWidget {
   final CompositionPlaneCountMode planeCountMode;
   final DateTime generatedAt;
   final bool recordMode;
+  final bool isCombinedFleet;
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +48,12 @@ class CompositionImageCard extends StatelessWidget {
     final fleets =
         state.fleets.where((fleet) => fleetIds.contains(fleet.id)).toList()
           ..sort((a, b) => a.id.compareTo(b.id));
+    bool isCombinedMember(Fleet fleet) =>
+        isCombinedFleet && (fleet.id == 1 || fleet.id == 2);
+    final combinedFleets = fleets.where(isCombinedMember).toList();
+    final combinedTransport = combinedFleets.length == 2
+        ? FleetTransportPoints.fromState(state, combinedFleets)
+        : null;
     final bases =
         state.landBases
             .where(
@@ -159,6 +169,10 @@ class CompositionImageCard extends StatelessWidget {
                         state: state,
                         fleet: fleet,
                         recordMode: recordMode,
+                        isCombinedMember: isCombinedMember(fleet),
+                        transport: isCombinedMember(fleet)
+                            ? combinedTransport
+                            : FleetTransportPoints.fromState(state, [fleet]),
                       ),
                       SizedBox(height: recordMode ? 0 : 12),
                     ],
@@ -269,11 +283,15 @@ class _FleetMetricsStrip extends StatelessWidget {
   const _FleetMetricsStrip({
     required this.state,
     required this.fleet,
+    required this.isCombinedMember,
+    required this.transport,
     this.recordMode = false,
   });
 
   final GameState state;
   final Fleet fleet;
+  final bool isCombinedMember;
+  final FleetTransportPoints? transport;
   final bool recordMode;
 
   @override
@@ -301,6 +319,14 @@ class _FleetMetricsStrip extends StatelessWidget {
         });
     final airPower = metrics?.airPower;
     final airPowerMaximum = metrics?.airPowerMaximum;
+    final isEscort = isCombinedMember && fleet.id == 2;
+    final transportValue = isEscort
+        ? (transport ?? FleetTransportPoints.fromState(state, [fleet]))
+              ?.contributions
+              .where((part) => part.fleetId == fleet.id)
+              .firstOrNull
+              ?.points
+        : transport?.sRank;
     final values = <(String, String, String)>[
       (
         'speed',
@@ -332,78 +358,116 @@ class _FleetMetricsStrip extends StatelessWidget {
             ? l.noValue
             : metrics.formula33.first.total.toStringAsFixed(2),
       ),
+      (
+        'transport-points',
+        isEscort
+            ? l.fleetTransportContribution
+            : isCombinedMember
+            ? l.fleetCombinedTransportPoints
+            : l.fleetTransportPoints,
+        transportValue?.toString() ?? l.noValue,
+      ),
     ];
+    Widget buildCell(int index, [VoidCallback? onTap]) {
+      final (id, label, value) = values[index];
+      final radius = recordMode ? null : BorderRadius.circular(8);
+      final gridLine = BorderSide(
+        color: appColor(context, _recordGridLine),
+        width: 1.2,
+      );
+      final text = Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: 6,
+          vertical: recordMode ? 3 : 5,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: appTextStyle(
+                  context,
+                  TextStyle(
+                    color: appColor(context, _muted),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+      );
+      return Container(
+        key: Key('composition-metric-${fleet.id}-$id'),
+        decoration: BoxDecoration(
+          color: appColor(context, Color(0xff142c3c)),
+          borderRadius: radius,
+          border: recordMode
+              ? Border(
+                  top: gridLine,
+                  bottom: gridLine,
+                  left: gridLine,
+                  right: index == values.length - 1
+                      ? gridLine
+                      : BorderSide.none,
+                )
+              : Border.all(color: appColor(context, Color(0xff4b6b7d))),
+          boxShadow: recordMode
+              ? null
+              : [
+                  BoxShadow(
+                    color: appColor(context, Color(0x40000000)),
+                    blurRadius: 5,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: onTap == null
+            ? text
+            : Material(
+                type: MaterialType.transparency,
+                textStyle: DefaultTextStyle.of(context).style,
+                child: Semantics(
+                  button: true,
+                  label: l.fleetShowTransportDetails,
+                  child: InkWell(
+                    onTap: onTap,
+                    borderRadius: radius,
+                    child: text,
+                  ),
+                ),
+              ),
+      );
+    }
+
+    Widget metricAt(int index) {
+      final points = transport;
+      if (values[index].$1 != 'transport-points' || points == null) {
+        return buildCell(index);
+      }
+      return FleetTransportDetails(
+        points: points,
+        builder: (onTap) => buildCell(index, onTap),
+      );
+    }
+
     return Row(
       key: Key('composition-fleet-metrics-${fleet.id}'),
       children: [
         for (var index = 0; index < values.length; index++) ...[
           if (!recordMode && index > 0) const SizedBox(width: 6),
           Expanded(
-            child: Container(
-              key: Key('composition-metric-${fleet.id}-${values[index].$1}'),
-              padding: EdgeInsets.symmetric(
-                horizontal: 6,
-                vertical: recordMode ? 3 : 5,
-              ),
-              decoration: BoxDecoration(
-                color: appColor(context, Color(0xff142c3c)),
-                borderRadius: recordMode ? null : BorderRadius.circular(8),
-                border: recordMode
-                    ? Border(
-                        top: BorderSide(
-                          color: appColor(context, _recordGridLine),
-                          width: 1.2,
-                        ),
-                        bottom: BorderSide(
-                          color: appColor(context, _recordGridLine),
-                          width: 1.2,
-                        ),
-                        left: BorderSide(
-                          color: appColor(context, _recordGridLine),
-                          width: 1.2,
-                        ),
-                        right: index == values.length - 1
-                            ? BorderSide(
-                                color: appColor(context, _recordGridLine),
-                                width: 1.2,
-                              )
-                            : BorderSide.none,
-                      )
-                    : Border.all(color: appColor(context, Color(0xff4b6b7d))),
-                boxShadow: recordMode
-                    ? null
-                    : [
-                        BoxShadow(
-                          color: appColor(context, Color(0x40000000)),
-                          blurRadius: 5,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    values[index].$2,
-                    style: appTextStyle(
-                      context,
-                      TextStyle(
-                        color: appColor(context, _muted),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    values[index].$3,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // Keep the first two cells aligned with the quarter-width roster.
+            flex: recordMode ? (index < 2 ? values.length - 2 : 6) : 1,
+            child: metricAt(index),
           ),
         ],
       ],

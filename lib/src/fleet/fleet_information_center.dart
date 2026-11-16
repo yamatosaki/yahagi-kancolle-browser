@@ -16,6 +16,8 @@ import 'equipment_display.dart';
 import 'equipment_type_icon.dart';
 import 'fleet_switcher_bar.dart';
 import 'fleet_line_of_sight_details.dart';
+import 'fleet_transport_details.dart';
+import 'fleet_transport_points.dart';
 import 'operation_status_views.dart';
 import 'ship_portrait.dart';
 import 'ship_repair_status.dart';
@@ -374,6 +376,7 @@ class _FleetViewState extends State<_FleetView> {
   GameState? _lastButtonsState;
   int _lastFleetId = 0;
   FleetMetrics? _cachedMetrics;
+  FleetTransportPoints? _cachedTransportPoints;
   List<Fleet>? _cachedFleetButtons;
   late int? _selectedShipId = widget.initialShipId;
   int? _selectedEquipmentIndex;
@@ -417,6 +420,7 @@ class _FleetViewState extends State<_FleetView> {
         _lastState != state ||
         _lastFleetId != fleet.id) {
       _cachedMetrics = FleetMetrics.fromState(state, fleet);
+      _cachedTransportPoints = FleetTransportPoints.forFleet(state, fleet);
       _lastState = state;
       _lastFleetId = fleet.id;
     }
@@ -483,6 +487,7 @@ class _FleetViewState extends State<_FleetView> {
             state: state,
             fleetId: fleet.id,
             metrics: metrics,
+            transportPoints: _cachedTransportPoints,
             now: widget.now,
             moraleRecoveryTimerController: widget.moraleRecoveryTimerController,
             moraleMetricMode: widget.moraleMetricMode,
@@ -2004,6 +2009,7 @@ class _MetricsBar extends StatelessWidget {
     required this.state,
     required this.fleetId,
     required this.metrics,
+    required this.transportPoints,
     required this.now,
     required this.moraleRecoveryTimerController,
     required this.moraleMetricMode,
@@ -2014,6 +2020,7 @@ class _MetricsBar extends StatelessWidget {
   final GameState state;
   final int fleetId;
   final FleetMetrics metrics;
+  final FleetTransportPoints? transportPoints;
   final DateTime now;
   final MoraleRecoveryTimerController? moraleRecoveryTimerController;
   final FleetMoraleMetricMode moraleMetricMode;
@@ -2025,6 +2032,10 @@ class _MetricsBar extends StatelessWidget {
     final noValue = AppLocalizations.of(context)?.noValue ?? '无';
     final l10n = AppLocalizations.of(context);
     final requiredL10n = _fleetL10n(context);
+    final points = transportPoints;
+    final combinedTransport =
+        (fleetId == 1 || fleetId == 2) &&
+        state.combinedFleetType != CombinedFleetType.none;
     final showsCountdown =
         moraleRecoveryTimerController != null &&
         moraleMetricMode == FleetMoraleMetricMode.recoveryCountdown;
@@ -2067,6 +2078,12 @@ class _MetricsBar extends StatelessWidget {
         AppLocalizations.of(context)?.lineOfSight ?? '索敌',
         formula33.isEmpty ? noValue : formula33.first.total.toStringAsFixed(2),
       ),
+      (
+        combinedTransport
+            ? requiredL10n.fleetCombinedTransportPoints
+            : requiredL10n.fleetTransportPoints,
+        points?.sRank.toString() ?? noValue,
+      ),
       (moraleLabel, moraleValue),
     ];
     final phone = usesCompactFleetLayout(context);
@@ -2083,13 +2100,15 @@ class _MetricsBar extends StatelessWidget {
           0 => const Key('fleet-speed-metric'),
           6 => const Key('fleet-air-power-metric'),
           7 => const Key('fleet-los-metric'),
-          8 => const Key('fleet-morale-metric'),
+          8 => const Key('fleet-transport-metric'),
+          9 => const Key('fleet-morale-metric'),
           _ => null,
         },
         onTap: onTap,
         semanticLabel: switch (index) {
           6 when hasAirPowerDetails => requiredL10n.showAirPowerDetails,
-          8 => requiredL10n.toggleMoraleMetric,
+          8 when points != null => requiredL10n.fleetShowTransportDetails,
+          9 => requiredL10n.toggleMoraleMetric,
           _ => null,
         },
         compact: phone,
@@ -2108,7 +2127,14 @@ class _MetricsBar extends StatelessWidget {
           builder: buildCell,
         );
       }
-      return buildCell(index == 8 ? onToggleMoraleMetricMode : null);
+      if (index == 8 && points != null) {
+        return FleetTransportDetails(
+          points: points,
+          viewportContext: viewportContext,
+          builder: buildCell,
+        );
+      }
+      return buildCell(index == 9 ? onToggleMoraleMetricMode : null);
     }
 
     return Row(

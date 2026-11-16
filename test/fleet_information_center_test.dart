@@ -303,6 +303,81 @@ void main() {
     expect(taps, 1);
   });
 
+  testWidgets('transport shows S rank and opens the same combined breakdown', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 770);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final port = (jsonDecode(portEvent.responseBody) as Map)['api_data'] as Map;
+    port['api_combined_flag'] = 3;
+    final fleets = port['api_deck_port'] as List;
+    (fleets.first as Map)['api_ship'] = <int>[9001, -1, -1, -1, -1, -1];
+    final controller = GameStateController();
+    addTearDown(controller.dispose);
+    controller
+      ..accept(start2Event)
+      ..accept(kcsapiEvent('/kcsapi/api_port/port', port))
+      ..accept(slotItemEvent);
+    await controller.idle;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: FleetInformationCenter(
+            controller: controller,
+            moraleSparkleMode: MoraleSparkleMode.off,
+          ),
+        ),
+      ),
+    );
+    final transport = find.byKey(const Key('fleet-transport-metric'));
+    expect(
+      find.descendant(of: transport, matching: find.text('7')),
+      findsOneWidget,
+    );
+    final los = find.byKey(const Key('fleet-los-metric'));
+    final fatigue = find.byKey(const Key('fleet-morale-metric'));
+    expect(
+      tester.getTopLeft(transport).dx,
+      greaterThan(tester.getTopLeft(los).dx),
+    );
+    expect(
+      tester.getTopLeft(transport).dx,
+      lessThan(tester.getTopLeft(fatigue).dx),
+    );
+    expect(find.text('S：7（A：4）'), findsNothing);
+
+    await tester.tap(transport);
+    await tester.pump();
+    final popup = find.byKey(const Key('fleet-transport-details-popover'));
+    expect(
+      find.descendant(of: popup, matching: find.text('第一舰队')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: popup, matching: find.text('第二舰队')),
+      findsOneWidget,
+    );
+    expect(find.text('5 TP'), findsOneWidget);
+    expect(find.text('2 TP'), findsOneWidget);
+    expect(find.text('S：7（A：4）'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('fleet-transport-details-close')));
+    await tester.pump();
+
+    await tester.tap(find.byKey(const Key('fleet-button-2')));
+    await tester.pump();
+    expect(
+      find.descendant(of: transport, matching: find.text('7')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('renders the approved compact three-column fleet workspace', (
     tester,
   ) async {

@@ -649,6 +649,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fleetBrief => 'Fleet summary';
 
   @override
+  String get fleetTransportPoints => 'TP';
+
+  @override
+  String get fleetCombinedTransportPoints => 'Combined TP';
+
+  @override
+  String get fleetShowTransportDetails => 'Show transport points';
+
+  @override
+  String get fleetTransportContribution => 'Fleet base TP';
+
+  @override
+  String get fleetTransportTotal => 'Total';
+
+  @override
+  String get fleetTransportKinuBonus => 'Kinu Kai Ni bonus';
+
+  @override
+  String fleetTransportRankValues(int s, int a) {
+    return 'S: $s (A: $a)';
+  }
+
+  @override
   String get expeditionBrief => 'Expedition summary';
 
   @override
