@@ -66,6 +66,12 @@ void main() {
     for (final (name, metricId, titleText, closeKey) in const [
       ('LOS', 'line-of-sight', '索敌详情', 'fleet-los-details-close'),
       ('air power', 'air-power', '制空详情', 'fleet-air-power-details-close'),
+      (
+        'transport',
+        'transport-points',
+        '普通（战车）运输量',
+        'fleet-transport-details-close',
+      ),
     ]) {
       testWidgets(
         'landscape game accepts the first tap outside $name details ($gameRatio)',
@@ -106,6 +112,7 @@ void main() {
           await fixture.layout.setFleetDisplayFields({
             'air-power',
             'line-of-sight',
+            'transport-points',
           });
           fixture.game.accept(slotItemEvent);
           await fixture.game.idle;
@@ -128,9 +135,25 @@ void main() {
           expect(gamePixels.take(4), [0x07, 0x16, 0x21, 0xff]);
 
           final metric = find.byKey(Key('fleet-summary-metric-$metricId'));
-          final title = find.text(titleText);
+          final popup = find.byKey(
+            Key(closeKey.replaceFirst('-close', '-popover')),
+          );
+          final title = find.descendant(
+            of: popup,
+            matching: find.text(titleText),
+          );
           final close = find.byKey(Key(closeKey));
-          for (final dismissWithGameTap in [true, false, true]) {
+          final initialBarrierCount = find
+              .byType(ModalBarrier)
+              .evaluate()
+              .length;
+          for (final dismissal in [
+            'outside',
+            'button',
+            'back',
+            'escape',
+            'outside',
+          ]) {
             await Scrollable.ensureVisible(
               tester.element(metric),
               alignment: .5,
@@ -139,19 +162,48 @@ void main() {
             await tester.tap(metric);
             await _settle(tester);
             expect(title, findsOneWidget);
+            expect(
+              find.byType(ModalBarrier),
+              findsNWidgets(initialBarrierCount),
+            );
+            expect(
+              find.descendant(of: popup, matching: find.byType(ModalBarrier)),
+              findsNothing,
+            );
+            expect(
+              find.byKey(const Key('game-safety-input-guard')),
+              findsNothing,
+            );
             expect(tester.state(surface), same(gameState));
             expect(tester.getRect(surface), gameBounds);
             final openPixels = await _readPixels(tester, gamePixelBounds);
 
             final tapsBefore = gameState.taps;
-            if (dismissWithGameTap) {
+            if (dismissal == 'outside') {
               await tester.tapAt(gameBounds.center);
             } else {
-              await tester.tap(close);
+              if (dismissal == 'button') {
+                await tester.tap(close);
+              } else if (dismissal == 'back') {
+                await tester.binding.handlePopRoute();
+              } else {
+                await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+              }
               await tester.pump();
               expect(title, findsNothing);
               await tester.tapAt(gameBounds.center);
             }
+            // Check before advancing time: a dismissal guard must not swallow
+            // the first game tap and then appear healthy after settling.
+            expect(gameState.taps, tapsBefore + 1);
+            expect(
+              find.byType(ModalBarrier),
+              findsNWidgets(initialBarrierCount),
+            );
+            expect(
+              find.byKey(const Key('game-safety-input-guard')),
+              findsNothing,
+            );
             await _settle(tester);
             expect(gameState.taps, tapsBefore + 1);
             expect(title, findsNothing);
