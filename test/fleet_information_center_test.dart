@@ -303,7 +303,7 @@ void main() {
     expect(taps, 1);
   });
 
-  testWidgets('transport shows S rank and opens the same combined breakdown', (
+  testWidgets('transport shows paired S ranks and the combined breakdown', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1;
@@ -337,7 +337,7 @@ void main() {
     );
     final transport = find.byKey(const Key('fleet-transport-metric'));
     expect(
-      find.descendant(of: transport, matching: find.text('7')),
+      find.descendant(of: transport, matching: find.text('7（4）')),
       findsOneWidget,
     );
     final los = find.byKey(const Key('fleet-los-metric'));
@@ -357,22 +357,26 @@ void main() {
     final popup = find.byKey(const Key('fleet-transport-details-popover'));
     expect(
       find.descendant(of: popup, matching: find.text('第一舰队')),
-      findsOneWidget,
+      findsNWidgets(2),
     );
     expect(
       find.descendant(of: popup, matching: find.text('第二舰队')),
-      findsOneWidget,
+      findsNWidgets(2),
     );
     expect(find.text('5 TP'), findsOneWidget);
     expect(find.text('2 TP'), findsOneWidget);
     expect(find.text('S：7（A：4）'), findsOneWidget);
+    expect(find.text('S：4（A：2）'), findsOneWidget);
+    expect(find.text('普通运输'), findsOneWidget);
+    expect(find.text('战车运输'), findsOneWidget);
+    expect(find.textContaining('2026 夏'), findsNothing);
     await tester.tap(find.byKey(const Key('fleet-transport-details-close')));
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('fleet-button-2')));
     await tester.pump();
     expect(
-      find.descendant(of: transport, matching: find.text('7')),
+      find.descendant(of: transport, matching: find.text('7（4）')),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);

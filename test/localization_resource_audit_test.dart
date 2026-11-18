@@ -100,6 +100,8 @@ void main() {
         'langEn',
         'gameFrameRateStable60',
         'gameFrameRateStable30',
+        'fleetTransportRankValues',
+        'fleetTransportPairedValues',
         'kcwikiReportFailureHttp',
         'senkaBoss',
         'senkaResult',
@@ -212,6 +214,10 @@ void main() {
     // Each entry is intentionally shared: product/game terminology, numerals,
     // protocol names, or a language self-name. Adding a key requires review.
     const reviewedZhHant = <String>{
+      // Transport results use the same S/A rank notation in both scripts.
+      'fleetTransportRankValues',
+      // Paired transport values contain only numbers and parentheses.
+      'fleetTransportPairedValues',
       // These short briefing labels use the same characters in both scripts.
       'briefingTabForecast',
       'briefingTabConstruction',
@@ -430,6 +436,10 @@ void main() {
       'themeClassicDark',
     };
     const reviewedJa = <String>{
+      // Transport results use the same S/A rank notation in Japanese.
+      'fleetTransportRankValues',
+      // Paired transport values contain only numbers and parentheses.
+      'fleetTransportPairedValues',
       // 建造 and 入渠 are the original Japanese dock terms as well.
       'briefingTabConstruction',
       'briefingTabRepair',

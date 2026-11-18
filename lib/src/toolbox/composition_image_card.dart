@@ -320,13 +320,23 @@ class _FleetMetricsStrip extends StatelessWidget {
     final airPower = metrics?.airPower;
     final airPowerMaximum = metrics?.airPowerMaximum;
     final isEscort = isCombinedMember && fleet.id == 2;
-    final transportValue = isEscort
+    final contribution = isEscort
         ? (transport ?? FleetTransportPoints.fromState(state, [fleet]))
               ?.contributions
               .where((part) => part.fleetId == fleet.id)
               .firstOrNull
-              ?.points
-        : transport?.sRank;
+        : null;
+    final points = transport;
+    final transportValue = isEscort
+        ? contribution == null
+              ? l.noValue
+              : l.fleetTransportPairedValues(
+                  contribution.points,
+                  contribution.tankPoints,
+                )
+        : points == null
+        ? l.noValue
+        : l.fleetTransportPairedValues(points.sRank, points.tankSRank);
     final values = <(String, String, String)>[
       (
         'speed',
@@ -360,12 +370,8 @@ class _FleetMetricsStrip extends StatelessWidget {
       ),
       (
         'transport-points',
-        isEscort
-            ? l.fleetTransportContribution
-            : isCombinedMember
-            ? l.fleetCombinedTransportPoints
-            : l.fleetTransportPoints,
-        transportValue?.toString() ?? l.noValue,
+        isEscort ? l.fleetTransportContribution : l.fleetTransportPoints,
+        transportValue,
       ),
     ];
     Widget buildCell(int index, [VoidCallback? onTap]) {
@@ -398,9 +404,17 @@ class _FleetMetricsStrip extends StatelessWidget {
                 ),
               ),
             ),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                maxLines: 1,
+                softWrap: false,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),
@@ -459,18 +473,21 @@ class _FleetMetricsStrip extends StatelessWidget {
       );
     }
 
-    return Row(
-      key: Key('composition-fleet-metrics-${fleet.id}'),
-      children: [
-        for (var index = 0; index < values.length; index++) ...[
-          if (!recordMode && index > 0) const SizedBox(width: 6),
-          Expanded(
-            // Keep the first two cells aligned with the quarter-width roster.
-            flex: recordMode ? (index < 2 ? values.length - 2 : 6) : 1,
-            child: metricAt(index),
-          ),
+    return IntrinsicHeight(
+      child: Row(
+        key: Key('composition-fleet-metrics-${fleet.id}'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var index = 0; index < values.length; index++) ...[
+            if (!recordMode && index > 0) const SizedBox(width: 6),
+            Expanded(
+              // Keep the first two cells aligned with the quarter-width roster.
+              flex: recordMode ? (index < 2 ? values.length - 2 : 6) : 1,
+              child: metricAt(index),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }

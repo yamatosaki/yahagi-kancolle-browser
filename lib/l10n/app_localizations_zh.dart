@@ -613,7 +613,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get fleetBrief => '编队简报';
 
   @override
-  String get fleetTransportPoints => '运输量';
+  String get fleetTransportPoints => '普通（战车）运输量';
+
+  @override
+  String get fleetTransportOrdinary => '普通运输';
+
+  @override
+  String get fleetTransportTank => '战车运输';
+
+  @override
+  String fleetTransportPairedValues(int normal, int tank) {
+    return '$normal（$tank）';
+  }
 
   @override
   String get fleetCombinedTransportPoints => '联合运输量';
@@ -4839,7 +4850,18 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get fleetBrief => '艦隊簡報';
 
   @override
-  String get fleetTransportPoints => '運輸量';
+  String get fleetTransportPoints => '普通（戰車）運輸量';
+
+  @override
+  String get fleetTransportOrdinary => '普通運輸';
+
+  @override
+  String get fleetTransportTank => '戰車運輸';
+
+  @override
+  String fleetTransportPairedValues(int normal, int tank) {
+    return '$normal（$tank）';
+  }
 
   @override
   String get fleetCombinedTransportPoints => '聯合運輸量';

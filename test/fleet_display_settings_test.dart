@@ -286,7 +286,7 @@ void main() {
       checkbox('transport-points').onSelected!(true);
       await tester.pumpAndSettle();
       expect(checkbox('transport-points').selected, isTrue);
-      expect(find.text('运输量'), findsOneWidget);
+      expect(find.text('普通（战车）运输量'), findsOneWidget);
       final restored = await LayoutSettingsController.load(store);
       addTearDown(restored.dispose);
       expect(restored.fleetDisplayFields, contains('transport-points'));

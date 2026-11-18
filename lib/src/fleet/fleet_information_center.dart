@@ -2033,9 +2033,6 @@ class _MetricsBar extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final requiredL10n = _fleetL10n(context);
     final points = transportPoints;
-    final combinedTransport =
-        (fleetId == 1 || fleetId == 2) &&
-        state.combinedFleetType != CombinedFleetType.none;
     final showsCountdown =
         moraleRecoveryTimerController != null &&
         moraleMetricMode == FleetMoraleMetricMode.recoveryCountdown;
@@ -2079,10 +2076,13 @@ class _MetricsBar extends StatelessWidget {
         formula33.isEmpty ? noValue : formula33.first.total.toStringAsFixed(2),
       ),
       (
-        combinedTransport
-            ? requiredL10n.fleetCombinedTransportPoints
-            : requiredL10n.fleetTransportPoints,
-        points?.sRank.toString() ?? noValue,
+        requiredL10n.fleetTransportPoints,
+        points == null
+            ? noValue
+            : requiredL10n.fleetTransportPairedValues(
+                points.sRank,
+                points.tankSRank,
+              ),
       ),
       (moraleLabel, moraleValue),
     ];
@@ -2140,7 +2140,7 @@ class _MetricsBar extends StatelessWidget {
     return Row(
       children: [
         for (var index = 0; index < values.length; index++) ...[
-          Expanded(child: metricAt(index)),
+          Expanded(flex: index == 8 ? 2 : 1, child: metricAt(index)),
           if (index != values.length - 1) const SizedBox(width: 5),
         ],
       ],

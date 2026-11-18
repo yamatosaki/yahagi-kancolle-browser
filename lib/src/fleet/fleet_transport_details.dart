@@ -23,34 +23,49 @@ class FleetTransportDetails extends StatelessWidget {
         AppLocalizations.of(context) ??
         lookupAppLocalizations(const Locale('zh'));
     return FleetMetricDetailsPopover(
-      title: points.isCombined
-          ? l10n.fleetCombinedTransportPoints
-          : l10n.fleetTransportPoints,
+      title: l10n.fleetTransportPoints,
       closeLabel: l10n.close,
       cardKey: const Key('fleet-transport-details-popover'),
       closeKey: const Key('fleet-transport-details-close'),
       viewportContext: viewportContext,
       builder: builder,
       children: [
-        if (points.isCombined) ...[
-          for (final contribution in points.contributions)
-            FleetMetricDetailRow(
-              label: contribution.fleetId == 1
-                  ? l10n.questEligibleFleetFirst
-                  : l10n.questEligibleFleetSecond,
-              value: '${contribution.points} TP',
+        for (final tank in [false, true]) ...[
+          if (tank) const SizedBox(height: 14),
+          Text(
+            tank ? l10n.fleetTransportTank : l10n.fleetTransportOrdinary,
+            style: appTextStyle(
+              context,
+              TextStyle(
+                fontSize: 12,
+                color: appColor(context, const Color(0xff9fb4bf)),
+              ),
             ),
-          if (points.kinuBonus > 0)
-            FleetMetricDetailRow(
-              label: l10n.fleetTransportKinuBonus,
-              value: '+${points.kinuBonus} TP',
+          ),
+          if (points.isCombined) ...[
+            for (final contribution in points.contributions)
+              FleetMetricDetailRow(
+                label: contribution.fleetId == 1
+                    ? l10n.questEligibleFleetFirst
+                    : l10n.questEligibleFleetSecond,
+                value:
+                    '${tank ? contribution.tankPoints : contribution.points} TP',
+              ),
+            if (points.kinuBonus > 0)
+              FleetMetricDetailRow(
+                label: l10n.fleetTransportKinuBonus,
+                value: '+${points.kinuBonus} TP',
+              ),
+            Divider(color: appColor(context, const Color(0xff294052))),
+          ],
+          FleetMetricDetailRow(
+            label: l10n.fleetTransportTotal,
+            value: l10n.fleetTransportRankValues(
+              tank ? points.tankSRank : points.sRank,
+              tank ? points.tankARank : points.aRank,
             ),
-          Divider(color: appColor(context, const Color(0xff294052))),
+          ),
         ],
-        FleetMetricDetailRow(
-          label: l10n.fleetTransportTotal,
-          value: l10n.fleetTransportRankValues(points.sRank, points.aRank),
-        ),
       ],
     );
   }

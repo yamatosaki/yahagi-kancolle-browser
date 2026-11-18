@@ -1252,8 +1252,26 @@ abstract class AppLocalizations {
   /// No description provided for @fleetTransportPoints.
   ///
   /// In zh, this message translates to:
-  /// **'运输量'**
+  /// **'普通（战车）运输量'**
   String get fleetTransportPoints;
+
+  /// No description provided for @fleetTransportOrdinary.
+  ///
+  /// In zh, this message translates to:
+  /// **'普通运输'**
+  String get fleetTransportOrdinary;
+
+  /// No description provided for @fleetTransportTank.
+  ///
+  /// In zh, this message translates to:
+  /// **'战车运输'**
+  String get fleetTransportTank;
+
+  /// No description provided for @fleetTransportPairedValues.
+  ///
+  /// In zh, this message translates to:
+  /// **'{normal}（{tank}）'**
+  String fleetTransportPairedValues(int normal, int tank);
 
   /// No description provided for @fleetCombinedTransportPoints.
   ///

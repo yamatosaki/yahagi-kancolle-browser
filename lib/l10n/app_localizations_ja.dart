@@ -622,7 +622,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get fleetBrief => '編成情報';
 
   @override
-  String get fleetTransportPoints => '輸送量';
+  String get fleetTransportPoints => '通常（戦車）輸送量';
+
+  @override
+  String get fleetTransportOrdinary => '通常輸送';
+
+  @override
+  String get fleetTransportTank => '戦車輸送';
+
+  @override
+  String fleetTransportPairedValues(int normal, int tank) {
+    return '$normal（$tank）';
+  }
 
   @override
   String get fleetCombinedTransportPoints => '連合輸送量';

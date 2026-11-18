@@ -649,7 +649,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fleetBrief => 'Fleet summary';
 
   @override
-  String get fleetTransportPoints => 'TP';
+  String get fleetTransportPoints => 'Normal (tank) TP';
+
+  @override
+  String get fleetTransportOrdinary => 'Normal transport';
+
+  @override
+  String get fleetTransportTank => 'Tank transport';
+
+  @override
+  String fleetTransportPairedValues(int normal, int tank) {
+    return '$normal ($tank)';
+  }
 
   @override
   String get fleetCombinedTransportPoints => 'Combined TP';

@@ -8,6 +8,7 @@ import 'package:yahagi_kancolle_browser/src/fleet/separated_wrap.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/morale_recovery_timer_controller.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
+import 'package:yahagi_kancolle_browser/src/layout/hd_dashboard_content.dart';
 import 'package:yahagi_kancolle_browser/src/layout/panel_style.dart';
 import 'package:yahagi_kancolle_browser/src/notification/notification_timer_anchor_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
@@ -366,7 +367,7 @@ void main() {
   });
 
   testWidgets(
-    'opt-in transport metric shows a single value and joint details',
+    'opt-in transport metric shows paired values in port and on sortie',
     (tester) async {
       final fixture = await _controllerWithPortData();
       addTearDown(fixture.dispose);
@@ -387,6 +388,7 @@ void main() {
         const Key('fleet-summary-metric-transport-points-value'),
       );
       const totalText = 'S：7（A：4）';
+      const tankTotalText = 'S：4（A：2）';
 
       await tester.pumpWidget(_card(controller: controller));
       expect(transport, findsNothing);
@@ -401,9 +403,10 @@ void main() {
           },
         ),
       );
-      expect(tester.widget<Text>(transportValue).data, '7');
-      expect(find.text('联合运输量'), findsOneWidget);
+      expect(tester.widget<Text>(transportValue).data, '7（4）');
+      expect(find.text('普通（战车）运输量'), findsOneWidget);
       expect(find.text(totalText), findsNothing);
+      expect(find.text(tankTotalText), findsNothing);
       final transportX = tester.getCenter(transport).dx;
       expect(
         tester
@@ -425,20 +428,157 @@ void main() {
       await tester.tap(transport);
       await tester.pumpAndSettle();
       final popover = find.byKey(const Key('fleet-transport-details-popover'));
-      for (final value in [totalText, '第一舰队', '第二舰队', '5 TP', '2 TP']) {
+      for (final value in [
+        totalText,
+        tankTotalText,
+        '5 TP',
+        '2 TP',
+        '3 TP',
+        '1 TP',
+      ]) {
         expect(
           find.descendant(of: popover, matching: find.text(value)),
           findsOneWidget,
+        );
+      }
+      for (final label in ['第一舰队', '第二舰队']) {
+        expect(
+          find.descendant(of: popover, matching: find.text(label)),
+          findsNWidgets(2),
         );
       }
       await tester.tap(find.byKey(const Key('fleet-transport-details-close')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('fleet-summary-selector-2')));
       await tester.pump();
-      expect(tester.widget<Text>(transportValue).data, '7');
+      expect(tester.widget<Text>(transportValue).data, '7（4）');
+      controller.accept(
+        kcsapiEvent(
+          '/kcsapi/api_req_map/start',
+          {'api_maparea_id': 1, 'api_mapinfo_no': 1, 'api_no': 1},
+          requestParams: {'api_deck_id': '1'},
+        ),
+      );
+      await controller.idle;
+      await tester.pump();
+      expect(controller.state.combatState.isActive, isTrue);
+      expect(tester.widget<Text>(transportValue).data, '7（4）');
+      expect(find.text('普通（战车）运输量'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
+
+  for (final (label, width, columns, style, fields) in [
+    (
+      'ordinary phone',
+      390.0,
+      1,
+      PanelStyle.card,
+      {
+        'speed',
+        'air-power',
+        'line-of-sight',
+        'transport-points',
+        'recovery-countdown',
+      },
+    ),
+    (
+      'compact phone',
+      320.0,
+      1,
+      PanelStyle.flat,
+      {
+        'speed',
+        'air-power',
+        'line-of-sight',
+        'transport-points',
+        'recovery-countdown',
+      },
+    ),
+    (
+      'HD seven fields',
+      760.0,
+      2,
+      PanelStyle.card,
+      {
+        'speed',
+        'firepower',
+        'anti-sub',
+        'air-power',
+        'line-of-sight',
+        'transport-points',
+        'recovery-countdown',
+      },
+    ),
+  ]) {
+    testWidgets('paired transport title stays readable in $label', (
+      tester,
+    ) async {
+      final controller = await _controllerWithPortData();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: width,
+                child: HdModuleColumns(
+                  columns: columns,
+                  child: PanelStyleScope(
+                    style: style,
+                    child: FleetSummaryCard(
+                      controller: controller,
+                      collapsed: false,
+                      onToggleCollapse: () {},
+                      onOpenFleet: (_) {},
+                      visible: fields,
+                      twoColumnVisible: fields,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final transport = find.byKey(
+        const Key('fleet-summary-metric-transport-points'),
+      );
+      final title = find.descendant(
+        of: transport,
+        matching: find.text('普通（战车）运输量'),
+      );
+      final value = find.byKey(
+        const Key('fleet-summary-metric-transport-points-value'),
+      );
+      expect(title, findsOneWidget);
+      expect(tester.widget<Text>(value).data, '7（5）');
+      if (style == PanelStyle.card) {
+        final titleBox = tester.renderObject<RenderBox>(title);
+        final metricBox = tester.renderObject<RenderBox>(transport);
+        final titleTransform = titleBox.getTransformTo(metricBox);
+        expect(titleTransform.getMaxScaleOnAxis(), greaterThanOrEqualTo(.85));
+      }
+      await tester.tap(transport);
+      await tester.pumpAndSettle();
+      final popover = find.byKey(const Key('fleet-transport-details-popover'));
+      expect(
+        find.descendant(of: popover, matching: find.text('S：7（A：4）')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: popover, matching: find.text('S：5（A：3）')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byKey(const Key('fleet-transport-details-close')));
+      await tester.pumpAndSettle();
+    });
+  }
 
   testWidgets('air power metric opens the shared air power details', (
     tester,

@@ -17,18 +17,26 @@ import 'package:yahagi_kancolle_browser/src/toolbox/sortie_map_query/sortie_map_
 import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 
 void main() {
-  testWidgets('saved transport uses the selected formation and frozen fleet', (
+  testWidgets('saved paired transport uses the formation and frozen loadout', (
     tester,
   ) async {
     const savedState = GameState(
       memberId: 7,
       ships: {
-        1: OwnedShip(id: 1, masterId: 100, level: 99),
-        2: OwnedShip(id: 2, masterId: 101, level: 95),
+        1: OwnedShip(id: 1, masterId: 100, level: 99, slotIds: [501]),
+        2: OwnedShip(id: 2, masterId: 101, level: 95, slotIds: [502]),
       },
       masterShips: {
         100: MasterShip(id: 100, name: '曉改二', shipTypeId: 2),
         101: MasterShip(id: 101, name: '最上改二', shipTypeId: 6),
+      },
+      slotItems: {
+        501: OwnedSlotItem(instanceId: 501, masterSlotItemId: 576),
+        502: OwnedSlotItem(instanceId: 502, masterSlotItemId: 68),
+      },
+      masterSlotItems: {
+        576: MasterSlotItem(id: 576, name: '大発動艇(R35＆フランス兵)', type: [0, 0, 24]),
+        68: MasterSlotItem(id: 68, name: '大発動艇', type: [0, 0, 24]),
       },
       fleets: [
         Fleet(id: 1, name: '主力', shipIds: [1]),
@@ -91,7 +99,18 @@ void main() {
         home: TopNoticeHost(
           child: Scaffold(
             body: CompositionImagePage(
-              state: const GameState(memberId: 7),
+              state: savedState.copyWith(
+                slotItems: {
+                  501: const OwnedSlotItem(
+                    instanceId: 501,
+                    masterSlotItemId: 68,
+                  ),
+                  502: const OwnedSlotItem(
+                    instanceId: 502,
+                    masterSlotItemId: 576,
+                  ),
+                },
+              ),
               recordStore: store,
             ),
           ),
@@ -108,32 +127,52 @@ void main() {
     );
     expect(tester.getTopRight(scouting).dx, tester.getTopLeft(main).dx);
     expect(tester.getSize(main), tester.getSize(scouting));
-    expect(find.descendant(of: main, matching: find.text('9')), findsOneWidget);
     expect(
-      find.descendant(of: escort, matching: find.text('4')),
+      find.descendant(of: main, matching: find.text('普通（战车）运输量')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: main, matching: find.text('25（36）')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: escort, matching: find.text('12（9）')),
       findsOneWidget,
     );
     await tester.tap(main);
     await tester.pumpAndSettle();
     final popup = find.byKey(const Key('fleet-transport-details-popover'));
     expect(popup, findsOneWidget);
-    for (final value in ['5 TP', '4 TP']) {
+    for (final label in ['普通运输', '战车运输']) {
+      expect(
+        find.descendant(of: popup, matching: find.text(label)),
+        findsOneWidget,
+      );
+    }
+    for (final value in ['13 TP', '12 TP', '27 TP', '9 TP']) {
       expect(
         find.descendant(of: popup, matching: find.text(value)),
         findsOneWidget,
       );
     }
     expect(
-      find.descendant(of: popup, matching: find.text('S：9（A：6）')),
+      find.descendant(of: popup, matching: find.text('S：25（A：17）')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: popup, matching: find.text('S：36（A：25）')),
       findsOneWidget,
     );
     await tester.tap(find.byKey(const Key('fleet-transport-details-close')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('composition-record-ordinary')));
     await tester.pumpAndSettle();
-    expect(find.descendant(of: main, matching: find.text('5')), findsOneWidget);
     expect(
-      find.descendant(of: escort, matching: find.text('4')),
+      find.descendant(of: main, matching: find.text('13（27）')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: escort, matching: find.text('12（9）')),
       findsOneWidget,
     );
     await tester.tap(
@@ -142,10 +181,7 @@ void main() {
     await tester.pumpAndSettle();
     final l10n = lookupAppLocalizations(const Locale('zh'));
     expect(
-      find.descendant(
-        of: main,
-        matching: find.text(l10n.fleetCombinedTransportPoints),
-      ),
+      find.descendant(of: main, matching: find.text('普通（战车）运输量')),
       findsOneWidget,
     );
     expect(

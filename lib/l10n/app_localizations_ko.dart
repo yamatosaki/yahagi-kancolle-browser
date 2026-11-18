@@ -627,7 +627,18 @@ class AppLocalizationsKo extends AppLocalizations {
   String get fleetBrief => '함대 요약';
 
   @override
-  String get fleetTransportPoints => '수송량';
+  String get fleetTransportPoints => '일반(전차) 수송량';
+
+  @override
+  String get fleetTransportOrdinary => '일반 수송';
+
+  @override
+  String get fleetTransportTank => '전차 수송';
+
+  @override
+  String fleetTransportPairedValues(int normal, int tank) {
+    return '$normal ($tank)';
+  }
 
   @override
   String get fleetCombinedTransportPoints => '연합 수송량';

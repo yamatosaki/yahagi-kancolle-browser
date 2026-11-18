@@ -9,6 +9,68 @@ import 'package:yahagi_kancolle_browser/src/toolbox/composition_image_card.dart'
 import 'fixtures/composition_image_fixture.dart';
 
 void main() {
+  testWidgets('paired transport fits the record and image metric cells', (
+    tester,
+  ) async {
+    const equipment = [501, 502, 503, 504, 505];
+    final state = GameState(
+      ships: {
+        for (var id = 1; id <= 12; id++)
+          id: OwnedShip(
+            id: id,
+            masterId: 100,
+            level: 99,
+            slotIds: equipment,
+            extraSlotId: 506,
+          ),
+      },
+      masterShips: const {
+        100: MasterShip(id: 100, name: '輸送艦', shipTypeId: 22, slotCount: 5),
+      },
+      slotItems: {
+        for (var id = 501; id <= 506; id++)
+          id: OwnedSlotItem(instanceId: id, masterSlotItemId: 576),
+      },
+      masterSlotItems: const {
+        576: MasterSlotItem(id: 576, name: '大発動艇(R35＆フランス兵)', type: [0, 0, 24]),
+      },
+      fleets: const [
+        Fleet(id: 1, name: '主力', shipIds: [1, 2, 3, 4, 5, 6]),
+        Fleet(id: 2, name: '护卫', shipIds: [7, 8, 9, 10, 11, 12]),
+      ],
+    );
+    for (final recordMode in [true, false]) {
+      await _pump(
+        tester,
+        state: state,
+        fleetIds: {1, 2},
+        recordMode: recordMode,
+        isCombinedFleet: true,
+      );
+      final metric = find.byKey(
+        const Key('composition-metric-1-transport-points'),
+      );
+      final value = find.descendant(
+        of: metric,
+        matching: find.text('756（1862）'),
+      );
+      expect(value, findsOneWidget);
+      final cellRect = tester.getRect(metric);
+      final valueRect = tester.getRect(value);
+      for (final field in ['speed', 'line-of-sight']) {
+        final other = tester.getRect(
+          find.byKey(Key('composition-metric-1-$field')),
+        );
+        expect(other.top, cellRect.top);
+        expect(other.height, cellRect.height);
+      }
+      expect(valueRect.left, greaterThanOrEqualTo(cellRect.left));
+      expect(valueRect.right, lessThanOrEqualTo(cellRect.right));
+      expect(valueRect.bottom, lessThanOrEqualTo(cellRect.bottom));
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets('record mode uses contiguous table cells and keeps equipment', (
     tester,
   ) async {
@@ -761,6 +823,7 @@ Future<void> _pump(
   CompositionPlaneCountMode mode = CompositionPlaneCountMode.current,
   DateTime? generatedAt,
   bool recordMode = false,
+  bool isCombinedFleet = false,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = const Size(1300, 800);
@@ -784,6 +847,7 @@ Future<void> _pump(
               planeCountMode: mode,
               generatedAt: generatedAt ?? DateTime(2026, 9, 12, 21, 6, 7),
               recordMode: recordMode,
+              isCombinedFleet: isCombinedFleet,
             ),
           ),
         ),

@@ -426,9 +426,6 @@ class _FleetSummaryMetrics extends StatelessWidget {
     final noValue = l10n?.noValue ?? '—';
     final current = metrics;
     final transport = transportPoints;
-    final combinedTransport =
-        (fleetId == 1 || fleetId == 2) &&
-        state.combinedFleetType != CombinedFleetType.none;
     final airPower = current?.airPower;
     final airPowerMaximum = current?.airPowerMaximum;
     final hasAirPowerDetails =
@@ -495,10 +492,13 @@ class _FleetSummaryMetrics extends StatelessWidget {
               ),
               (
                 'transport-points',
-                combinedTransport
-                    ? requiredL10n.fleetCombinedTransportPoints
-                    : requiredL10n.fleetTransportPoints,
-                transport == null ? noValue : '${transport.sRank}',
+                requiredL10n.fleetTransportPoints,
+                transport == null
+                    ? noValue
+                    : requiredL10n.fleetTransportPairedValues(
+                        transport.sRank,
+                        transport.tankSRank,
+                      ),
               ),
               (
                 'minimum-condition',
@@ -576,7 +576,13 @@ class _FleetSummaryMetrics extends StatelessWidget {
           : CrossAxisAlignment.center,
       children: [
         for (var index = 0; index < values.length; index++) ...[
-          if (vertical) metricAt(index) else Expanded(child: metricAt(index)),
+          if (vertical)
+            metricAt(index)
+          else
+            Expanded(
+              flex: values[index].$1 == 'transport-points' ? 2 : 1,
+              child: metricAt(index),
+            ),
           if (index != values.length - 1)
             SizedBox(width: vertical ? 0 : 4, height: vertical ? 3 : 0),
         ],
