@@ -3,6 +3,7 @@ import '../theme/app_palette.dart';
 import '../settings/fleet_display_options.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import '../battle/battle_controller.dart';
 import '../game_state/fleet_metrics.dart';
 import '../game_state/game_state_controller.dart';
 import '../game_state/game_state.dart';
@@ -40,6 +41,7 @@ class FleetSummaryCard extends StatefulWidget {
     required this.collapsed,
     required this.onToggleCollapse,
     required this.onOpenFleet,
+    this.battleController,
     this.onOpenShip,
     this.damagePulseFilter = DamagePulseFilter.all,
     this.moraleSparkleMode = MoraleSparkleMode.blinking,
@@ -54,6 +56,7 @@ class FleetSummaryCard extends StatefulWidget {
   });
 
   final GameStateController controller;
+  final BattleController? battleController;
   final bool collapsed;
   final VoidCallback onToggleCollapse;
   final ValueChanged<int> onOpenFleet;
@@ -118,29 +121,11 @@ class _FleetSummaryCardState extends State<FleetSummaryCard> {
             : detectFleetSpecialAttack(state, selectedFleet);
         final twoColumns = HdModuleColumns.of(context) > 1;
         final flat = PanelStyleScope.isFlat(context);
-        void selectFleet(int id) => setState(() => _selectedFleetId = id);
-        final fleetSwitcher = flat
-            ? FlatUnderlineTabs(
-                key: const Key('fleet-summary-switcher'),
-                options: [
-                  for (final fleet in state.fleets.take(4))
-                    FlatTextToggleOption(
-                      key: Key('fleet-summary-selector-${fleet.id}'),
-                      label: _fleetSelectorLabel(fleet),
-                      selected: fleet.id == _selectedFleetId,
-                      onTap: () => selectFleet(fleet.id),
-                    ),
-                ],
-              )
-            : _FleetSegmentedSwitcher(
-                fleets: state.fleets,
-                selectedFleetId: _selectedFleetId,
-                onSelected: selectFleet,
-              );
         // Keep the ship subtree until captured data, preferences, locale, or
         // repair badges change. Only morale/countdown metrics need every tick.
         Localizations.localeOf(context);
         Widget? cachedShips;
+        Widget? cachedSwitcher;
         Map<int, ShipRepairStatus>? cachedRepairStatuses;
         final recoveryDeadline = summaryVisible.contains('recovery-countdown')
             ? widget.moraleRecoveryTimerController?.targetForFleet(
@@ -170,8 +155,16 @@ class _FleetSummaryCardState extends State<FleetSummaryCard> {
                   );
             if (!mapEquals(cachedRepairStatuses, repairStatuses)) {
               cachedShips = null;
+              cachedSwitcher = null;
               cachedRepairStatuses = repairStatuses;
             }
+            final fleetSwitcher = cachedSwitcher ??= _FleetSummarySwitcher(
+              state: state,
+              repairStatuses: repairStatuses,
+              battleController: widget.battleController,
+              selectedFleetId: _selectedFleetId,
+              onSelected: (id) => setState(() => _selectedFleetId = id),
+            );
             Widget minimalShipAt(int index) => FleetShipMinimalRow(
               state: state,
               ship: ships[index],
@@ -342,46 +335,102 @@ class _FleetSummaryBody extends StatelessWidget {
   }
 }
 
-class _FleetSegmentedSwitcher extends StatelessWidget {
-  const _FleetSegmentedSwitcher({
-    required this.fleets,
+class _FleetSummarySwitcher extends StatelessWidget {
+  const _FleetSummarySwitcher({
+    required this.state,
+    required this.repairStatuses,
+    required this.battleController,
     required this.selectedFleetId,
     required this.onSelected,
   });
 
-  final List<Fleet> fleets;
+  final GameState state;
+  final Map<int, ShipRepairStatus> repairStatuses;
+  final BattleController? battleController;
   final int selectedFleetId;
   final ValueChanged<int> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    final visibleFleets = fleets.take(4).toList();
+    final battle = battleController;
+    if (battle == null) return _buildTabs(context);
+    return AnimatedBuilder(
+      animation: battle,
+      builder: (context, _) => _buildTabs(context),
+    );
+  }
+
+  Widget _buildTabs(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final practiceFleetId = battleController?.activePracticeFleetId;
+    final combat = state.combatState;
+    final sortieFleetId =
+        combat.isActive && battleController?.current?.context.practice != true
+        ? combat.sortieFleetId
+        : null;
+    const switcherKey = Key('fleet-summary-switcher');
+    final options = [
+      for (final fleet in state.fleets.take(4))
+        FlatTextToggleOption(
+          key: Key('fleet-summary-selector-${fleet.id}'),
+          label: _fleetSelectorLabel(fleet),
+          selected: fleet.id == selectedFleetId,
+          backgroundColor: _fleetTabBackground(
+            palette,
+            state,
+            fleet,
+            sortieFleetId: sortieFleetId,
+            practiceFleetId: practiceFleetId,
+            repairStatuses: repairStatuses,
+          ),
+          onTap: () => onSelected(fleet.id),
+        ),
+    ];
+    if (PanelStyleScope.isFlat(context)) {
+      return FlatUnderlineTabs(key: switcherKey, options: options);
+    }
+    final radius = AppSegmentedStyle.itemRadius(compact: true);
     return Container(
-      key: const Key('fleet-summary-switcher'),
+      key: switcherKey,
       height: AppSegmentedStyle.compactHeight,
       padding: AppSegmentedStyle.padding(compact: true),
       decoration: AppSegmentedStyle.decoration(context, compact: true),
       child: Row(
-        children: visibleFleets.map((fleet) {
-          final isSelected = fleet.id == selectedFleetId;
+        children: options.map((option) {
+          final isSelected = option.selected;
+          final background = option.backgroundColor;
           return Expanded(
             child: Material(
-              key: Key('fleet-summary-selector-${fleet.id}'),
-              color: AppSegmentedStyle.selection(context, isSelected),
-              borderRadius: AppSegmentedStyle.itemRadius(compact: true),
+              key: option.key,
+              color:
+                  background ??
+                  AppSegmentedStyle.selection(context, isSelected),
+              shape: RoundedRectangleBorder(
+                borderRadius: radius,
+                side: isSelected && background != null
+                    ? BorderSide(
+                        color: AppSegmentedStyle.selectedBorder(context),
+                      )
+                    : BorderSide.none,
+              ),
               child: InkWell(
-                onTap: () => onSelected(fleet.id),
-                borderRadius: AppSegmentedStyle.itemRadius(compact: true),
+                onTap: option.onTap,
+                borderRadius: radius,
                 child: Center(
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Text(
-                      _fleetSelectorLabel(fleet),
-                      style: AppSegmentedStyle.textStyle(
-                        context,
-                        selected: isSelected,
-                        compact: true,
-                      ),
+                      option.label,
+                      style:
+                          AppSegmentedStyle.textStyle(
+                            context,
+                            selected: isSelected,
+                            compact: true,
+                          ).copyWith(
+                            color: !isSelected && background != null
+                                ? palette.foreground
+                                : null,
+                          ),
                     ),
                   ),
                 ),
@@ -392,6 +441,59 @@ class _FleetSegmentedSwitcher extends StatelessWidget {
       ),
     );
   }
+}
+
+Color? _fleetTabBackground(
+  AppPalette palette,
+  GameState state,
+  Fleet fleet, {
+  required int? sortieFleetId,
+  required int? practiceFleetId,
+  required Map<int, ShipRepairStatus> repairStatuses,
+}) {
+  final onSortie =
+      fleet.id == sortieFleetId ||
+      (sortieFleetId == 1 &&
+          fleet.id == 2 &&
+          state.combinedFleetType != CombinedFleetType.none);
+  if (onSortie || fleet.id == practiceFleetId) {
+    return palette.color(const Color(0xff5a2528));
+  }
+  if (fleet.mission.isActive ||
+      state.pendingExpeditionSupplyShipIds.values.any(
+        (shipIds) => fleet.shipIds.any(shipIds.contains),
+      )) {
+    return palette.isDark ? const Color(0xff203e5c) : palette.infoSurface;
+  }
+
+  final green = palette.isDark
+      ? const Color(0xff214630)
+      : palette.successSurface;
+  if (fleet.shipIds.any((id) {
+    final status = repairStatuses[id];
+    return status == ShipRepairStatus.anchorage ||
+        status == ShipRepairStatus.nosakiSparkle;
+  })) {
+    return green;
+  }
+
+  var supplyKnown = fleet.shipIds.isNotEmpty;
+  for (final id in fleet.shipIds) {
+    final ship = state.ships[id];
+    final master = ship == null ? null : state.masterForShip(ship);
+    if (ship == null ||
+        master == null ||
+        (master.maxFuel <= 0 && master.maxAmmo <= 0)) {
+      supplyKnown = false;
+      continue;
+    }
+    if (ship.currentFuel < master.maxFuel ||
+        ship.currentAmmo < master.maxAmmo) {
+      return palette.isDark ? const Color(0xff4d3f1a) : palette.goldSurface;
+    }
+  }
+  if (!supplyKnown) return null;
+  return green;
 }
 
 String _fleetSelectorLabel(Fleet fleet) =>

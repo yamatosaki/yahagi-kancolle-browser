@@ -2241,6 +2241,168 @@ void main() {
       expect(state.fleets.every((fleet) => !fleet.mission.isActive), isTrue);
     });
 
+    test('deck-only expedition return waits for reported fuel and ammo', () {
+      final reducer = GameStateReducer();
+      var state = reducer.reduce(GameState.empty, portEvent);
+      final port =
+          (jsonDecode(portEvent.responseBody) as Map)['api_data']
+              as Map<String, dynamic>;
+      final decks = port['api_deck_port'] as List;
+      decks[1]['api_mission'] = [0, 0, 0, 0];
+      state = reducer.reduce(
+        state,
+        kcsapiEvent('/kcsapi/api_get_member/deck', decks),
+      );
+
+      expect(state.fleets[1].mission.isActive, isFalse);
+      expect(state.pendingExpeditionSupplyShipIds, {
+        2: {9002},
+      });
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent('/kcsapi/api_get_member/ship_deck', {
+          'api_ship_data': [
+            {'api_id': 9002, 'api_ship_id': 102, 'api_fuel': 8},
+          ],
+        }),
+      );
+      expect(state.pendingExpeditionSupplyShipIds, {
+        2: {9002},
+      });
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent('/kcsapi/api_get_member/ship_deck', {
+          'api_ship_data': [
+            {'api_id': 9002, 'api_ship_id': 102, 'api_fuel': 8, 'api_bull': 10},
+          ],
+        }),
+      );
+      expect(state.pendingExpeditionSupplyShipIds, isEmpty);
+    });
+
+    test(
+      'port return already includes fresh supply before expedition result',
+      () {
+        final reducer = GameStateReducer();
+        var state = reducer.reduce(GameState.empty, portEvent);
+        final port =
+            (jsonDecode(portEvent.responseBody) as Map)['api_data']
+                as Map<String, dynamic>;
+        final decks = port['api_deck_port'] as List;
+        decks[1]['api_mission'] = [0, 0, 0, 0];
+
+        state = reducer.reduce(
+          state,
+          kcsapiEvent('/kcsapi/api_port/port', port),
+        );
+        expect(state.fleets[1].mission.isActive, isFalse);
+        expect(state.pendingExpeditionSupplyShipIds, isEmpty);
+
+        state = reducer.reduce(
+          state,
+          kcsapiEvent(
+            '/kcsapi/api_req_mission/result',
+            {'api_clear_result': 1},
+            requestParams: {'api_deck_id': '2'},
+          ),
+        );
+        expect(state.pendingExpeditionSupplyShipIds, isEmpty);
+      },
+    );
+
+    test('returned fleets wait independently for every member to refresh', () {
+      final reducer = GameStateReducer();
+      final mission = FleetMission(
+        state: 1,
+        missionId: 5,
+        completionTime: DateTime.utc(2026, 7, 30, 9),
+      );
+      var state = GameState(
+        fleets: [
+          Fleet(id: 2, name: '第二舰队', shipIds: [1, 2], mission: mission),
+          Fleet(id: 3, name: '第三舰队', shipIds: [3], mission: mission),
+        ],
+        ships: const {
+          1: OwnedShip(id: 1, masterId: 101, level: 1),
+          2: OwnedShip(id: 2, masterId: 101, level: 1),
+          3: OwnedShip(id: 3, masterId: 101, level: 1),
+        },
+      );
+
+      void settle(int id) {
+        state = reducer.reduce(
+          state,
+          kcsapiEvent(
+            '/kcsapi/api_req_mission/result',
+            {'api_clear_result': 1},
+            requestParams: {'api_deck_id': '$id'},
+          ),
+        );
+      }
+
+      settle(2);
+      settle(3);
+      expect(state.pendingExpeditionSupplyShipIds, {
+        2: {1, 2},
+        3: {3},
+      });
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent('/kcsapi/api_req_hokyu/charge', {
+          'api_ship': [
+            {'api_id': 1, 'api_fuel': 10, 'api_bull': 10},
+            {'api_id': 3, 'api_fuel': 10},
+          ],
+        }),
+      );
+      settle(2);
+      expect(state.pendingExpeditionSupplyShipIds, {
+        2: {2},
+        3: {3},
+      });
+
+      state = reducer.reduce(
+        state,
+        kcsapiEvent('/kcsapi/api_get_member/ship2', [
+          {'api_id': 2, 'api_ship_id': 101, 'api_fuel': 0, 'api_bull': 0},
+        ]),
+      );
+      expect(state.pendingExpeditionSupplyShipIds, {
+        3: {3},
+      });
+    });
+
+    test(
+      'unassigned ships can refresh and login clears any remaining wait',
+      () {
+        final reducer = GameStateReducer();
+        const waiting = GameState(
+          ships: {
+            1: OwnedShip(id: 1, masterId: 101, level: 1),
+            2: OwnedShip(id: 2, masterId: 101, level: 1),
+          },
+          pendingExpeditionSupplyShipIds: {
+            2: {1, 2},
+          },
+        );
+        final refreshed = reducer.reduce(
+          waiting,
+          kcsapiEvent('/kcsapi/api_get_member/ship2', [
+            {'api_id': 1, 'api_ship_id': 101, 'api_fuel': 25, 'api_bull': 40},
+          ]),
+        );
+        expect(refreshed.pendingExpeditionSupplyShipIds, {
+          2: {2},
+        });
+
+        final login = reducer.reduce(refreshed, start2Event);
+        expect(login.pendingExpeditionSupplyShipIds, isEmpty);
+      },
+    );
+
     test(
       'expedition result clears only the specified fleet when missions match',
       () {

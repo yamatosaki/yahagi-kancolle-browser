@@ -1058,6 +1058,7 @@ class GameState {
     this.ships = const <int, OwnedShip>{},
     this.slotItems = const <int, OwnedSlotItem>{},
     this.fleets = const <Fleet>[],
+    Map<int, Set<int>>? pendingExpeditionSupplyShipIds,
     this.repairDocks = const <RepairDock>[],
     this.constructionDocks = const <ConstructionDock>[],
     this.landBases = const <LandBaseState>[],
@@ -1085,7 +1086,9 @@ class GameState {
        // ignore: prefer_initializing_formals
        _hasFurnitureCoinData = hasFurnitureCoinData,
        // ignore: prefer_initializing_formals
-       _mapDifficulties = mapDifficulties;
+       _mapDifficulties = mapDifficulties,
+       // ignore: prefer_initializing_formals
+       _pendingExpeditionSupplyShipIds = pendingExpeditionSupplyShipIds;
 
   static const GameState empty = GameState();
 
@@ -1114,6 +1117,13 @@ class GameState {
   final Map<int, OwnedShip> ships;
   final Map<int, OwnedSlotItem> slotItems;
   final List<Fleet> fleets;
+  final Map<int, Set<int>>? _pendingExpeditionSupplyShipIds;
+
+  /// Ship IDs awaiting fuel and ammo data, grouped by the fleet they returned with.
+  /// These IDs remain pending if a ship leaves that fleet.
+  Map<int, Set<int>> get pendingExpeditionSupplyShipIds =>
+      _pendingExpeditionSupplyShipIds ?? const {};
+
   final List<RepairDock> repairDocks;
   final List<ConstructionDock> constructionDocks;
   final List<LandBaseState> landBases;
@@ -1231,6 +1241,7 @@ class GameState {
     Map<int, OwnedShip>? ships,
     Map<int, OwnedSlotItem>? slotItems,
     List<Fleet>? fleets,
+    Map<int, Set<int>>? pendingExpeditionSupplyShipIds,
     List<RepairDock>? repairDocks,
     List<ConstructionDock>? constructionDocks,
     List<LandBaseState>? landBases,
@@ -1279,6 +1290,8 @@ class GameState {
       ships: ships ?? this.ships,
       slotItems: slotItems ?? this.slotItems,
       fleets: fleets ?? this.fleets,
+      pendingExpeditionSupplyShipIds:
+          pendingExpeditionSupplyShipIds ?? this.pendingExpeditionSupplyShipIds,
       repairDocks: repairDocks ?? this.repairDocks,
       constructionDocks: constructionDocks ?? this.constructionDocks,
       landBases: landBases ?? this.landBases,

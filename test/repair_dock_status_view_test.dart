@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
+import 'package:yahagi_kancolle_browser/src/fleet/operation_progress.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/operation_status_views.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
+import 'package:yahagi_kancolle_browser/src/performance/second_tick_scope.dart';
 
 void main() {
   setUpAll(() async {
@@ -87,6 +90,92 @@ void main() {
     );
   });
 
+  for (final (width, stacked, day, expectedTime) in [
+    (1024.0, false, 18, '14:40'),
+    (580.0, true, 19, '11/19 14:40'),
+    (330.0, true, 19, '11/19 14:40'),
+  ]) {
+    testWidgets('repair cost and expected finish stay on one line at $width', (
+      tester,
+    ) async {
+      await _pumpRepairDock(
+        tester,
+        contentWidth: width,
+        textScaler: TextScaler.linear(width < 600 ? 1.3 : 1),
+        now: DateTime(2026, 11, 18, 12),
+        completionTime: DateTime(2026, 11, day, 14, 40),
+      );
+
+      final cost = find.text('消耗');
+      final steel = find.byKey(const Key('repair-resource-1-steel'));
+      final completion = find.text('预计完成时间 $expectedTime');
+      final progress = tester.getRect(
+        find.byKey(const Key('repair-progress-1')),
+      );
+      final hp = tester.getRect(find.byKey(const Key('repair-hp-1')));
+      expect(completion, findsOneWidget);
+      expect(tester.widget<Text>(cost).style?.color, Colors.white);
+      expect(
+        tester.getCenter(cost).dy,
+        closeTo(tester.getCenter(steel).dy, .1),
+      );
+      expect(
+        tester.getCenter(completion).dy,
+        closeTo(tester.getCenter(steel).dy, .1),
+      );
+      expect(
+        tester.getTopLeft(completion).dx,
+        greaterThan(tester.getCenter(steel).dx),
+      );
+      expect(
+        tester.getTopLeft(cost).dx,
+        closeTo(stacked ? hp.left : progress.left, .1),
+      );
+      expect(tester.getTopLeft(cost).dy, greaterThan(progress.bottom));
+      expect(find.byType(OperationCountdownText), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final (size, width, scale) in [
+    (const Size(320, 844), 320.0, 2.0),
+    (const Size(1200, 655), 938.0, 1.0),
+  ]) {
+    testWidgets('repair footer fits long English completion text at $width', (
+      tester,
+    ) async {
+      await _pumpRepairDock(
+        tester,
+        size: size,
+        contentWidth: width,
+        locale: const Locale('en'),
+        textScaler: TextScaler.linear(scale),
+        now: DateTime(2026, 11, 18, 12),
+        completionTime: DateTime(2027, 1, 1, 14, 40),
+      );
+
+      final progress = tester.getRect(
+        find.byKey(const Key('repair-progress-1')),
+      );
+      final hp = tester.getRect(find.byKey(const Key('repair-hp-1')));
+      final completion = find.text(
+        'Estimated completion time 2027/01/01 14:40',
+      );
+      final naturalWidth = tester
+          .renderObject<RenderParagraph>(completion)
+          .size
+          .width;
+      final completionRect = tester.getRect(completion);
+      final fontSize = tester.widget<Text>(completion).style!.fontSize!;
+      final paintedFontSize =
+          fontSize * scale * completionRect.width / naturalWidth;
+      expect(paintedFontSize, greaterThanOrEqualTo(8));
+      expect(completionRect.top, greaterThan(progress.bottom));
+      expect(tester.getTopLeft(find.text('Cost')).dx, closeTo(hp.left, .1));
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('portrait construction card stays within a narrowed workspace', (
     tester,
   ) async {
@@ -154,13 +243,16 @@ Future<void> _pumpRepairDock(
   WidgetTester tester, {
   Size size = const Size(1024, 487),
   double? contentWidth,
+  Locale locale = const Locale('zh'),
   TextScaler textScaler = TextScaler.noScaling,
+  DateTime? now,
+  DateTime? completionTime,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
   addTearDown(tester.view.resetDevicePixelRatio);
   addTearDown(tester.view.resetPhysicalSize);
-  final completionTime = DateTime.now().add(const Duration(hours: 2));
+  final currentTime = now ?? DateTime.now();
   final state = GameState(
     masterShips: const <int, MasterShip>{
       101: MasterShip(id: 101, name: '朝霜改二補', shipTypeId: 2),
@@ -180,7 +272,8 @@ Future<void> _pumpRepairDock(
         id: 1,
         state: 1,
         shipId: 1001,
-        completionTime: completionTime,
+        completionTime:
+            completionTime ?? currentTime.add(const Duration(hours: 2)),
         fuelCost: 8,
         steelCost: 16,
       ),
@@ -190,6 +283,9 @@ Future<void> _pumpRepairDock(
   await tester.pumpWidget(
     MaterialApp(
       theme: ThemeData(fontFamily: 'RepairDockTestFont'),
+      locale: locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: MediaQuery(
         data: MediaQueryData(size: size, textScaler: textScaler),
         child: Scaffold(
@@ -197,7 +293,10 @@ Future<void> _pumpRepairDock(
             alignment: Alignment.topLeft,
             child: SizedBox(
               width: contentWidth,
-              child: RepairDockStatusView(state: state),
+              child: SecondTickScope(
+                now: () => currentTime,
+                child: RepairDockStatusView(state: state),
+              ),
             ),
           ),
         ),

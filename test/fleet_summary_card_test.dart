@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:yahagi_kancolle_browser/src/settings/fleet_display_options.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
+import 'package:yahagi_kancolle_browser/src/battle/battle_controller.dart';
+import 'package:yahagi_kancolle_browser/src/battle/prediction/battle_prediction_executor.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/fleet_ship_status_capsule.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/fleet_summary_card.dart';
 import 'package:yahagi_kancolle_browser/src/fleet/separated_wrap.dart';
@@ -9,11 +11,14 @@ import 'package:yahagi_kancolle_browser/src/fleet/morale_recovery_timer_controll
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state_controller.dart';
 import 'package:yahagi_kancolle_browser/src/layout/hd_dashboard_content.dart';
+import 'package:yahagi_kancolle_browser/src/layout/flat_style.dart';
 import 'package:yahagi_kancolle_browser/src/layout/panel_style.dart';
 import 'package:yahagi_kancolle_browser/src/notification/notification_timer_anchor_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
 
+import 'anchorage_repair_calculator_test.dart' show buildAnchorageTestState;
 import 'fixtures/kcsapi_fixtures.dart';
+import 'nosaki_sparkle_calculator_test.dart' show buildNosakiTestState;
 
 void main() {
   testWidgets('selected fleet renders its ship status capsules', (
@@ -112,6 +117,357 @@ void main() {
     await tester.tap(find.byType(FleetShipStatusCapsule));
     expect(openedFleetId, 2);
   });
+
+  for (final style in PanelStyle.values) {
+    testWidgets('fleet tabs track expedition, supply and sortie in $style', (
+      tester,
+    ) async {
+      final controller = await _controllerWithPortData();
+      addTearDown(controller.dispose);
+      final flat = style == PanelStyle.flat;
+      await tester.pumpWidget(
+        flat ? _flatSummary(controller, 300) : _card(controller: controller),
+      );
+
+      Finder tab(int id) => find.byKey(Key('fleet-summary-selector-$id'));
+      Color? background(int id) {
+        if (!flat) return tester.widget<Material>(tab(id)).color;
+        final ink = find.descendant(of: tab(id), matching: find.byType(Ink));
+        final widget = ink.evaluate().firstOrNull?.widget as Ink?;
+        return (widget?.decoration as BoxDecoration?)?.color;
+      }
+
+      const blue = Color(0xff203e5c);
+      const yellow = Color(0xff4d3f1a);
+      const green = Color(0xff214630);
+      const red = Color(0xff5a2528);
+      expect(background(1), yellow);
+      expect(background(2), blue);
+      expect(background(3), flat ? null : Colors.transparent);
+
+      await tester.tap(tab(2));
+      await tester.pump();
+      expect(background(2), blue);
+      if (flat) {
+        final border =
+            tester
+                    .widget<DecoratedBox>(
+                      find.descendant(
+                        of: tab(2),
+                        matching: find.byType(DecoratedBox),
+                      ),
+                    )
+                    .decoration
+                as BoxDecoration;
+        expect((border.border! as Border).bottom.color, flatAccentColor);
+      }
+
+      controller.accept(
+        kcsapiEvent(
+          '/kcsapi/api_req_mission/result',
+          {'api_clear_result': 1},
+          requestParams: {'api_deck_id': '2'},
+        ),
+      );
+      await controller.idle;
+      await tester.pump();
+      expect(background(2), blue);
+
+      controller.accept(
+        kcsapiEvent('/kcsapi/api_req_hokyu/charge', {
+          'api_ship': [
+            {'api_id': 9001, 'api_fuel': 25, 'api_bull': 40},
+            {'api_id': 9002, 'api_fuel': 15, 'api_bull': 20},
+          ],
+        }),
+      );
+      await controller.idle;
+      await tester.pump();
+      expect(background(1), green);
+      expect(background(2), green);
+
+      controller
+        ..accept(
+          kcsapiEvent(
+            '/kcsapi/api_req_hensei/combined',
+            const <String, Object?>{},
+            requestParams: {'api_combined_type': '1'},
+          ),
+        )
+        ..accept(mapStartEvent);
+      await controller.idle;
+      await tester.pump();
+      expect(background(1), red);
+      expect(background(2), red);
+
+      controller.accept(portEvent);
+      await controller.idle;
+      await tester.pump();
+      expect(background(1), yellow);
+      expect(background(2), blue);
+    });
+
+    testWidgets(
+      'expedition supply freshness follows fleet transfers in $style',
+      (tester) async {
+        const fleetId = 2;
+        final controller = GameStateController(
+          initialState: GameState(
+            fleets: [
+              const Fleet(id: 1, name: '第一舰队', shipIds: [9003]),
+              Fleet(
+                id: fleetId,
+                name: '第二舰队',
+                shipIds: const [9001, 9002],
+                mission: FleetMission(
+                  state: 1,
+                  missionId: 5,
+                  completionTime: DateTime.utc(2026, 11, 18, 11),
+                ),
+              ),
+            ],
+            masterShips: const {
+              101: MasterShip(
+                id: 101,
+                name: '夕張',
+                shipTypeId: 2,
+                maxFuel: 25,
+                maxAmmo: 40,
+              ),
+            },
+            ships: {
+              for (final shipId in const [9001, 9002, 9003])
+                shipId: OwnedShip(
+                  id: shipId,
+                  masterId: 101,
+                  level: 30,
+                  currentFuel: 25,
+                  currentAmmo: 40,
+                ),
+            },
+          ),
+        );
+        addTearDown(controller.dispose);
+        await controller.initialize();
+        await tester.pumpWidget(
+          style == PanelStyle.flat
+              ? _flatSummary(controller, 300)
+              : _card(controller: controller),
+        );
+
+        var sequence = 0;
+        Future<void> capture(
+          String path,
+          Object data, {
+          Map<String, Object?> requestParams = const {},
+        }) async {
+          controller.accept(
+            kcsapiEvent(
+              '/kcsapi/$path',
+              data,
+              sequence: ++sequence,
+              capturedAt: DateTime.utc(2026, 11, 18, 12, 0, sequence),
+              requestParams: requestParams,
+            ),
+          );
+          await controller.idle;
+          await tester.pump();
+          expect(controller.lastError, isNull);
+        }
+
+        Color? background(int id) =>
+            _fleetSelectorBackground(tester, style, id);
+        const blue = Color(0xff203e5c);
+        const green = Color(0xff214630);
+        expect(background(1), green);
+        expect(background(2), blue);
+
+        await capture(
+          'api_req_mission/result',
+          {'api_clear_result': 1},
+          requestParams: {'api_deck_id': '$fleetId'},
+        );
+        expect(controller.state.fleets.last.mission.isActive, isFalse);
+        expect(background(2), blue);
+
+        Future<void> changeEscort(int id, int shipId) => capture(
+          'api_req_hensei/change',
+          const <String, Object?>{},
+          requestParams: {
+            'api_id': '$id',
+            'api_ship_idx': '1',
+            'api_ship_id': '$shipId',
+          },
+        );
+
+        await changeEscort(2, -1);
+        expect(controller.state.fleets[1].shipIds, [9001]);
+        expect(background(1), green);
+        expect(background(2), blue);
+
+        await changeEscort(1, 9002);
+        expect(controller.state.fleets[0].shipIds, [9003, 9002]);
+        expect(background(1), blue);
+        expect(background(2), blue);
+
+        await capture('api_get_member/ship2', [
+          {'api_id': 9001, 'api_ship_id': 101, 'api_fuel': 25, 'api_bull': 40},
+          {'api_id': 9002, 'api_ship_id': 101, 'api_fuel': 21},
+        ]);
+        expect(controller.state.ships[9002]?.currentFuel, 21);
+        expect(background(1), blue);
+        expect(background(2), green);
+
+        await capture('api_get_member/ship2', [
+          {'api_id': 9002, 'api_ship_id': 101, 'api_fuel': 21, 'api_bull': 40},
+        ]);
+        expect(background(1), const Color(0xff4d3f1a));
+
+        await capture('api_req_hokyu/charge', {
+          'api_ship': [
+            {'api_id': 9002, 'api_fuel': 25, 'api_bull': 40},
+          ],
+        });
+        expect(background(1), green);
+      },
+    );
+
+    testWidgets('only the practicing fleet turns red in $style', (
+      tester,
+    ) async {
+      final controller = await _controllerWithPortData();
+      addTearDown(controller.dispose);
+      controller
+        ..accept(
+          kcsapiEvent(
+            '/kcsapi/api_req_mission/result',
+            {'api_clear_result': 1},
+            requestParams: {'api_deck_id': '2'},
+          ),
+        )
+        ..accept(
+          kcsapiEvent('/kcsapi/api_get_member/ship2', [
+            {'api_id': 9002, 'api_ship_id': 102, 'api_fuel': 8, 'api_bull': 10},
+          ]),
+        );
+      await controller.idle;
+      final battle = BattleController(
+        gameState: () => controller.state,
+        predictionExecutor: const ImmediateBattlePredictionExecutor(),
+      );
+      addTearDown(battle.dispose);
+      await tester.pumpWidget(
+        style == PanelStyle.flat
+            ? _flatSummary(controller, 300, battleController: battle)
+            : _card(controller: controller, battleController: battle),
+      );
+
+      Future<void> capture(
+        String path,
+        Object data,
+        int sequence, {
+        Map<String, Object?> request = const {},
+      }) async {
+        battle.accept(
+          kcsapiEvent(
+            '/kcsapi/api_req_practice/$path',
+            data,
+            sequence: sequence,
+            requestParams: request,
+          ),
+        );
+        await battle.idle;
+        await tester.pump();
+        expect(battle.lastError, isNull);
+      }
+
+      const yellow = Color(0xff4d3f1a);
+      const red = Color(0xff5a2528);
+      void expectColors(Color fleet2) {
+        expect(_fleetSelectorBackground(tester, style, 1), yellow);
+        expect(_fleetSelectorBackground(tester, style, 2), fleet2);
+      }
+
+      const day = {
+        'api_f_nowhps': [8],
+        'api_f_maxhps': [15],
+      };
+      expectColors(yellow);
+      controller.accept(mapStartEvent);
+      await controller.idle;
+      await tester.pump();
+      expect(_fleetSelectorBackground(tester, style, 1), red);
+
+      // A missing return-to-port capture must not keep the old sortie red.
+      await capture('battle', day, 29);
+      expectColors(yellow);
+      await capture('battle', day, 30, request: {'api_deck_id': '2'});
+      expectColors(red);
+      await capture('midnight_battle', const <String, Object?>{}, 31);
+      expectColors(red);
+      await capture('battle_result', {'api_win_rank': 'S'}, 32);
+      expectColors(yellow);
+
+      await capture('battle', {...day, 'api_deck_id': 2}, 33);
+      expectColors(red);
+      battle.invalidateCaptureContinuity();
+      await tester.pump();
+      expectColors(yellow);
+      await capture('midnight_battle', const <String, Object?>{}, 34);
+      expectColors(yellow);
+    });
+
+    for (final (sparkling, sample) in [
+      (false, buildAnchorageTestState(facilities: 3)),
+      (true, buildNosakiTestState(companionConds: [49, 54])),
+    ]) {
+      testWidgets(
+        'active ${sparkling ? 'sparkle' : 'anchorage'} overrides shortage in $style',
+        (tester) async {
+          final state = sample.copyWith(
+            masterShips: {
+              ...sample.masterShips,
+              502: const MasterShip(
+                id: 502,
+                name: '测试舰502',
+                shipTypeId: 2,
+                maxFuel: 120,
+                maxAmmo: 120,
+              ),
+            },
+          );
+          final controller = GameStateController(initialState: state);
+          addTearDown(controller.dispose);
+          await controller.initialize();
+          Widget card() => style == PanelStyle.flat
+              ? _flatSummary(controller, 330)
+              : _card(controller: controller);
+          await tester.pumpWidget(card());
+          expect(
+            _fleetSelectorBackground(tester, style, 1),
+            const Color(0xff4d3f1a),
+          );
+
+          final timer = sparkling
+              ? controller.nozakiTimer
+              : controller.akashiTimer;
+          timer.reset(DateTime.now().subtract(const Duration(minutes: 1)));
+          await tester.pumpWidget(card());
+          expect(
+            _fleetSelectorBackground(tester, style, 1),
+            const Color(0xff214630),
+          );
+
+          timer.clear();
+          await tester.pumpWidget(card());
+          expect(
+            _fleetSelectorBackground(tester, style, 1),
+            const Color(0xff4d3f1a),
+          );
+        },
+      );
+    }
+  }
 
   testWidgets('fleet selectors can use numeric abbreviations', (tester) async {
     final controller = await _controllerWithPortData();
@@ -666,8 +1022,18 @@ Future<GameStateController> _controllerWithPortData() async {
   return controller;
 }
 
+Color? _fleetSelectorBackground(WidgetTester tester, PanelStyle style, int id) {
+  final tab = find.byKey(Key('fleet-summary-selector-$id'));
+  if (style == PanelStyle.card) return tester.widget<Material>(tab).color;
+  final ink = tester.widget<Ink>(
+    find.descendant(of: tab, matching: find.byType(Ink)),
+  );
+  return (ink.decoration as BoxDecoration?)?.color;
+}
+
 Widget _card({
   required GameStateController controller,
+  BattleController? battleController,
   ValueChanged<int>? onOpenFleet,
   MoraleRecoveryTimerController? moraleRecoveryTimerController,
   FleetMoraleMetricMode moraleMetricMode =
@@ -683,6 +1049,7 @@ Widget _card({
   home: Scaffold(
     body: FleetSummaryCard(
       controller: controller,
+      battleController: battleController,
       collapsed: false,
       onToggleCollapse: () {},
       onOpenFleet: onOpenFleet ?? (_) {},
@@ -700,27 +1067,31 @@ Widget _card({
   ),
 );
 
-Widget _flatSummary(GameStateController controller, double width) =>
-    MaterialApp(
-      locale: const Locale('zh'),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: Align(
-          alignment: Alignment.topLeft,
-          child: SizedBox(
-            width: width,
-            child: PanelStyleScope(
-              style: PanelStyle.flat,
-              child: FleetSummaryCard(
-                controller: controller,
-                collapsed: false,
-                onToggleCollapse: () {},
-                onOpenFleet: (_) {},
-                visible: defaultFields,
-              ),
-            ),
+Widget _flatSummary(
+  GameStateController controller,
+  double width, {
+  BattleController? battleController,
+}) => MaterialApp(
+  locale: const Locale('zh'),
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+  home: Scaffold(
+    body: Align(
+      alignment: Alignment.topLeft,
+      child: SizedBox(
+        width: width,
+        child: PanelStyleScope(
+          style: PanelStyle.flat,
+          child: FleetSummaryCard(
+            controller: controller,
+            battleController: battleController,
+            collapsed: false,
+            onToggleCollapse: () {},
+            onOpenFleet: (_) {},
+            visible: defaultFields,
           ),
         ),
       ),
-    );
+    ),
+  ),
+);

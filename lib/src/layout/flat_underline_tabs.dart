@@ -26,30 +26,34 @@ class FlatUnderlineTabs extends StatelessWidget {
               child: InkWell(
                 key: option.key,
                 onTap: option.onTap,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        width: 2,
-                        color: option.selected
-                            ? appColor(context, flatAccentColor)
-                            : Colors.transparent,
+                child: Ink(
+                  color: option.backgroundColor,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          width: 2,
+                          color: option.selected
+                              ? appColor(context, flatAccentColor)
+                              : Colors.transparent,
+                        ),
                       ),
                     ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      option.label,
-                      maxLines: 1,
-                      softWrap: false,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: appColor(
-                          context,
-                          option.selected ? flatAccentColor : flatMutedColor,
+                    child: Center(
+                      child: Text(
+                        option.label,
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: option.selected
+                              ? appColor(context, flatAccentColor)
+                              : option.backgroundColor != null
+                              ? AppPalette.of(context).foreground
+                              : appColor(context, flatMutedColor),
+                          fontSize: flatRowFontSize,
+                          fontWeight: FontWeight.w700,
                         ),
-                        fontSize: flatRowFontSize,
-                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),

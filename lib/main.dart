@@ -4665,6 +4665,7 @@ class _InformationPanelState extends State<_InformationPanel> {
                   shipTypeLabelMode:
                       widget.layoutSettingsController.fleetShipTypeLabelMode,
                   controller: widget.gameStateController,
+                  battleController: widget.battleController,
                   moraleRecoveryTimerController:
                       widget.moraleRecoveryTimerController,
                   damagePulseFilter: widget

@@ -374,10 +374,93 @@ class GameStateReducer {
       ),
       _ => state,
     };
+    final withExpeditionSupply = _trackExpeditionSupply(
+      state,
+      reduced,
+      event.path,
+      data,
+    );
     return _revalidateF96(
-      _applyKnownQuestProgress(reduced, event, data),
+      _applyKnownQuestProgress(withExpeditionSupply, event, data),
       event.capturedAt,
     );
+  }
+
+  GameState _trackExpeditionSupply(
+    GameState previous,
+    GameState next,
+    String path,
+    Object? data,
+  ) {
+    if (previous.memberId != next.memberId) {
+      return next.pendingExpeditionSupplyShipIds.isEmpty
+          ? next
+          : next.copyWith(pendingExpeditionSupplyShipIds: const {});
+    }
+    final pending = next.pendingExpeditionSupplyShipIds;
+    final fleetsChanged = !identical(previous.fleets, next.fleets);
+    if (identical(previous, next) || (pending.isEmpty && !fleetsChanged)) {
+      return next;
+    }
+
+    // A deck-only snapshot can report a return ahead of the settlement packet.
+    final returnedShipIds = <int, List<int>>{
+      if (fleetsChanged)
+        for (final fleet in previous.fleets)
+          if (fleet.mission.isActive &&
+              fleet.shipIds.isNotEmpty &&
+              next.fleets.any(
+                (current) =>
+                    current.id == fleet.id && !current.mission.isActive,
+              ))
+            fleet.id: fleet.shipIds,
+    };
+    if (pending.isEmpty && returnedShipIds.isEmpty) return next;
+
+    final refreshed = _reportedSupplyShipIds(next, path, data);
+    if (returnedShipIds.isEmpty && refreshed.isEmpty) return next;
+    final remainingByReturnFleet = <int, Set<int>>{};
+    for (final fleetId in {...pending.keys, ...returnedShipIds.keys}) {
+      final remaining = <int>{
+        ...?pending[fleetId],
+        ...?returnedShipIds[fleetId],
+      }..removeAll(refreshed);
+      if (remaining.isNotEmpty) remainingByReturnFleet[fleetId] = remaining;
+    }
+    if (pending.isEmpty && remainingByReturnFleet.isEmpty) return next;
+    return next.copyWith(
+      pendingExpeditionSupplyShipIds: remainingByReturnFleet,
+    );
+  }
+
+  Set<int> _reportedSupplyShipIds(GameState state, String path, Object? data) {
+    final map = _optionalMap(data);
+    final rows = switch (path) {
+      '/kcsapi/api_port/port' ||
+      '/kcsapi/api_get_member/require_info' ||
+      '/kcsapi/api_req_hokyu/charge' => _optionalList(map?['api_ship']),
+      '/kcsapi/api_get_member/ship2' ||
+      '/kcsapi/api_get_member/ship3' ||
+      '/kcsapi/api_get_member/ship_deck' => _optionalList(
+        data is List ? data : _shipAndDeckShipData(map),
+      ),
+      _ => const <Object?>[],
+    };
+    final charge = path == '/kcsapi/api_req_hokyu/charge';
+    final ids = <int>{};
+    for (final value in rows) {
+      final row = _optionalMap(value);
+      if (row == null) continue;
+      final id = _asInt(row['api_id']);
+      final ship = state.ships[id];
+      if (ship != null &&
+          (charge || ship.masterId == _asInt(row['api_ship_id'])) &&
+          _asInt(row['api_fuel'], -1) >= 0 &&
+          _asInt(row['api_bull'], -1) >= 0) {
+        ids.add(id);
+      }
+    }
+    return ids;
   }
 
   GameState _destroySlotItems(
@@ -2218,8 +2301,7 @@ class GameStateReducer {
       );
     }
     final map = _requiredMap(data, 'ship data');
-    final shipData =
-        map['api_ship_data'] ?? map['api_ship'] ?? map['api_ship_data_list'];
+    final shipData = _shipAndDeckShipData(map);
     final deckData = map['api_deck_data'] ?? map['api_deck'];
     if (shipData == null && deckData == null) {
       throw const GameApiParseException('舰娘接口缺少舰娘和舰队数据');
@@ -2262,6 +2344,9 @@ class GameStateReducer {
       updatedAt: event.capturedAt,
     );
   }
+
+  Object? _shipAndDeckShipData(Map<String, Object?>? map) =>
+      map?['api_ship_data'] ?? map?['api_ship'] ?? map?['api_ship_data_list'];
 
   GameState _constructionStart(
     GameState state,

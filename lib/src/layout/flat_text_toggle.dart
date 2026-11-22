@@ -9,12 +9,14 @@ class FlatTextToggleOption {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.backgroundColor,
   });
 
   final Key key;
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final Color? backgroundColor;
 }
 
 /// 极简档（扁平面板）下的模式切换：文字与选中底线，无底色。

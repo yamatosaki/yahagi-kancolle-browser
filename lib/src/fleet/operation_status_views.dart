@@ -74,9 +74,6 @@ class ExpeditionStatusView extends StatelessWidget {
                   completionKey: Key(
                     'expedition-progress-completion-${fleet.id}',
                   ),
-                  completionLabel: ExpeditionStrings.of(
-                    context,
-                  ).estimatedCompletionTime,
                 )
               : Text(
                   AppLocalizations.of(context)?.expeditionInProgress ?? '远征进行中',
@@ -148,11 +145,12 @@ class _RepairDockCard extends StatelessWidget {
       );
     }
     final ship = state.ships[dock.shipId];
+    final completionTime = dock.completionTime;
     // Project availability locally without changing the captured server state
     // used by repair notifications and subsequent HP synchronization.
     if (!dock.isRepairing ||
         ship == null ||
-        operationIsCompleted(dock.completionTime, now: now)) {
+        operationIsCompleted(completionTime, now: now)) {
       return _UnavailableCard(
         label: AppLocalizations.of(context)?.notRepairing ?? '未入渠',
       );
@@ -161,13 +159,78 @@ class _RepairDockCard extends StatelessWidget {
     final portraitWidth = _operationPortraitWidth(context);
     final hpRatio = ship.maxHp <= 0 ? 0.0 : ship.currentHp / ship.maxHp;
     final hpColor = shipHpValueColor(hpRatio, isZeroHp: ship.currentHp <= 0);
-    final start =
-        dock.completionTime == null || ship.repairDurationMilliseconds <= 0
+    final start = ship.repairDurationMilliseconds <= 0
         ? null
-        : dock.completionTime!.subtract(
+        : completionTime?.subtract(
             Duration(milliseconds: ship.repairDurationMilliseconds),
           );
+    const hpWidth = 102.0;
+    const hpGap = 20.0;
+    final hp = SizedBox(
+      key: Key('repair-hp-${dock.id}'),
+      width: hpWidth,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'HP ${ship.currentHp}/${ship.maxHp}',
+          maxLines: 1,
+          softWrap: false,
+          style: appTextStyle(
+            context,
+            TextStyle(
+              color: hpColor,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ),
+    );
+    final progress = start != null && completionTime != null
+        ? _TimedProgress(
+            progressKey: Key('repair-progress-${dock.id}'),
+            label: AppLocalizations.of(context)?.repairProgress ?? '修理进度',
+            start: start,
+            end: completionTime,
+            fitLabel: true,
+          )
+        : null;
+    final resources = _ResourceLine(
+      prefix: AppLocalizations.of(context)?.cost ?? '消耗',
+      resources: <_ResourceValue>[
+        _ResourceValue(keyName: 'fuel', assetId: 1, value: dock.fuelCost),
+        _ResourceValue(keyName: 'steel', assetId: 3, value: dock.steelCost),
+      ],
+      keyPrefix: 'repair-resource-${dock.id}',
+      suffix: completionTime == null
+          ? null
+          : _operationCompletionTime(context, completionTime, now),
+    );
+    final details = FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: resources,
+    );
+    final stackedBody = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            hp,
+            if (progress != null) ...[
+              const SizedBox(width: hpGap),
+              Expanded(child: progress),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        details,
+      ],
+    );
     return _OperationCard(
+      // Reserve room for the HP slot and the one-line repair details.
+      minSideBySideWidth: portraitWidth + 570,
       portrait: ShipPortrait(
         key: Key('repair-portrait-${dock.id}'),
         ship: master,
@@ -186,67 +249,37 @@ class _RepairDockCard extends StatelessWidget {
             AppLocalizations.of(context)?.unknownShip ??
             '未知舰娘',
       ),
-      body: Row(
-        children: [
-          SizedBox(
-            key: Key('repair-hp-${dock.id}'),
-            width: 102,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'HP ${ship.currentHp}/${ship.maxHp}',
-                maxLines: 1,
-                softWrap: false,
-                style: appTextStyle(
-                  context,
-                  TextStyle(
-                    color: hpColor,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                  ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final inlineWidth = constraints.maxWidth - hpWidth - hpGap;
+          // Use the full body before shrinking below the app's small text scale.
+          if (inlineWidth < resources.singleLineWidth(context) * 0.8) {
+            return stackedBody;
+          }
+          return Row(
+            children: [
+              hp,
+              const SizedBox(width: hpGap),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (progress != null) ...[
+                      progress,
+                      const SizedBox(height: 8),
+                    ],
+                    details,
+                  ],
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (start != null && dock.completionTime != null)
-                  _TimedProgress(
-                    progressKey: Key('repair-progress-${dock.id}'),
-                    label:
-                        AppLocalizations.of(context)?.repairProgress ?? '修理进度',
-                    start: start,
-                    end: dock.completionTime!,
-                  ),
-                const SizedBox(height: 8),
-                _ResourceLine(
-                  prefix: AppLocalizations.of(context)?.cost ?? '消耗',
-                  resources: <_ResourceValue>[
-                    _ResourceValue(
-                      keyName: 'fuel',
-                      assetId: 1,
-                      value: dock.fuelCost,
-                    ),
-                    _ResourceValue(
-                      keyName: 'steel',
-                      assetId: 3,
-                      value: dock.steelCost,
-                    ),
-                  ],
-                  keyPrefix: 'repair-resource-${dock.id}',
-                ),
-              ],
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
+      stackedBody: stackedBody,
       trailing: OperationCountdownText(
-        completionTime: dock.completionTime,
+        completionTime: completionTime,
         completedText: (AppLocalizations.of(context)?.completed ?? '已完成'),
         textAlign: TextAlign.right,
         maxLines: 1,
@@ -370,7 +403,6 @@ class _ConstructionDockCard extends StatelessWidget {
             ),
           const SizedBox(height: 8),
           _ResourceLine(
-            prefix: '',
             resources: <_ResourceValue>[
               _ResourceValue(keyName: 'fuel', assetId: 1, value: dock.fuel),
               _ResourceValue(
@@ -416,6 +448,8 @@ class _OperationCard extends StatelessWidget {
     required this.body,
     required this.trailing,
     this.expandIdentity = false,
+    this.minSideBySideWidth = 420,
+    this.stackedBody,
   });
 
   final Widget portrait;
@@ -423,13 +457,15 @@ class _OperationCard extends StatelessWidget {
   final Widget body;
   final Widget trailing;
   final bool expandIdentity;
+  final double minSideBySideWidth;
+  final Widget? stackedBody;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 900;
-        final phone = constraints.maxWidth < 420;
+        final stacked = constraints.maxWidth < minSideBySideWidth;
         final gap = compact ? 10.0 : 18.0;
         return Container(
           constraints: const BoxConstraints(
@@ -441,7 +477,7 @@ class _OperationCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: appColor(context, _borderColor)),
           ),
-          child: phone
+          child: stacked
               ? Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -462,7 +498,7 @@ class _OperationCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    body,
+                    stackedBody ?? body,
                   ],
                 )
               : Row(
@@ -564,7 +600,7 @@ class _TimedProgress extends StatelessWidget {
     required this.start,
     required this.end,
     this.completionKey,
-    this.completionLabel,
+    this.fitLabel = false,
   });
 
   final Key progressKey;
@@ -572,7 +608,7 @@ class _TimedProgress extends StatelessWidget {
   final DateTime start;
   final DateTime end;
   final Key? completionKey;
-  final String? completionLabel;
+  final bool fitLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -581,24 +617,38 @@ class _TimedProgress extends StatelessWidget {
       builder: (context, now, _) {
         final progress = operationProgress(now: now, start: start, end: end);
         final percentage = (progress * 100).round();
+        final caption = Text(
+          label,
+          style: appTextStyle(
+            context,
+            TextStyle(
+              color: appColor(context, const Color(0xffdce6eb)),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        );
         return Column(
           key: progressKey,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
-                Text(
-                  label,
-                  style: appTextStyle(
-                    context,
-                    TextStyle(
-                      color: appColor(context, Color(0xffdce6eb)),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                if (fitLabel)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 6),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: AlignmentDirectional.centerStart,
+                        child: caption,
+                      ),
                     ),
-                  ),
-                ),
-                const Spacer(),
+                  )
+                else ...[
+                  caption,
+                  const Spacer(),
+                ],
                 Text(
                   '$percentage%',
                   style: appTextStyle(
@@ -621,28 +671,14 @@ class _TimedProgress extends StatelessWidget {
               color: appColor(context, _progressColor),
               backgroundColor: appColor(context, Color(0xff263f4d)),
             ),
-            if (completionLabel != null) ...[
+            if (completionKey != null) ...[
               const SizedBox(height: 4),
               Padding(
                 key: completionKey,
                 padding: EdgeInsets.zero,
                 child: SecondTickBuilder(
-                  builder: (context, currentNow, _) => Text(
-                    '$completionLabel ${formatExpeditionCompletionTime(end, now: currentNow)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: appTextStyle(
-                      context,
-                      TextStyle(
-                        color: appColor(context, Color(0xffa9c6d2)),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        fontFeatures: <FontFeature>[
-                          FontFeature.tabularFigures(),
-                        ],
-                      ),
-                    ),
-                  ),
+                  builder: (context, currentNow, _) =>
+                      _operationCompletionTime(context, end, currentNow),
                 ),
               ),
             ],
@@ -651,6 +687,29 @@ class _TimedProgress extends StatelessWidget {
       },
     );
   }
+}
+
+Text _operationCompletionTime(
+  BuildContext context,
+  DateTime completionTime,
+  DateTime now,
+) {
+  final label = ExpeditionStrings.of(context).estimatedCompletionTime;
+  final time = formatExpeditionCompletionTime(completionTime, now: now);
+  return Text(
+    '$label $time',
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: appTextStyle(
+      context,
+      const TextStyle(
+        color: Color(0xffa9c6d2),
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+        fontFeatures: [FontFeature.tabularFigures()],
+      ),
+    ),
+  );
 }
 
 class _UnavailableProgress extends StatelessWidget {
@@ -777,30 +836,77 @@ class _ResourceValue {
 
 class _ResourceLine extends StatelessWidget {
   const _ResourceLine({
-    required this.prefix,
     required this.resources,
     required this.keyPrefix,
+    this.prefix,
+    this.suffix,
   });
 
-  final String prefix;
+  final String? prefix;
   final List<_ResourceValue> resources;
   final String keyPrefix;
+  final Text? suffix;
+
+  static const _spacing = 12.0;
+  static const _iconSize = 18.0;
+  static const _iconGap = 4.0;
+  static const _prefixStyle = TextStyle(color: Colors.white, fontSize: 12);
+  static const _amountStyle = TextStyle(
+    color: Color(0xffc6d4db),
+    fontSize: 12,
+    fontWeight: FontWeight.w700,
+    fontFeatures: [FontFeature.tabularFigures()],
+  );
+
+  double singleLineWidth(BuildContext context) {
+    final inheritedStyle = DefaultTextStyle.of(context).style;
+    final bold = MediaQuery.boldTextOf(context);
+    final painter = TextPainter(
+      maxLines: 1,
+      locale: Localizations.maybeLocaleOf(context),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    );
+    double measure(String text, TextStyle? style) {
+      var resolvedStyle = inheritedStyle.merge(style);
+      if (bold) {
+        resolvedStyle = resolvedStyle.merge(
+          const TextStyle(fontWeight: FontWeight.bold),
+        );
+      }
+      painter.text = TextSpan(text: text, style: resolvedStyle);
+      painter.layout();
+      return painter.width;
+    }
+
+    try {
+      var width = 0.0;
+      if (prefix case final label?) width += measure(label, _prefixStyle);
+      for (final resource in resources) {
+        width +=
+            _iconSize + _iconGap + measure('${resource.value}', _amountStyle);
+      }
+      if (suffix case final text?) width += measure(text.data!, text.style);
+      final gaps =
+          resources.length +
+          (prefix == null ? 0 : 1) +
+          (suffix == null ? 0 : 1) -
+          1;
+      return gaps > 0 ? width + gaps * _spacing : width;
+    } finally {
+      painter.dispose();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 12,
+      spacing: _spacing,
       runSpacing: 4,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        if (prefix.isNotEmpty)
-          Text(
-            prefix,
-            style: appTextStyle(
-              context,
-              TextStyle(color: appColor(context, _mutedColor), fontSize: 12),
-            ),
-          ),
+        if (prefix case final label?)
+          Text(label, style: appTextStyle(context, _prefixStyle)),
         for (final resource in resources)
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -808,25 +914,18 @@ class _ResourceLine extends StatelessWidget {
               Image.asset(
                 'assets/images/material/${resource.assetId.toString().padLeft(2, '0')}.png',
                 key: Key('$keyPrefix-${resource.keyName}'),
-                width: 18,
-                height: 18,
+                width: _iconSize,
+                height: _iconSize,
                 filterQuality: FilterQuality.medium,
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: _iconGap),
               Text(
                 '${resource.value}',
-                style: appTextStyle(
-                  context,
-                  TextStyle(
-                    color: appColor(context, Color(0xffc6d4db)),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                  ),
-                ),
+                style: appTextStyle(context, _amountStyle),
               ),
             ],
           ),
+        ?suffix,
       ],
     );
   }

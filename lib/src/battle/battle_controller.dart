@@ -156,6 +156,7 @@ final class BattleController extends ChangeNotifier
   bool _sortieMapFallbackAllowed = true;
   CombatState? _sortieMapResetCombat;
   DateTime? _lastBattleCapturedAt;
+  int? _observedPracticeFleetId;
   String? _lastError;
   bool _fleetBattleDisplayPending = false;
   bool _disposed = false;
@@ -230,6 +231,18 @@ final class BattleController extends ChangeNotifier
       _lastError == null &&
       (_session?.isConfirmed ?? true) &&
       !_hasUntrustedPoiLedger;
+
+  int? get activePracticeFleetId {
+    final battle = _current;
+    if (_lastBattleCapturedAt == null ||
+        battle == null ||
+        !battle.context.practice ||
+        battle.displayStage != BattleDisplayStage.battle) {
+      return null;
+    }
+    return _observedPracticeFleetId;
+  }
+
   List<BattleSession> get recentSessions => List.unmodifiable(_recentSessions);
   @override
   Future<void> get idle => _queue;
@@ -778,9 +791,25 @@ final class BattleController extends ChangeNotifier
     int generation,
   ) async {
     final state = gameState();
-    final practice =
-        _context.practice || event.path.startsWith('/kcsapi/api_req_practice/');
-    final deckId = _positive(data['api_deck_id'], _context.deckId);
+    final isPracticePacket = event.path.startsWith('/kcsapi/api_req_practice/');
+    final practice = _context.practice || isPracticePacket;
+    final practiceNight =
+        isPracticePacket && event.path.endsWith('/midnight_battle');
+    final reportedPracticeFleet = isPracticePacket
+        ? _positive(
+            data['api_deck_id'],
+            _positive(event.requestParams['api_deck_id'], 0),
+          )
+        : 0;
+    final observedPracticeFleet = reportedPracticeFleet > 0
+        ? reportedPracticeFleet
+        : practiceNight
+        ? activePracticeFleetId
+        : null;
+    final deckId = isPracticePacket
+        ? observedPracticeFleet ??
+              (practiceNight && _context.practice ? _context.deckId : 1)
+        : _positive(data['api_deck_id'], _context.deckId);
     final combinedFleetType = practice
         ? CombinedFleetType.none
         : _combinedFleetTypeForDeck(state, deckId);
@@ -974,6 +1003,7 @@ final class BattleController extends ChangeNotifier
           : _predictedMvpPositions(parsed.friendMain, parsed.friendEscort),
     );
     _lastBattleCapturedAt = event.capturedAt;
+    _observedPracticeFleetId = observedPracticeFleet;
     if (!practice) {
       if (onFleetBattleDisplayStarted case final started?) {
         if ((previous == null ||
