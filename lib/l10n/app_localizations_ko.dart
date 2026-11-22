@@ -93,6 +93,31 @@ class AppLocalizationsKo extends AppLocalizations {
   String get gameStartupGadgetError => '게임 시작 스크립트를 불러올 수 없습니다';
 
   @override
+  String gameWebViewStartupFailed(String errorType) {
+    return '게임 페이지 시작 실패: $errorType';
+  }
+
+  @override
+  String gameWebViewPageLoadFailed(String code) {
+    return '게임 페이지 로드 실패 [$code]. 새로고침하거나 네트워크를 확인하세요.';
+  }
+
+  @override
+  String gameWebViewPagePreparationFailed(String errorType) {
+    return '게임 페이지 준비 실패: $errorType';
+  }
+
+  @override
+  String gameWebViewCaptureModeUpdateFailed(String errorType) {
+    return '캡처 모드 업데이트 실패: $errorType';
+  }
+
+  @override
+  String gameWebViewNetworkRetryFailed(String errorType) {
+    return '네트워크 재시도 실패: $errorType';
+  }
+
+  @override
   String get debuffReminderTitle => '장갑 파쇄 알림';
 
   @override

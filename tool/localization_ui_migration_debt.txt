@@ -4,11 +4,9 @@
 # or app labels localized by the reviewed dictionaries at their display boundary.
 # Remove entries when the source literal is removed; never add new UI debt here.
 # Retroactive inventory of existing loading/watchdog source literals (2026-10-17).
-# All eight already use runtime_message_text.dart at their display boundary.
+# These messages use runtime_message_text.dart at their display boundary.
 "lib/src/game_webview.dart|游戏本体加载超时，请重新加载。"
 "lib/src/game_webview.dart|游戏页面加载超时，请重新加载或检查网络。"
-"lib/src/game_webview.dart|游戏页面加载失败 [HTTP $code]，请重新加载或检查网络。"
-"lib/src/game_webview.dart|游戏页面加载失败 [${error.errorCode}]，请重新加载或检查网络。"
 "lib/src/game_webview.dart|正在等待游戏本体..."
 "lib/src/native_activity_game_surface.dart|游戏页面加载超时，请重试。"
 "lib/src/native_activity_game_surface.dart|游戏本体加载超时，请重试。"
@@ -709,10 +707,6 @@
 "lib/src/logbook/logbook_page.dart|旧版记录"
 "lib/src/expedition/expedition_evaluator.dart|舰队构成：${formatExpeditionComposition(variants)}"
 "lib/src/browser/game_local_home.dart|\n<!doctype html>\n<html lang=\"zh-CN\">\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\n<style>\nhtml,body{height:100%;margin:0;background:#102431;color:#c7d5dc;font-family:sans-serif}\nbody{display:flex;align-items:center;justify-content:center}\nmain{text-align:center;padding:28px}h2{color:#d4a85f}p{color:#8299a5;line-height:1.6}\nbutton{border:1px solid #5d786f;border-radius:8px;background:#183631;color:#80c8bd;padding:10px 14px}\n</style>\n<main>\n  <h2>游戏 WebView 测试首页</h2>\n  <p>这里不会连接真实账号，<br>使用上方“DMM 登录测试”主动进入真实网页。</p>\n  <button onclick=\"YahagiBridge.postMessage(JSON.stringify({\n    kind:'kcsapi-response',\n    path:'/kcsapi/api_port/port',\n    body:'svdata={&quot;api_result&quot;:1}',\n    source:'manual',\n    capturedAt:new Date().toISOString()\n  }))\">发送模拟舰队数据</button>\n</main>\n</html>\n"
-"lib/src/game_webview.dart|游戏页面启动失败：$error"
-"lib/src/game_webview.dart|游戏页面准备失败：$error"
-"lib/src/game_webview.dart|抓包模式更新失败：$error"
-"lib/src/game_webview.dart|网络重试失败：$error"
 "lib/src/improvement/improvement_planner_view.dart|每次"
 "lib/src/improvement/improvement_planner_view.dart|每次"
 "lib/src/improvement/improvement_raw_bundle.dart|改修消耗的星级范围必须同时指定起点和终点"

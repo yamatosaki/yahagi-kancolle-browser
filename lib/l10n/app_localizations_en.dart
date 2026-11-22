@@ -104,6 +104,31 @@ class AppLocalizationsEn extends AppLocalizations {
       'The game startup script could not be loaded';
 
   @override
+  String gameWebViewStartupFailed(String errorType) {
+    return 'Failed to start the game page: $errorType';
+  }
+
+  @override
+  String gameWebViewPageLoadFailed(String code) {
+    return 'Failed to load the game page [$code]. Reload or check your network.';
+  }
+
+  @override
+  String gameWebViewPagePreparationFailed(String errorType) {
+    return 'Failed to prepare the game page: $errorType';
+  }
+
+  @override
+  String gameWebViewCaptureModeUpdateFailed(String errorType) {
+    return 'Failed to update the capture mode: $errorType';
+  }
+
+  @override
+  String gameWebViewNetworkRetryFailed(String errorType) {
+    return 'Network retry failed: $errorType';
+  }
+
+  @override
   String get debuffReminderTitle => 'Armor debuff reminder';
 
   @override

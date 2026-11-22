@@ -91,6 +91,31 @@ class AppLocalizationsJa extends AppLocalizations {
   String get gameStartupGadgetError => 'ゲームの起動スクリプトを読み込めません';
 
   @override
+  String gameWebViewStartupFailed(String errorType) {
+    return 'ゲームページの起動に失敗：$errorType';
+  }
+
+  @override
+  String gameWebViewPageLoadFailed(String code) {
+    return 'ゲームページの読み込みに失敗 [$code]。再読み込みするかネットワークを確認してください。';
+  }
+
+  @override
+  String gameWebViewPagePreparationFailed(String errorType) {
+    return 'ゲームページの準備に失敗：$errorType';
+  }
+
+  @override
+  String gameWebViewCaptureModeUpdateFailed(String errorType) {
+    return 'キャプチャモードの更新に失敗：$errorType';
+  }
+
+  @override
+  String gameWebViewNetworkRetryFailed(String errorType) {
+    return 'ネットワークの再試行に失敗：$errorType';
+  }
+
+  @override
   String get debuffReminderTitle => '装甲破砕通知';
 
   @override

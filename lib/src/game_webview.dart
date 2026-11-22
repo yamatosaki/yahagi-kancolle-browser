@@ -1367,7 +1367,9 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
       }
       debugPrint('Game WebView startup failed: $error\n$stackTrace');
       if (_isCurrentStartup(startupEpoch, orchestrator)) {
-        _reportRecoverableError('游戏页面启动失败：${error.runtimeType}');
+        _reportRecoverableError(
+          _l10n.gameWebViewStartupFailed(error.runtimeType.toString()),
+        );
       }
     }
   }
@@ -1436,12 +1438,12 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
   String _legacyPageFailureMessage(int errorCode, String? description) {
     final text = description?.toLowerCase();
     if (text?.contains('ssl') == true || text?.contains('cert') == true) {
-      return '安全证书错误：可能是岛风GO证书未受信任或网络被劫持。';
+      return runtimeMessageText(context, '安全证书错误：可能是岛风GO证书未受信任或网络被劫持。');
     }
     final code = errorCode >= 400 && errorCode <= 599
         ? 'HTTP $errorCode'
         : '$errorCode';
-    return '游戏页面加载失败 [$code]，请重新加载或检查网络。';
+    return _l10n.gameWebViewPageLoadFailed(code);
   }
 
   void _reportWebStartupFailure({
@@ -1455,12 +1457,7 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
         ? GameStartupStage.page
         : GameStartupStage.game;
     final failure = !_startupCheckActive
-        ? GameStartupFailure(
-            runtimeMessageText(
-              context,
-              _legacyPageFailureMessage(errorCode, description),
-            ),
-          )
+        ? GameStartupFailure(_legacyPageFailureMessage(errorCode, description))
         : isForMainFrame
         ? gameStartupWebFailure(
             _l10n,
@@ -1687,7 +1684,9 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
     } catch (error, stackTrace) {
       debugPrint('Game WebView page finish failed: $error\n$stackTrace');
       if (_isUsableNavigation(navigationEpoch)) {
-        _reportRecoverableError('游戏页面准备失败：${error.runtimeType}');
+        _reportRecoverableError(
+          _l10n.gameWebViewPagePreparationFailed(error.runtimeType.toString()),
+        );
       }
     }
   }
@@ -1963,7 +1962,11 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
         onError: (error, stackTrace) {
           debugPrint('Game WebView capture update failed: $error\n$stackTrace');
           if (_isCurrentBinding(bindingEpoch, orchestrator)) {
-            _reportRecoverableError('抓包模式更新失败：${error.runtimeType}');
+            _reportRecoverableError(
+              _l10n.gameWebViewCaptureModeUpdateFailed(
+                error.runtimeType.toString(),
+              ),
+            );
           }
         },
       ),
@@ -2300,7 +2303,9 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
     } catch (error, stackTrace) {
       debugPrint('Game WebView network retry failed: $error\n$stackTrace');
       if (mounted && !_disposed) {
-        _reportRecoverableError('网络重试失败：${error.runtimeType}');
+        _reportRecoverableError(
+          _l10n.gameWebViewNetworkRetryFailed(error.runtimeType.toString()),
+        );
       }
     } finally {
       if (mounted && !_disposed) setState(() => _retryInProgress = false);

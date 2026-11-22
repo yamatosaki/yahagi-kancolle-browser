@@ -259,6 +259,36 @@ abstract class AppLocalizations {
   /// **'游戏启动脚本暂时无法加载'**
   String get gameStartupGadgetError;
 
+  /// No description provided for @gameWebViewStartupFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏页面启动失败：{errorType}'**
+  String gameWebViewStartupFailed(String errorType);
+
+  /// No description provided for @gameWebViewPageLoadFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏页面加载失败 [{code}]，请重新加载或检查网络。'**
+  String gameWebViewPageLoadFailed(String code);
+
+  /// No description provided for @gameWebViewPagePreparationFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏页面准备失败：{errorType}'**
+  String gameWebViewPagePreparationFailed(String errorType);
+
+  /// No description provided for @gameWebViewCaptureModeUpdateFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'抓包模式更新失败：{errorType}'**
+  String gameWebViewCaptureModeUpdateFailed(String errorType);
+
+  /// No description provided for @gameWebViewNetworkRetryFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'网络重试失败：{errorType}'**
+  String gameWebViewNetworkRetryFailed(String errorType);
+
   /// No description provided for @debuffReminderTitle.
   ///
   /// In zh, this message translates to:

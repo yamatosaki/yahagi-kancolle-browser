@@ -89,6 +89,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gameStartupGadgetError => '游戏启动脚本暂时无法加载';
 
   @override
+  String gameWebViewStartupFailed(String errorType) {
+    return '游戏页面启动失败：$errorType';
+  }
+
+  @override
+  String gameWebViewPageLoadFailed(String code) {
+    return '游戏页面加载失败 [$code]，请重新加载或检查网络。';
+  }
+
+  @override
+  String gameWebViewPagePreparationFailed(String errorType) {
+    return '游戏页面准备失败：$errorType';
+  }
+
+  @override
+  String gameWebViewCaptureModeUpdateFailed(String errorType) {
+    return '抓包模式更新失败：$errorType';
+  }
+
+  @override
+  String gameWebViewNetworkRetryFailed(String errorType) {
+    return '网络重试失败：$errorType';
+  }
+
+  @override
   String get debuffReminderTitle => '削甲提醒';
 
   @override
@@ -4421,6 +4446,31 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get gameStartupGadgetError => '暫時無法載入遊戲啟動指令碼';
+
+  @override
+  String gameWebViewStartupFailed(String errorType) {
+    return '遊戲頁面啟動失敗：$errorType';
+  }
+
+  @override
+  String gameWebViewPageLoadFailed(String code) {
+    return '遊戲頁面載入失敗 [$code]，請重新載入或檢查網路。';
+  }
+
+  @override
+  String gameWebViewPagePreparationFailed(String errorType) {
+    return '遊戲頁面準備失敗：$errorType';
+  }
+
+  @override
+  String gameWebViewCaptureModeUpdateFailed(String errorType) {
+    return '擷取模式更新失敗：$errorType';
+  }
+
+  @override
+  String gameWebViewNetworkRetryFailed(String errorType) {
+    return '網路重試失敗：$errorType';
+  }
 
   @override
   String get debuffReminderTitle => '削甲提醒';
