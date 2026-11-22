@@ -215,6 +215,7 @@
   "fleetTransportTotal": "合計",
   "fleetTransportKinuBonus": "鬼怒改二の内蔵補正",
   "fleetTransportRankValues": "S：{s}（A：{a}）",
+  "@fleetTransportRankValues": {"placeholders": {"s":{"type":"int"},"a":{"type":"int"}}},
   "expeditionBrief": "遠征情報",
   "repairBrief": "修理概要",
   "repairDockMode": "入渠",

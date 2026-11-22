@@ -276,6 +276,7 @@
   "fleetTransportTotal": "합계",
   "fleetTransportKinuBonus": "키누改二 기본 보너스",
   "fleetTransportRankValues": "S: {s} (A: {a})",
+  "@fleetTransportRankValues": {"placeholders": {"s":{"type":"int"},"a":{"type":"int"}}},
   "expeditionBrief": "원정 요약",
   "repairBrief": "수리 요약",
   "repairDockMode": "입거",

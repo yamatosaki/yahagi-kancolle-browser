@@ -276,6 +276,7 @@
   "fleetTransportTotal": "Total",
   "fleetTransportKinuBonus": "Kinu Kai Ni bonus",
   "fleetTransportRankValues": "S: {s} (A: {a})",
+  "@fleetTransportRankValues": {"placeholders": {"s":{"type":"int"},"a":{"type":"int"}}},
   "expeditionBrief": "Expedition summary",
   "repairBrief": "Repair summary",
   "repairDockMode": "Dock",
