@@ -33,6 +33,17 @@ class LayoutSettingsController extends ChangeNotifier {
     this._fleetMoraleMetricMode,
   );
 
+  final _workspaceChanges = ValueNotifier(0);
+
+  /// Workspace listeners skip settings that only change briefing card content.
+  Listenable get workspaceChanges => _workspaceChanges;
+
+  @override
+  void notifyListeners() {
+    super.notifyListeners();
+    _workspaceChanges.value++;
+  }
+
   static Future<LayoutSettingsController> load(
     LayoutSettingsStore store, {
     String? systemLocaleCode,
@@ -630,7 +641,7 @@ class LayoutSettingsController extends ChangeNotifier {
   Future<void> setFleetDisplayFields(Iterable<String> fields) async {
     _fleetDisplayFieldsLoaded = true;
     _fleetDisplayFields = normalizeDisplayFields(fields);
-    notifyListeners();
+    super.notifyListeners();
     if (_store is FleetDisplaySettingsStore) {
       await (_store as FleetDisplaySettingsStore).saveFleetDisplayFields(
         _fleetDisplayFields.toList(),
@@ -675,7 +686,7 @@ class LayoutSettingsController extends ChangeNotifier {
   Future<void> setFleetShipTypeLabelMode(FleetShipTypeLabelMode mode) async {
     if (_fleetShipTypeLabelMode == mode) return;
     _fleetShipTypeLabelMode = mode;
-    notifyListeners();
+    super.notifyListeners();
     if (_store is FleetDisplaySettingsStore) {
       await (_store as FleetDisplaySettingsStore).saveFleetShipTypeLabelMode(
         mode,
@@ -688,7 +699,7 @@ class LayoutSettingsController extends ChangeNotifier {
   Future<void> setFleetSelectorLabelMode(FleetSelectorLabelMode mode) async {
     if (fleetSelectorLabelModeSetting == mode) return;
     setFleetSelectorLabelModeSetting(mode);
-    notifyListeners();
+    super.notifyListeners();
     if (_store is FleetDisplaySettingsStore) {
       await (_store as FleetDisplaySettingsStore).saveFleetSelectorLabelMode(
         mode,
@@ -725,7 +736,7 @@ class LayoutSettingsController extends ChangeNotifier {
     );
     if (module == 'expedition') _expeditionCountdownConfigured = true;
     _moduleDisplayFields[module] = selected;
-    notifyListeners();
+    super.notifyListeners();
     if (_store is ModuleDisplaySettingsStore) {
       await (_store as ModuleDisplaySettingsStore).saveModuleDisplayFields(
         module,
@@ -743,7 +754,7 @@ class LayoutSettingsController extends ChangeNotifier {
   Future<void> setModuleShowLogo(String module, bool show) async {
     if (_moduleShowLogo[module] == show) return;
     _moduleShowLogo[module] = show;
-    notifyListeners();
+    super.notifyListeners();
     if (_store is ModuleDisplaySettingsStore) {
       await (_store as ModuleDisplaySettingsStore).saveModuleShowLogo(
         module,
@@ -755,7 +766,7 @@ class LayoutSettingsController extends ChangeNotifier {
   Future<void> setModuleShowName(String module, bool show) async {
     if (_moduleShowName[module] == show) return;
     _moduleShowName[module] = show;
-    notifyListeners();
+    super.notifyListeners();
     if (_store is ModuleDisplaySettingsStore) {
       await (_store as ModuleDisplaySettingsStore).saveModuleShowName(
         module,
@@ -772,7 +783,7 @@ class LayoutSettingsController extends ChangeNotifier {
   ) async {
     if (repairFleetSelectorLabelModeSetting == mode) return;
     setRepairFleetSelectorLabelModeSetting(mode);
-    notifyListeners();
+    super.notifyListeners();
     if (_store is ModuleDisplaySettingsStore) {
       await (_store as ModuleDisplaySettingsStore)
           .saveRepairFleetSelectorLabelMode(mode);
@@ -1141,6 +1152,7 @@ class LayoutSettingsController extends ChangeNotifier {
     _cameraAvoidanceDisposed = true;
     _appThemeDisposed = true;
     customFontController?.removeListener(_handleCustomFontChanged);
+    _workspaceChanges.dispose();
     super.dispose();
   }
 

@@ -1,12 +1,14 @@
 import 'dart:async';
 
-import '../theme/app_palette.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 
+import '../browser/game_frame_reload_port.dart';
 import '../browser/game_resource_cache_channel.dart';
 import '../browser/game_resource_cache_controller.dart';
 import '../browser/game_resource_cache_store.dart';
+import '../theme/app_palette.dart';
 import '../widgets/top_notice.dart';
 import 'settings_ui_helpers.dart';
 
@@ -23,6 +25,7 @@ class GameResourceCacheSection extends StatefulWidget {
 class _GameResourceCacheSectionState extends State<GameResourceCacheSection>
     with WidgetsBindingObserver {
   bool _integrityChecked = false;
+  bool _clearingKanxyCache = false;
   bool _tickerEnabled = true;
   bool _foreground = true;
   bool _visible = false;
@@ -93,6 +96,15 @@ class _GameResourceCacheSectionState extends State<GameResourceCacheSection>
         final controller = widget.controller;
         final status = controller.status;
         final isFullCache = controller.mode == GameResourceCacheMode.full;
+        final isDownloading =
+            status.state == GameResourceCacheState.downloading;
+        final cacheActionsDisabled =
+            !controller.initialized || controller.busy || _clearingKanxyCache;
+        final showKanxyClear =
+            !kIsWeb &&
+            defaultTargetPlatform == TargetPlatform.android &&
+            status.supported;
+        final canStartPreload = !_isPreloadBlocked(status);
         final hasIntegrityIssues =
             status.missingCount > 0 ||
             status.damagedCount > 0 ||
@@ -144,14 +156,14 @@ class _GameResourceCacheSectionState extends State<GameResourceCacheSection>
                   style: TextStyle(color: appColor(context, Color(0xffffb4a9))),
                 ),
               ),
-            if (isFullCache && status.waitingForWifi)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Text(
-                  l10n.gameResourceCacheWaitingForWifi,
-                  style: TextStyle(color: appColor(context, Color(0xff9bc7e4))),
-                ),
-              ),
+            if (isFullCache && status.preloadBlockedByProxy)
+              _preloadHint(l10n.gameResourceCachePreloadProxyBlocked)
+            else if (isFullCache &&
+                !status.manifestReady &&
+                !controller.manifestError)
+              _preloadHint(l10n.gameResourceCacheManifestNotReady)
+            else if (isFullCache && canStartPreload && status.waitingForWifi)
+              _preloadHint(l10n.gameResourceCacheWaitingForWifi),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 12, 12),
               child: Wrap(
@@ -172,18 +184,14 @@ class _GameResourceCacheSectionState extends State<GameResourceCacheSection>
                   if (isFullCache)
                     FilledButton.icon(
                       key: const Key('cache-download-toggle'),
-                      onPressed: !controller.initialized || controller.busy
+                      onPressed:
+                          cacheActionsDisabled ||
+                              (!isDownloading && !canStartPreload)
                           ? null
-                          : () =>
-                                status.state ==
-                                    GameResourceCacheState.downloading
-                                ? _run(controller.pauseDownload)
-                                : _confirmDownload(l10n),
-                      icon: Icon(
-                        status.state == GameResourceCacheState.downloading
-                            ? Icons.pause
-                            : Icons.download,
-                      ),
+                          : isDownloading
+                          ? () => _run(controller.pauseDownload)
+                          : () => _confirmDownload(l10n),
+                      icon: Icon(isDownloading ? Icons.pause : Icons.download),
                       label: Text(switch (status.state) {
                         GameResourceCacheState.downloading =>
                           l10n.gameResourceCachePause,
@@ -195,9 +203,7 @@ class _GameResourceCacheSectionState extends State<GameResourceCacheSection>
                   if (isFullCache)
                     OutlinedButton.icon(
                       key: const Key('cache-check-integrity'),
-                      onPressed: !controller.initialized || controller.busy
-                          ? null
-                          : _checkIntegrity,
+                      onPressed: cacheActionsDisabled ? null : _checkIntegrity,
                       icon: const Icon(Icons.fact_check_outlined),
                       label: Text(l10n.gameResourceCacheCheck),
                     ),
@@ -208,19 +214,43 @@ class _GameResourceCacheSectionState extends State<GameResourceCacheSection>
                           status.outdatedCount > 0))
                     OutlinedButton.icon(
                       key: const Key('cache-repair'),
-                      onPressed: !controller.initialized || controller.busy
+                      onPressed: cacheActionsDisabled || !canStartPreload
                           ? null
                           : () => _confirmRepair(l10n),
                       icon: const Icon(Icons.build_outlined),
                       label: Text(l10n.gameResourceCacheRepair),
                     ),
-                  TextButton.icon(
-                    key: const Key('cache-clear'),
-                    onPressed: !controller.initialized || controller.busy
-                        ? null
-                        : () => _confirmClear(l10n),
-                    icon: const Icon(Icons.delete_outline),
-                    label: Text(l10n.gameResourceCacheClear),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Flexible(
+                        flex: 2,
+                        child: OutlinedButton.icon(
+                          key: const Key('cache-clear'),
+                          onPressed: cacheActionsDisabled
+                              ? null
+                              : () => _confirmClear(l10n),
+                          icon: const Icon(Icons.delete_outline, size: 18),
+                          label: Text(l10n.gameResourceCacheClear),
+                        ),
+                      ),
+                      if (showKanxyClear) ...<Widget>[
+                        const SizedBox(width: 12),
+                        Flexible(
+                          flex: 3,
+                          child: OutlinedButton.icon(
+                            key: const Key('kanxy-cache-clear'),
+                            onPressed: cacheActionsDisabled
+                                ? null
+                                : _clearKanxyCache,
+                            icon: const Icon(Icons.refresh, size: 18),
+                            label: Text(
+                              l10n.gameResourceCacheKanxyClearAndReload,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
@@ -265,6 +295,17 @@ class _GameResourceCacheSectionState extends State<GameResourceCacheSection>
     );
   }
 
+  bool _isPreloadBlocked(GameResourceCacheStatus status) =>
+      !status.manifestReady || status.preloadBlockedByProxy;
+
+  Widget _preloadHint(String message) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+    child: Text(
+      message,
+      style: TextStyle(color: appColor(context, Color(0xff9bc7e4))),
+    ),
+  );
+
   Widget _modeTile({
     required GameResourceCacheMode mode,
     required String title,
@@ -277,6 +318,7 @@ class _GameResourceCacheSectionState extends State<GameResourceCacheSection>
       onTap:
           !widget.controller.initialized ||
               widget.controller.busy ||
+              _clearingKanxyCache ||
               selected ||
               (!widget.controller.status.supported &&
                   mode == GameResourceCacheMode.full)
@@ -342,7 +384,7 @@ class _GameResourceCacheSectionState extends State<GameResourceCacheSection>
       confirmLabel: l10n.confirm,
     );
     if (confirmed) {
-      await _run(
+      await _runPreload(
         () => widget.controller.startDownload(allowMetered: isMetered),
       );
     }
@@ -358,7 +400,36 @@ class _GameResourceCacheSectionState extends State<GameResourceCacheSection>
       );
       if (!confirmed) return;
     }
-    await _run(() => widget.controller.repair(allowMetered: isMetered));
+    await _runPreload(() => widget.controller.repair(allowMetered: isMetered));
+  }
+
+  Future<void> _clearKanxyCache() async {
+    if (_clearingKanxyCache) return;
+    setState(() => _clearingKanxyCache = true);
+    try {
+      final result = await MethodChannelGameFrameReloadPort()
+          .clearKanxyCacheAndReload();
+      if (!mounted) return;
+      if (result == KanxyCacheClearResult.failed) {
+        _showFailure();
+        return;
+      }
+      final l10n =
+          AppLocalizations.of(context) ??
+          lookupAppLocalizations(const Locale('zh'));
+      final reloaded = result == KanxyCacheClearResult.reloaded;
+      TopNotice.show(
+        context,
+        message: reloaded
+            ? l10n.gameResourceCacheKanxyReloaded
+            : l10n.gameResourceCacheKanxyCleared,
+        tone: reloaded ? TopNoticeTone.success : TopNoticeTone.info,
+      );
+    } catch (_) {
+      _showFailure();
+    } finally {
+      if (mounted) setState(() => _clearingKanxyCache = false);
+    }
   }
 
   Future<void> _confirmClear(AppLocalizations l10n) async {
@@ -408,6 +479,14 @@ class _GameResourceCacheSectionState extends State<GameResourceCacheSection>
     } catch (_) {
       _showFailure();
     }
+  }
+
+  Future<void> _runPreload(Future<bool> Function() action) async {
+    if (!mounted || _isPreloadBlocked(widget.controller.status)) return;
+    await _run(() async {
+      final started = await action();
+      return started || _isPreloadBlocked(widget.controller.status);
+    });
   }
 
   void _showFailure() {

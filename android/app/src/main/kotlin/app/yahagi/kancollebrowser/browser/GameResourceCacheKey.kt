@@ -7,7 +7,11 @@ import java.util.Locale
 @JvmInline
 value class GameResourceCacheKey(val value: String) {
     companion object {
-        fun from(url: String, requestHeaders: Map<String, String> = emptyMap()): GameResourceCacheKey? {
+        fun from(
+            url: String,
+            requestHeaders: Map<String, String> = emptyMap(),
+            includeStaticRequestHeaders: Boolean = false,
+        ): GameResourceCacheKey? {
             if (url.length > 2_048) return null
             val uri = try {
                 URI(url)
@@ -20,7 +24,9 @@ value class GameResourceCacheKey(val value: String) {
             val base = "https://${uri.host.lowercase(Locale.ROOT)}$path$query"
             val forwarded = GameResourceCacheRules.boundedForwardedRequestHeaders(requestHeaders)
                 ?: return null
-            if (GameResourceCacheRules.isShareableStaticUri(uri)) return GameResourceCacheKey(base)
+            if (!includeStaticRequestHeaders && GameResourceCacheRules.isShareableStaticUri(uri)) {
+                return GameResourceCacheKey(base)
+            }
             val variant = forwarded.entries
                 .sortedBy { it.key.lowercase(Locale.ROOT) }
             if (variant.isEmpty()) return GameResourceCacheKey(base)

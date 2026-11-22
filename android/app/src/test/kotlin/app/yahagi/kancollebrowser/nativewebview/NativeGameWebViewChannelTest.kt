@@ -375,12 +375,19 @@ class NativeGameWebViewChannelTest {
         firstSink.created(0)
         firstSink.pageStarted(0, "https://old.example/start")
         firstSink.pageFinished(0, "https://old.example/finish")
+        firstSink.pageProgress(0, 70, "https://old.example/start")
+        firstSink.resourceError(0, 503, NativeGameWebViewResourceKind.GADGET)
         firstSink.mainFrameError(0, -2, "old error")
         firstSink.navigationBlocked(0, "intent")
         firstSink.presentationChanged(0, true)
         firstSink.renderProcessGone(0, true)
         firstSink.destroyed(0)
         secondSink.pageStarted(0, "https://new.example/start")
+        secondSink.pageProgress(99, 70, null)
+        secondSink.pageProgress(0, 70, "https://new.example/start")
+        secondSink.pageProgress(0, 100, null)
+        secondSink.resourceError(0, 503, NativeGameWebViewResourceKind.GADGET)
+        secondSink.resourceError(0, 404)
         secondSink.pageFinished(0, "https://new.example/finish")
 
         assertSuccess(channel, "reload", generation(0), null)
@@ -399,6 +406,21 @@ class NativeGameWebViewChannelTest {
                     "generationId" to 0L,
                     "url" to "https://new.example/start",
                 ),
+                mapOf(
+                    "type" to "pageProgress",
+                    "generationId" to 0L,
+                    "progress" to 70,
+                    "url" to "https://new.example/start",
+                ),
+                mapOf("type" to "pageProgress", "generationId" to 0L, "progress" to 100),
+                mapOf(
+                    "type" to "resourceError",
+                    "generationId" to 0L,
+                    "errorCode" to 503,
+                    "description" to "",
+                    "resourceKind" to "gadget",
+                ),
+                mapOf("type" to "resourceError", "generationId" to 0L, "errorCode" to 404, "description" to ""),
                 mapOf(
                     "type" to "pageFinished",
                     "generationId" to 0L,
@@ -817,6 +839,45 @@ class NativeGameWebViewChannelTest {
         assertEquals(1, host.fitGameScreenCalls)
         assertEquals("<html>home</html>", host.localHomeHtml)
         assertEquals("window.fit()", host.fitJavascript)
+    }
+
+    @Test
+    fun startupCardRoutesUpdatesAndClearForTheAcceptedGenerationOnly() {
+        val host = FakeHost()
+        val channel = activeChannel(host)
+        assertSuccess(channel, "create", mapOf("renderer" to "webgl"), 0L)
+        val card = mapOf(
+            "title" to "Loading game resources",
+            "stage" to "Starting game",
+            "requests" to "8 resource requests",
+            "pageProgress" to 52,
+            "stalled" to true,
+        )
+        val command = mapOf("generationId" to 0, "card" to card)
+        assertSuccess(channel, "setStartupCard", command, null)
+        assertEquals(
+            NativeGameStartupCardData(
+                title = "Loading game resources",
+                stage = "Starting game",
+                requests = "8 resource requests",
+                pageProgress = 52,
+                stalled = true,
+            ),
+            host.startupCard,
+        )
+
+        val stale = RecordingResult()
+        channel.onMethodCall(MethodCall("setStartupCard", mapOf("generationId" to 1, "card" to null)), stale)
+        assertEquals("stale_generation", stale.errorCode)
+        assertEquals(52, host.startupCard?.pageProgress)
+
+        for (invalidCard in listOf(card + ("pageProgress" to 101), card + ("bottom" to true), card - "title")) {
+            val invalid = RecordingResult()
+            channel.onMethodCall(MethodCall("setStartupCard", command + ("card" to invalidCard)), invalid)
+            assertEquals("invalid_argument", invalid.errorCode)
+        }
+        assertSuccess(channel, "setStartupCard", mapOf("generationId" to 0, "card" to null), null)
+        assertNull(host.startupCard)
     }
 
     @Test
@@ -1573,6 +1634,7 @@ class NativeGameWebViewChannelTest {
         var bounds: NativeGameWebViewBounds? = null
         var setBoundsResult = true
         var setVisibleResult = true
+        var startupCard: NativeGameStartupCardData? = null
         val operations = mutableListOf<String>()
 
         override fun create(): Long? {
@@ -1593,6 +1655,12 @@ class NativeGameWebViewChannelTest {
 
         override fun setVisible(generation: Long, visible: Boolean) =
             generation == currentGeneration && setVisibleResult
+
+        override fun setStartupCard(generation: Long, card: NativeGameStartupCardData?): Boolean {
+            if (generation != currentGeneration) return false
+            startupCard = card
+            return true
+        }
 
         override fun loadUri(uri: String) {
             loadUriCalls++

@@ -7,6 +7,7 @@ import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_dialog_presentation_scope.dart';
 import 'package:yahagi_kancolle_browser/src/browser/native_game_resource_checklist.dart';
 import 'package:yahagi_kancolle_browser/src/browser/native_game_warning_dialog.dart';
+import 'package:yahagi_kancolle_browser/src/fleet/fleet_ui_strings.dart';
 import 'package:yahagi_kancolle_browser/src/settings/fleet_display_options.dart';
 import 'package:yahagi_kancolle_browser/src/settings/fleet_display_settings_section.dart';
 import 'package:yahagi_kancolle_browser/src/settings/game_display_settings_dialog.dart';
@@ -28,14 +29,40 @@ void main() {
         final shown = h.port.shown.single;
         expect(shown['kind'], 'moduleDisplay');
         expect(shown['protectInputOnDismiss'], isFalse);
-        expect(
-          (shown['items'] as List),
-          hasLength(
-            moduleDisplayOptions[module]!.length +
-                2 +
-                (module == 'repair' ? 2 : 0),
-          ),
+        final items = (shown['items'] as List).cast<Map<String, Object?>>();
+        final options = moduleDisplayOptions[module]!;
+        expect(items.map((item) => item['groupLabel']), [
+          '胶囊外观',
+          '胶囊外观',
+          for (final _ in options.keys) '显示内容',
+          if (module == 'repair') ...['舰队切换名称', '舰队切换名称'],
+        ]);
+        expect(h.row('appearance-logo')['label'], 'LOGO');
+        expect(h.row('appearance-name')['label'], '名字');
+        final context = tester.element(find.text('open'));
+        for (final option in options.entries) {
+          expect(
+            h.row('field-${option.key}')['label'],
+            fleetText(context, option.value),
+          );
+        }
+        expect(items.any((item) => item.containsKey('groupDetail')), isFalse);
+        final singleChoiceItems = items.where(
+          (item) => item.containsKey('groupSingleChoice'),
         );
+        expect(singleChoiceItems.map((item) => item['id']), [
+          if (module == 'repair') ...['fleet-name-custom', 'fleet-name-number'],
+        ]);
+        if (module == 'repair') {
+          expect(
+            singleChoiceItems.every(
+              (item) => item['groupSingleChoice'] == true,
+            ),
+            isTrue,
+          );
+          expect(h.row('fleet-name-custom')['label'], '自定义舰队名');
+          expect(h.row('fleet-name-number')['label'], '1–4 简称');
+        }
         h.port.toggle('appearance-logo', false);
         h.port.toggle('appearance-name', false);
         await tester.pump();
@@ -86,6 +113,79 @@ void main() {
     );
   }
 
+  testWidgets('native fleet editor sends headings and short option labels', (
+    tester,
+  ) async {
+    final h = await _Harness.mount(tester, module: 'fleet', native: true);
+    await h.open(tester);
+    final items = (h.port.shown.single['items'] as List)
+        .cast<Map<String, Object?>>();
+    expect(items.map((item) => item['groupLabel']), [
+      '胶囊外观',
+      '胶囊外观',
+      '舰队切换名称',
+      '舰队切换名称',
+      for (final group in displayGroups.entries)
+        for (final _ in group.value.keys) group.key,
+      '舰种名称',
+      '舰种名称',
+    ]);
+    expect(h.row('appearance-logo')['label'], 'LOGO');
+    expect(h.row('appearance-name')['label'], '名字');
+    expect(h.row('fleet-name-custom')['label'], '自定义舰队名');
+    expect(h.row('field-portrait')['label'], '舰娘头像');
+    expect(h.row('field-level')['label'], '等级');
+    expect(h.row('field-transport-points')['label'], '普通（战车）运输量');
+    expect(h.row('ship-type-abbreviation')['label'], '英文缩写');
+    expect(
+      items
+          .where((item) => item.containsKey('groupDetail'))
+          .map((item) => item['id']),
+      ['field-speed'],
+    );
+    final singleChoiceItems = items.where(
+      (item) => item.containsKey('groupSingleChoice'),
+    );
+    expect(singleChoiceItems.map((item) => item['id']), [
+      'fleet-name-custom',
+      'fleet-name-number',
+      'ship-type-localized',
+      'ship-type-abbreviation',
+    ]);
+    expect(
+      singleChoiceItems.every((item) => item['groupSingleChoice'] == true),
+      isTrue,
+    );
+    h.port.finish();
+    await tester.pumpAndSettle();
+  });
+
+  for (final module in ['fleet', 'battle']) {
+    testWidgets(
+      'native $module editor skips duplicate refreshes and sends every acknowledgment',
+      (tester) async {
+        final h = await _Harness.mount(tester, module: module, native: true);
+        await h.open(tester);
+        await tester.pump(const Duration(seconds: 1));
+        expect(h.port.updateCount, 0);
+
+        h.port.toggle('appearance-logo', false);
+        await tester.pumpAndSettle();
+        expect(h.port.updateCount, 1);
+        expect(h.row('appearance-logo')['checked'], false);
+
+        // An unchanged value still needs to acknowledge a new native change id.
+        h.port.toggle('appearance-logo', false);
+        await tester.pumpAndSettle();
+        expect(h.port.updateCount, 2);
+        expect(h.port.current['appliedChangeId'], 2);
+
+        h.port.finish();
+        await tester.pumpAndSettle();
+      },
+    );
+  }
+
   for (final hd in [false, true]) {
     testWidgets(
       'native fleet editor keeps ${hd ? 7 : 5} summary limit and mutual choices',
@@ -106,6 +206,7 @@ void main() {
             : h.settings.fleetDisplayFields;
         final limit = hd ? 7 : 5;
         expect(current.intersection(summaryFields), hasLength(limit));
+        expect(h.row('field-speed')['groupDetail'], '$limit / $limit');
         const transportField = 'transport-points';
         const transportRow = 'field-$transportField';
         expect(h.row(transportRow)['checked'], isFalse);
@@ -119,8 +220,10 @@ void main() {
         final selected = current.intersection(summaryFields).first;
         h.port.toggle('field-$selected', false);
         expect(h.row(transportRow)['enabled'], isTrue);
+        expect(h.row('field-speed')['groupDetail'], '${limit - 1} / $limit');
         h.port.toggle(transportRow, true);
         expect(h.row(transportRow)['checked'], isTrue);
+        expect(h.row('field-speed')['groupDetail'], '$limit / $limit');
         expect(
           (hd ? h.settings.hdFleetDisplayFields : h.settings.fleetDisplayFields)
               .intersection(summaryFields),
@@ -253,6 +356,8 @@ void main() {
                       context: context,
                       changes: display,
                       ownerIsCurrent: () => display.value.active,
+                      protectInputOnDismiss: false,
+                      compactShipChecklist: true,
                       kind: 'moduleDisplay',
                       title: 'Choose ships',
                       items: () => [
@@ -267,6 +372,7 @@ void main() {
                         toggles++;
                       },
                       onReset: () {},
+                      onDone: () {},
                       resetLabel: 'Reset',
                       doneLabel: 'Finish editing',
                       builder: (_, _) => const Dialog(),
@@ -283,7 +389,13 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
       expect(port.shown.single['labels'], {'acknowledge': 'Finish editing'});
-      expect(port.shown.single.containsKey('protectInputOnDismiss'), isFalse);
+      expect(port.shown.single['protectInputOnDismiss'], isFalse);
+      expect(port.shown.single['compactShipChecklist'], isTrue);
+      final row = (port.shown.single['items'] as List).single as Map;
+      expect(row.containsKey('groupLabel'), isFalse);
+      expect(row.containsKey('groupSingleChoice'), isFalse);
+      await tester.pump(const Duration(seconds: 1));
+      expect(port.updateCount, 1);
       display.value = (active: true, checked: false);
       expect((port.current['items'] as List).single['checked'], isFalse);
       port.toggle('101', true);
@@ -400,6 +512,7 @@ class _Port implements NativeGameResourceChecklistPort {
   final result = Completer<NativeGameWarningAction?>();
   Map<String, Object?> current = {};
   int sequence = 0;
+  int updateCount = 0;
   @override
   Stream<Map<String, Object?>> get events => source.stream;
   @override
@@ -410,7 +523,11 @@ class _Port implements NativeGameResourceChecklistPort {
   }
 
   @override
-  Future<void> update(Map<String, Object?> payload) async => current = payload;
+  Future<void> update(Map<String, Object?> payload) async {
+    updateCount++;
+    current = payload;
+  }
+
   @override
   Future<void> dismiss({required String kind, required int id}) async {
     dismissed.add({'kind': kind, 'id': id});

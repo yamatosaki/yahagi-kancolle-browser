@@ -330,20 +330,27 @@ Future<void> showFleetDisplaySettings(
 
   Map<String, Object?> item(
     String id,
+    String group,
     String label,
     bool checked, {
     bool enabled = true,
+    String? groupDetail,
+    bool groupSingleChoice = false,
   }) => {
     'id': id,
-    'label': label,
+    'label': text(label),
     'value': '',
     'checked': checked,
     'enabled': enabled,
+    'groupLabel': text(group),
+    'groupDetail': ?groupDetail,
+    if (groupSingleChoice) 'groupSingleChoice': true,
   };
   return showGameDisplaySettingsDialog(
     context: context,
     controller: controller,
     protectInputOnDismiss: false,
+    skipUnchangedUpdates: true,
     kind: 'fleetDisplay',
     title: text(FleetUiKeys.fleetSummaryDisplay),
     resetLabel: text(FleetUiKeys.reset),
@@ -355,31 +362,43 @@ Future<void> showFleetDisplaySettings(
       return [
         item(
           'appearance-logo',
-          '${text(FleetUiKeys.capsuleAppearance)} · ${text('LOGO')}',
+          FleetUiKeys.capsuleAppearance,
+          'LOGO',
           controller.moduleShowLogo('fleet'),
         ),
         item(
           'appearance-name',
-          '${text(FleetUiKeys.capsuleAppearance)} · ${text(FleetUiKeys.name)}',
+          FleetUiKeys.capsuleAppearance,
+          FleetUiKeys.name,
           controller.moduleShowName('fleet'),
         ),
         item(
           'fleet-name-custom',
-          '${text(FleetUiKeys.fleetSelectorName)} · ${text(FleetUiKeys.customFleetName)}',
+          FleetUiKeys.fleetSelectorName,
+          FleetUiKeys.customFleetName,
           controller.fleetSelectorLabelMode ==
               FleetSelectorLabelMode.customName,
+          groupSingleChoice: true,
         ),
         item(
           'fleet-name-number',
-          '${text(FleetUiKeys.fleetSelectorName)} · ${text(FleetUiKeys.shortFleetNumber)}',
+          FleetUiKeys.fleetSelectorName,
+          FleetUiKeys.shortFleetNumber,
           controller.fleetSelectorLabelMode == FleetSelectorLabelMode.number,
+          groupSingleChoice: true,
         ),
         for (final group in displayGroups.entries)
           for (final field in group.value.entries)
             item(
               'field-${field.key}',
-              '${text(group.key)} · ${text(field.value)}',
+              group.key,
+              field.value,
               selected.contains(field.key),
+              groupDetail:
+                  group.key == FleetUiKeys.summaryGroup &&
+                      field.key == group.value.keys.first
+                  ? '$count / $limit'
+                  : null,
               enabled:
                   selected.contains(field.key) ||
                   !summaryFields.contains(field.key) ||
@@ -387,15 +406,19 @@ Future<void> showFleetDisplaySettings(
             ),
         item(
           'ship-type-localized',
-          '${text(FleetUiKeys.shipTypeName)} · ${text(FleetUiKeys.chinese)}',
+          FleetUiKeys.shipTypeName,
+          FleetUiKeys.chinese,
           controller.fleetShipTypeLabelMode ==
               FleetShipTypeLabelMode.localizedName,
+          groupSingleChoice: true,
         ),
         item(
           'ship-type-abbreviation',
-          '${text(FleetUiKeys.shipTypeName)} · ${text(FleetUiKeys.englishAbbreviation)}',
+          FleetUiKeys.shipTypeName,
+          FleetUiKeys.englishAbbreviation,
           controller.fleetShipTypeLabelMode ==
               FleetShipTypeLabelMode.abbreviation,
+          groupSingleChoice: true,
         ),
       ];
     },

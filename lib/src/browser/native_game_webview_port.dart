@@ -6,10 +6,12 @@ import 'game_browser_controller.dart';
 import 'game_frame_reload_port.dart';
 import 'game_local_home.dart';
 import 'game_page_alignment_script.dart';
+import 'native_game_startup_card_port.dart';
 import 'native_game_webview_contract.dart';
 import 'safe_page_address.dart';
 
-final class MethodChannelNativeGameWebViewPort implements GameBrowserPort {
+final class MethodChannelNativeGameWebViewPort
+    implements GameBrowserPort, NativeGameStartupCardPort {
   static const int _maxInitialNotifications = 64;
 
   MethodChannelNativeGameWebViewPort({
@@ -224,6 +226,10 @@ final class MethodChannelNativeGameWebViewPort implements GameBrowserPort {
   Future<void> setVisible(bool visible) {
     return _invoke('setVisible', <String, Object?>{'visible': visible});
   }
+
+  @override
+  Future<void> setStartupCard(NativeGameStartupCardData? card) =>
+      _invoke('setStartupCard', <String, Object?>{'card': card?.toMap()});
 
   @override
   Future<void> loadUri(Uri uri) async {

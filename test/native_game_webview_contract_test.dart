@@ -122,6 +122,76 @@ void main() {
   });
 
   group('NativeGameWebViewEvent.decode', () {
+    test('decodes bounded page progress with an optional safe address', () {
+      final payload = <String, Object?>{
+        'type': 'pageProgress',
+        'generationId': 4,
+        'progress': 0,
+      };
+      final started = NativeGameWebViewEvent.decode(payload);
+      expect(started.type, NativeGameWebViewEventType.pageProgress);
+      expect(started.generationId, 4);
+      expect(started.progress, 0);
+      expect(started.url, isNull);
+
+      final updated = NativeGameWebViewEvent.decode(<String, Object?>{
+        ...payload,
+        'progress': 100,
+        'url': 'https://www.dmm.com/game?token=secret#fragment',
+      });
+      expect(updated.progress, 100);
+      expect(updated.url, 'https://www.dmm.com/game');
+      expect(updated.navigationUri, isNull);
+
+      for (final invalid in <Map<String, Object?>>[
+        {'type': 'pageProgress', 'generationId': 4},
+        {...payload, 'progress': -1},
+        {...payload, 'progress': 101},
+        {...payload, 'progress': 52.0},
+        {...payload, 'progress': '52'},
+        {...payload, 'url': 'about:blank'},
+        {...payload, 'url': null},
+        {...payload, 'unexpected': true},
+      ]) {
+        expect(
+          () => NativeGameWebViewEvent.decode(invalid),
+          throwsA(isA<NativeGameWebViewSchemaException>()),
+        );
+      }
+    });
+
+    test('resource errors recognize only the Gadget classification', () {
+      final payload = <String, Object?>{
+        'type': 'resourceError',
+        'generationId': 4,
+        'errorCode': 503,
+        'description': '',
+      };
+      final gadget = NativeGameWebViewEvent.decode(<String, Object?>{
+        ...payload,
+        'resourceKind': 'gadget',
+      });
+      expect(gadget.errorCode, 503);
+      expect(gadget.resourceKind, NativeGameWebViewResourceKind.gadget);
+      expect(gadget.url, isNull);
+
+      final ordinary = NativeGameWebViewEvent.decode(payload);
+      expect(ordinary.type, NativeGameWebViewEventType.resourceError);
+      expect(ordinary.resourceKind, isNull);
+
+      for (final invalid in <Map<String, Object?>>[
+        {...payload, 'resourceKind': 'other'},
+        {...payload, 'resourceKind': null},
+        {...payload, 'url': 'https://example.com/private'},
+        {...payload, 'type': 'mainFrameError', 'resourceKind': 'gadget'},
+      ]) {
+        expect(
+          () => NativeGameWebViewEvent.decode(invalid),
+          throwsA(isA<NativeGameWebViewSchemaException>()),
+        );
+      }
+    });
+
     test(
       'pending presentation is distinct and old bool events stay compatible',
       () {

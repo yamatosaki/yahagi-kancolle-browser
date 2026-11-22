@@ -22,6 +22,7 @@ internal interface NativeGameWebViewHostOperations {
     fun create(): Long?
     fun setBounds(generation: Long, bounds: NativeGameWebViewBounds): Boolean
     fun setVisible(generation: Long, visible: Boolean): Boolean
+    fun setStartupCard(generation: Long, card: NativeGameStartupCardData?): Boolean
     fun loadUri(uri: String)
     fun showLocalHome(html: String)
     fun reload()
@@ -47,6 +48,9 @@ internal class ActivityNativeGameWebViewHostOperations(
 
     override fun setVisible(generation: Long, visible: Boolean): Boolean =
         host.setVisible(generation, visible)
+
+    override fun setStartupCard(generation: Long, card: NativeGameStartupCardData?): Boolean =
+        host.setStartupCard(generation, card)
 
     override fun loadUri(uri: String) {
         requireWebView().loadUrl(uri)
@@ -334,6 +338,7 @@ internal class NativeGameWebViewChannel(
         val bounds: NativeGameWebViewBounds? = null,
         val visible: Boolean? = null,
         val text: String? = null,
+        val startupCard: NativeGameStartupCardData? = null,
     )
 
     private data class PendingCall(
@@ -399,6 +404,18 @@ internal class NativeGameWebViewChannel(
             override fun pageStarted(generation: Long, url: String) =
                 handlePageStarted(attachmentId, generation, url)
 
+            override fun pageProgress(generation: Long, progress: Int, url: String?) =
+                emitForGeneration(
+                    attachmentId,
+                    generation,
+                    buildMap {
+                        put("type", "pageProgress")
+                        put("generationId", generation)
+                        put("progress", progress)
+                        if (url != null) put("url", url)
+                    },
+                )
+
             override fun pageFinished(generation: Long, url: String) =
                 handlePageFinished(attachmentId, generation, url)
 
@@ -428,16 +445,17 @@ internal class NativeGameWebViewChannel(
                     ),
                 )
 
-            override fun resourceError(generation: Long, errorCode: Int) =
+            override fun resourceError(generation: Long, errorCode: Int, kind: NativeGameWebViewResourceKind?) =
                 emitForGeneration(
                     attachmentId,
                     generation,
-                    mapOf(
-                        "type" to "resourceError",
-                        "generationId" to generation,
-                        "errorCode" to errorCode,
-                        "description" to "",
-                    ),
+                    buildMap {
+                        put("type", "resourceError")
+                        put("generationId", generation)
+                        put("errorCode", errorCode)
+                        put("description", "")
+                        if (kind != null) put("resourceKind", kind.wireValue)
+                    },
                 )
 
             override fun navigationBlocked(generation: Long, scheme: String) =
@@ -665,6 +683,12 @@ internal class NativeGameWebViewChannel(
                     }
                     finishSuccess(binding, pending)
                 }
+                "setStartupCard" -> {
+                    check(host.setStartupCard(generation, parsed.startupCard)) {
+                        "The native startup card could not be applied"
+                    }
+                    finishSuccess(binding, pending)
+                }
                 "loadUri" -> {
                     host.loadUri(checkNotNull(parsed.text))
                     finishSuccess(binding, pending)
@@ -887,6 +911,14 @@ internal class NativeGameWebViewChannel(
                 val visible = arguments["visible"] as? Boolean ?: invalid("visible must be a boolean")
                 ParsedCall(call.method, requireGeneration(arguments), visible = visible)
             }
+            "setStartupCard" -> {
+                requireExactKeys(arguments, setOf("generationId", "card"))
+                ParsedCall(
+                    call.method,
+                    requireGeneration(arguments),
+                    startupCard = arguments["card"]?.let(::parseStartupCard),
+                )
+            }
             "loadUri" -> {
                 requireExactKeys(arguments, setOf("generationId", "uri"))
                 val uri = arguments["uri"] as? String ?: invalid("uri must be a string")
@@ -915,6 +947,28 @@ internal class NativeGameWebViewChannel(
                 ParsedCall(call.method, requireGeneration(arguments))
             }
         }
+    }
+
+    private fun parseStartupCard(raw: Any): NativeGameStartupCardData {
+        val card = strictMap(raw)
+        requireExactKeys(card - STARTUP_CARD_OPTIONAL_KEYS, STARTUP_CARD_REQUIRED_KEYS)
+
+        fun text(key: String): String? {
+            val value = card[key] ?: return null
+            return (value as? String)?.takeIf {
+                it.isNotBlank() && it.length <= MAX_STARTUP_CARD_TEXT && it.none(Char::isISOControl)
+            } ?: invalid("$key must be short display text")
+        }
+
+        return NativeGameStartupCardData(
+            title = text("title") ?: invalid("title is required"),
+            stage = text("stage"),
+            requests = text("requests"),
+            pageProgress = card["pageProgress"]?.let { value ->
+                (value as? Int)?.takeIf { it in 0..100 } ?: invalid("pageProgress must be between 0 and 100")
+            },
+            stalled = card["stalled"] as? Boolean ?: invalid("stalled must be a boolean"),
+        )
     }
 
     private fun requireGeneration(arguments: Map<String, Any?>): Long {
@@ -1130,6 +1184,7 @@ internal class NativeGameWebViewChannel(
             "create",
             "setBounds",
             "setVisible",
+            "setStartupCard",
             "loadUri",
             "showLocalHome",
             "reload",
@@ -1143,6 +1198,8 @@ internal class NativeGameWebViewChannel(
         )
         val BOUNDS_KEYS = setOf("left", "top", "width", "height", "devicePixelRatio")
         val CLIP_KEYS = setOf("clipLeft", "clipTop", "clipWidth", "clipHeight")
+        val STARTUP_CARD_REQUIRED_KEYS = setOf("title", "stalled")
+        val STARTUP_CARD_OPTIONAL_KEYS = setOf("stage", "requests", "pageProgress")
         const val INVALID_ARGUMENT = "invalid_argument"
         const val STALE_GENERATION = "stale_generation"
         const val HOST_UNAVAILABLE = "native_webview_unavailable"
@@ -1152,6 +1209,7 @@ internal class NativeGameWebViewChannel(
         const val CLEAR_SESSION_TIMEOUT_MS = 10_000L
         const val MAX_LOCAL_HOME_LENGTH = 64 * 1024
         const val MAX_FIT_SCRIPT_LENGTH = 64 * 1024
+        const val MAX_STARTUP_CARD_TEXT = 256
 
         fun invalid(message: String): Nothing = throw InvalidArgumentsException(message)
     }

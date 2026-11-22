@@ -61,12 +61,14 @@ class ActivityWebViewHost internal constructor(
         )
     },
     private val webViewCleanup: NativeGameWebViewCleanup = AndroidNativeGameWebViewCleanup,
+    private val startupChecksEnabled: () -> Boolean = { true },
 ) {
     constructor(
         context: Context,
         contentRoot: FrameLayout,
         eventSink: NativeGameWebViewEventSink,
         onPresentationStateChanged: (Boolean) -> Unit = {},
+        startupChecksEnabled: () -> Boolean = { true },
     ) : this(
         context = context,
         contentRoot = contentRoot,
@@ -82,6 +84,7 @@ class ActivityWebViewHost internal constructor(
             )
         },
         webViewCleanup = AndroidNativeGameWebViewCleanup,
+        startupChecksEnabled = startupChecksEnabled,
     )
 
     private val state = NativeGameWebViewHostState()
@@ -154,6 +157,7 @@ class ActivityWebViewHost internal constructor(
                         updateScrollbars(isGame = false)
                     }
                 },
+                startupChecksEnabled = startupChecksEnabled,
             )
             val presentationQuery = NativeGamePresentationQuery()
             client.setPresentationHintHandler {
@@ -275,6 +279,33 @@ class ActivityWebViewHost internal constructor(
         return true
     }
 
+    internal fun setStartupCard(generation: Long, card: NativeGameStartupCardData?): Boolean {
+        requireMainThread()
+        if (!state.accepts(generation)) return false
+        val resources = ownedResources ?: return false
+        val overlay = resources.overlay ?: return false
+        val existing = resources.startupCard
+        when {
+            card == null -> {
+                existing?.let(overlay::removeView)
+                resources.startupCard = null
+            }
+            existing != null -> existing.update(card)
+            else -> {
+                val layer = NativeGameStartupCard(context).apply { update(card) }
+                overlay.addView(
+                    layer,
+                    FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                    ),
+                )
+                resources.startupCard = layer
+            }
+        }
+        return true
+    }
+
     fun destroy(generation: Long): Boolean {
         requireMainThread()
         return destroyInternal(generation, rendererGone = false)
@@ -354,6 +385,8 @@ class ActivityWebViewHost internal constructor(
         resources.cleaned = true
         val activeOverlay = resources.overlay
         val activeWebView = resources.webView
+        bestEffort { resources.startupCard?.let { activeOverlay?.removeView(it) } }
+        resources.startupCard = null
         if (!rendererGone) {
             bestEffort { activeWebView?.let(webViewCleanup::stopLoading) }
             // The destroying state makes client callbacks reject this generation.
@@ -390,6 +423,7 @@ class ActivityWebViewHost internal constructor(
         val generation: Long,
         var overlay: FrameLayout? = null,
         var webView: WebView? = null,
+        var startupCard: NativeGameStartupCard? = null,
         var cleaned: Boolean = false,
     )
 

@@ -16,6 +16,7 @@ Future<void> showGameDisplaySettingsDialog({
   bool allowNative = true,
   bool protectInputOnDismiss = true,
   bool compactShipChecklist = false,
+  bool skipUnchangedUpdates = false,
   required String kind,
   required String title,
   required List<Map<String, Object?>> Function() items,
@@ -72,6 +73,7 @@ Future<void> showGameDisplaySettingsDialog({
       onToggle: onToggle,
       onReset: onReset,
       protectInputOnDismiss: protectInputOnDismiss,
+      skipUnchangedUpdates: skipUnchangedUpdates,
       compactShipChecklistCloseLabel: compactShipChecklist
           ? MaterialLocalizations.of(context).closeButtonTooltip
           : null,

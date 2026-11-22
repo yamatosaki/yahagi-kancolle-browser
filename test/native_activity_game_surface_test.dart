@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
 import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
@@ -20,10 +21,13 @@ import 'package:yahagi_kancolle_browser/src/browser/game_frame_reload_port.dart'
 import 'package:yahagi_kancolle_browser/src/browser/game_surface_input_guard.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_launch_config.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_load_event.dart';
+import 'package:yahagi_kancolle_browser/src/browser/game_startup_activity.dart';
+import 'package:yahagi_kancolle_browser/src/settings/game_startup_check_settings.dart';
 import 'package:yahagi_kancolle_browser/src/browser/network_proxy_channel.dart';
 import 'package:yahagi_kancolle_browser/src/browser/origin_cookie_manager_port.dart';
 import 'package:yahagi_kancolle_browser/src/browser/native_game_surface_slot.dart';
 import 'package:yahagi_kancolle_browser/src/browser/native_game_surface_preview.dart';
+import 'package:yahagi_kancolle_browser/src/browser/native_game_startup_card_port.dart';
 import 'package:yahagi_kancolle_browser/src/browser/native_game_webview_contract.dart';
 import 'package:yahagi_kancolle_browser/src/browser/native_game_webview_port.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode.dart';
@@ -533,6 +537,223 @@ void main() {
     expect(find.byKey(const Key('native-game-surface-error')), findsOneWidget);
   });
 
+  testWidgets(
+    'startup check off uses legacy readiness without request polling',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({
+        GameStartupCheckSettingsController.preferenceKey: false,
+      });
+      final settings = await GameStartupCheckSettingsController.load();
+      addTearDown(settings.dispose);
+      final cardPort = _CardNativePort();
+      final activity = _FakeStartupActivityPort();
+      final fixture = _SurfaceFixture(testPort: cardPort);
+      _addLoadingTearDown(tester, fixture);
+      await fixture.pump(
+        tester,
+        startupActivityPort: activity,
+        gameStartupCheckSettingsController: settings,
+      );
+      await _pumpUntil(
+        tester,
+        () => cardPort.calls.any((call) => call.startsWith('load:')),
+      );
+      const url = 'https://play.games.dmm.com/game/kancolle';
+      cardPort.addEvent(_event('pageStarted', generationId: 7, url: url));
+      cardPort.addEvent(
+        _event('pageProgress', generationId: 7, url: url, progress: 62),
+      );
+      await tester.pump(const Duration(seconds: 21));
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+      expect(cardPort.cards, isEmpty);
+      expect(activity.reads, 0);
+      expect(cardPort.calls, isNot(contains('visible:true')));
+      cardPort.addEvent(
+        _event(
+          'resourceError',
+          generationId: 7,
+          errorCode: 503,
+          description: '',
+          resourceKind: 'gadget',
+        ),
+      );
+      await tester.pump();
+      expect(find.byKey(const Key('native-game-surface-error')), findsNothing);
+      cardPort.addEvent(
+        _event('presentationChanged', generationId: 7, isGame: true),
+      );
+      cardPort.addEvent(_event('pageFinished', generationId: 7, url: url));
+      await _pumpUntil(tester, () => cardPort.calls.contains('visible:true'));
+      await tester.pump();
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(activity.reads, 0);
+    },
+  );
+
+  testWidgets(
+    'native WebView draws during startup and the passive card follows requests',
+    (tester) async {
+      final cardPort = _CardNativePort();
+      final activity = _FakeStartupActivityPort();
+      final fixture = _SurfaceFixture(testPort: cardPort);
+      _addLoadingTearDown(tester, fixture);
+      final events = <GameLoadEvent>[];
+      await fixture.pump(
+        tester,
+        startupActivityPort: activity,
+        onLoadEvent: events.add,
+      );
+      await _pumpUntil(
+        tester,
+        () => cardPort.calls.any((call) => call.startsWith('load:')),
+      );
+      const url = 'https://play.games.dmm.com/game/kancolle';
+      cardPort.addEvent(_event('pageStarted', generationId: 7, url: url));
+      await tester.pump();
+      expect(cardPort.calls, contains('visible:true'));
+      expect(
+        events.where((event) => event.phase == GameLoadPhase.visible),
+        isEmpty,
+      );
+      expect(cardPort.cards.whereType<NativeGameStartupCardData>(), isEmpty);
+      activity.value = const GameStartupActivitySnapshot(
+        navigationId: 1,
+        requestCount: 6,
+        gameResources: true,
+        gameApi: false,
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+      expect(cardPort.cards.last?.requests, contains('6'));
+      activity.value = const GameStartupActivitySnapshot(
+        navigationId: 1,
+        requestCount: 7,
+        gameResources: true,
+        gameApi: true,
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+      expect(cardPort.cards.last, isNull);
+      expect(
+        cardPort.calls.lastWhere((call) => call.startsWith('visible:')),
+        'visible:true',
+      );
+      await tester.pump(const Duration(seconds: 46));
+      expect(find.byKey(const Key('native-game-surface-error')), findsNothing);
+      cardPort.addEvent(
+        _event('presentationChanged', generationId: 7, isGame: true),
+      );
+      cardPort.addEvent(_event('pageFinished', generationId: 7, url: url));
+      await _pumpUntil(
+        tester,
+        () => events.any((event) => event.phase == GameLoadPhase.visible),
+      );
+      expect(
+        await fixture.browserController.reloadGameFrame(),
+        GameFrameReloadResult.reloaded,
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+      expect(
+        cardPort.cards.last,
+        isNotNull,
+        reason: 'The old API snapshot must not end the new load.',
+      );
+      activity.value = const GameStartupActivitySnapshot(
+        navigationId: 2,
+        requestCount: 3,
+        gameResources: true,
+        gameApi: false,
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pump();
+      expect(cardPort.cards.last?.requests, contains('3'));
+    },
+  );
+
+  testWidgets('native startup reports the page percent then pauses cleanly', (
+    tester,
+  ) async {
+    final fixture = _SurfaceFixture();
+    _addLoadingTearDown(tester, fixture);
+    await fixture.pump(tester);
+    await _pumpUntil(
+      tester,
+      () => fixture.port.calls.any((call) => call.startsWith('load:')),
+    );
+    const url = 'https://ooi.moe/';
+    fixture.port.addEvent(_event('pageStarted', generationId: 7, url: url));
+    fixture.port.addEvent(
+      _event('pageProgress', generationId: 7, url: url, progress: 62),
+    );
+    await tester.pump();
+    expect(find.text('62%'), findsOneWidget);
+    fixture.port.addEvent(
+      _event('pageProgress', generationId: 6, url: url, progress: 95),
+    );
+    fixture.port.addEvent(
+      _event(
+        'pageProgress',
+        generationId: 7,
+        url: 'https://accounts.dmm.com/service/login',
+        progress: 98,
+      ),
+    );
+    await tester.pump();
+    expect(find.text('62%'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 21));
+    final stalled = lookupAppLocalizations(
+      const Locale('zh'),
+    ).gameStartupStalled;
+    expect(find.text(stalled), findsOneWidget);
+    fixture.port.addEvent(
+      _event('pageProgress', generationId: 7, url: url, progress: 81),
+    );
+    await tester.pump();
+    expect(find.text(stalled), findsNothing);
+    expect(find.text('81%'), findsOneWidget);
+  });
+
+  testWidgets('native startup names the failed local HTTP proxy', (
+    tester,
+  ) async {
+    final fixture = _SurfaceFixture();
+    _addLoadingTearDown(tester, fixture);
+    fixture.networkSettingsController.settingsValue = const NetworkSettings(
+      mode: NetworkMode.httpProxy,
+      host: '127.0.0.1',
+      port: 8080,
+    );
+    fixture.orchestrator.networkResult = const GameSurfaceNetworkResult(
+      success: false,
+      code: 'local_http_proxy_unreachable',
+      message: 'failed to connect',
+      host: '127.0.0.1:8080',
+    );
+    await fixture.pump(tester);
+    await _pumpUntil(
+      tester,
+      () => find.text('无法连接 http本地代理').evaluate().isNotEmpty,
+    );
+    expect(find.text('127.0.0.1:8080'), findsOneWidget);
+    expect(find.textContaining('Kanxy'), findsNothing);
+    expect(
+      fixture.port.calls.where((call) => call.startsWith('load:')),
+      isEmpty,
+    );
+    fixture.orchestrator.networkResult =
+        const GameSurfaceNetworkResult.success();
+    await tester.tap(
+      find.byKey(const Key('native-game-surface-network-retry')),
+    );
+    await _pumpUntil(
+      tester,
+      () => fixture.port.calls.any((call) => call.startsWith('load:')),
+    );
+    expect(find.text('无法连接 http本地代理'), findsNothing);
+  });
+
   testWidgets('native main frame failure exposes a page retry', (tester) async {
     final fixture = _SurfaceFixture();
     _addLoadingTearDown(tester, fixture);
@@ -553,6 +774,47 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'native reports a Gadget failure after the game frame is visible',
+    (tester) async {
+      final fixture = _SurfaceFixture();
+      _addLoadingTearDown(tester, fixture);
+      await fixture.pump(tester);
+      await _pumpUntil(
+        tester,
+        () => fixture.port.calls.any((call) => call.startsWith('load:')),
+      );
+      const url = 'https://play.games.dmm.com/game/kancolle';
+      fixture.port.addEvent(_event('pageStarted', generationId: 7, url: url));
+      fixture.port.addEvent(
+        _event(
+          'presentationChanged',
+          generationId: 7,
+          isGame: true,
+          state: 'game',
+        ),
+      );
+      fixture.port.addEvent(_event('pageFinished', generationId: 7, url: url));
+      await _pumpUntil(tester, () => fixture.port.calls.last == 'visible:true');
+      fixture.port.addEvent(
+        _event(
+          'resourceError',
+          generationId: 7,
+          errorCode: 503,
+          description: '',
+          resourceKind: 'gadget',
+        ),
+      );
+      await tester.pump();
+      expect(find.text('HTTP 503'), findsOneWidget);
+      expect(find.text('w00g.kancolle-server.com'), findsOneWidget);
+      expect(
+        find.byKey(const Key('native-game-surface-page-reload')),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('late native network reload reply cannot hide a ready page', (
     tester,
@@ -3144,7 +3406,7 @@ void main() {
     await fixture.pump(tester, startupOrchestrator: nextOrchestrator);
     oldFinish.complete();
     await tester.pump();
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
     expect(fixture.orchestrator.disposeCalls, 1);
 
     fixture.port.addEvent(
@@ -4641,6 +4903,8 @@ NativeGameWebViewEvent _event(
   required int generationId,
   String? url,
   int? errorCode,
+  int? progress,
+  String? resourceKind,
   String? description,
   String? scheme,
   bool? didCrash,
@@ -4652,6 +4916,8 @@ NativeGameWebViewEvent _event(
     'generationId': generationId,
     'url': ?url,
     'errorCode': ?errorCode,
+    'progress': ?progress,
+    'resourceKind': ?resourceKind,
     'description': ?description,
     'scheme': ?scheme,
     'didCrash': ?didCrash,
@@ -5088,9 +5354,10 @@ final class _GameAudioMemoryStore implements GameAudioStore {
 }
 
 final class _SurfaceFixture {
-  _SurfaceFixture()
+  _SurfaceFixture({_FakeNativePort? testPort})
     : statusController = PrototypeStatusController(),
-      browserController = GameBrowserController() {
+      browserController = GameBrowserController(),
+      port = testPort ?? _FakeNativePort() {
     toolbarController = GameToolbarController()..collapse();
   }
 
@@ -5098,7 +5365,7 @@ final class _SurfaceFixture {
   final GameBrowserController browserController;
   late final GameToolbarController toolbarController;
   final networkSettingsController = _TestNetworkSettingsController();
-  final port = _FakeNativePort();
+  final _FakeNativePort port;
   final previewPort = _FakePreviewPort();
   final orchestrator = _FakeStartupOrchestrator();
   final observer = YahagiGameRouteObserver();
@@ -5118,6 +5385,8 @@ final class _SurfaceFixture {
     void Function(GameLoadEvent event)? onLoadEvent,
     Widget Function(Widget child)? wrapSurface,
     Duration navigationTimeout = const Duration(seconds: 45),
+    GameStartupActivityPort? startupActivityPort,
+    GameStartupCheckSettingsController? gameStartupCheckSettingsController,
   }) {
     if (tester.binding.lifecycleState != AppLifecycleState.resumed) {
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
@@ -5145,6 +5414,9 @@ final class _SurfaceFixture {
               onRenderProcessGone: onRenderProcessGone,
               onLoadEvent: onLoadEvent,
               navigationTimeout: navigationTimeout,
+              startupActivityPort: startupActivityPort,
+              gameStartupCheckSettingsController:
+                  gameStartupCheckSettingsController,
               previewPort: previewPort,
               previewDecoder: (bytes, _) async => MemoryImage(bytes),
               cleanupTimeout: cleanupTimeout,
@@ -5196,6 +5468,28 @@ final class _ImmediateNativeSafetyRoute extends RawDialogRoute<void>
         barrierLabel: 'safety',
         barrierColor: Colors.black54,
       );
+}
+
+final class _FakeStartupActivityPort implements GameStartupActivityPort {
+  GameStartupActivitySnapshot? value;
+  int reads = 0;
+
+  @override
+  Future<GameStartupActivitySnapshot?> snapshot({
+    required bool nativeActivity,
+  }) async {
+    reads++;
+    return value;
+  }
+}
+
+final class _CardNativePort extends _FakeNativePort
+    implements NativeGameStartupCardPort {
+  final cards = <NativeGameStartupCardData?>[];
+
+  @override
+  Future<void> setStartupCard(NativeGameStartupCardData? card) async =>
+      cards.add(card);
 }
 
 final class _FakeNativePort implements NativeActivityGameWebViewPort {

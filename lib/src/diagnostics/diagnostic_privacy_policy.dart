@@ -23,6 +23,7 @@ enum DiagnosticKanxyStatus {
   mainScriptWebViewFallback('MAIN_SCRIPT_WEBVIEW_FALLBACK'),
   mainScriptBridgePrefixed('MAIN_SCRIPT_BRIDGE_PREFIXED'),
   mainScriptDropdownPatched('MAIN_SCRIPT_DROPDOWN_PATCHED'),
+  mainScriptControllerPointerPatched('MAIN_SCRIPT_CONTROLLER_POINTER_PATCHED'),
   mainScriptKanxyMarker('MAIN_SCRIPT_KANXY_MARKER'),
   mainScriptMarkerMissing('MAIN_SCRIPT_MARKER_MISSING'),
   bridgeDocumentStart('BRIDGE_DOCUMENT_START'),

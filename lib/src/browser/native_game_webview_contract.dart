@@ -86,6 +86,7 @@ final class NativeGameWebViewBounds {
 enum NativeGameWebViewEventType {
   created,
   pageStarted,
+  pageProgress,
   pageFinished,
   presentationChanged,
   mainFrameError,
@@ -97,14 +98,18 @@ enum NativeGameWebViewEventType {
 
 enum NativeGamePresentationState { pending, web, game }
 
+enum NativeGameWebViewResourceKind { gadget }
+
 final class NativeGameWebViewEvent {
   const NativeGameWebViewEvent._({
     required this.type,
     required this.generationId,
     this.url,
     this.navigationUri,
+    this.progress,
     this.errorCode,
     this.description,
+    this.resourceKind,
     this.scheme,
     this.didCrash,
     this.isGame,
@@ -115,8 +120,10 @@ final class NativeGameWebViewEvent {
   final int generationId;
   final String? url;
   final Uri? navigationUri;
+  final int? progress;
   final int? errorCode;
   final String? description;
+  final NativeGameWebViewResourceKind? resourceKind;
   final String? scheme;
   final bool? didCrash;
   final bool? isGame;
@@ -144,9 +151,12 @@ final class NativeGameWebViewEvent {
     _requireKeys(
       map,
       _keysForType[type]!,
-      optional: type == NativeGameWebViewEventType.presentationChanged
-          ? const <String>{'state'}
-          : const <String>{},
+      optional: switch (type) {
+        NativeGameWebViewEventType.presentationChanged => const {'state'},
+        NativeGameWebViewEventType.pageProgress => const {'url'},
+        NativeGameWebViewEventType.resourceError => const {'resourceKind'},
+        _ => const <String>{},
+      },
     );
     final generationId = _int(map, 'generationId');
     if (generationId < 0) {
@@ -161,24 +171,43 @@ final class NativeGameWebViewEvent {
         return NativeGameWebViewEvent._(type: type, generationId: generationId);
       case NativeGameWebViewEventType.pageStarted:
       case NativeGameWebViewEventType.pageFinished:
-        final rawUrl = _string(map, 'url');
-        final uri = Uri.tryParse(rawUrl);
-        if (uri == null || !SafePageAddress.canNavigate(uri)) {
-          throw const NativeGameWebViewSchemaException('Event URL is unsafe.');
+        final uri = _pageUri(map);
+        return NativeGameWebViewEvent._(
+          type: type,
+          generationId: generationId,
+          url: SafePageAddress.fromRaw(uri.toString()).displayText,
+          navigationUri: uri,
+        );
+      case NativeGameWebViewEventType.pageProgress:
+        final progress = _int(map, 'progress');
+        if (progress < 0 || progress > 100) {
+          throw const NativeGameWebViewSchemaException(
+            'progress must be between 0 and 100.',
+          );
         }
         return NativeGameWebViewEvent._(
           type: type,
           generationId: generationId,
-          url: SafePageAddress.fromRaw(rawUrl).displayText,
-          navigationUri: uri,
+          progress: progress,
+          url: map.containsKey('url')
+              ? SafePageAddress.fromRaw(_pageUri(map).toString()).displayText
+              : null,
         );
       case NativeGameWebViewEventType.mainFrameError:
       case NativeGameWebViewEventType.resourceError:
+        final resourceKind = switch (map['resourceKind']) {
+          'gadget' => NativeGameWebViewResourceKind.gadget,
+          _ when !map.containsKey('resourceKind') => null,
+          _ => throw const NativeGameWebViewSchemaException(
+            'Unknown resourceKind.',
+          ),
+        };
         return NativeGameWebViewEvent._(
           type: type,
           generationId: generationId,
           errorCode: _int(map, 'errorCode'),
           description: _string(map, 'description', maxLength: 256),
+          resourceKind: resourceKind,
         );
       case NativeGameWebViewEventType.presentationChanged:
         final isGame = map['isGame'];
@@ -241,6 +270,7 @@ final class NativeGameWebViewEvent {
       <String, NativeGameWebViewEventType>{
         'created': NativeGameWebViewEventType.created,
         'pageStarted': NativeGameWebViewEventType.pageStarted,
+        'pageProgress': NativeGameWebViewEventType.pageProgress,
         'pageFinished': NativeGameWebViewEventType.pageFinished,
         'presentationChanged': NativeGameWebViewEventType.presentationChanged,
         'mainFrameError': NativeGameWebViewEventType.mainFrameError,
@@ -258,6 +288,11 @@ final class NativeGameWebViewEvent {
           'type',
           'generationId',
           'url',
+        },
+        NativeGameWebViewEventType.pageProgress: <String>{
+          'type',
+          'generationId',
+          'progress',
         },
         NativeGameWebViewEventType.pageFinished: <String>{
           'type',
@@ -318,6 +353,14 @@ final class NativeGameWebViewEvent {
       throw NativeGameWebViewSchemaException('$key must be a short string.');
     }
     return value;
+  }
+
+  static Uri _pageUri(Map<String, Object?> map) {
+    final uri = Uri.tryParse(_string(map, 'url'));
+    if (uri == null || !SafePageAddress.canNavigate(uri)) {
+      throw const NativeGameWebViewSchemaException('Event URL is unsafe.');
+    }
+    return uri;
   }
 
   static int _int(Map<String, Object?> map, String key) {

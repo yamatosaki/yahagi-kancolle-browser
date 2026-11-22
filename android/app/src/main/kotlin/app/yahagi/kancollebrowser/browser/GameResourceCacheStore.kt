@@ -471,11 +471,8 @@ class GameResourceCacheStore(
 
     private fun deleteAllChildren(directory: File) {
         Files.newDirectoryStream(directory.toPath()).use { children ->
-            children.forEach { child ->
-                if (!Files.deleteIfExists(child)) {
-                    throw IllegalStateException("Cannot clear resource cache file")
-                }
-            }
+            // A completed download may have already deleted its temporary file.
+            children.forEach { child -> Files.deleteIfExists(child) }
         }
     }
 

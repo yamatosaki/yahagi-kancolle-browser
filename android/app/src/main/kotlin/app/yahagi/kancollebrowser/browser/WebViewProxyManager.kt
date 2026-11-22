@@ -13,6 +13,7 @@ import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.Socket
@@ -70,6 +71,7 @@ class WebViewProxyManager(
             "clearProxyOverride" -> {
                 configureProxy(null, result)
             }
+            "probeStartupLocalHttpProxy" -> probeStartupLocalHttpProxy(result)
             "runNetworkDiagnostic" -> {
                 val mode = call.argument<String>("mode") ?: "system"
                 val host = call.argument<String>("host") ?: ""
@@ -126,6 +128,41 @@ class WebViewProxyManager(
                     "success" to false, "code" to "unknown_error", "message" to (error.message ?: "未知错误"),
                 ))
             }
+        }
+    }
+
+    private fun probeStartupLocalHttpProxy(result: MethodChannel.Result) {
+        val proxy = currentNativeProxy()
+        val address = proxy?.address() as? InetSocketAddress
+        if (address == null || !isLoopbackHttpProxy(proxy)) {
+            result.success(mapOf("success" to true, "code" to "skipped"))
+            return
+        }
+        mainScope.launch {
+            val listening = withContext(Dispatchers.IO) {
+                try {
+                    Socket().use {
+                        it.connect(InetSocketAddress(address.hostString, address.port), 1_000)
+                    }
+                    true
+                } catch (_: IOException) {
+                    false
+                } catch (_: SecurityException) {
+                    null
+                }
+            }
+            if (listening != false || currentNativeProxy() != proxy) {
+                result.success(mapOf("success" to true, "code" to "ok"))
+                return@launch
+            }
+            val host = address.hostString
+            val endpoint = if (host.contains(':')) "[$host]:${address.port}" else "$host:${address.port}"
+            result.success(mapOf(
+                "success" to false,
+                "code" to "local_http_proxy_unreachable",
+                "message" to "Local HTTP proxy is unreachable",
+                "details" to mapOf("address" to endpoint),
+            ))
         }
     }
 

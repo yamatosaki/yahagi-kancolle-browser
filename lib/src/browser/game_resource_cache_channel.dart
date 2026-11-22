@@ -46,6 +46,8 @@ final class GameResourceCacheStatus {
     required this.capacityBlocked,
     this.isMetered = false,
     this.waitingForWifi = false,
+    this.manifestReady = true,
+    this.preloadBlockedByProxy = false,
     this.supported = true,
     this.policyError = false,
   });
@@ -66,6 +68,7 @@ final class GameResourceCacheStatus {
     capacityBlocked: false,
     isMetered: false,
     waitingForWifi: false,
+    manifestReady: false,
   );
 
   final GameResourceCacheMode mode;
@@ -83,6 +86,8 @@ final class GameResourceCacheStatus {
   final bool capacityBlocked;
   final bool isMetered;
   final bool waitingForWifi;
+  final bool manifestReady;
+  final bool preloadBlockedByProxy;
   final bool supported;
   final bool policyError;
 
@@ -114,6 +119,8 @@ final class GameResourceCacheStatus {
       capacityBlocked: map['capacityBlocked'] as bool? ?? false,
       isMetered: map['isMetered'] as bool? ?? false,
       waitingForWifi: map['waitingForWifi'] as bool? ?? false,
+      manifestReady: map['manifestReady'] as bool? ?? false,
+      preloadBlockedByProxy: map['preloadBlockedByProxy'] as bool? ?? false,
       supported: map['supported'] as bool? ?? true,
       policyError: map['policyError'] as bool? ?? false,
     );

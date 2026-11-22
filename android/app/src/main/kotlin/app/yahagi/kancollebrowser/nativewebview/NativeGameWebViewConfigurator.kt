@@ -91,7 +91,8 @@ internal object NativeGameWebViewConfigurator {
             }
         }
         val presentationBridge = NativeGamePresentationBridge(onPresentationStateChanged, onPresentationPending)
-        (client as? NativeGameWebViewClient)?.attachPresentationBridge(presentationBridge)
+        val nativeClient = client as? NativeGameWebViewClient
+        nativeClient?.attachPresentationBridge(presentationBridge)
         webView.addJavascriptInterface(
             presentationBridge,
             "YahagiPresentation",
@@ -99,7 +100,11 @@ internal object NativeGameWebViewConfigurator {
         onApplied(NativeGameWebViewConfigurationAction.PRESENTATION_BRIDGE_SET)
         webView.webViewClient = client
         onApplied(NativeGameWebViewConfigurationAction.WEB_VIEW_CLIENT_SET)
-        webView.webChromeClient = WebChromeClient()
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                nativeClient?.onPageProgress(view, newProgress)
+            }
+        }
         onApplied(NativeGameWebViewConfigurationAction.WEB_CHROME_CLIENT_SET)
     }
 }

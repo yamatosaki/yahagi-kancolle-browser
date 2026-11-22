@@ -43,6 +43,7 @@ import 'battle_prediction_settings.dart';
 import 'background_game_retention_controller.dart';
 import 'game_frame_rate_settings.dart';
 import 'game_rendering_mode_controller.dart';
+import 'game_startup_check_settings.dart';
 import 'game_connector_controller.dart';
 import '../telemetry/telemetry_controller.dart';
 
@@ -85,6 +86,7 @@ class SettingsPage extends StatefulWidget {
     this.showDeveloperDiagnostics = false,
     this.battlePredictionSettingsController,
     this.gameFrameRateSettingsController,
+    this.gameStartupCheckSettingsController,
     this.selectedIndex = 0,
     this.gameRenderingModeController,
     this.gameConnectorController,
@@ -132,6 +134,7 @@ class SettingsPage extends StatefulWidget {
   final bool showDeveloperDiagnostics;
   final BattlePredictionSettingsController? battlePredictionSettingsController;
   final GameFrameRateSettingsController? gameFrameRateSettingsController;
+  final GameStartupCheckSettingsController? gameStartupCheckSettingsController;
   final int selectedIndex;
   final GameRenderingModeController? gameRenderingModeController;
   final GameConnectorController? gameConnectorController;
@@ -182,6 +185,8 @@ class _SettingsPageState extends State<SettingsPage> {
               settings.backgroundGameRetentionController,
           gameFrameRateSettingsController:
               settings.gameFrameRateSettingsController,
+          gameStartupCheckSettingsController:
+              settings.gameStartupCheckSettingsController,
           screenAwakeController: settings.screenAwakeController,
           appExitSettingsController: settings.appExitSettingsController,
           gameMouseWheelSettingsController:

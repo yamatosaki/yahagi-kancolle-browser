@@ -103,6 +103,162 @@ abstract class AppLocalizations {
     Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
   ];
 
+  /// No description provided for @gameStartupCheckTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'启动检查'**
+  String get gameStartupCheckTitle;
+
+  /// No description provided for @gameStartupCheckDescription.
+  ///
+  /// In zh, this message translates to:
+  /// **'查看启动阶段、进度和连接提示。关闭后使用原来的启动方式。'**
+  String get gameStartupCheckDescription;
+
+  /// No description provided for @gameStartupCheckSaveFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'启动检查设置未保存，请重试。'**
+  String get gameStartupCheckSaveFailed;
+
+  /// No description provided for @gameStartupLoadingResources.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在加载游戏资源'**
+  String get gameStartupLoadingResources;
+
+  /// No description provided for @gameStartupResourceRequests.
+  ///
+  /// In zh, this message translates to:
+  /// **'{count} 个请求'**
+  String gameStartupResourceRequests(int count);
+
+  /// No description provided for @gameStartupPreparingStep.
+  ///
+  /// In zh, this message translates to:
+  /// **'准备连接'**
+  String get gameStartupPreparingStep;
+
+  /// No description provided for @gameStartupPageStep.
+  ///
+  /// In zh, this message translates to:
+  /// **'入口网页'**
+  String get gameStartupPageStep;
+
+  /// No description provided for @gameStartupGameStep.
+  ///
+  /// In zh, this message translates to:
+  /// **'启动游戏'**
+  String get gameStartupGameStep;
+
+  /// No description provided for @gameStartupPreparing.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在准备连接'**
+  String get gameStartupPreparing;
+
+  /// No description provided for @gameStartupPage.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在加载入口网页'**
+  String get gameStartupPage;
+
+  /// No description provided for @gameStartupLoadingGame.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在启动游戏'**
+  String get gameStartupLoadingGame;
+
+  /// No description provided for @gameStartupStalled.
+  ///
+  /// In zh, this message translates to:
+  /// **'已 20 秒没有新进展，可以继续等待或重新加载。'**
+  String get gameStartupStalled;
+
+  /// No description provided for @gameStartupConnectionDetails.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接详情'**
+  String get gameStartupConnectionDetails;
+
+  /// No description provided for @gameStartupStageLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'失败位置'**
+  String get gameStartupStageLabel;
+
+  /// No description provided for @gameStartupHostLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'主机'**
+  String get gameStartupHostLabel;
+
+  /// No description provided for @gameStartupCodeLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'错误码'**
+  String get gameStartupCodeLabel;
+
+  /// No description provided for @gameStartupCopyDetails.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制错误详情'**
+  String get gameStartupCopyDetails;
+
+  /// No description provided for @gameStartupDetailsCopied.
+  ///
+  /// In zh, this message translates to:
+  /// **'已复制错误详情'**
+  String get gameStartupDetailsCopied;
+
+  /// No description provided for @gameStartupCopyFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'复制失败，请重试。'**
+  String get gameStartupCopyFailed;
+
+  /// No description provided for @gameStartupLocalHttpProxyUnavailable.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法连接 http本地代理'**
+  String get gameStartupLocalHttpProxyUnavailable;
+
+  /// No description provided for @gameStartupLocalHttpProxyHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'请确认本地代理已启动，核对地址和端口后重试。'**
+  String get gameStartupLocalHttpProxyHelp;
+
+  /// No description provided for @gameStartupPageNetworkError.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法加载游戏入口网页'**
+  String get gameStartupPageNetworkError;
+
+  /// No description provided for @gameStartupPageAccessDenied.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏入口网页拒绝了访问'**
+  String get gameStartupPageAccessDenied;
+
+  /// No description provided for @gameStartupPageServerError.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏入口服务器暂时无法响应'**
+  String get gameStartupPageServerError;
+
+  /// No description provided for @gameStartupPageTimedOut.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏页面加载超时，请重试。'**
+  String get gameStartupPageTimedOut;
+
+  /// No description provided for @gameStartupGadgetError.
+  ///
+  /// In zh, this message translates to:
+  /// **'游戏启动脚本暂时无法加载'**
+  String get gameStartupGadgetError;
+
   /// No description provided for @debuffReminderTitle.
   ///
   /// In zh, this message translates to:
@@ -5112,6 +5268,36 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'正在等待 Wi-Fi，连接后会自动继续下载。'**
   String get gameResourceCacheWaitingForWifi;
+
+  /// No description provided for @gameResourceCachePreloadProxyBlocked.
+  ///
+  /// In zh, this message translates to:
+  /// **'串联 Kanxy 时已暂停预下载。关闭 Kanxy VPN，并在 Yahagi 的网络设置中切回系统网络后可继续。'**
+  String get gameResourceCachePreloadProxyBlocked;
+
+  /// No description provided for @gameResourceCacheManifestNotReady.
+  ///
+  /// In zh, this message translates to:
+  /// **'资源清单尚未就绪。请进入游戏，等清单加载完成后再开始下载。'**
+  String get gameResourceCacheManifestNotReady;
+
+  /// No description provided for @gameResourceCacheKanxyClearAndReload.
+  ///
+  /// In zh, this message translates to:
+  /// **'清除 Kanxy 缓存并刷新游戏'**
+  String get gameResourceCacheKanxyClearAndReload;
+
+  /// No description provided for @gameResourceCacheKanxyReloaded.
+  ///
+  /// In zh, this message translates to:
+  /// **'已清除 Yahagi 的 Kanxy 资源缓存并刷新游戏。'**
+  String get gameResourceCacheKanxyReloaded;
+
+  /// No description provided for @gameResourceCacheKanxyCleared.
+  ///
+  /// In zh, this message translates to:
+  /// **'已清除 Yahagi 的 Kanxy 资源缓存，请手动刷新游戏。'**
+  String get gameResourceCacheKanxyCleared;
 
   /// No description provided for @gameResourceCacheClearConfirmTitle.
   ///

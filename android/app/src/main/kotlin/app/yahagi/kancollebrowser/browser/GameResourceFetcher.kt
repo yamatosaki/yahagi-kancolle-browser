@@ -40,6 +40,13 @@ fun interface GameResourceFetcher {
         cached: GameResourceCacheEntry?,
         deadlineNanos: Long,
     ): GameResourceFetchResult? = fetch(url, requestHeaders, cached)
+
+    fun fetchViaHttpProxy(
+        url: String,
+        requestHeaders: Map<String, String>,
+        proxy: Proxy,
+        deadlineNanos: Long,
+    ): GameResourceFetchResult? = fetch(url, requestHeaders, null)
 }
 
 class HttpUrlConnectionGameResourceFetcher(
@@ -73,6 +80,21 @@ class HttpUrlConnectionGameResourceFetcher(
         requestHeaders: Map<String, String>,
         cached: GameResourceCacheEntry?,
         deadlineNanos: Long,
+    ): GameResourceFetchResult? = fetchWithRoute(url, requestHeaders, cached, deadlineNanos, proxyProvider)
+
+    override fun fetchViaHttpProxy(
+        url: String,
+        requestHeaders: Map<String, String>,
+        proxy: Proxy,
+        deadlineNanos: Long,
+    ): GameResourceFetchResult? = fetchWithRoute(url, requestHeaders, null, deadlineNanos) { proxy }
+
+    private fun fetchWithRoute(
+        url: String,
+        requestHeaders: Map<String, String>,
+        cached: GameResourceCacheEntry?,
+        deadlineNanos: Long,
+        routeProxy: () -> Proxy?,
     ): GameResourceFetchResult? {
         val forwarded = GameResourceCacheRules.boundedForwardedRequestHeaders(requestHeaders)
             ?: return null
@@ -84,7 +106,9 @@ class HttpUrlConnectionGameResourceFetcher(
         val aborted = AtomicBoolean(false)
         val completed = AtomicReference<GameResourceFetchResult?>()
         val task = FutureTask {
-            val response = runCatching { fetchWithinBudget(url, forwarded, cached, deadline, aborted) }.getOrNull()
+            val response = runCatching {
+                fetchWithinBudget(url, forwarded, cached, deadline, aborted, routeProxy)
+            }.getOrNull()
             completed.set(response)
             if (aborted.get()) { response?.file?.delete(); null } else response
         }
@@ -114,6 +138,7 @@ class HttpUrlConnectionGameResourceFetcher(
         cached: GameResourceCacheEntry?,
         deadline: Long,
         aborted: AtomicBoolean,
+        routeProxy: () -> Proxy?,
     ): GameResourceFetchResult? {
         if (!cleanupDone.get()) synchronized(cleanupDone) {
             if (!cleanupDone.get()) {
@@ -130,7 +155,7 @@ class HttpUrlConnectionGameResourceFetcher(
         repeat(MAX_REDIRECTS + 1) { redirectCount ->
             val remaining = remainingMs(deadline).takeIf { it > 0 && !aborted.get() } ?: return null
             if (!GameResourceCacheRules.shouldCache(current, "GET")) return null
-            val connection = connectionFactory(current, proxyProvider()) ?: return null
+            val connection = connectionFactory(current, routeProxy()) ?: return null
             try {
                 connection.instanceFollowRedirects = false
                 connection.useCaches = false

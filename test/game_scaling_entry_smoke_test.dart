@@ -9,6 +9,7 @@ import 'package:yahagi_kancolle_browser/src/audio/game_audio_controller.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_store.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_browser_controller.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_frame_reload_port.dart';
+import 'package:yahagi_kancolle_browser/src/browser/game_startup_overlay.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_toolbar_controller.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode_controller.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode_store.dart';
@@ -31,6 +32,9 @@ void main() {
   Completer<void>? bindGate;
   const scaling = MethodChannel('app.webview/fixed_canvas_scaling');
   const frameRate = MethodChannel('app.yahagi.kancollebrowser/game_frame_rate');
+  const startupActivity = MethodChannel(
+    'app.yahagi.kancollebrowser/game_startup_activity',
+  );
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     platform = _WebViewPlatform();
@@ -51,6 +55,7 @@ void main() {
         frameRateCalls.add(call);
         return null;
       })
+      ..setMockMethodCallHandler(startupActivity, (_) async => null)
       ..setMockMethodCallHandler(
         const MethodChannel(gameFrameReloadMethodChannelName),
         (_) async => null,
@@ -60,6 +65,7 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       ..setMockMethodCallHandler(scaling, null)
       ..setMockMethodCallHandler(frameRate, null)
+      ..setMockMethodCallHandler(startupActivity, null)
       ..setMockMethodCallHandler(
         const MethodChannel(gameFrameReloadMethodChannelName),
         null,
@@ -121,7 +127,8 @@ void main() {
         'pending',
       );
       expect(calls, isEmpty);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(GameStartupOverlay), findsOneWidget);
       platform.controller.presentation = 'game';
       notify('game');
       await drain(tester);
@@ -131,7 +138,7 @@ void main() {
         'contentHeight': 720,
       });
       expect(platform.controller.probes, contains(gamePageAlignmentScript));
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(GameStartupOverlay), findsNothing);
       expect(fixture.toolbar.stage, GameSurfaceStage.game);
       await finish(
         tester,
@@ -163,11 +170,7 @@ void main() {
           'releaseFixedCanvas',
         ], reason: url);
         expect(fixture.toolbar.stage, GameSurfaceStage.login, reason: url);
-        expect(
-          find.byType(CircularProgressIndicator),
-          findsNothing,
-          reason: url,
-        );
+        expect(find.byType(GameStartupOverlay), findsNothing, reason: url);
       }
       await finish(tester, 'https://ooi.moe/kcs2/index.php', 'game');
       expect(calls.last.method, 'bindFixedCanvas');
@@ -246,7 +249,7 @@ void main() {
       await drain(tester);
       expect(platform.controller.probes, contains(gamePageAlignmentScript));
       expect(calls.last.method, 'bindFixedCanvas');
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(GameStartupOverlay), findsNothing);
     },
   );
 
@@ -582,6 +585,8 @@ class _Delegate extends PlatformNavigationDelegate {
     error = callback;
   }
 
+  @override
+  Future<void> setOnProgress(ProgressCallback onProgress) async {}
   @override
   Future<void> setOnHttpError(HttpResponseErrorCallback callback) async {
     httpError = callback;

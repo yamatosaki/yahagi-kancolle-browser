@@ -5,6 +5,8 @@ import 'game_browser_controller.dart';
 const String gameFrameReloadMethodChannelName =
     'app.yahagi.kancollebrowser/game_frame_reload';
 
+enum KanxyCacheClearResult { reloaded, cleared, failed }
+
 abstract interface class GameFrameReloadPort {
   Future<void> configure();
 
@@ -36,4 +38,11 @@ final class MethodChannelGameFrameReloadPort implements GameFrameReloadPort {
     final result = await _channel.invokeMethod<String>('reload');
     return decodeGameFrameReloadResult(result);
   }
+
+  Future<KanxyCacheClearResult> clearKanxyCacheAndReload() async =>
+      switch (await _channel.invokeMethod<String>('clearKanxyCacheAndReload')) {
+        'reloaded' => KanxyCacheClearResult.reloaded,
+        'cleared' => KanxyCacheClearResult.cleared,
+        _ => KanxyCacheClearResult.failed,
+      };
 }

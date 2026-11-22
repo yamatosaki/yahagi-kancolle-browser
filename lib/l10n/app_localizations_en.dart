@@ -9,6 +9,101 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get gameStartupCheckTitle => 'Startup checks';
+
+  @override
+  String get gameStartupCheckDescription =>
+      'Show loading stages, progress, and connection details. Turn this off to use the previous startup behavior.';
+
+  @override
+  String get gameStartupCheckSaveFailed =>
+      'Startup check settings could not be saved. Try again.';
+
+  @override
+  String get gameStartupLoadingResources => 'Loading game resources';
+
+  @override
+  String gameStartupResourceRequests(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count requests',
+      one: '$count request',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get gameStartupPreparingStep => 'Connection';
+
+  @override
+  String get gameStartupPageStep => 'Entry page';
+
+  @override
+  String get gameStartupGameStep => 'Game startup';
+
+  @override
+  String get gameStartupPreparing => 'Preparing the connection';
+
+  @override
+  String get gameStartupPage => 'Loading the entry page';
+
+  @override
+  String get gameStartupLoadingGame => 'Starting the game';
+
+  @override
+  String get gameStartupStalled =>
+      'No progress for 20 seconds. You can keep waiting or reload.';
+
+  @override
+  String get gameStartupConnectionDetails => 'Connection details';
+
+  @override
+  String get gameStartupStageLabel => 'Failed stage';
+
+  @override
+  String get gameStartupHostLabel => 'Host';
+
+  @override
+  String get gameStartupCodeLabel => 'Error code';
+
+  @override
+  String get gameStartupCopyDetails => 'Copy error details';
+
+  @override
+  String get gameStartupDetailsCopied => 'Error details copied';
+
+  @override
+  String get gameStartupCopyFailed => 'Could not copy. Try again.';
+
+  @override
+  String get gameStartupLocalHttpProxyUnavailable =>
+      'Could not connect to the local HTTP proxy';
+
+  @override
+  String get gameStartupLocalHttpProxyHelp =>
+      'Check that the local proxy is running and that the address and port are correct, then try again.';
+
+  @override
+  String get gameStartupPageNetworkError =>
+      'Could not load the game entry page';
+
+  @override
+  String get gameStartupPageAccessDenied => 'The game entry page denied access';
+
+  @override
+  String get gameStartupPageServerError =>
+      'The game entry server is temporarily unavailable';
+
+  @override
+  String get gameStartupPageTimedOut =>
+      'Loading the game page timed out. Try again.';
+
+  @override
+  String get gameStartupGadgetError =>
+      'The game startup script could not be loaded';
+
+  @override
   String get debuffReminderTitle => 'Armor debuff reminder';
 
   @override
@@ -2792,6 +2887,26 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get gameResourceCacheWaitingForWifi =>
       'Waiting for Wi-Fi. Downloading will resume automatically when connected.';
+
+  @override
+  String get gameResourceCachePreloadProxyBlocked =>
+      'Pre-downloads are paused while using Kanxy. Disconnect the Kanxy VPN and switch Yahagi back to the system network to continue.';
+
+  @override
+  String get gameResourceCacheManifestNotReady =>
+      'The resource list is not ready. Enter the game and wait for the list to load before downloading.';
+
+  @override
+  String get gameResourceCacheKanxyClearAndReload =>
+      'Clear Kanxy cache and reload the game';
+
+  @override
+  String get gameResourceCacheKanxyReloaded =>
+      'Yahagi’s Kanxy resource cache was cleared and the game was reloaded.';
+
+  @override
+  String get gameResourceCacheKanxyCleared =>
+      'Yahagi’s Kanxy resource cache was cleared. Please reload the game manually.';
 
   @override
   String get gameResourceCacheClearConfirmTitle => 'Clear game resource cache?';

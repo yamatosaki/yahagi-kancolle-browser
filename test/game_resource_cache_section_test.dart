@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:yahagi_kancolle_browser/src/browser/game_frame_reload_port.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_resource_cache_channel.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_resource_cache_controller.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_resource_cache_store.dart';
@@ -55,6 +56,8 @@ void main() {
   testWidgets('temporary mode explains its limits and hides preload actions', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(360, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final controller = GameResourceCacheController(
       store: _MemoryStore(GameResourceCacheMode.temporary),
       port: _FakePort(),
@@ -70,7 +73,16 @@ void main() {
     expect(find.byKey(const Key('cache-download-toggle')), findsNothing);
     expect(find.byKey(const Key('cache-check-integrity')), findsNothing);
     expect(find.byKey(const Key('cache-repair')), findsNothing);
-    expect(find.byKey(const Key('cache-clear')), findsOneWidget);
+    final localClear = find.byKey(const Key('cache-clear'));
+    final kanxyClear = find.byKey(const Key('kanxy-cache-clear'));
+    expect(tester.getCenter(localClear).dy, tester.getCenter(kanxyClear).dy);
+    expect(
+      tester.getRect(localClear).right,
+      lessThan(tester.getRect(kanxyClear).left),
+    );
+    expect(tester.widget(localClear), isA<OutlinedButton>());
+    expect(tester.widget(kanxyClear), isA<OutlinedButton>());
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('unavailable cache shows warning and disables mode controls', (
@@ -154,6 +166,120 @@ void main() {
     expect(port.allowedMetered, isTrue);
   });
 
+  testWidgets('waits for the manifest before enabling preload', (tester) async {
+    final port = _FakePort()..manifestReady = false;
+    final controller = GameResourceCacheController(
+      store: _MemoryStore(GameResourceCacheMode.full),
+      port: port,
+    );
+    await controller.initialize();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(app(controller));
+
+    final download = find.byKey(const Key('cache-download-toggle'));
+    expect(find.textContaining('资源清单尚未就绪'), findsOneWidget);
+    expect(tester.widget<FilledButton>(download).onPressed, isNull);
+    expect(
+      tester
+          .widget<OutlinedButton>(
+            find.byKey(const Key('cache-check-integrity')),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(find.byKey(const Key('cache-clear')))
+          .onPressed,
+      isNotNull,
+    );
+
+    port.manifestReady = true;
+    await controller.refresh();
+    await tester.pump();
+    expect(find.textContaining('资源清单尚未就绪'), findsNothing);
+    expect(tester.widget<FilledButton>(download).onPressed, isNotNull);
+  });
+
+  testWidgets('shows proxy pause while preserving integrity and active pause', (
+    tester,
+  ) async {
+    final port = _FakePort()
+      ..preloadBlockedByProxy = true
+      ..waitingForWifi = true
+      ..state = GameResourceCacheState.paused;
+    final controller = GameResourceCacheController(
+      store: _MemoryStore(GameResourceCacheMode.full),
+      port: port,
+    );
+    await controller.initialize();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(app(controller));
+
+    final download = find.byKey(const Key('cache-download-toggle'));
+    final repair = find.byKey(const Key('cache-repair'));
+    expect(find.textContaining('串联 Kanxy 时已暂停预下载'), findsOneWidget);
+    expect(find.textContaining('正在等待 Wi-Fi'), findsNothing);
+    expect(tester.widget<FilledButton>(download).onPressed, isNull);
+    await tester.tap(find.byKey(const Key('cache-check-integrity')));
+    await tester.pump();
+    expect(port.integrityCalls, 1);
+    expect(tester.widget<OutlinedButton>(repair).onPressed, isNull);
+
+    port.state = GameResourceCacheState.downloading;
+    await controller.refresh();
+    await tester.pump();
+    expect(tester.widget<FilledButton>(download).onPressed, isNotNull);
+
+    port.state = GameResourceCacheState.paused;
+    port.preloadBlockedByProxy = false;
+    port.waitingForWifi = false;
+    await controller.refresh();
+    await tester.pump();
+    expect(find.textContaining('串联 Kanxy 时已暂停预下载'), findsNothing);
+    expect(tester.widget<FilledButton>(download).onPressed, isNotNull);
+    expect(tester.widget<OutlinedButton>(repair).onPressed, isNotNull);
+  });
+
+  for (final outcome in ['reloaded', 'cleared']) {
+    testWidgets('Kanxy clear reports $outcome and leaves the stock cache', (
+      tester,
+    ) async {
+      final port = _FakePort();
+      final controller = GameResourceCacheController(
+        store: _MemoryStore(GameResourceCacheMode.temporary),
+        port: port,
+      );
+      await controller.initialize();
+      addTearDown(controller.dispose);
+      const channel = MethodChannel(gameFrameReloadMethodChannelName);
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final calls = <String>[];
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call.method);
+        return outcome;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+      await tester.pumpWidget(app(controller));
+      await tester.tap(find.byKey(const Key('kanxy-cache-clear')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(calls, ['clearKanxyCacheAndReload']);
+      expect(port.clearCalls, 0);
+      expect(
+        find.text(
+          outcome == 'reloaded'
+              ? '已清除 Yahagi 的 Kanxy 资源缓存并刷新游戏。'
+              : '已清除 Yahagi 的 Kanxy 资源缓存，请手动刷新游戏。',
+        ),
+        findsOneWidget,
+      );
+    });
+  }
+
   testWidgets('failed cache action shows an error notice', (tester) async {
     final port = _FakePort()..failStartDownload = true;
     final controller = GameResourceCacheController(
@@ -220,13 +346,17 @@ final class _FakePort implements GameResourceCachePort {
   int clearCalls = 0;
   GameResourceCacheMode mode = GameResourceCacheMode.light;
   bool metered = false;
+  bool manifestReady = true;
+  bool preloadBlockedByProxy = false;
+  bool waitingForWifi = false;
+  GameResourceCacheState state = GameResourceCacheState.idle;
   bool allowedMetered = false;
   bool failStartDownload = false;
   bool failClear = false;
 
   GameResourceCacheStatus get value => GameResourceCacheStatus(
     mode: mode,
-    state: GameResourceCacheState.idle,
+    state: state,
     cachedBytes: 6840000000,
     maxBytes: 10000000000,
     targetBytes: 8120000000,
@@ -239,6 +369,9 @@ final class _FakePort implements GameResourceCachePort {
     fileCount: 1284,
     capacityBlocked: false,
     isMetered: metered,
+    manifestReady: manifestReady,
+    preloadBlockedByProxy: preloadBlockedByProxy,
+    waitingForWifi: waitingForWifi,
   );
 
   @override

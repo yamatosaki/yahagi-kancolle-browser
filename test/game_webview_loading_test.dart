@@ -10,6 +10,8 @@ import 'package:yahagi_kancolle_browser/src/audio/game_audio_controller.dart';
 import 'package:yahagi_kancolle_browser/src/audio/game_audio_store.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_browser_controller.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_frame_reload_port.dart';
+import 'package:yahagi_kancolle_browser/src/browser/game_startup_activity.dart';
+import 'package:yahagi_kancolle_browser/src/browser/game_startup_overlay.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_toolbar_controller.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode_controller.dart';
 import 'package:yahagi_kancolle_browser/src/capture/capture_mode_store.dart';
@@ -19,6 +21,7 @@ import 'package:yahagi_kancolle_browser/src/prototype_status_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/network_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/network_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/game_frame_rate_settings.dart';
+import 'package:yahagi_kancolle_browser/src/settings/game_startup_check_settings.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/safety_settings_store.dart';
 
@@ -274,7 +277,7 @@ void main() {
         await tester.pump();
       }
       expect(settings.supported, isTrue);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(GameStartupOverlay), findsNothing);
 
       platform.delegate.httpError?.call(
         HttpResponseError(
@@ -472,20 +475,479 @@ void main() {
     });
   }
 
-  Future<_Fixture> pump(WidgetTester tester) async {
+  Future<_Fixture> pump(
+    WidgetTester tester, {
+    GameStartupActivityPort? activityPort,
+    GameStartupCheckSettingsController? startupCheck,
+  }) async {
     final fixture = await _Fixture.create();
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox());
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       fixture.dispose();
     });
-    await tester.pumpWidget(MaterialApp(home: fixture.view));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: fixture.buildView(
+          activityPort: activityPort,
+          startupCheck: startupCheck,
+        ),
+      ),
+    );
     for (var i = 0; i < 8; i++) {
       await tester.pump();
     }
     expect(platform.controller.loads, hasLength(1));
     return fixture;
   }
+
+  testWidgets('startup feedback waits for 500ms before appearing', (
+    tester,
+  ) async {
+    await pump(tester);
+    platform.delegate.started('https://game.example/');
+    await tester.pump(const Duration(milliseconds: 499));
+    expect(find.byType(GameStartupOverlay), findsNothing);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(find.byType(GameStartupOverlay), findsOneWidget);
+  });
+
+  testWidgets('startup check OFF keeps legacy loading and main-frame retry', (
+    tester,
+  ) async {
+    final startupCheck = await _loadStartupCheck(false);
+    addTearDown(startupCheck.dispose);
+    final activity = _StartupActivityPort();
+    var webViewTaps = 0;
+    platform.onTap = () => webViewTaps++;
+    await pump(tester, activityPort: activity, startupCheck: startupCheck);
+    const url = 'https://play.games.dmm.com/game/kancolle';
+    platform.delegate.started(url);
+    platform.delegate.progress!(77);
+    await tester.pump(const Duration(seconds: 21));
+    final spinner = find.byType(CircularProgressIndicator);
+    expect(spinner, findsOneWidget);
+    expect(find.byType(GameStartupOverlay), findsNothing);
+    expect(activity.reads, 0);
+    await tester.tapAt(tester.getCenter(spinner));
+    expect(webViewTaps, 0);
+
+    platform.delegate.httpError?.call(
+      HttpResponseError(
+        request: WebResourceRequest(
+          uri: Uri.parse(
+            'https://w00g.kancolle-server.com/gadget_html5/js/kcs_cda.js',
+          ),
+        ),
+        response: const WebResourceResponse(uri: null, statusCode: 503),
+      ),
+    );
+    await tester.pump();
+    expect(spinner, findsOneWidget);
+
+    platform.delegate.httpError?.call(
+      HttpResponseError(
+        request: WebResourceRequest(uri: Uri.parse(url)),
+        response: const WebResourceResponse(uri: null, statusCode: 503),
+      ),
+    );
+    await tester.pump();
+    final retry = find.byKey(const Key('game-webview-page-reload'));
+    expect(find.textContaining('HTTP 503'), findsOneWidget);
+    expect(find.byType(GameStartupOverlay), findsNothing);
+    expect(find.byType(ElevatedButton), findsNWidgets(2));
+    await tester.tap(retry);
+    for (var i = 0; i < 8; i++) {
+      await tester.pump();
+    }
+    expect(platform.controller.reloads, 1);
+    expect(spinner, findsOneWidget);
+  });
+
+  testWidgets(
+    'toggling startup check off stops polling until the next reload',
+    (tester) async {
+      final startupCheck = await _loadStartupCheck(true);
+      addTearDown(startupCheck.dispose);
+      final activity = _StartupActivityPort();
+      final fixture = await pump(
+        tester,
+        activityPort: activity,
+        startupCheck: startupCheck,
+      );
+      const url = 'https://play.games.dmm.com/game/kancolle';
+      platform.delegate.started(url);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(GameStartupOverlay), findsOneWidget);
+
+      await startupCheck.setEnabled(false);
+      final reads = activity.reads;
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.byType(GameStartupOverlay), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(activity.reads, reads);
+      expect(platform.controller.reloads, 0);
+
+      await startupCheck.setEnabled(true);
+      platform.delegate.started(url);
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.byType(GameStartupOverlay), findsNothing);
+      expect(activity.reads, reads);
+
+      await fixture.browser.reload();
+      platform.delegate.started(url);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(GameStartupOverlay), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(activity.reads, greaterThan(reads));
+    },
+  );
+
+  testWidgets('startup check OFF restores the deadline after an early API', (
+    tester,
+  ) async {
+    final startupCheck = await _loadStartupCheck(true);
+    addTearDown(startupCheck.dispose);
+    final activity = _StartupActivityPort()
+      ..next = const GameStartupActivitySnapshot(
+        navigationId: 1,
+        requestCount: 11,
+        gameResources: true,
+        gameApi: true,
+      );
+    await pump(tester, activityPort: activity, startupCheck: startupCheck);
+    platform.delegate.started('https://play.games.dmm.com/game/kancolle');
+    await tester.pump(const Duration(seconds: 46));
+    expect(find.byKey(const Key('game-webview-page-reload')), findsNothing);
+    expect(find.byType(GameStartupOverlay), findsNothing);
+
+    await startupCheck.setEnabled(false);
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(platform.controller.reloads, 0);
+    await tester.pump(const Duration(seconds: 46));
+    expect(find.byKey(const Key('game-webview-page-reload')), findsOneWidget);
+    expect(find.byType(GameStartupOverlay), findsNothing);
+  });
+
+  testWidgets(
+    'passive startup stays centered through resources and closes on first API',
+    (tester) async {
+      final activity = _StartupActivityPort()
+        ..next = const GameStartupActivitySnapshot(
+          navigationId: 1,
+          requestCount: 2,
+          gameResources: false,
+          gameApi: false,
+        );
+      var webViewTaps = 0;
+      platform.onTap = () => webViewTaps++;
+      await pump(tester, activityPort: activity);
+      const url = 'https://play.games.dmm.com/game/kancolle';
+      platform.delegate.started(url);
+      await tester.pump(const Duration(milliseconds: 500));
+      final overlay = find.byType(GameStartupOverlay);
+      expect(tester.widget<GameStartupOverlay>(overlay).compact, isFalse);
+      final card = find.descendant(
+        of: overlay,
+        matching: find.byType(SingleChildScrollView),
+      );
+      final center = tester.getCenter(card);
+      await tester.tapAt(center);
+      expect(webViewTaps, 1);
+
+      activity.next = const GameStartupActivitySnapshot(
+        navigationId: 1,
+        requestCount: 12,
+        gameResources: true,
+        gameApi: false,
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(tester.widget<GameStartupOverlay>(overlay).compact, isTrue);
+      expect(find.text('12 个请求'), findsOneWidget);
+      expect(find.text('正在加载游戏资源'), findsOneWidget);
+      expect(tester.getCenter(card), center);
+      await tester.tapAt(center);
+      expect(webViewTaps, 2);
+
+      // Visibility feedback can finish while capture and geometry readiness
+      // are still pending.
+      platform.controller.presentation = 'pending';
+      platform.delegate.finished(url);
+      activity.next = const GameStartupActivitySnapshot(
+        navigationId: 1,
+        requestCount: 13,
+        gameResources: true,
+        gameApi: true,
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(overlay, findsNothing);
+      await tester.pump(const Duration(seconds: 46));
+      expect(overlay, findsNothing);
+    },
+  );
+
+  testWidgets('quick refresh accepts only activity from the refreshed frame', (
+    tester,
+  ) async {
+    final activity = _StartupActivityPort()
+      ..next = const GameStartupActivitySnapshot(
+        navigationId: 1,
+        requestCount: 20,
+        gameResources: true,
+        gameApi: true,
+      );
+    final fixture = await pump(tester, activityPort: activity);
+    const url = 'https://play.games.dmm.com/game/kancolle';
+    platform.controller.presentation = 'game';
+    platform.delegate.started(url);
+    platform.delegate.finished(url);
+    await tester.pump();
+    expect(find.byType(GameStartupOverlay), findsNothing);
+
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel(gameFrameReloadMethodChannelName),
+          (call) async => call.method == 'reload' ? 'reloaded' : null,
+        );
+    final reload = fixture.browser.reloadGameFrame();
+    await tester.pump();
+    expect(await reload, GameFrameReloadResult.reloaded);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(GameStartupOverlay), findsOneWidget);
+    expect(find.text('20 个请求'), findsNothing);
+
+    activity.next = const GameStartupActivitySnapshot(
+      navigationId: 2,
+      requestCount: 4,
+      gameResources: true,
+      gameApi: false,
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('4 个请求'), findsOneWidget);
+    activity.next = const GameStartupActivitySnapshot(
+      navigationId: 2,
+      requestCount: 5,
+      gameResources: true,
+      gameApi: true,
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(GameStartupOverlay), findsNothing);
+  });
+
+  testWidgets('page progress advances and clears the no-progress warning', (
+    tester,
+  ) async {
+    await pump(tester);
+    platform.delegate.started('https://game.example/');
+    expect(platform.delegate.progress, isNotNull);
+    platform.delegate.progress!(31);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(
+      tester
+          .widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator))
+          .value,
+      .31,
+    );
+
+    await tester.pump(const Duration(seconds: 19));
+    platform.delegate.progress!(31);
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.byKey(const Key('game-webview-page-reload')), findsOneWidget);
+    platform.delegate.progress!(49);
+    await tester.pump();
+    expect(find.byKey(const Key('game-webview-page-reload')), findsNothing);
+    expect(
+      tester
+          .widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator))
+          .value,
+      .49,
+    );
+  });
+
+  testWidgets('critical Gadget HTTP error reports only the host and code', (
+    tester,
+  ) async {
+    await pump(tester);
+    platform.delegate.started('https://play.games.dmm.com/game/kancolle');
+    platform.delegate.httpError?.call(
+      HttpResponseError(
+        request: WebResourceRequest(
+          uri: Uri.parse(
+            'https://w00g.kancolle-server.com/gadget_html5/js/kcs_cda.js?token=test-secret',
+          ),
+        ),
+        response: const WebResourceResponse(uri: null, statusCode: 503),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const Key('game-webview-page-reload')), findsOneWidget);
+    expect(
+      find.text('w00g.kancolle-server.com', findRichText: true),
+      findsOneWidget,
+    );
+    expect(find.text('游戏启动脚本暂时无法加载'), findsOneWidget);
+    expect(find.text('HTTP 503', findRichText: true), findsOneWidget);
+    expect(
+      find.textContaining('test-secret', findRichText: true),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+    'a login redirect hides the loading card and ignores a Gadget error',
+    (tester) async {
+      await pump(tester);
+      platform.delegate.started('https://play.games.dmm.com/game/kancolle');
+      platform.delegate.progress!(79);
+      const login = 'https://accounts.dmm.com/service/login/password';
+      platform.delegate.started(login);
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(GameStartupOverlay), findsNothing);
+      platform.delegate.progress!(10);
+      platform.delegate.error(
+        const WebResourceError(
+          errorCode: -2,
+          description: 'net::ERR_NAME_NOT_RESOLVED',
+          isForMainFrame: false,
+          url: 'https://w00g.kancolle-server.com/gadget_html5/js/kcs_cda.js',
+        ),
+      );
+      platform.delegate.finished(login);
+      for (var i = 0; i < 8; i++) {
+        await tester.pump();
+      }
+      expect(find.byType(GameStartupOverlay), findsNothing);
+      platform.delegate.progress!(95);
+      await tester.pump(const Duration(seconds: 46));
+      expect(find.byType(GameStartupOverlay), findsNothing);
+    },
+  );
+
+  testWidgets('Gadget bootstrap error after early game detection is visible', (
+    tester,
+  ) async {
+    await pump(tester);
+    const entry = 'https://play.games.dmm.com/game/kancolle';
+    platform.controller.presentation = 'game';
+    platform.delegate.started(entry);
+    platform.delegate.finished(entry);
+    for (var i = 0; i < 8; i++) {
+      await tester.pump();
+    }
+    expect(find.byType(GameStartupOverlay), findsNothing);
+    platform.delegate.error(
+      const WebResourceError(
+        errorCode: -2,
+        description: 'net::ERR_NAME_NOT_RESOLVED',
+        isForMainFrame: false,
+        url: 'https://w00g.kancolle-server.com/gadget_html5/js/kcs_cda.js',
+      ),
+    );
+    await tester.pump();
+    expect(find.text('游戏启动脚本暂时无法加载'), findsOneWidget);
+    expect(find.text('net::ERR_NAME_NOT_RESOLVED'), findsOneWidget);
+  });
+
+  testWidgets('local HTTP probe is actionable on and skipped when off', (
+    tester,
+  ) async {
+    const networkChannel = MethodChannel(
+      'app.yahagi.kancollebrowser/network_proxy',
+    );
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    for (final channel in const [
+      MethodChannel('app.yahagi.kancollebrowser/game_capture'),
+      MethodChannel('app.yahagi.kancollebrowser/game_audio'),
+    ]) {
+      messenger.setMockMethodCallHandler(channel, (call) async => false);
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    }
+    final calls = <String>[];
+    var proxyReachable = false;
+    final pendingProbe = Completer<void>();
+    final probeResult = Completer<Map<String, Object?>>();
+    var delayProbe = false;
+    messenger.setMockMethodCallHandler(networkChannel, (call) async {
+      calls.add(call.method);
+      if (delayProbe && call.method == 'probeStartupLocalHttpProxy') {
+        pendingProbe.complete();
+        return probeResult.future;
+      }
+      return switch (call.method) {
+        'applyHttpProxy' => {'success': true, 'code': 'ok'},
+        'probeStartupLocalHttpProxy' =>
+          proxyReachable
+              ? {'success': true, 'code': 'ok'}
+              : {
+                  'success': false,
+                  'code': 'local_http_proxy_unreachable',
+                  'details': {'address': '127.0.0.1:8080'},
+                },
+        _ => null,
+      };
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(networkChannel, null));
+    final fixture = await _Fixture.create(
+      networkSettings: const NetworkSettings(
+        mode: NetworkMode.httpProxy,
+        host: '127.0.0.1',
+      ),
+    );
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox());
+      fixture.dispose();
+    });
+    await tester.pumpWidget(
+      MaterialApp(home: fixture.buildView(useDefaultStartup: true)),
+    );
+    for (var i = 0; i < 8; i++) {
+      await tester.pump();
+    }
+    expect(platform.controller.loads, isEmpty);
+    expect(find.text('无法连接 http本地代理'), findsOneWidget);
+    expect(find.text('127.0.0.1:8080'), findsOneWidget);
+    expect(find.textContaining('Kanxy'), findsNothing);
+    proxyReachable = true;
+    await tester.tap(find.byKey(const Key('game-webview-page-reload')));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump();
+    }
+    expect(platform.controller.loads, hasLength(1));
+    expect(find.text('无法连接 http本地代理'), findsNothing);
+    expect(
+      calls.where((method) => method == 'probeStartupLocalHttpProxy'),
+      hasLength(2),
+    );
+
+    await tester.pumpWidget(const SizedBox());
+    var enabled = false;
+    final orchestrator = DefaultGameSurfaceStartupOrchestrator(
+      networkSettingsController: fixture.network,
+      captureModeController: fixture.captureMode,
+      audioController: fixture.audio,
+      gameCaptureController: fixture.capture,
+      frameRateSettingsController: null,
+      startupCheckEnabled: () => enabled,
+    );
+    addTearDown(orchestrator.dispose);
+    calls.clear();
+    expect((await orchestrator.applyNetworkSettings()).success, isTrue);
+    expect(calls, contains('applyHttpProxy'));
+    expect(calls, isNot(contains('probeStartupLocalHttpProxy')));
+
+    enabled = true;
+    delayProbe = true;
+    final next = orchestrator.applyNetworkSettings();
+    await pendingProbe.future;
+    enabled = false;
+    probeResult.complete({
+      'success': false,
+      'code': 'local_http_proxy_unreachable',
+    });
+    expect((await next).success, isTrue);
+  });
 
   testWidgets('failed native bridge preparation must not navigate', (
     tester,
@@ -529,6 +991,12 @@ void main() {
       await pump(tester);
       await tester.pump(const Duration(seconds: 46));
       expect(find.byKey(const Key('game-webview-page-reload')), findsOneWidget);
+      expect(
+        tester
+            .widget<GameStartupOverlay>(find.byType(GameStartupOverlay))
+            .failure,
+        isNotNull,
+      );
       await tester.tap(find.byKey(const Key('game-webview-page-reload')));
       for (var i = 0; i < 8; i++) {
         await tester.pump();
@@ -577,7 +1045,7 @@ void main() {
       );
       await tester.pump();
       expect(find.byKey(const Key('game-webview-page-reload')), findsNothing);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(GameStartupOverlay), findsNothing);
     },
   );
 
@@ -601,7 +1069,7 @@ void main() {
     for (var i = 0; i < 8; i++) {
       await tester.pump();
     }
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(GameStartupOverlay), findsNothing);
     expect(find.byKey(const Key('game-webview-page-reload')), findsNothing);
   });
 
@@ -615,9 +1083,16 @@ void main() {
     for (var i = 0; i < 8; i++) {
       await tester.pump();
     }
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(GameStartupOverlay), findsOneWidget);
     await tester.pump(const Duration(seconds: 46));
     expect(find.byKey(const Key('game-webview-page-reload')), findsOneWidget);
+    expect(
+      tester
+          .widget<GameStartupOverlay>(find.byType(GameStartupOverlay))
+          .failure,
+      isNotNull,
+    );
   });
 
   testWidgets('platform body disappearing after readiness has a new deadline', (
@@ -630,7 +1105,7 @@ void main() {
     for (var i = 0; i < 8; i++) {
       await tester.pump();
     }
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(GameStartupOverlay), findsNothing);
     platform.controller.presentation = 'pending';
     platform.controller.channels['YahagiPresentation']!.onMessageReceived(
       const JavaScriptMessage(message: 'pending'),
@@ -638,7 +1113,8 @@ void main() {
     for (var i = 0; i < 8; i++) {
       await tester.pump();
     }
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(GameStartupOverlay), findsOneWidget);
     await tester.pump(const Duration(seconds: 46));
     expect(find.byKey(const Key('game-webview-page-reload')), findsOneWidget);
   });
@@ -666,10 +1142,10 @@ void main() {
     for (var i = 0; i < 8; i++) {
       await tester.pump();
     }
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(GameStartupOverlay), findsNothing);
     await tester.pump(const Duration(seconds: 11));
     expect(find.byKey(const Key('game-webview-page-reload')), findsNothing);
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(GameStartupOverlay), findsNothing);
     platform.controllerReply!.complete();
     await tester.pump();
   });
@@ -692,7 +1168,7 @@ void main() {
       for (var i = 0; i < 8; i++) {
         await tester.pump();
       }
-      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(GameStartupOverlay), findsNothing);
     },
   );
 
@@ -717,21 +1193,22 @@ void main() {
     await tester.pump();
     platform.delegate.started('https://game.example/current');
     old.complete('game');
-    await tester.pump();
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(GameStartupOverlay), findsOneWidget);
     platform.controller.probe = null;
     platform.controller.presentation = 'web';
     platform.delegate.finished('https://game.example/current');
     for (var i = 0; i < 8; i++) {
       await tester.pump();
     }
-    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(GameStartupOverlay), findsNothing);
   });
 }
 
 class _WebViewPlatform extends WebViewPlatform {
   late _Controller controller;
   late _Delegate delegate;
+  VoidCallback? onTap;
   Completer<void>? controllerReply;
   bool useAndroidController = false;
   @override
@@ -747,7 +1224,7 @@ class _WebViewPlatform extends WebViewPlatform {
   @override
   PlatformWebViewWidget createPlatformWebViewWidget(
     PlatformWebViewWidgetCreationParams params,
-  ) => _View(params);
+  ) => _View(params, onTap);
 }
 
 class _Controller extends PlatformWebViewController {
@@ -827,6 +1304,7 @@ class _Delegate extends PlatformNavigationDelegate {
   late PageEventCallback finished;
   late WebResourceErrorCallback error;
   HttpResponseErrorCallback? httpError;
+  ProgressCallback? progress;
   @override
   Future<void> setOnNavigationRequest(
     NavigationRequestCallback callback,
@@ -842,6 +1320,11 @@ class _Delegate extends PlatformNavigationDelegate {
   }
 
   @override
+  Future<void> setOnProgress(ProgressCallback callback) async {
+    progress = callback;
+  }
+
+  @override
   Future<void> setOnWebResourceError(WebResourceErrorCallback callback) async {
     error = callback;
   }
@@ -853,9 +1336,16 @@ class _Delegate extends PlatformNavigationDelegate {
 }
 
 class _View extends PlatformWebViewWidget {
-  _View(super.params) : super.implementation();
+  _View(super.params, this.onTap) : super.implementation();
+
+  final VoidCallback? onTap;
+
   @override
-  Widget build(BuildContext context) => const SizedBox.expand();
+  Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onTap: onTap,
+    child: const SizedBox.expand(),
+  );
 }
 
 class _Fixture {
@@ -870,13 +1360,26 @@ class _Fixture {
   );
   final toolbar = GameToolbarController();
   final capture = GameCaptureController();
-  static Future<_Fixture> create() async => _Fixture(
-    NetworkSettingsController(store: _NetworkStore()),
-    await SafetySettingsController.load(MemorySafetySettingsStore()),
-    await CaptureModeController.load(SharedPreferencesCaptureModeStore()),
-    await GameAudioController.load(SharedPreferencesGameAudioStore()),
-  );
-  Widget get view => GameWebView(
+  static Future<_Fixture> create({NetworkSettings? networkSettings}) async {
+    final network = NetworkSettingsController(
+      store: _NetworkStore(networkSettings ?? const NetworkSettings()),
+    );
+    if (networkSettings != null) await network.initialize();
+    return _Fixture(
+      network,
+      await SafetySettingsController.load(MemorySafetySettingsStore()),
+      await CaptureModeController.load(SharedPreferencesCaptureModeStore()),
+      await GameAudioController.load(SharedPreferencesGameAudioStore()),
+    );
+  }
+
+  Widget get view => buildView();
+
+  Widget buildView({
+    bool useDefaultStartup = false,
+    GameStartupActivityPort? activityPort,
+    GameStartupCheckSettingsController? startupCheck,
+  }) => GameWebView(
     networkSettingsController: network,
     safetySettingsController: safety,
     controller: status,
@@ -885,7 +1388,10 @@ class _Fixture {
     audioController: audio,
     toolbarController: toolbar,
     gameCaptureController: capture,
-    startupOrchestratorFactory: () => _Startup(),
+    startupOrchestratorFactory: useDefaultStartup ? null : () => _Startup(),
+    startupActivityPort:
+        activityPort ?? const MethodChannelGameStartupActivityPort(),
+    gameStartupCheckSettingsController: startupCheck,
   );
   void dispose() {
     network.dispose();
@@ -899,9 +1405,33 @@ class _Fixture {
   }
 }
 
-class _NetworkStore implements NetworkSettingsStore {
+class _StartupActivityPort implements GameStartupActivityPort {
+  GameStartupActivitySnapshot? next;
+  int reads = 0;
+
   @override
-  Future<NetworkSettings> loadSettings() async => const NetworkSettings();
+  Future<GameStartupActivitySnapshot?> snapshot({
+    required bool nativeActivity,
+  }) async {
+    reads++;
+    return next;
+  }
+}
+
+Future<GameStartupCheckSettingsController> _loadStartupCheck(bool enabled) {
+  SharedPreferences.setMockInitialValues({
+    GameStartupCheckSettingsController.preferenceKey: enabled,
+  });
+  return GameStartupCheckSettingsController.load();
+}
+
+class _NetworkStore implements NetworkSettingsStore {
+  const _NetworkStore(this.settings);
+
+  final NetworkSettings settings;
+
+  @override
+  Future<NetworkSettings> loadSettings() async => settings;
   @override
   Future<void> saveSettings(NetworkSettings settings) async {}
 }

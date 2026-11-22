@@ -9,6 +9,88 @@ class AppLocalizationsJa extends AppLocalizations {
   AppLocalizationsJa([String locale = 'ja']) : super(locale);
 
   @override
+  String get gameStartupCheckTitle => '起動チェック';
+
+  @override
+  String get gameStartupCheckDescription =>
+      '起動時の段階、進捗、接続状況を表示します。オフにすると従来の方法で起動します。';
+
+  @override
+  String get gameStartupCheckSaveFailed => '起動チェックの設定を保存できませんでした。もう一度お試しください。';
+
+  @override
+  String get gameStartupLoadingResources => 'ゲームリソースを読み込み中';
+
+  @override
+  String gameStartupResourceRequests(int count) {
+    return '$count 件のリクエスト';
+  }
+
+  @override
+  String get gameStartupPreparingStep => '接続準備';
+
+  @override
+  String get gameStartupPageStep => '起動画面';
+
+  @override
+  String get gameStartupGameStep => 'ゲーム起動';
+
+  @override
+  String get gameStartupPreparing => '接続を準備しています';
+
+  @override
+  String get gameStartupPage => '起動画面を読み込んでいます';
+
+  @override
+  String get gameStartupLoadingGame => 'ゲームを起動しています';
+
+  @override
+  String get gameStartupStalled => '20 秒間読み込みが進んでいません。そのまま待つか、再読み込みできます。';
+
+  @override
+  String get gameStartupConnectionDetails => '接続の詳細';
+
+  @override
+  String get gameStartupStageLabel => '失敗した段階';
+
+  @override
+  String get gameStartupHostLabel => 'ホスト';
+
+  @override
+  String get gameStartupCodeLabel => 'エラーコード';
+
+  @override
+  String get gameStartupCopyDetails => 'エラーの詳細をコピー';
+
+  @override
+  String get gameStartupDetailsCopied => 'エラーの詳細をコピーしました';
+
+  @override
+  String get gameStartupCopyFailed => 'コピーできませんでした。もう一度お試しください。';
+
+  @override
+  String get gameStartupLocalHttpProxyUnavailable => 'ローカル HTTP プロキシに接続できません';
+
+  @override
+  String get gameStartupLocalHttpProxyHelp =>
+      'ローカルプロキシが起動していることと、アドレスとポートの設定を確認してから再試行してください。';
+
+  @override
+  String get gameStartupPageNetworkError => 'ゲームの起動画面を読み込めません';
+
+  @override
+  String get gameStartupPageAccessDenied => 'ゲームの起動画面へのアクセスが拒否されました';
+
+  @override
+  String get gameStartupPageServerError => 'ゲームの起動サーバーが一時的に応答できません';
+
+  @override
+  String get gameStartupPageTimedOut => 'ゲームページの読み込みがタイムアウトしました。もう一度お試しください。';
+
+  @override
+  String get gameStartupGadgetError => 'ゲームの起動スクリプトを読み込めません';
+
+  @override
   String get debuffReminderTitle => '装甲破砕通知';
 
   @override
@@ -2697,6 +2779,26 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get gameResourceCacheWaitingForWifi => 'Wi-Fi を待機しています。接続後に自動で再開します。';
+
+  @override
+  String get gameResourceCachePreloadProxyBlocked =>
+      'Kanxy との併用中は事前ダウンロードを一時停止します。Kanxy VPN を切断し、Yahagi のネットワーク設定をシステムネットワークに戻すと再開できます。';
+
+  @override
+  String get gameResourceCacheManifestNotReady =>
+      'リソースの一覧がまだ準備できていません。ゲームを開き、一覧が読み込まれてからダウンロードしてください。';
+
+  @override
+  String get gameResourceCacheKanxyClearAndReload =>
+      'Kanxy キャッシュを削除してゲームを再読み込み';
+
+  @override
+  String get gameResourceCacheKanxyReloaded =>
+      'Yahagi の Kanxy リソースキャッシュを削除し、ゲームを再読み込みしました。';
+
+  @override
+  String get gameResourceCacheKanxyCleared =>
+      'Yahagi の Kanxy リソースキャッシュを削除しました。ゲームを手動で再読み込みしてください。';
 
   @override
   String get gameResourceCacheClearConfirmTitle => 'ゲームリソースキャッシュを削除しますか？';

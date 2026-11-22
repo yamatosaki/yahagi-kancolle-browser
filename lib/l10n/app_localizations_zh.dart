@@ -9,6 +9,86 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get gameStartupCheckTitle => '启动检查';
+
+  @override
+  String get gameStartupCheckDescription => '查看启动阶段、进度和连接提示。关闭后使用原来的启动方式。';
+
+  @override
+  String get gameStartupCheckSaveFailed => '启动检查设置未保存，请重试。';
+
+  @override
+  String get gameStartupLoadingResources => '正在加载游戏资源';
+
+  @override
+  String gameStartupResourceRequests(int count) {
+    return '$count 个请求';
+  }
+
+  @override
+  String get gameStartupPreparingStep => '准备连接';
+
+  @override
+  String get gameStartupPageStep => '入口网页';
+
+  @override
+  String get gameStartupGameStep => '启动游戏';
+
+  @override
+  String get gameStartupPreparing => '正在准备连接';
+
+  @override
+  String get gameStartupPage => '正在加载入口网页';
+
+  @override
+  String get gameStartupLoadingGame => '正在启动游戏';
+
+  @override
+  String get gameStartupStalled => '已 20 秒没有新进展，可以继续等待或重新加载。';
+
+  @override
+  String get gameStartupConnectionDetails => '连接详情';
+
+  @override
+  String get gameStartupStageLabel => '失败位置';
+
+  @override
+  String get gameStartupHostLabel => '主机';
+
+  @override
+  String get gameStartupCodeLabel => '错误码';
+
+  @override
+  String get gameStartupCopyDetails => '复制错误详情';
+
+  @override
+  String get gameStartupDetailsCopied => '已复制错误详情';
+
+  @override
+  String get gameStartupCopyFailed => '复制失败，请重试。';
+
+  @override
+  String get gameStartupLocalHttpProxyUnavailable => '无法连接 http本地代理';
+
+  @override
+  String get gameStartupLocalHttpProxyHelp => '请确认本地代理已启动，核对地址和端口后重试。';
+
+  @override
+  String get gameStartupPageNetworkError => '无法加载游戏入口网页';
+
+  @override
+  String get gameStartupPageAccessDenied => '游戏入口网页拒绝了访问';
+
+  @override
+  String get gameStartupPageServerError => '游戏入口服务器暂时无法响应';
+
+  @override
+  String get gameStartupPageTimedOut => '游戏页面加载超时，请重试。';
+
+  @override
+  String get gameStartupGadgetError => '游戏启动脚本暂时无法加载';
+
+  @override
   String get debuffReminderTitle => '削甲提醒';
 
   @override
@@ -2668,6 +2748,24 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gameResourceCacheWaitingForWifi => '正在等待 Wi-Fi，连接后会自动继续下载。';
 
   @override
+  String get gameResourceCachePreloadProxyBlocked =>
+      '串联 Kanxy 时已暂停预下载。关闭 Kanxy VPN，并在 Yahagi 的网络设置中切回系统网络后可继续。';
+
+  @override
+  String get gameResourceCacheManifestNotReady =>
+      '资源清单尚未就绪。请进入游戏，等清单加载完成后再开始下载。';
+
+  @override
+  String get gameResourceCacheKanxyClearAndReload => '清除 Kanxy 缓存并刷新游戏';
+
+  @override
+  String get gameResourceCacheKanxyReloaded => '已清除 Yahagi 的 Kanxy 资源缓存并刷新游戏。';
+
+  @override
+  String get gameResourceCacheKanxyCleared =>
+      '已清除 Yahagi 的 Kanxy 资源缓存，请手动刷新游戏。';
+
+  @override
   String get gameResourceCacheClearConfirmTitle => '清除游戏资源缓存？';
 
   @override
@@ -4243,6 +4341,86 @@ class AppLocalizationsZh extends AppLocalizations {
 /// The translations for Chinese, using the Han script (`zh_Hant`).
 class AppLocalizationsZhHant extends AppLocalizationsZh {
   AppLocalizationsZhHant() : super('zh_Hant');
+
+  @override
+  String get gameStartupCheckTitle => '啟動檢查';
+
+  @override
+  String get gameStartupCheckDescription => '顯示啟動階段、進度與連線提示。關閉後將使用原本的啟動方式。';
+
+  @override
+  String get gameStartupCheckSaveFailed => '啟動檢查設定未儲存，請重試。';
+
+  @override
+  String get gameStartupLoadingResources => '正在載入遊戲資源';
+
+  @override
+  String gameStartupResourceRequests(int count) {
+    return '$count 個請求';
+  }
+
+  @override
+  String get gameStartupPreparingStep => '準備連線';
+
+  @override
+  String get gameStartupPageStep => '入口網頁';
+
+  @override
+  String get gameStartupGameStep => '啟動遊戲';
+
+  @override
+  String get gameStartupPreparing => '正在準備連線';
+
+  @override
+  String get gameStartupPage => '正在載入入口網頁';
+
+  @override
+  String get gameStartupLoadingGame => '正在啟動遊戲';
+
+  @override
+  String get gameStartupStalled => '已 20 秒沒有新進度，可以繼續等待或重新載入。';
+
+  @override
+  String get gameStartupConnectionDetails => '連線詳情';
+
+  @override
+  String get gameStartupStageLabel => '失敗位置';
+
+  @override
+  String get gameStartupHostLabel => '主機';
+
+  @override
+  String get gameStartupCodeLabel => '錯誤碼';
+
+  @override
+  String get gameStartupCopyDetails => '複製錯誤詳情';
+
+  @override
+  String get gameStartupDetailsCopied => '已複製錯誤詳情';
+
+  @override
+  String get gameStartupCopyFailed => '複製失敗，請重試。';
+
+  @override
+  String get gameStartupLocalHttpProxyUnavailable => '無法連線至 HTTP 本機代理';
+
+  @override
+  String get gameStartupLocalHttpProxyHelp => '請確認本機代理已啟動，核對位址及連接埠後重試。';
+
+  @override
+  String get gameStartupPageNetworkError => '無法載入遊戲入口網頁';
+
+  @override
+  String get gameStartupPageAccessDenied => '遊戲入口網頁拒絕存取';
+
+  @override
+  String get gameStartupPageServerError => '遊戲入口伺服器暫時無法回應';
+
+  @override
+  String get gameStartupPageTimedOut => '遊戲頁面載入逾時，請重試。';
+
+  @override
+  String get gameStartupGadgetError => '暫時無法載入遊戲啟動指令碼';
 
   @override
   String get debuffReminderTitle => '削甲提醒';
@@ -6904,6 +7082,25 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get gameResourceCacheWaitingForWifi => '正在等待 Wi-Fi，連線後會自動繼續下載。';
+
+  @override
+  String get gameResourceCachePreloadProxyBlocked =>
+      '串接 Kanxy 時已暫停預先下載。關閉 Kanxy VPN，並在 Yahagi 的網路設定中切回系統網路後可繼續。';
+
+  @override
+  String get gameResourceCacheManifestNotReady =>
+      '資源清單尚未就緒。請進入遊戲，等清單載入完成後再開始下載。';
+
+  @override
+  String get gameResourceCacheKanxyClearAndReload => '清除 Kanxy 快取並重新載入遊戲';
+
+  @override
+  String get gameResourceCacheKanxyReloaded =>
+      '已清除 Yahagi 的 Kanxy 資源快取並重新載入遊戲。';
+
+  @override
+  String get gameResourceCacheKanxyCleared =>
+      '已清除 Yahagi 的 Kanxy 資源快取，請手動重新載入遊戲。';
 
   @override
   String get gameResourceCacheClearConfirmTitle => '清除遊戲資源快取？';

@@ -8,6 +8,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.net.InetSocketAddress
+import java.net.Proxy
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -298,6 +300,430 @@ class GameResourceCacheEngineTest {
 
         assertArrayEquals(byteArrayOf(1), engine.fetchFresh(url)?.bytes)
         assertEquals(1, fetcher.calls.get())
+        assertTrue(engine.entries().isEmpty())
+    }
+
+    @Test
+    fun `Kanxy local resource snapshots persist separately until manually cleared`() {
+        val url = official("/kcs2/resources/ship/banner/example.png?version=21")
+        val stock = byteArrayOf(1)
+        val modified = byteArrayOf(2)
+        val refreshed = byteArrayOf(3)
+        val fetcher = QueueFetcher(result(stock), kanxyManualImage(modified), kanxyManualImage(refreshed))
+        val root = temporaryFolder.newFolder()
+        var disk = kanxyDisk(root)
+        var session = KanxyHttpImageCache(localProxy)
+        val engine = engine(fetcher, kanxyHttpImageCache = { session }, kanxyDiskCache = disk)
+
+        assertArrayEquals(stock, engine.fetch(url)?.bytes)
+        assertArrayEquals(modified, engine.fetchFresh(url)?.bytes)
+        assertArrayEquals(stock, engine.fetch(url)?.bytes)
+
+        disk.closeMaintenance()
+        disk = kanxyDisk(root)
+        session = KanxyHttpImageCache(localProxy)
+        val reopened = engine(fetcher, kanxyHttpImageCache = { session }, kanxyDiskCache = disk)
+        val observed = mutableListOf<KanxyImageCacheEvent>()
+        val hit = reopened.fetchFresh(url, report = { observed.add(it) })
+        assertArrayEquals(modified, hit?.bytes)
+        assertEquals(GameResourceResponseSource.CACHE, hit?.source)
+        assertEquals("no-store", hit?.headers?.get("Cache-Control"))
+        assertEquals(listOf(KanxyImageCacheEvent.DISK_HIT), observed)
+        assertEquals(2, fetcher.calls.get())
+
+        disk.clear()
+        assertArrayEquals(refreshed, reopened.fetchFresh(url)?.bytes)
+        assertArrayEquals(refreshed, reopened.fetchFresh(url)?.bytes)
+        assertEquals(3, fetcher.calls.get())
+    }
+
+    @Test
+    fun `Kanxy disk keeps large file backed images and public atlas and sound assets`() {
+        val assetPaths = listOf(
+            Triple("/kcs2/img/organize/organize_main.png?version=21", "image/png", 1_720_000),
+            Triple("/kcs2/img/organize/organize_main.json?version=21", "application/json", 512),
+            Triple("/kcs2/resources/se/001.mp3", "audio/mpeg", 128),
+            Triple("/kcs2/resources/bgm/port/001.mp3?version=2", "audio/mpeg", 1_610_000),
+            Triple("/kcs/sound/001.mp3", "audio/mpeg", 128),
+        )
+        val root = temporaryFolder.newFolder()
+        val disk = kanxyDisk(root, maxBytes = 8L * 1024 * 1024)
+        var session = KanxyHttpImageCache(localProxy)
+        val responses = assetPaths.map { (_, mime, size) ->
+            val bytes = ByteArray(size) { (it % 199).toByte() }
+            val file = temporaryFolder.newFile().apply { writeBytes(bytes) }
+            val response = kanxyManualImage(bytes)
+            response.copy(
+                headers = response.headers + mapOf("Content-Type" to mime, "Vary" to "Accept-Encoding"),
+                bytes = ByteArray(0),
+                file = file,
+            )
+        }
+        val fetcher = QueueFetcher(*responses.toTypedArray())
+        val engine = engine(fetcher, kanxyHttpImageCache = { session }, kanxyDiskCache = disk)
+        for ((index, asset) in assetPaths.withIndex()) {
+            val (path, mime, size) = asset
+            val response = requireNotNull(engine.fetchFresh(official(path)))
+            val file = requireNotNull(responses[index].file)
+            assertTrue(file.exists())
+            assertEquals(GameResourceResponseSource.NETWORK, response.source)
+            assertEquals(mime, response.mimeType)
+            assertEquals(size.toLong(), response.bodyLength)
+            response.openStream().use { assertArrayEquals(file.readBytes(), it.readBytes()) }
+            assertFalse(file.exists())
+        }
+        session = KanxyHttpImageCache(localProxy)
+        for ((path, mime, size) in assetPaths) {
+            val response = requireNotNull(engine.fetchFresh(official(path)))
+            assertEquals(GameResourceResponseSource.CACHE, response.source)
+            assertEquals(mime, response.mimeType)
+            assertEquals(size.toLong(), response.bodyLength)
+            assertEquals("no-store", response.headers["Cache-Control"])
+            response.openStream().use { assertEquals(size, it.readBytes().size) }
+        }
+        assertEquals(assetPaths.size, fetcher.calls.get())
+    }
+
+    @Test
+    fun `Kanxy disk refuses nonpublic types encoded variants and invalid lengths`() {
+        val atlas = "/kcs2/img/organize/organize_main.json?version=21"
+        val sound = "/kcs2/resources/se/001.mp3"
+        val mp3Headers = mapOf("Content-Type" to "audio/mpeg")
+        val jsonHeaders = mapOf("Content-Type" to "application/json")
+        val refused = listOf(
+            "/kcs2/resources/ship/graphic.json" to jsonHeaders,
+            "/kcs2/img/organize/asset.js" to mapOf("Content-Type" to "text/javascript"),
+            "/kcs2/resources/voice/001.mp3" to mp3Headers,
+            "$atlas&token=opaque" to jsonHeaders,
+            atlas to (jsonHeaders + ("Vary" to "Accept-Encoding, Origin")),
+            atlas to (jsonHeaders + mapOf("Vary" to "Accept-Encoding", "Content-Encoding" to "gzip")),
+            atlas to (jsonHeaders + ("Content-Range" to "bytes 0-0/1")),
+            sound to mapOf("Content-Type" to "application/octet-stream"),
+        )
+        val malformed = listOf(
+            mapOf("Content-Length" to "1, 1"),
+            mapOf("content-length" to "1"),
+            mapOf("Content-Length" to "invalid"),
+            mapOf("Content-Length" to "2"),
+        )
+        val sample = kanxyManualImage(byteArrayOf(1))
+        val fetcher = QueueFetcher(*(
+            refused.flatMap { (_, headers) -> List(2) { sample.copy(headers = sample.headers + headers) } } +
+                malformed.map { sample.copy(headers = sample.headers + jsonHeaders + it) }
+            ).toTypedArray())
+        val disk = kanxyDisk(temporaryFolder.newFolder())
+        val session = KanxyHttpImageCache(localProxy)
+        val engine = engine(fetcher, kanxyHttpImageCache = { session }, kanxyDiskCache = disk)
+
+        for ((path, _) in refused) repeat(2) {
+            assertEquals(GameResourceResponseSource.NETWORK, engine.fetchFresh(official(path))?.source)
+        }
+        repeat(malformed.size) { assertNull(engine.fetchFresh(official(atlas))) }
+        assertEquals(refused.size * 2 + malformed.size, fetcher.calls.get())
+    }
+
+    @Test
+    fun `Kanxy local resource snapshots reject ambiguous restrictive policies`() {
+        val url = official("/kcs2/resources/ship/banner/example.png?version=21")
+        val image = kanxyManualImage(byteArrayOf(1))
+        val refused = listOf(
+            image.copy(headers = image.headers + ("Cache-Control" to "no-store")),
+            image.copy(headers = image.headers + ("Cache-Control" to "no-store, no-cache, must-revalidate, max-age=0, private")),
+            image.copy(headers = image.headers + ("Cache-Control" to "no-store, no-store, no-cache, must-revalidate, max-age=0")),
+            image.copy(headers = image.headers - "Pragma"),
+            image.copy(headers = image.headers + ("Expires" to "invalid")),
+            image.copy(headers = image.headers + ("Age" to "not-an-age")),
+            image.copy(headers = image.headers + ("Vary" to "Cookie")),
+            image.copy(headers = image.headers + ("Content-Range" to "bytes 0-0/2")),
+        )
+        val fetcher = QueueFetcher(*(refused + listOf(image)).toTypedArray())
+        val disk = kanxyDisk(temporaryFolder.newFolder())
+        val session = KanxyHttpImageCache(localProxy)
+        val engine = engine(fetcher, kanxyHttpImageCache = { session }, kanxyDiskCache = disk)
+
+        repeat(refused.size + 1) {
+            assertEquals(GameResourceResponseSource.NETWORK, engine.fetchFresh(url)?.source)
+        }
+        assertEquals(GameResourceResponseSource.CACHE, engine.fetchFresh(url)?.also { it.discard() }?.source)
+        assertEquals(refused.size + 1, fetcher.calls.get())
+    }
+
+    @Test
+    fun `Kanxy disk never shares snapshots between proxy endpoints or admits credentialed requests`() {
+        val url = official("/kcs2/resources/ship/banner/example.png?version=21")
+        val first = kanxyManualImage(byteArrayOf(1))
+        val other = kanxyManualImage(byteArrayOf(2))
+        val fetcher = QueueFetcher(
+            first,
+            other,
+            other, other, // requests with a game-server Cookie
+            other, other, // requests with an opaque signed query
+        )
+        val disk = kanxyDisk(temporaryFolder.newFolder())
+        var session = KanxyHttpImageCache(localProxy)
+        val engine = engine(fetcher, kanxyHttpImageCache = { session }, kanxyDiskCache = disk)
+
+        assertArrayEquals(first.bytes, engine.fetchFresh(url)?.bytes)
+        session = KanxyHttpImageCache(Proxy(Proxy.Type.HTTP, InetSocketAddress.createUnresolved("127.0.0.1", 7411)))
+        assertArrayEquals(other.bytes, engine.fetchFresh(url)?.bytes)
+        session = KanxyHttpImageCache(localProxy)
+        assertArrayEquals(first.bytes, engine.fetchFresh(url)?.bytes)
+        repeat(2) {
+            assertEquals(GameResourceResponseSource.NETWORK, engine.fetchFresh(url, mapOf("Cookie" to "test"))?.source)
+            assertEquals(GameResourceResponseSource.NETWORK, engine.fetchFresh("$url&credential=opaque")?.source)
+        }
+        assertNull(engine.fetchFresh(url, mapOf("Authorization" to "Bearer test")))
+        assertNull(engine.fetchFresh(url, mapOf("Range" to "bytes=0-1")))
+        assertEquals(6, fetcher.calls.get())
+    }
+
+    @Test
+    fun `a normally cacheable Kanxy disk response honors its freshness across foreground sessions`() {
+        val url = official("/kcs2/resources/ship/banner/example.png?version=21")
+        val image = cacheableImage(byteArrayOf(1))
+        val first = image.copy(headers = image.headers + ("Cache-Control" to "public, max-age=1"))
+        val second = cacheableImage(byteArrayOf(2))
+        val fetcher = QueueFetcher(first, second)
+        val disk = kanxyDisk(temporaryFolder.newFolder())
+        var wallTime = 10_000L
+        var session = KanxyHttpImageCache(localProxy) { 0L }
+        val engine = engine(fetcher, clock = { wallTime }, kanxyHttpImageCache = { session }, kanxyDiskCache = disk)
+
+        assertEquals(GameResourceResponseSource.NETWORK, engine.fetchFresh(url)?.source)
+        session = KanxyHttpImageCache(localProxy) { 0L }
+        wallTime = 10_999L
+        assertEquals(GameResourceResponseSource.CACHE, engine.fetchFresh(url)?.also { it.discard() }?.source)
+        wallTime = 11_000L
+        assertArrayEquals(second.bytes, engine.fetchFresh(url)?.bytes)
+        assertEquals(2, fetcher.calls.get())
+    }
+
+    @Test
+    fun `clearing Kanxy local resource snapshots rejects an unfinished download`() {
+        val url = official("/kcs2/resources/ship/banner/example.png?version=21")
+        val disk = kanxyDisk(temporaryFolder.newFolder())
+        val session = KanxyHttpImageCache(localProxy)
+        var calls = 0
+        val fetcher = GameResourceFetcher { _, _, _ ->
+            if (calls++ == 0) {
+                disk.clear()
+                kanxyManualImage(byteArrayOf(1))
+            } else kanxyManualImage(byteArrayOf(2))
+        }
+        val engine = engine(fetcher, kanxyHttpImageCache = { session }, kanxyDiskCache = disk)
+
+        assertNull(engine.fetchFresh(url))
+        assertArrayEquals(byteArrayOf(2), engine.fetchFresh(url)?.bytes)
+        assertEquals(GameResourceResponseSource.CACHE, engine.fetchFresh(url)?.also { it.discard() }?.source)
+        assertEquals(2, calls)
+    }
+
+    @Test
+    fun `Kanxy HTTP reuses a versioned banner without replacing stock cache`() {
+        val url = official("/kcs2/resources/ship/banner/example.png?version=21")
+        val stock = byteArrayOf(1)
+        val modified = byteArrayOf(2)
+        val fetcher = QueueFetcher(result(stock), cacheableImage(modified))
+        var session: KanxyHttpImageCache? = null
+        val engine = engine(fetcher, kanxyHttpImageCache = { session })
+
+        assertArrayEquals(stock, engine.fetch(url)?.bytes)
+        session = KanxyHttpImageCache(localProxy)
+        assertArrayEquals(modified, engine.fetchFresh(url)?.bytes)
+        val hit = engine.fetchFresh(url)
+        assertEquals(GameResourceResponseSource.CACHE, hit?.source)
+        assertArrayEquals(modified, hit?.bytes)
+        assertEquals("no-store", hit?.headers?.get("Cache-Control"))
+        assertEquals(2, fetcher.calls.get())
+        session = null
+        assertArrayEquals(stock, engine.fetch(url)?.bytes)
+    }
+
+    @Test
+    fun `an admitted Kanxy image uses the same memory bytes on first response and hit`() {
+        val url = official("/kcs2/resources/ship/banner/example.png?version=21")
+        val pixels = byteArrayOf(10, 20, 30)
+        val download = temporaryFolder.newFile().apply { writeBytes(pixels) }
+        val fetcher = QueueFetcher(cacheableImage(pixels).copy(bytes = byteArrayOf(), file = download))
+        val session = KanxyHttpImageCache(localProxy)
+        val engine = engine(fetcher, kanxyHttpImageCache = { session })
+
+        val first = checkNotNull(engine.fetchFresh(url))
+        assertEquals(GameResourceResponseSource.NETWORK, first.source)
+        assertFalse("memory-backed response should release its temporary download before WebView opens it", download.exists())
+        assertArrayEquals(pixels, first.openStream().use { it.readBytes() })
+        assertArrayEquals(pixels, engine.fetchFresh(url)?.bytes)
+        assertEquals(1, fetcher.calls.get())
+    }
+
+    @Test
+    fun `Kanxy diagnostics distinguish response refusal from eviction or expiry`() {
+        var elapsed = 0L
+        val url = official("/kcs2/resources/ship/banner/example.png")
+        val normal = cacheableImage(byteArrayOf(1))
+        val noStore = normal.copy(headers = normal.headers + ("Cache-Control" to "no-store"))
+        val oversized = cacheableImage(ByteArray(512 * 1024 + 1))
+        val badHeaders = normal.copy(headers = normal.headers + ("Content-Length" to "1, 1"))
+        val fetcher = QueueFetcher(noStore, oversized, badHeaders, normal, normal)
+        val session = KanxyHttpImageCache(localProxy) { elapsed }
+        val engine = engine(fetcher, kanxyHttpImageCache = { session })
+        fun observed(): List<KanxyImageCacheEvent> = buildList {
+            assertTrue(engine.fetchFresh(url, report = { add(it) }) != null)
+        }
+
+        val miss = KanxyImageCacheEvent.MISS
+        val stored = KanxyImageCacheEvent.STORED
+        assertEquals(listOf(miss, KanxyImageCacheEvent.RESPONSE_NOT_FRESH), observed())
+        assertEquals(listOf(miss, KanxyImageCacheEvent.IMAGE_SIZE_LIMIT), observed())
+        assertEquals(listOf(miss, KanxyImageCacheEvent.RESPONSE_HEADERS), observed())
+        assertEquals(listOf(miss, stored), observed())
+        assertEquals(listOf(KanxyImageCacheEvent.HIT), observed())
+        elapsed = 60_000
+        assertEquals(listOf(KanxyImageCacheEvent.EXPIRED, stored), observed())
+        assertEquals(5, fetcher.calls.get())
+    }
+
+    @Test
+    fun `Kanxy HTTP does not reuse a different URL or request representation`() {
+        val url = official("/kcs2/resources/ship/banner/example.png?version=21")
+        val response = cacheableImage(byteArrayOf(1))
+        val fetcher = QueueFetcher(response, response, response)
+        val session = KanxyHttpImageCache(localProxy)
+        val engine = engine(fetcher, kanxyHttpImageCache = { session })
+        val headers = mapOf("Cookie" to "first")
+
+        assertEquals(GameResourceResponseSource.NETWORK, engine.fetchFresh(url, headers)?.source)
+        assertEquals(GameResourceResponseSource.CACHE, engine.fetchFresh(url, headers)?.source)
+        assertEquals(GameResourceResponseSource.NETWORK, engine.fetchFresh(url, mapOf("Cookie" to "different"))?.source)
+        assertEquals(GameResourceResponseSource.NETWORK, engine.fetchFresh(url.replace("21", "22"), headers)?.source)
+        assertEquals(3, fetcher.calls.get())
+    }
+
+    @Test
+    fun `a retired WebView cannot read or populate the active Kanxy HTTP cache`() {
+        val url = official("/kcs2/resources/ship/banner/example.png")
+        val fetcher = QueueFetcher(cacheableImage(byteArrayOf(1)), cacheableImage(byteArrayOf(2)))
+        val session = KanxyHttpImageCache(localProxy)
+        val engine = engine(fetcher, kanxyHttpImageCache = { session })
+
+        assertArrayEquals(byteArrayOf(1), engine.fetchFresh(url, ownsImageCache = { false })?.bytes)
+        assertArrayEquals(byteArrayOf(2), engine.fetchFresh(url)?.bytes)
+        assertEquals(GameResourceResponseSource.CACHE, engine.fetchFresh(url)?.source)
+        assertEquals(2, fetcher.calls.get())
+    }
+
+    @Test
+    fun `Kanxy HTTP applies short TTL to a versioned image and counts upstream age`() {
+        var elapsed = 0L
+        val url = official("/kcs2/resources/ship/banner/example.png?version=21")
+        val response = cacheableImage(byteArrayOf(1))
+        val nearlyExpired = response.copy(headers = response.headers + mapOf("Cache-Control" to "max-age=10", "Age" to "9"))
+        val fetcher = QueueFetcher(response, nearlyExpired, response)
+        val session = KanxyHttpImageCache(localProxy) { elapsed }
+        val engine = engine(fetcher, kanxyHttpImageCache = { session })
+
+        assertEquals(GameResourceResponseSource.NETWORK, engine.fetchFresh(url)?.source)
+        elapsed = 59_999
+        assertEquals(GameResourceResponseSource.CACHE, engine.fetchFresh(url)?.source)
+        elapsed = 60_000
+        assertEquals(GameResourceResponseSource.NETWORK, engine.fetchFresh(url)?.source)
+        elapsed = 60_999
+        assertEquals(GameResourceResponseSource.CACHE, engine.fetchFresh(url)?.source)
+        elapsed = 61_000
+        assertEquals(GameResourceResponseSource.NETWORK, engine.fetchFresh(url)?.source)
+        assertEquals(3, fetcher.calls.get())
+    }
+
+    @Test
+    fun `Kanxy HTTP respects response cache restrictions and bypasses the script cache`() {
+        val publicImage = cacheableImage(byteArrayOf(1))
+        val image = official("/kcs2/resources/ship/banner/example.png?version=21")
+        val script = official("/kcs2/js/main.js?version=21")
+        val responses = listOf(
+            publicImage.copy(headers = publicImage.headers + ("Cache-Control" to "max-age=60, no-store")),
+            publicImage.copy(headers = publicImage.headers + ("Cache-Control" to "max-age=60, no-cache")),
+            publicImage.copy(headers = publicImage.headers + ("Cache-Control" to "max-age=60, private")),
+            publicImage.copy(headers = publicImage.headers + ("Cache-Control" to "max-age=60, max-age=0")),
+            publicImage.copy(headers = publicImage.headers + ("Cache-Control" to "ext=\"x,max-age=60,y\"")),
+            publicImage.copy(headers = publicImage.headers + ("Date" to "Tue, 25 Jun 2019 03:44:10 GMT")),
+            publicImage.copy(headers = publicImage.headers + ("Vary" to "Cookie")),
+        )
+        val fetcher = QueueFetcher(*(responses + listOf(publicImage, publicImage, publicImage)).toTypedArray())
+        val session = KanxyHttpImageCache(localProxy)
+        val engine = engine(fetcher, kanxyHttpImageCache = { session })
+
+        repeat(responses.size + 1) {
+            assertEquals(GameResourceResponseSource.NETWORK, engine.fetchFresh(image)?.source)
+        }
+        assertEquals(GameResourceResponseSource.CACHE, engine.fetchFresh(image)?.source)
+        repeat(2) { assertEquals(GameResourceResponseSource.NETWORK, engine.fetchFresh(script)?.source) }
+        assertEquals(responses.size + 3, fetcher.calls.get())
+    }
+
+    @Test
+    fun `Kanxy HTTP explicit refresh bypasses and forgets a warm image`() {
+        val url = official("/kcs2/resources/ship/banner/example.png?version=21")
+        val original = byteArrayOf(1)
+        val changed = byteArrayOf(2)
+        val fetcher = QueueFetcher(cacheableImage(original), cacheableImage(changed), cacheableImage(changed))
+        val session = KanxyHttpImageCache(localProxy)
+        val engine = engine(fetcher, kanxyHttpImageCache = { session })
+
+        assertArrayEquals(original, engine.fetchFresh(url)?.bytes)
+        assertArrayEquals(changed, engine.fetchFresh(url, mapOf("Cache-Control" to "no-cache"))?.bytes)
+        assertArrayEquals(changed, engine.fetchFresh(url)?.bytes)
+        assertEquals(3, fetcher.calls.get())
+        assertEquals(GameResourceResponseSource.CACHE, engine.fetchFresh(url)?.source)
+    }
+
+    @Test
+    fun `Kanxy HTTP rejects an old response after refresh on the same proxy`() {
+        val url = official("/kcs2/resources/ship/banner/example.png?version=21")
+        val staleFile = temporaryFolder.newFile().apply { writeBytes(byteArrayOf(1)) }
+        val fresh = byteArrayOf(2)
+        var session = KanxyHttpImageCache(localProxy)
+        var calls = 0
+        val fetcher = GameResourceFetcher { _, _, _ ->
+            if (calls++ == 0) {
+                session = KanxyHttpImageCache(localProxy)
+                cacheableImage(byteArrayOf(1)).copy(bytes = byteArrayOf(), file = staleFile)
+            } else cacheableImage(fresh)
+        }
+        val engine = engine(fetcher, kanxyHttpImageCache = { session })
+
+        assertNull(engine.fetchFresh(url))
+        assertFalse(staleFile.exists())
+        assertArrayEquals(fresh, engine.fetchFresh(url)?.bytes)
+        assertEquals(GameResourceResponseSource.CACHE, engine.fetchFresh(url)?.source)
+        assertEquals(2, calls)
+    }
+
+    @Test
+    fun `stock download is discarded after a round trip through another route`() {
+        val url = official("/kcs2/resources/ship/banner/example.png?version=21")
+        var generation = 0L
+        val fetcher = GameResourceFetcher { _, _, _ ->
+            generation += 2
+            result(byteArrayOf(1))
+        }
+        val engine = engine(fetcher, resourceRouteGeneration = { generation })
+
+        assertNull(engine.fetch(url))
+        assertTrue(engine.entries().isEmpty())
+    }
+
+    @Test
+    fun `late main script from an old route is discarded before WebView sees it`() {
+        val url = official("/kcs2/js/main.js?version=21")
+        val download = temporaryFolder.newFile().apply { writeText("old script") }
+        var generation = 1L
+        val engine = engine(GameResourceFetcher { _, _, _ ->
+            generation++
+            GameResourceFetchResult(200, "OK", mapOf("Content-Type" to "application/javascript"), file = download)
+        }, resourceRouteGeneration = { generation })
+
+        assertNull(engine.fetchFresh(url))
+        assertFalse(download.exists())
         assertTrue(engine.entries().isEmpty())
     }
 
@@ -958,6 +1384,9 @@ class GameResourceCacheEngineTest {
         fetcher: GameResourceFetcher,
         mode: GameResourceCacheMode = GameResourceCacheMode.TEMPORARY,
         clock: () -> Long = System::currentTimeMillis,
+        kanxyHttpImageCache: () -> KanxyHttpImageCache? = { null },
+        resourceRouteGeneration: () -> Long = { 0L },
+        kanxyDiskCache: KanxyDiskResourceCache? = null,
     ): GameResourceCacheEngine {
         val root = temporaryFolder.newFolder()
         val store = GameResourceCacheStore(
@@ -966,10 +1395,30 @@ class GameResourceCacheEngineTest {
             10_000,
             clock,
         )
-        return GameResourceCacheEngine(store, fetcher, clock) { mode }
+        return GameResourceCacheEngine(store, fetcher, clock, kanxyHttpImageCache, resourceRouteGeneration, kanxyDiskCache) { mode }
     }
 
+    private fun kanxyDisk(root: java.io.File, maxBytes: Long = 10_000) = KanxyDiskResourceCache(
+        GameResourceCacheStore(root, GameResourceCacheIndex(root.resolve("index.json")), maxBytes),
+    )
+
+    private val localProxy = Proxy(Proxy.Type.HTTP, InetSocketAddress.createUnresolved("127.0.0.1", 7410))
+
     private fun official(path: String) = "https://w17k.kancolle-server.com$path"
+
+    private fun cacheableImage(bytes: ByteArray): GameResourceFetchResult {
+        val response = result(bytes)
+        return response.copy(headers = response.headers + ("Cache-Control" to "public, max-age=2592000"))
+    }
+
+    private fun kanxyManualImage(bytes: ByteArray): GameResourceFetchResult {
+        val response = result(bytes)
+        return response.copy(headers = response.headers + mapOf(
+            "Cache-Control" to "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma" to "no-cache",
+            "Expires" to "0",
+        ))
+    }
 
     private fun result(bytes: ByteArray, statusCode: Int = 200) = GameResourceFetchResult(
         statusCode = statusCode,

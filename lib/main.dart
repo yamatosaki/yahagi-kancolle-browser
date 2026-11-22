@@ -187,6 +187,7 @@ import 'src/settings/release_check_service.dart';
 import 'src/settings/startup_update_notice.dart';
 import 'src/settings/screen_awake_controller.dart';
 import 'src/settings/game_mouse_wheel_settings.dart';
+import 'src/settings/game_startup_check_settings.dart';
 import 'src/settings/game_frame_refresh_shortcut_settings.dart';
 import 'src/browser/game_frame_refresh_shortcut_dialog.dart';
 import 'src/browser/game_frame_refresh_shortcut_action.dart';
@@ -665,6 +666,8 @@ Future<void> main() async {
   final releaseChecker = GitHubReleaseChecker();
   final gameMouseWheelSettingsController =
       await GameMouseWheelSettingsController.load();
+  final gameStartupCheckSettingsController =
+      await GameStartupCheckSettingsController.load();
   final shipSubtitleSettingsController =
       await ShipSubtitleSettingsController.load();
   shipSubtitleCatalogController = await ShipSubtitleCatalogController.load(
@@ -885,6 +888,7 @@ Future<void> main() async {
     headerNoticeController: headerNoticeController,
     gameInfoNoticeController: gameInfoNoticeController,
     gameMouseWheelSettingsController: gameMouseWheelSettingsController,
+    gameStartupCheckSettingsController: gameStartupCheckSettingsController,
     shipSubtitleSettingsController: shipSubtitleSettingsController,
     shipSubtitleCatalogController: shipSubtitleCatalogController,
     shipSubtitleRuntimeController: shipSubtitleRuntimeController,
@@ -1183,6 +1187,7 @@ class YahagiApp extends StatelessWidget {
     this.headerNoticeController,
     this.gameInfoNoticeController,
     this.gameMouseWheelSettingsController,
+    this.gameStartupCheckSettingsController,
     this.gameFrameRefreshShortcutSettings,
     this.shipSubtitleSettingsController,
     this.shipSubtitleCatalogController,
@@ -1240,6 +1245,7 @@ class YahagiApp extends StatelessWidget {
   final TopNoticeController? headerNoticeController;
   final GameInfoNoticeController? gameInfoNoticeController;
   final GameMouseWheelSettingsController? gameMouseWheelSettingsController;
+  final GameStartupCheckSettingsController? gameStartupCheckSettingsController;
   final GameFrameRefreshShortcutSettings? gameFrameRefreshShortcutSettings;
   final ShipSubtitleSettingsController? shipSubtitleSettingsController;
   final ShipSubtitleCatalogController? shipSubtitleCatalogController;
@@ -1263,7 +1269,7 @@ class YahagiApp extends StatelessWidget {
     );
     return AnimatedBuilder(
       animation: Listenable.merge(<Listenable>[
-        layoutSettingsController,
+        layoutSettingsController.workspaceChanges,
         safetySettingsController,
         ?toolbarDisplayController,
         ?gameRenderingModeController,
@@ -1373,6 +1379,8 @@ class YahagiApp extends StatelessWidget {
                     screenAwakeController: screenAwakeController,
                     gameMouseWheelSettingsController:
                         gameMouseWheelSettingsController,
+                    gameStartupCheckSettingsController:
+                        gameStartupCheckSettingsController,
                     gameFrameRefreshShortcutSettings:
                         gameFrameRefreshShortcutSettings,
                     shipSubtitleSettingsController:
@@ -1549,6 +1557,7 @@ class YahagiApp extends StatelessWidget {
     audioController: audioController,
     gameCaptureController: gameCaptureController,
     frameRateSettingsController: gameFrameRateSettingsController,
+    gameStartupCheckSettingsController: gameStartupCheckSettingsController,
   );
 
   Widget _buildGameWebView(Key key, {GameRenderingMode? renderingMode}) =>
@@ -1565,6 +1574,7 @@ class YahagiApp extends StatelessWidget {
         gameCaptureController: gameCaptureController,
         frameRateSettingsController: gameFrameRateSettingsController,
         mouseWheelSettingsController: gameMouseWheelSettingsController,
+        gameStartupCheckSettingsController: gameStartupCheckSettingsController,
         renderingMode:
             renderingMode ??
             gameRenderingModeController?.mode ??
@@ -1657,6 +1667,7 @@ class YahagiShell extends StatefulWidget {
     this.releaseChecker,
     this.screenAwakeController,
     this.gameMouseWheelSettingsController,
+    this.gameStartupCheckSettingsController,
     this.gameFrameRefreshShortcutSettings,
     this.shipSubtitleSettingsController,
     this.shipSubtitleCatalogController,
@@ -1717,6 +1728,7 @@ class YahagiShell extends StatefulWidget {
   final ReleaseChecker? releaseChecker;
   final ScreenAwakeController? screenAwakeController;
   final GameMouseWheelSettingsController? gameMouseWheelSettingsController;
+  final GameStartupCheckSettingsController? gameStartupCheckSettingsController;
   final GameFrameRefreshShortcutSettings? gameFrameRefreshShortcutSettings;
   final ShipSubtitleSettingsController? shipSubtitleSettingsController;
   final ShipSubtitleCatalogController? shipSubtitleCatalogController;
@@ -1799,7 +1811,9 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
     unawaited(_windowLayoutController.initialize());
     unawaited(_gameModsController.initialize());
     widget.displayModeController.addListener(_onDisplayModeChanged);
-    widget.layoutSettingsController.addListener(_onLayoutSettingsChanged);
+    widget.layoutSettingsController.workspaceChanges.addListener(
+      _onLayoutSettingsChanged,
+    );
     widget.gameRenderingModeController?.addListener(_onHeaderDialogModeChanged);
     widget.browserController.addListener(_syncKanxyRouteReadiness);
     widget.captureModeController.addListener(_syncKanxyRouteReadiness);
@@ -1839,7 +1853,9 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
     widget.kanxyGameRoute?.invalidateDocument();
     _gameFrameReloadChannel.setMethodCallHandler(null);
     widget.displayModeController.removeListener(_onDisplayModeChanged);
-    widget.layoutSettingsController.removeListener(_onLayoutSettingsChanged);
+    widget.layoutSettingsController.workspaceChanges.removeListener(
+      _onLayoutSettingsChanged,
+    );
     widget.kcwikiReportConsumer?.dispose();
     widget.gameInfoNoticeController?.dispose();
     _questFilters.dispose();
@@ -1876,10 +1892,12 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
     }
     if (oldWidget.layoutSettingsController != widget.layoutSettingsController) {
       _headerResourceSettingsPresentation?.cancel();
-      oldWidget.layoutSettingsController.removeListener(
+      oldWidget.layoutSettingsController.workspaceChanges.removeListener(
         _onLayoutSettingsChanged,
       );
-      widget.layoutSettingsController.addListener(_onLayoutSettingsChanged);
+      widget.layoutSettingsController.workspaceChanges.addListener(
+        _onLayoutSettingsChanged,
+      );
     }
     if (oldWidget.gameRenderingModeController !=
         widget.gameRenderingModeController) {
@@ -2554,7 +2572,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
         widget.browserController,
         widget.audioController,
         ?widget.gameRenderingModeController,
-        widget.layoutSettingsController,
+        widget.layoutSettingsController.workspaceChanges,
       ]),
       builder: (context, _) {
         final actions = _browserActions(context);
@@ -2637,7 +2655,7 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                       child: AnimatedBuilder(
                         animation: Listenable.merge([
                           widget.toolbarController,
-                          widget.layoutSettingsController,
+                          widget.layoutSettingsController.workspaceChanges,
                         ]),
                         builder: (context, _) {
                           final isCompact = uiSize.isCompactOrSmaller;
@@ -3855,6 +3873,8 @@ class _YahagiShellState extends State<YahagiShell> with WidgetsBindingObserver {
                                             widget.screenAwakeController,
                                         gameMouseWheelSettingsController: widget
                                             .gameMouseWheelSettingsController,
+                                        gameStartupCheckSettingsController: widget
+                                            .gameStartupCheckSettingsController,
                                         gameFrameRefreshShortcutSettings: widget
                                             .gameFrameRefreshShortcutSettings,
                                         shipSubtitleSettingsController: widget
@@ -4049,7 +4069,7 @@ class WorkspaceNavigation extends StatelessWidget {
                 Expanded(
                   child: AnimatedBuilder(
                     animation: Listenable.merge([
-                      controller,
+                      controller.workspaceChanges,
                       ?gameStateController,
                     ]),
                     builder: (context, _) {

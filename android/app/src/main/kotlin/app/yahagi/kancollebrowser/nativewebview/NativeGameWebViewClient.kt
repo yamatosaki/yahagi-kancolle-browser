@@ -10,16 +10,22 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import java.util.Locale
+import app.yahagi.kancollebrowser.browser.GadgetBypassRules
 import java.net.URI
+import java.util.Locale
+
+enum class NativeGameWebViewResourceKind(val wireValue: String) {
+    GADGET("gadget"),
+}
 
 interface NativeGameWebViewEventSink {
     fun created(generation: Long)
     fun pageStarted(generation: Long, url: String)
+    fun pageProgress(generation: Long, progress: Int, url: String?) = Unit
     fun pageFinished(generation: Long, url: String)
     fun presentationChanged(generation: Long, isGame: Boolean) = Unit
     fun presentationPending(generation: Long) = Unit
-    fun resourceError(generation: Long, errorCode: Int) = Unit
+    fun resourceError(generation: Long, errorCode: Int, kind: NativeGameWebViewResourceKind? = null) = Unit
     fun mainFrameError(generation: Long, errorCode: Int, description: String)
     fun navigationBlocked(generation: Long, scheme: String)
     fun renderProcessGone(generation: Long, didCrash: Boolean)
@@ -33,6 +39,7 @@ internal class NativeGameWebViewClientDelegate(
     private val acceptsGeneration: () -> Boolean,
     private val prepareRenderProcessGone: () -> Boolean,
     private val onRenderProcessGone: () -> Unit,
+    private val startupChecksEnabled: () -> Boolean = { true },
 ) {
     private var currentDocumentTarget: NavigationTarget? = null
 
@@ -43,6 +50,16 @@ internal class NativeGameWebViewClientDelegate(
 
     fun pageFinished(url: String) = emit { it.pageFinished(generation, url) }
 
+    fun pageProgress(progress: Int, readUrl: () -> String?) {
+        if (!startupChecksEnabled() || progress !in 0..100) return
+        val current = currentDocumentTarget ?: return
+        val url = readUrl()
+        val reported = url?.let(NavigationTarget::from)
+        // Chromium can still expose the old document URL while a redirect is committing.
+        if (url != null && reported != current) return
+        emit { it.pageProgress(generation, progress, reported?.safeAddress()) }
+    }
+
     fun presentationPending() = emit { it.presentationPending(generation) }
 
     fun receivedError(isMainFrame: Boolean, errorCode: Int, description: String?, requestUrl: String? = null) {
@@ -50,9 +67,11 @@ internal class NativeGameWebViewClientDelegate(
         if (isMainFrame) {
             emit { it.mainFrameError(generation, errorCode, sanitizeDescription(description)) }
         } else {
-            // Child errors are useful diagnostics but must never hide a login
-            // page or include its private resource URL in the event payload.
-            emit { it.resourceError(generation, errorCode) }
+            // Report only an allowlisted type rather than exposing child resource URLs.
+            emit {
+                val kind = if (startupChecksEnabled()) classifyResource(requestUrl) else null
+                it.resourceError(generation, errorCode, kind)
+            }
         }
     }
 
@@ -105,6 +124,18 @@ internal class NativeGameWebViewClientDelegate(
         return current == requested
     }
 
+    private fun classifyResource(requestUrl: String?): NativeGameWebViewResourceKind? {
+        val uri = requestUrl?.let { runCatching { URI(it) }.getOrNull() } ?: return null
+        if (!GadgetBypassRules.GADGET_HOST.equals(uri.host, ignoreCase = true) || uri.userInfo != null) return null
+        val port = when (uri.scheme?.lowercase(Locale.ROOT)) {
+            "http" -> 80
+            "https" -> 443
+            else -> return null
+        }
+        if (uri.port != -1 && uri.port != port) return null
+        return NativeGameWebViewResourceKind.GADGET.takeIf { uri.rawPath in GADGET_STARTUP_SCRIPTS }
+    }
+
     private data class NavigationTarget(
         val scheme: String,
         val host: String,
@@ -112,6 +143,14 @@ internal class NativeGameWebViewClientDelegate(
         val path: String,
         val query: String?,
     ) {
+        fun safeAddress(): String? {
+            if (scheme != "https" && scheme != "http") return null
+            val origin = URI(scheme, null, host, port, null, null, null).toASCIIString()
+            val safePath = path.split('/').takeWhile { '=' !in it && !it.contains("%3d", ignoreCase = true) }
+                .joinToString("/")
+            return (origin + safePath).takeIf { it.length <= MAX_ADDRESS_LENGTH }
+        }
+
         companion object {
             fun from(value: String): NavigationTarget? = runCatching {
                 val uri = URI(value)
@@ -130,7 +169,16 @@ internal class NativeGameWebViewClientDelegate(
         val SCHEME_PATTERN = Regex("^([A-Za-z][A-Za-z0-9+.-]*):")
         const val MAX_SCHEME_LENGTH = 32
         const val MAX_DESCRIPTION_LENGTH = 256
+        const val MAX_ADDRESS_LENGTH = 2048
         const val INVALID_SCHEME = "invalid"
+        val GADGET_STARTUP_SCRIPTS = setOf(
+            "/gadget_html5/js/kcs_const.js",
+            "/gadget_html5/js/kcs_cda.js",
+            "/gadget_html5/js/kcs_content.js",
+            "/gadget_html5/js/kcs_global.js",
+            "/gadget_html5/js/kcs_login.js",
+            "/gadget_html5/script/jquery.min.js",
+        )
     }
 }
 
@@ -141,6 +189,7 @@ internal class NativeGameWebViewClient(
     prepareRenderProcessGone: (Long) -> Boolean,
     onRenderProcessGone: (Long) -> Unit,
     private val onMainFrameNavigationStarted: (WebView?) -> Unit,
+    startupChecksEnabled: () -> Boolean = { true },
 ) : WebViewClient() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var presentationBridge: NativeGamePresentationBridge? = null
@@ -165,6 +214,7 @@ internal class NativeGameWebViewClient(
         acceptsGeneration = acceptsGeneration,
         prepareRenderProcessGone = { prepareRenderProcessGone(generation) },
         onRenderProcessGone = { onRenderProcessGone(generation) },
+        startupChecksEnabled = startupChecksEnabled,
     )
 
     fun presentationPending() {
@@ -184,6 +234,8 @@ internal class NativeGameWebViewClient(
     override fun onPageFinished(view: WebView?, url: String?) {
         delegate.pageFinished(url.orEmpty())
     }
+
+    fun onPageProgress(view: WebView?, progress: Int) = delegate.pageProgress(progress) { view?.url }
 
     override fun onReceivedError(
         view: WebView?,

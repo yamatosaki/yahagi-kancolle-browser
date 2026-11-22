@@ -16,10 +16,14 @@ import 'browser/game_frame_rate_runtime_controller.dart';
 import 'browser/game_initial_address.dart';
 import 'browser/game_load_event.dart';
 import 'browser/game_navigation_watchdog.dart';
+import 'browser/game_startup_activity.dart';
+import 'browser/game_startup_diagnostics.dart';
+import 'browser/game_startup_overlay.dart';
 import 'browser/game_frame_reload_port.dart';
 import 'browser/game_toolbar_controller.dart';
 import 'browser/native_game_surface_preview.dart';
 import 'browser/native_game_surface_slot.dart';
+import 'browser/native_game_startup_card_port.dart';
 import 'browser/native_game_webview_contract.dart';
 import 'browser/native_game_webview_port.dart';
 import 'capture/capture_mode.dart';
@@ -29,6 +33,7 @@ import 'game_webview.dart';
 import 'layout/window_metrics_recovery_scheduler.dart';
 import 'prototype_status_controller.dart';
 import 'settings/game_frame_rate_settings.dart';
+import 'settings/game_startup_check_settings.dart';
 import 'settings/network_settings_controller.dart';
 import 'settings/network_settings_store.dart';
 
@@ -62,7 +67,7 @@ String nativeWebViewStartupErrorMessage(Object error) {
 }
 
 final class MethodChannelNativeActivityGameWebViewPort
-    implements NativeActivityGameWebViewPort {
+    implements NativeActivityGameWebViewPort, NativeGameStartupCardPort {
   MethodChannelNativeActivityGameWebViewPort({
     MethodChannelNativeGameWebViewPort? delegate,
     GameFrameReloadPort? frameReloadPort,
@@ -84,6 +89,10 @@ final class MethodChannelNativeActivityGameWebViewPort
 
   @override
   Future<void> setVisible(bool visible) => _delegate.setVisible(visible);
+
+  @override
+  Future<void> setStartupCard(NativeGameStartupCardData? card) =>
+      _delegate.setStartupCard(card);
 
   @override
   Future<void> loadUri(Uri uri) async {
@@ -128,10 +137,12 @@ final class _BoundsRecoveringNativeActivityGameWebViewPort
   _BoundsRecoveringNativeActivityGameWebViewPort({
     required this.delegate,
     required this.recoverBounds,
+    required this.onGameFrameReloaded,
   });
 
   final NativeActivityGameWebViewPort delegate;
   final Future<bool> Function() recoverBounds;
+  final VoidCallback onGameFrameReloaded;
 
   @override
   Stream<NativeGameWebViewEvent> get events => delegate.events;
@@ -156,7 +167,11 @@ final class _BoundsRecoveringNativeActivityGameWebViewPort
   Future<void> reload() => delegate.reload();
 
   @override
-  Future<GameFrameReloadResult> reloadGameFrame() => delegate.reloadGameFrame();
+  Future<GameFrameReloadResult> reloadGameFrame() async {
+    final result = await delegate.reloadGameFrame();
+    if (result == GameFrameReloadResult.reloaded) onGameFrameReloaded();
+    return result;
+  }
 
   @override
   Future<bool> canGoBack() => delegate.canGoBack();
@@ -236,6 +251,8 @@ final class NativeActivityGameSurface extends StatefulWidget {
     this.previewDecoder,
     this.portFactory,
     this.startupOrchestrator,
+    this.startupActivityPort,
+    this.gameStartupCheckSettingsController,
     this.createTimeout = const Duration(seconds: 30),
     this.cleanupTimeout,
     this.pageInitializationTimeout,
@@ -270,6 +287,8 @@ final class NativeActivityGameSurface extends StatefulWidget {
   final NativeGameSurfacePreviewDecoder? previewDecoder;
   final NativeActivityGameWebViewPortFactory? portFactory;
   final GameSurfaceStartupOrchestrator? startupOrchestrator;
+  final GameStartupActivityPort? startupActivityPort;
+  final GameStartupCheckSettingsController? gameStartupCheckSettingsController;
 
   /// Loading the Android WebView provider has its own startup budget.
   /// It must not inherit the short deadline used to release native resources.
@@ -307,6 +326,7 @@ final class _NativeActivityGameSurfaceState
   int _navigationEpoch = 0;
   late final GameNavigationWatchdog _documentWatchdog;
   late final GameNavigationWatchdog _bodyWatchdog;
+  late final GameNavigationWatchdog _startupStallWatchdog;
   final Stopwatch _navigationElapsed = Stopwatch();
   GamePageCategory _pageCategory = GamePageCategory.other;
   NativeGamePresentationState? _presentationState;
@@ -333,6 +353,7 @@ final class _NativeActivityGameSurfaceState
   bool _pageReloadAvailable = false;
   Uri? _navigationTarget;
   Uri? _currentDocumentUri;
+  String? _currentDocumentDisplayUrl;
   bool _pageReady = false;
   bool _renderProcessRecoveryAvailable = false;
   String? _lastFinishedPageUrl;
@@ -348,6 +369,25 @@ final class _NativeActivityGameSurfaceState
   CaptureMode? _activeCaptureMode;
   GameStartupState _startupState = GameStartupState.loadingSettings;
   String _startupErrorMessage = '';
+  GameStartupStage _startupStage = GameStartupStage.preparing;
+  GameStartupFailure? _startupFailure;
+  int? _pageProgress;
+  bool _startupStalled = false;
+  late bool _startupCheckActive;
+  Timer? _startupPoll;
+  Timer? _startupPreparationDelay;
+  bool _startupPreparationVisible = false;
+  bool _startupCardArmed = false;
+  bool _startupWaitingForPageStart = false;
+  bool _startupSamplePending = false;
+  int _startupSampleEpoch = 0;
+  int _lastActivityNavigation = 0;
+  int _minimumActivityNavigation = 1;
+  int? _reportedReadyNavigation;
+  int? _sampledPageProgress;
+  GameStartupActivitySnapshot? _startupActivity;
+  bool _gameApiObserved = false;
+  NativeGameStartupCardData? _lastStartupCard;
   ImageProvider? _popupPreview;
   int _popupPreviewGeneration = 0;
 
@@ -360,13 +400,22 @@ final class _NativeActivityGameSurfaceState
     _appLifecycleState = WidgetsBinding.instance.lifecycleState;
     _documentWatchdog = GameNavigationWatchdog(onTimeout: _onDocumentTimeout);
     _bodyWatchdog = GameNavigationWatchdog(onTimeout: _onBodyTimeout);
+    _startupStallWatchdog = GameNavigationWatchdog(
+      timeout: gameStartupStallDelay,
+      onTimeout: _onStartupStalled,
+    );
     final foreground = _appLifecycleState == AppLifecycleState.resumed;
     _documentWatchdog.setForeground(foreground);
     _bodyWatchdog.setForeground(foreground);
+    _startupStallWatchdog.setForeground(foreground);
     _cleanupTimeout = widget.cleanupTimeout ?? const Duration(seconds: 2);
     _pageInitializationTimeout =
         widget.pageInitializationTimeout ?? const Duration(seconds: 10);
     _startupOrchestrator = _createStartupOrchestrator(widget);
+    _startupCheckActive = _startupCheckEnabled;
+    widget.gameStartupCheckSettingsController?.addListener(
+      _onStartupCheckChanged,
+    );
     _activeCaptureMode = widget.captureModeController?.mode;
     widget.networkSettingsController?.addListener(_onNetworkSettingsChanged);
     widget.captureModeController?.addListener(_onCaptureModeChanged);
@@ -377,8 +426,16 @@ final class _NativeActivityGameSurfaceState
         : _BoundsRecoveringNativeActivityGameWebViewPort(
             delegate: delegate,
             recoverBounds: _synchronizeNativeBounds,
+            onGameFrameReloaded: _trackGameFrameReload,
           );
     _port = port;
+    if (_startupCheckActive && _startupCardPort != null) {
+      _startupPreparationDelay = Timer(_startupPollInterval, () {
+        if (_active && mounted) {
+          setState(() => _startupPreparationVisible = true);
+        }
+      });
+    }
     if (port == null) {
       _startupState = GameStartupState.error;
       _startupErrorMessage = '原生 Activity WebView 仅支持 Android。';
@@ -403,6 +460,7 @@ final class _NativeActivityGameSurfaceState
           gameCaptureController: configuration.gameCaptureController!,
           frameRateSettingsController:
               configuration.frameRateSettingsController,
+          startupCheckEnabled: () => _startupCheckActive,
         );
   }
 
@@ -418,6 +476,16 @@ final class _NativeActivityGameSurfaceState
     _cleanupTimeout = widget.cleanupTimeout ?? const Duration(seconds: 2);
     _pageInitializationTimeout =
         widget.pageInitializationTimeout ?? const Duration(seconds: 10);
+    if (oldWidget.gameStartupCheckSettingsController !=
+        widget.gameStartupCheckSettingsController) {
+      oldWidget.gameStartupCheckSettingsController?.removeListener(
+        _onStartupCheckChanged,
+      );
+      widget.gameStartupCheckSettingsController?.addListener(
+        _onStartupCheckChanged,
+      );
+      _onStartupCheckChanged();
+    }
 
     if (!identical(
       oldWidget.networkSettingsController,
@@ -477,6 +545,7 @@ final class _NativeActivityGameSurfaceState
     final foreground = state == AppLifecycleState.resumed;
     _documentWatchdog.setForeground(foreground);
     _bodyWatchdog.setForeground(foreground);
+    _startupStallWatchdog.setForeground(foreground);
     _frameRateRuntimeController?.onLifecycleChanged(state);
     if (state == AppLifecycleState.resumed) {
       _ensurePageFinish();
@@ -511,6 +580,7 @@ final class _NativeActivityGameSurfaceState
 
   void _startNavigationDeadline(Uri? uri, {bool command = false}) {
     if (command || !_navigationCommandPending) {
+      _startupCheckActive = _startupCheckEnabled;
       _navigationEpoch += 1;
       _navigationElapsed
         ..reset()
@@ -524,12 +594,241 @@ final class _NativeActivityGameSurfaceState
     _pageCategory = classifyGamePage(uri);
     _presentationState = null;
     _documentFinished = false;
+    _startupFailure = null;
+    _pageProgress = null;
+    _gameApiObserved = false;
+    _markStartupActivity(GameStartupStage.page);
+    if (_startupCardPort != null) {
+      if (!_startupCheckActive ||
+          classifyGamePage(uri) == GamePageCategory.login ||
+          (uri != null && uri.scheme != 'http' && uri.scheme != 'https')) {
+        _endNativeStartupCard();
+      } else {
+        _beginNativeStartupCard(waitForPageStart: command);
+      }
+      _observeVisibilityUpdate(_requestVisibility());
+    }
     _bodyWatchdog.cancel();
     _bodyDeadlineEpoch = null;
     _documentWatchdog.start(
       _navigationEpoch,
       timeout: widget.navigationTimeout,
     );
+  }
+
+  void _markStartupActivity(GameStartupStage stage) {
+    _startupStage = stage;
+    _startupStalled = false;
+    if (_startupCheckActive) _startupStallWatchdog.start(_navigationEpoch);
+  }
+
+  bool get _startupCheckEnabled =>
+      widget.gameStartupCheckSettingsController?.enabled ?? true;
+
+  void _onStartupCheckChanged() {
+    if (!_active || !mounted || _startupCheckEnabled || !_startupCheckActive) {
+      return;
+    }
+    final restoreDeadline =
+        _gameApiObserved && _startupState == GameStartupState.loadingGame;
+    setState(() {
+      _startupCheckActive = false;
+      _startupPreparationDelay?.cancel();
+      _endNativeStartupCard();
+      _startupStallWatchdog.cancel();
+      _startupStalled = false;
+      _gameApiObserved = false;
+    });
+    if (restoreDeadline) {
+      if (!_documentFinished) {
+        _documentWatchdog.start(
+          _navigationEpoch,
+          timeout: widget.navigationTimeout,
+        );
+      } else if (_isWaitingForBody) {
+        _bodyDeadlineEpoch = _navigationEpoch;
+        _bodyWatchdog.start(
+          _navigationEpoch,
+          timeout: widget.navigationTimeout,
+        );
+      }
+    }
+    _observeVisibilityUpdate(_requestVisibility());
+  }
+
+  static const _startupPollInterval = Duration(milliseconds: 500);
+
+  NativeGameStartupCardPort? get _startupCardPort {
+    final port = _port;
+    final raw = port is _BoundsRecoveringNativeActivityGameWebViewPort
+        ? port.delegate
+        : port;
+    return raw is NativeGameStartupCardPort
+        ? raw as NativeGameStartupCardPort
+        : null;
+  }
+
+  bool get _showWebViewWhileLoading =>
+      _startupCheckActive &&
+      _startupCardPort != null &&
+      _navigationIssued &&
+      (_startupState == GameStartupState.networkReady ||
+          _startupState == GameStartupState.loadingGame);
+
+  void _beginNativeStartupCard({bool waitForPageStart = false}) {
+    _startupSampleEpoch++;
+    _startupSamplePending = false;
+    _startupWaitingForPageStart = waitForPageStart;
+    _minimumActivityNavigation = _lastActivityNavigation + 1;
+    _startupActivity = null;
+    _sampledPageProgress = null;
+    _startupPoll ??= Timer.periodic(
+      _startupPollInterval,
+      (_) => unawaited(_sampleNativeStartup()),
+    );
+  }
+
+  void _trackGameFrameReload() {
+    if (!_active ||
+        !mounted ||
+        _startupCardPort == null ||
+        _startupState != GameStartupState.ready ||
+        _presentationState != NativeGamePresentationState.game) {
+      return;
+    }
+    _startupCheckActive = _startupCheckEnabled;
+    if (!_startupCheckActive) return;
+    _markStartupActivity(GameStartupStage.page);
+    _pageProgress = null;
+    _beginNativeStartupCard();
+  }
+
+  Future<void> _sampleNativeStartup() async {
+    if (!_active ||
+        !mounted ||
+        _fatal ||
+        _startupSamplePending ||
+        _startupPoll == null ||
+        _appLifecycleState != AppLifecycleState.resumed) {
+      return;
+    }
+    final sampleEpoch = _startupSampleEpoch;
+    _startupSamplePending = true;
+    try {
+      final activity = _startupWaitingForPageStart
+          ? null
+          : await (widget.startupActivityPort ??
+                    const MethodChannelGameStartupActivityPort())
+                .snapshot(nativeActivity: true);
+      if (!_active || !mounted || sampleEpoch != _startupSampleEpoch) return;
+      if (activity != null &&
+          activity.navigationId >= _minimumActivityNavigation &&
+          activity.navigationId >= _lastActivityNavigation) {
+        _lastActivityNavigation = activity.navigationId;
+        if (activity.gameApi) {
+          _gameApiObserved = true;
+          _documentWatchdog.complete(_navigationEpoch);
+          _bodyWatchdog.complete(_navigationEpoch);
+          _endNativeStartupCard();
+          return;
+        }
+        final previous = _startupActivity;
+        _startupActivity = activity;
+        if (previous == null ||
+            activity.navigationId > previous.navigationId ||
+            activity.requestCount > previous.requestCount) {
+          _markStartupActivity(
+            activity.gameResources ? GameStartupStage.game : _startupStage,
+          );
+        }
+      } else if (activity == null &&
+          !_startupWaitingForPageStart &&
+          _startupState == GameStartupState.ready) {
+        _endNativeStartupCard();
+        return;
+      }
+      if (_sampledPageProgress != _pageProgress) {
+        _sampledPageProgress = _pageProgress;
+        _markStartupActivity(_startupStage);
+      }
+      _startupCardArmed = true;
+      _publishNativeStartupCard();
+    } catch (_) {
+      // Missing or late telemetry must not stop the WebView.
+    } finally {
+      if (sampleEpoch == _startupSampleEpoch) _startupSamplePending = false;
+    }
+  }
+
+  void _publishNativeStartupCard() {
+    if (!_active || !mounted || !_startupCardArmed) return;
+    final l10n = _startupLocalization;
+    final compact = _startupActivity?.gameResources == true;
+    _sendNativeStartupCard(
+      NativeGameStartupCardData(
+        title: _startupStalled
+            ? l10n.gameStartupStalled
+            : compact
+            ? l10n.gameStartupLoadingResources
+            : _startupStage == GameStartupStage.game
+            ? l10n.gameStartupLoadingGame
+            : l10n.gameStartupPage,
+        stage: compact && !_startupStalled
+            ? null
+            : _startupStage == GameStartupStage.game
+            ? '3/3'
+            : '2/3',
+        requests: compact
+            ? l10n.gameStartupResourceRequests(_startupActivity!.requestCount)
+            : null,
+        pageProgress: !compact && _startupStage == GameStartupStage.page
+            ? _sampledPageProgress
+            : null,
+        stalled: _startupStalled,
+      ),
+    );
+  }
+
+  void _endNativeStartupCard() {
+    if (_startupPoll == null) return;
+    _startupPoll?.cancel();
+    _startupPoll = null;
+    _startupSampleEpoch++;
+    _startupCardArmed = false;
+    _startupActivity = null;
+    _startupStallWatchdog.cancel();
+    _startupStalled = false;
+    _sendNativeStartupCard(null);
+  }
+
+  void _sendNativeStartupCard(NativeGameStartupCardData? card) {
+    final port = _startupCardPort;
+    if (port == null || card == _lastStartupCard) return;
+    _lastStartupCard = card;
+    unawaited(
+      port.setStartupCard(card).catchError((Object _) {
+        if (identical(_lastStartupCard, card)) _lastStartupCard = null;
+      }),
+    );
+  }
+
+  void _onStartupStalled(int epoch) {
+    if (!_active ||
+        !mounted ||
+        _fatal ||
+        !_startupCheckActive ||
+        epoch != _navigationEpoch ||
+        (_startupState == GameStartupState.ready && _startupPoll == null) ||
+        _startupState == GameStartupState.error) {
+      return;
+    }
+    if (_startupPoll != null) {
+      _startupStalled = true;
+      widget.toolbarController.reveal();
+      _publishNativeStartupCard();
+    } else {
+      setState(() => _startupStalled = true);
+    }
   }
 
   void _emitLoadEvent(
@@ -584,8 +883,11 @@ final class _NativeActivityGameSurfaceState
 
   void _updatePresentationReadiness() {
     if (_isWaitingForBody) {
-      if (_documentFinished && _bodyDeadlineEpoch != _navigationEpoch) {
+      if (_documentFinished &&
+          !_gameApiObserved &&
+          _bodyDeadlineEpoch != _navigationEpoch) {
         _bodyDeadlineEpoch = _navigationEpoch;
+        _markStartupActivity(GameStartupStage.game);
         if (_presentationState == null) {
           _emitLoadEvent(GameLoadPhase.bodyWaiting);
         }
@@ -806,7 +1108,7 @@ final class _NativeActivityGameSurfaceState
       if (!_matchesGeneration(port, generationId, operationEpoch)) return;
       final settings = widget.networkSettingsController?.settings;
       if (!result.success && settings?.mode != NetworkMode.system) {
-        _setNetworkStartupError('网络设置应用失败 [${result.code}]: ${result.message}');
+        _reportStartupNetworkFailure(result);
         return;
       }
       await _continueStartupAfterNetwork(port, generationId, operationEpoch);
@@ -982,6 +1284,7 @@ final class _NativeActivityGameSurfaceState
         _awaitingNewPageStart = false;
         _pageEpoch += 1;
         _currentDocumentUri = event.navigationUri;
+        _currentDocumentDisplayUrl = event.url;
         _startNavigationDeadline(event.navigationUri);
         final url = event.url!;
         widget.statusController.onPageStarted(url);
@@ -991,6 +1294,31 @@ final class _NativeActivityGameSurfaceState
             _startupState == GameStartupState.ready ||
             _startupState == GameStartupState.error) {
           _setStartupState(GameStartupState.loadingGame);
+        } else if (_startupState == GameStartupState.loadingGame) {
+          setState(() {});
+        }
+        return;
+      case NativeGameWebViewEventType.pageProgress:
+        final progress = event.progress!;
+        if (!_startupCheckActive ||
+            _startupState != GameStartupState.loadingGame ||
+            _awaitingNewPageStart ||
+            _documentFinished ||
+            _gameApiObserved ||
+            _startupActivity?.gameResources == true ||
+            progress <= (_pageProgress ?? 0) ||
+            (event.url != null &&
+                _currentDocumentDisplayUrl != null &&
+                event.url != _currentDocumentDisplayUrl)) {
+          return;
+        }
+        if (_startupCardPort != null) {
+          _pageProgress = progress;
+        } else {
+          setState(() {
+            _pageProgress = progress;
+            _markStartupActivity(GameStartupStage.page);
+          });
         }
         return;
       case NativeGameWebViewEventType.pageFinished:
@@ -1001,10 +1329,16 @@ final class _NativeActivityGameSurfaceState
                 canonicalNavigationTarget(_currentDocumentUri!)) {
           return;
         }
+        if (!_documentFinished && _startupPoll == null) {
+          _startupStallWatchdog.complete(_navigationEpoch);
+        }
         _documentFinished = true;
         _navigationCommandPending = false;
         _documentWatchdog.complete(_navigationEpoch);
         _pageCategory = classifyGamePage(event.navigationUri);
+        if (_presentationState == NativeGamePresentationState.web) {
+          _endNativeStartupCard();
+        }
         _emitLoadEvent(GameLoadPhase.documentFinished);
         _updatePresentationReadiness();
         final url = event.url!;
@@ -1033,6 +1367,9 @@ final class _NativeActivityGameSurfaceState
         final state = event.presentationState!;
         if (state == _presentationState) return;
         _presentationState = state;
+        if (state == NativeGamePresentationState.web && _documentFinished) {
+          _endNativeStartupCard();
+        }
         widget.toolbarController.onStageChanged(
           state == NativeGamePresentationState.game
               ? GameSurfaceStage.game
@@ -1046,7 +1383,25 @@ final class _NativeActivityGameSurfaceState
         _updatePresentationReadiness();
         return;
       case NativeGameWebViewEventType.mainFrameError:
-        _reportPageError(event.description!, errorCode: event.errorCode);
+        if (!_startupCheckActive) {
+          _reportPageError(event.description!, errorCode: event.errorCode);
+          return;
+        }
+        final target = _awaitingNewPageStart
+            ? _navigationTarget
+            : _currentDocumentUri ?? _navigationTarget;
+        _startupStage = GameStartupStage.page;
+        _reportPageError(
+          event.description!,
+          errorCode: event.errorCode,
+          failure: gameStartupWebFailure(
+            _startupLocalization,
+            stage: _startupStage,
+            uri: target,
+            errorCode: event.errorCode,
+            description: event.description,
+          ),
+        );
         return;
       case NativeGameWebViewEventType.resourceError:
         _emitLoadEvent(
@@ -1054,6 +1409,30 @@ final class _NativeActivityGameSurfaceState
           errorCode: event.errorCode,
           isMainFrame: false,
         );
+        if (_startupCheckActive &&
+            event.resourceKind == NativeGameWebViewResourceKind.gadget &&
+            !_awaitingNewPageStart &&
+            (_isWaitingForBody ||
+                _pageCategory == GamePageCategory.gameEntry ||
+                _pageCategory == GamePageCategory.gameServer ||
+                _pageCategory == GamePageCategory.ooi) &&
+            (_startupState == GameStartupState.loadingGame ||
+                // A visible game frame does not prove its scripts have loaded.
+                (_startupState == GameStartupState.ready &&
+                    _presentationState == NativeGamePresentationState.game &&
+                    _navigationElapsed.isRunning &&
+                    _navigationElapsed.elapsed < widget.navigationTimeout))) {
+          _startupStage = GameStartupStage.game;
+          final failure = gameStartupGadgetFailure(
+            _startupLocalization,
+            errorCode: event.errorCode,
+          );
+          _reportPageError(
+            failure.message,
+            emitFailure: false,
+            failure: failure,
+          );
+        }
         return;
       case NativeGameWebViewEventType.navigationBlocked:
         widget.browserController.onBlockedNavigation(
@@ -1326,6 +1705,7 @@ final class _NativeActivityGameSurfaceState
     bool pageReloadAvailable = true,
     int? errorCode,
     bool emitFailure = true,
+    GameStartupFailure? failure,
   }) {
     if (emitFailure) {
       _emitLoadEvent(
@@ -1335,6 +1715,7 @@ final class _NativeActivityGameSurfaceState
       );
     }
     _pageReloadAvailable = pageReloadAvailable;
+    _startupFailure = failure;
     _frameRateRuntimeController?.onPageStarted();
     _invalidateOperations(fatal: false);
     _pageReady = false;
@@ -1347,9 +1728,26 @@ final class _NativeActivityGameSurfaceState
     _setStartupState(GameStartupState.error, errorMessage: message);
   }
 
-  void _setNetworkStartupError(String message) {
+  void _reportStartupNetworkFailure(GameSurfaceNetworkResult result) {
+    final failure = result.code == localHttpProxyUnreachable
+        ? gameStartupLocalProxyFailure(
+            _startupLocalization,
+            address: result.host,
+          )
+        : null;
+    _setNetworkStartupError(
+      failure?.message ?? '网络设置应用失败 [${result.code}]: ${result.message}',
+      failure: failure,
+    );
+  }
+
+  void _setNetworkStartupError(String message, {GameStartupFailure? failure}) {
+    _endNativeStartupCard();
     _documentWatchdog.cancel();
     _bodyWatchdog.cancel();
+    _startupStallWatchdog.cancel();
+    _startupStage = GameStartupStage.preparing;
+    _startupFailure = failure;
     _networkRetryAvailable = true;
     _setStartupState(GameStartupState.error, errorMessage: message);
   }
@@ -1363,6 +1761,7 @@ final class _NativeActivityGameSurfaceState
   }
 
   void _notifyFatalError(String message) {
+    _startupFailure = null;
     widget.statusController.onWebResourceError(message);
     widget.browserController.onWebResourceError(
       description: message,
@@ -1372,8 +1771,10 @@ final class _NativeActivityGameSurfaceState
   }
 
   void _invalidateOperations({required bool fatal}) {
+    _endNativeStartupCard();
     _documentWatchdog.cancel();
     _bodyWatchdog.cancel();
+    _startupStallWatchdog.cancel();
     _bodyDeadlineEpoch = null;
     _pendingPageFinish = null;
     // Retired WebView commands can wait until their platform timeout. They
@@ -1395,6 +1796,19 @@ final class _NativeActivityGameSurfaceState
     setState(() {
       _startupState = state;
       if (errorMessage != null) _startupErrorMessage = errorMessage;
+      if (state == GameStartupState.applyingNetwork) {
+        _startupCheckActive = _startupCheckEnabled;
+        _endNativeStartupCard();
+        _startupStallWatchdog.cancel();
+        _startupStage = GameStartupStage.preparing;
+        _startupFailure = null;
+        _pageProgress = null;
+        _startupStalled = false;
+      }
+      if (state == GameStartupState.ready && _startupPoll == null) {
+        _startupStallWatchdog.cancel();
+        _startupStalled = false;
+      }
     });
     _observeVisibilityUpdate(_requestVisibility());
   }
@@ -1547,7 +1961,7 @@ final class _NativeActivityGameSurfaceState
           !_fatal &&
           _desiredVisible &&
           _latestBounds != null &&
-          _startupState == GameStartupState.ready;
+          (_startupState == GameStartupState.ready || _showWebViewWhileLoading);
       if (force || target != _actualVisible) {
         Object? lastError;
         StackTrace? lastStackTrace;
@@ -1564,6 +1978,7 @@ final class _NativeActivityGameSurfaceState
                 _emitLoadEvent(GameLoadPhase.loginVisible);
               }
               _emitLoadEvent(GameLoadPhase.visible);
+              _reportedReadyNavigation = _navigationEpoch;
             }
             lastError = null;
             break;
@@ -1592,6 +2007,18 @@ final class _NativeActivityGameSurfaceState
         }
       }
       if (revision == _visibilityRevision) {
+        if (_startupCheckActive &&
+            _startupCardPort != null &&
+            target &&
+            _actualVisible &&
+            _startupState == GameStartupState.ready &&
+            _reportedReadyNavigation != _navigationEpoch) {
+          _reportedReadyNavigation = _navigationEpoch;
+          if (_presentationState != NativeGamePresentationState.game) {
+            _emitLoadEvent(GameLoadPhase.loginVisible);
+          }
+          _emitLoadEvent(GameLoadPhase.visible);
+        }
         _processedVisibilityRevision = revision;
         if (pendingError != null) {
           Error.throwWithStackTrace(pendingError, pendingStackTrace!);
@@ -1660,6 +2087,7 @@ final class _NativeActivityGameSurfaceState
     int generationId,
     int operationEpoch,
   ) async {
+    _startupCheckActive = _startupCheckEnabled;
     late final GameSurfaceNetworkResult result;
     try {
       result = await _startupOrchestrator.applyNetworkSettings().timeout(
@@ -1711,6 +2139,8 @@ final class _NativeActivityGameSurfaceState
       if (!_matchesGeneration(port, generationId, operationEpoch)) return;
       // Page events may have already progressed through loading to ready.
       // A command acknowledgement must never roll their state backwards.
+    } else if (result.code == localHttpProxyUnreachable) {
+      _reportStartupNetworkFailure(result);
     }
   }
 
@@ -1808,7 +2238,12 @@ final class _NativeActivityGameSurfaceState
               filterQuality: FilterQuality.low,
             ),
           ),
-        if (_startupState != GameStartupState.ready)
+        if (_startupState != GameStartupState.ready &&
+            !_showWebViewWhileLoading &&
+            (!_startupCheckActive ||
+                _startupCardPort == null ||
+                _startupPreparationVisible ||
+                _startupState == GameStartupState.error))
           Positioned.fill(
             child: ColoredBox(
               color: appColor(context, Color(0xff102431)),
@@ -1819,16 +2254,61 @@ final class _NativeActivityGameSurfaceState
     );
   }
 
+  AppLocalizations get _startupLocalization =>
+      AppLocalizations.of(context) ??
+      lookupAppLocalizations(const Locale('zh'));
+
   Widget _buildStartupOverlay() {
-    final l10n =
-        AppLocalizations.of(context) ??
-        lookupAppLocalizations(const Locale('zh'));
+    final l10n = _startupLocalization;
+    if (!_startupCheckActive) return _buildLegacyStartupOverlay(l10n);
+    if (_startupState == GameStartupState.error) {
+      return GameStartupOverlay(
+        stage: _startupStage,
+        failure:
+            _startupFailure ??
+            GameStartupFailure(
+              runtimeMessageText(context, _startupErrorMessage),
+            ),
+        failureMessageKey: const Key('native-game-surface-error'),
+        onRetry: _renderProcessRecoveryAvailable
+            ? _reloadAfterRenderProcessGone
+            : _pageReloadAvailable
+            ? _reloadAfterPageInitializationError
+            : _networkRetryAvailable
+            ? _onNetworkSettingsChanged
+            : null,
+        retryKey: _renderProcessRecoveryAvailable
+            ? const Key('native-game-surface-reload')
+            : _pageReloadAvailable
+            ? const Key('native-game-surface-page-reload')
+            : const Key('native-game-surface-network-retry'),
+        extra: _fatal
+            ? Text(l10n.nativeGameSurfaceSwitchRenderingModeHint)
+            : null,
+      );
+    }
+    final waitingBody = _startupStage == GameStartupStage.game;
+    return GameStartupOverlay(
+      stage: _startupStage,
+      pageProgress: _pageProgress,
+      stalled: _startupStalled,
+      statusText: waitingBody
+          ? runtimeMessageText(context, '正在等待游戏本体...')
+          : null,
+      statusTextKey: waitingBody
+          ? const Key('native-game-surface-body-waiting')
+          : null,
+      onRetry: _startupStalled ? _reloadStalledPage : null,
+    );
+  }
+
+  Widget _buildLegacyStartupOverlay(AppLocalizations l10n) {
     if (_startupState == GameStartupState.error) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
+          children: [
             Text(
               runtimeMessageText(context, _startupErrorMessage),
               key: const Key('native-game-surface-error'),
@@ -1845,7 +2325,7 @@ final class _NativeActivityGameSurfaceState
                 height: 1.4,
               ),
             ),
-            if (_renderProcessRecoveryAvailable) ...<Widget>[
+            if (_renderProcessRecoveryAvailable) ...[
               const SizedBox(height: 16),
               FilledButton.icon(
                 key: const Key('native-game-surface-reload'),
@@ -1854,7 +2334,7 @@ final class _NativeActivityGameSurfaceState
                 label: Text(l10n.reload),
               ),
             ],
-            if (_pageReloadAvailable) ...<Widget>[
+            if (_pageReloadAvailable) ...[
               const SizedBox(height: 16),
               FilledButton.icon(
                 key: const Key('native-game-surface-page-reload'),
@@ -1867,25 +2347,28 @@ final class _NativeActivityGameSurfaceState
         ),
       );
     }
-    if (_documentFinished && _isWaitingForBody) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          CircularProgressIndicator(
-            color: appColor(context, Color(0xffd4a85f)),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            runtimeMessageText(context, '正在等待游戏本体...'),
-            key: const Key('native-game-surface-body-waiting'),
-            style: TextStyle(color: appColor(context, Colors.white70)),
-          ),
-        ],
-      );
-    }
-    return CircularProgressIndicator(
-      color: appColor(context, Color(0xffd4a85f)),
+    final indicator = CircularProgressIndicator(
+      color: appColor(context, const Color(0xffd4a85f)),
     );
+    if (!_documentFinished || !_isWaitingForBody) return indicator;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        indicator,
+        const SizedBox(height: 16),
+        Text(
+          runtimeMessageText(context, '正在等待游戏本体...'),
+          key: const Key('native-game-surface-body-waiting'),
+          style: TextStyle(color: appColor(context, Colors.white70)),
+        ),
+      ],
+    );
+  }
+
+  void _reloadStalledPage() {
+    if (!_startupStalled || _fatal || !_active || !mounted) return;
+    _pageReloadAvailable = true;
+    _reloadAfterPageInitializationError();
   }
 
   void _reloadAfterRenderProcessGone() {
@@ -1925,6 +2408,8 @@ final class _NativeActivityGameSurfaceState
     _windowMetricsRecoveryScheduler.dispose();
     _documentWatchdog.dispose();
     _bodyWatchdog.dispose();
+    _startupStallWatchdog.dispose();
+    _startupPreparationDelay?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     widget.onGenerationChanged?.call(-1);
     _frameRateRuntimeController?.dispose();
@@ -1932,6 +2417,9 @@ final class _NativeActivityGameSurfaceState
     _invalidateOperations(fatal: true);
     _desiredVisible = false;
     widget.networkSettingsController?.removeListener(_onNetworkSettingsChanged);
+    widget.gameStartupCheckSettingsController?.removeListener(
+      _onStartupCheckChanged,
+    );
     widget.captureModeController?.removeListener(_onCaptureModeChanged);
     _pendingEvents.clear();
     final port = _port;

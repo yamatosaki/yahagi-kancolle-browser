@@ -8,6 +8,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.ByteArrayInputStream
+import java.net.InetSocketAddress
 import java.net.URL
 import java.net.HttpURLConnection
 import java.net.Proxy
@@ -27,6 +28,36 @@ class GameResourceFetcherTest {
         assertNull(fetcher.fetch("https://w17k.kancolle-server.com/kcs2/resources/a.png", emptyMap(), null))
         assertTrue(called)
         assertNull("No application override must retain the system proxy selector", requestedProxy)
+    }
+
+    @Test
+    fun `Kanxy HTTP fetch keeps its captured proxy across redirects`() {
+        val url = "https://w17k.kancolle-server.com/kcs2/resources/a.png"
+        val pinned = Proxy(Proxy.Type.HTTP, InetSocketAddress.createUnresolved("127.0.0.1", 7410))
+        val actual = mutableListOf<Pair<String, Proxy?>>()
+        val fetcher = HttpUrlConnectionGameResourceFetcher(
+            proxyProvider = { error("explicit HTTP route must not read the live proxy") },
+            temporaryDirectory = temporaryFolder.newFolder("pinned-http"),
+            connectionFactory = { target, proxy ->
+                actual += target to proxy
+                object : HttpURLConnection(URL(target)) {
+                    override fun connect() = Unit
+                    override fun disconnect() = Unit
+                    override fun usingProxy() = true
+                    override fun getResponseCode() = if (target == url) 302 else 200
+                    override fun getResponseMessage() = "OK"
+                    override fun getHeaderField(name: String?) = if (name == "Location") "b.png" else null
+                    override fun getHeaderFields() = emptyMap<String, List<String>>()
+                    override fun getInputStream() = ByteArrayInputStream(byteArrayOf(1))
+                }
+            },
+        )
+
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        val resource = fetcher.fetchViaHttpProxy(url, emptyMap(), pinned, deadline)
+
+        assertArrayEquals(byteArrayOf(1), resource?.file?.readBytes())
+        assertEquals(listOf(url to pinned, url.replace("a.png", "b.png") to pinned), actual)
     }
 
     @Test

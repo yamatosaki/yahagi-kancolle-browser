@@ -7,6 +7,7 @@ import java.io.File
 import java.io.FilterInputStream
 import java.io.InputStream
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
@@ -23,11 +24,16 @@ class GameResourceResponse(
     val source: GameResourceResponseSource,
     private val file: File? = null,
     private val deleteFileOnClose: Boolean = false,
+    bodyStream: InputStream? = null,
+    streamLength: Long = 0L,
 ) {
-    val bytes: ByteArray get() = file?.readBytes() ?: bodyBytes
-    val bodyLength: Long = file?.length() ?: bodyBytes.size.toLong()
+    private val ownedStream = bodyStream?.let { AtomicReference(it) }
+    val bytes: ByteArray get() = if (ownedStream != null) openStream().use { it.readBytes() }
+        else file?.readBytes() ?: bodyBytes
+    val bodyLength: Long = if (bodyStream != null) streamLength else file?.length() ?: bodyBytes.size.toLong()
 
     fun openStream(): InputStream {
+        if (ownedStream != null) return checkNotNull(ownedStream.getAndSet(null)) { "Resource stream already opened" }
         val resourceFile = file ?: return ByteArrayInputStream(bodyBytes)
         val input = resourceFile.inputStream()
         if (!deleteFileOnClose) return input
@@ -39,14 +45,18 @@ class GameResourceResponse(
     }
 
     fun discard() {
+        ownedStream?.getAndSet(null)?.close()
         if (deleteFileOnClose) file?.delete()
     }
 }
 
-class GameResourceCacheEngine(
+class GameResourceCacheEngine internal constructor(
     private val store: GameResourceCacheStore,
     private val fetcher: GameResourceFetcher,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val kanxyHttpImageCache: () -> KanxyHttpImageCache? = { null },
+    private val resourceRouteGeneration: () -> Long = { 0L },
+    private val kanxyDiskCache: KanxyDiskResourceCache? = null,
     private val modeProvider: () -> GameResourceCacheMode,
 ) {
     private val locks = Array(64) { ReentrantLock() }
@@ -81,28 +91,173 @@ class GameResourceCacheEngine(
             false
         }
 
-    /** Resolve against the active VPN without reading or changing the stock resource cache. */
+    /** Resolve against Kanxy without reading or changing the stock resource cache. */
     internal fun fetchFresh(
         url: String,
         requestHeaders: Map<String, String> = emptyMap(),
         method: String = "GET",
+        ownsImageCache: () -> Boolean = { true },
+        report: ((KanxyImageCacheEvent) -> Unit)? = null,
     ): GameResourceResponse? {
-        if (!GameResourceCacheRules.shouldCache(url, method) ||
-            requestHeaders.keys.any { name -> FRESH_BYPASS_HEADERS.any { it.equals(name, true) } }
-        ) return null
-        val fetched = runCatching { fetcher.fetch(url, requestHeaders, null) }.getOrNull() ?: return null
-        val length = fetched.headers.value("Content-Length")?.toLongOrNull()
-        if (fetched.statusCode != HttpURLConnection.HTTP_OK ||
-            fetched.headers.value("Set-Cookie") != null || fetched.headers.value("Set-Cookie2") != null ||
-            fetched.bodyLength > HttpUrlConnectionGameResourceFetcher.MAX_RESOURCE_BYTES ||
-            (length != null && length != fetched.bodyLength)
+        if (!GameResourceCacheRules.shouldCache(url, method)) return null
+        val supportedAsset = { kanxyDiskCache?.supports(url) ?: KanxyHttpImageCache.supports(url) }
+        if (requestHeaders.keys.any { name -> FRESH_BYPASS_HEADERS.any { it.equals(name, true) } } ||
+            requestHeaders.any { (name, value) -> name.equals("Cache-Control", true) && value.hasDirective("only-if-cached") }
         ) {
-            fetched.file?.delete()
+            if (report != null && supportedAsset()) report(KanxyImageCacheEvent.REQUEST_BYPASS)
             return null
         }
-        val headers = fetched.headers.filterKeys { !it.equals("Cache-Control", ignoreCase = true) } +
-            ("Cache-Control" to "no-store")
-        return fetched.toNetworkResponse(url, headers)
+        val route = resourceRouteGeneration()
+        val currentSession = { kanxyHttpImageCache()?.takeIf { ownsImageCache() } }
+        val session = currentSession()
+        val cacheableAssetType = (session != null || report != null) && supportedAsset()
+        val key = if (cacheableAssetType && session != null) {
+            GameResourceCacheKey.from(url, requestHeaders, includeStaticRequestHeaders = true)
+        } else null
+        if (session == null || key == null) {
+            val imageReport = report.takeIf { cacheableAssetType }
+            if (session == null) imageReport?.invoke(KanxyImageCacheEvent.NO_ACTIVE_SESSION)
+            else imageReport?.invoke(KanxyImageCacheEvent.REQUEST_BYPASS)
+            return fetchFreshResponse(url, requestHeaders, route, imageReport)
+        }
+
+        val diskGeneration = kanxyDiskCache?.generation()
+        val sessionIsCurrent = {
+            resourceRouteGeneration() == route && currentSession() === session &&
+                kanxyDiskCache?.generation() == diskGeneration
+        }
+
+        val deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(fetcher.budgetMillis(url).coerceAtLeast(1))
+        // Serialize same-key reads and reloads so a late older miss cannot refill a cleared entry.
+        val lock = locks[(key.hashCode() and Int.MAX_VALUE) % locks.size]
+        if (!acquireWithinDeadline(lock, deadlineNanos)) {
+            report?.invoke(KanxyImageCacheEvent.LOCK_TIMEOUT)
+            return null
+        }
+        try {
+            if (!sessionIsCurrent()) {
+                report?.invoke(KanxyImageCacheEvent.SESSION_CHANGED)
+                return null
+            }
+            return fetchFreshAsset(url, requestHeaders, session, key, deadlineNanos, diskGeneration, sessionIsCurrent, report)
+        } finally {
+            lock.unlock()
+        }
+    }
+
+    private fun fetchFreshAsset(
+        url: String,
+        requestHeaders: Map<String, String>,
+        session: KanxyHttpImageCache,
+        key: GameResourceCacheKey,
+        deadlineNanos: Long,
+        diskGeneration: Long?,
+        sessionIsCurrent: () -> Boolean,
+        report: ((KanxyImageCacheEvent) -> Unit)?,
+    ): GameResourceResponse? {
+        val disk = kanxyDiskCache
+        val diskEntry = if (disk != null && diskGeneration != null) {
+            disk.entry(session.proxy, key, url, requestHeaders, diskGeneration)
+        } else null
+        val useAssetCache = (disk == null || diskEntry != null) && requestHeaders.keys.none { name ->
+            UNCACHED_IMAGE_REQUEST_HEADERS.any { it.equals(name, true) } ||
+                (name.startsWith("X-", true) && !name.equals("X-Requested-With", true))
+        }
+        if (useAssetCache) {
+            val cached = if (diskEntry != null) {
+                diskEntry.read(clock()).also {
+                    if (it == null) report?.invoke(KanxyImageCacheEvent.DISK_MISS)
+                }
+            } else session.read(key, report)?.let {
+                it.toResponse(url, it.webViewHeaders(), source = GameResourceResponseSource.CACHE)
+            }
+            if (cached != null) {
+                if (!sessionIsCurrent()) {
+                    cached.discard()
+                    report?.invoke(KanxyImageCacheEvent.SESSION_CHANGED)
+                    return null
+                }
+                report?.invoke(if (diskEntry != null) KanxyImageCacheEvent.DISK_HIT else KanxyImageCacheEvent.HIT)
+                return cached
+            }
+        } else {
+            if (diskEntry != null) diskEntry.remove() else session.remove(key)
+            report?.invoke(KanxyImageCacheEvent.REQUEST_BYPASS)
+        }
+
+        if (!sessionIsCurrent()) {
+            report?.invoke(KanxyImageCacheEvent.SESSION_CHANGED)
+            return null
+        }
+        val requestAt = session.requestTime()
+        val fetched = runCatching {
+            fetcher.fetchViaHttpProxy(url, requestHeaders, session.proxy, deadlineNanos)
+        }.getOrNull()?.validFreshResponse(requireUnambiguousLength = diskEntry != null)
+        if (fetched == null) {
+            report?.invoke(KanxyImageCacheEvent.WEBVIEW_FALLBACK)
+            return null
+        }
+        val prepared = if (useAssetCache && sessionIsCurrent()) {
+            session.prepare(fetched, url, requestAt, clock(), diskEntry?.maxAssetBytes, report)
+        } else null
+        if (prepared != null && sessionIsCurrent()) {
+            if (diskEntry != null) {
+                val stored = diskEntry.write(prepared)
+                if (stored && !sessionIsCurrent()) diskEntry.remove()
+                report?.invoke(if (stored) KanxyImageCacheEvent.DISK_STORED else KanxyImageCacheEvent.DISK_WRITE_FAILED)
+            } else {
+                session.admit(key, prepared, report)
+            }
+        }
+        if (!sessionIsCurrent()) {
+            fetched.file?.delete()
+            report?.invoke(KanxyImageCacheEvent.SESSION_CHANGED)
+            return null
+        }
+        // Disk snapshots keep the download openable for WebView. The RAM path already copied it.
+        if (prepared != null && diskEntry == null) fetched.file?.delete()
+        val response = prepared?.response ?: fetched
+        return response.toResponse(url, response.webViewHeaders())
+    }
+
+    private fun fetchFreshResponse(
+        url: String,
+        headers: Map<String, String>,
+        route: Long,
+        report: ((KanxyImageCacheEvent) -> Unit)?,
+    ): GameResourceResponse? {
+        val fetched = runCatching { fetcher.fetch(url, headers, null) }.getOrNull()?.validFreshResponse()
+        if (fetched == null) {
+            report?.invoke(KanxyImageCacheEvent.WEBVIEW_FALLBACK)
+            return null
+        }
+        if (resourceRouteGeneration() != route) {
+            fetched.file?.delete()
+            report?.invoke(KanxyImageCacheEvent.SESSION_CHANGED)
+            return null
+        }
+        return fetched.toResponse(url, fetched.webViewHeaders())
+    }
+
+    private fun GameResourceFetchResult.validFreshResponse(
+        requireUnambiguousLength: Boolean = false,
+    ): GameResourceFetchResult? {
+        val contentLength = headers.value("Content-Length")
+        val length = if (requireUnambiguousLength) {
+            contentLength?.trim()
+                ?.takeIf { value -> value.all { it in '0'..'9' } }?.toLongOrNull()
+        } else contentLength?.toLongOrNull()
+        val ambiguousLength = requireUnambiguousLength && contentLength != null &&
+            (length == null || headers.keys.count { it.equals("Content-Length", true) } != 1)
+        if (statusCode != HttpURLConnection.HTTP_OK ||
+            headers.value("Set-Cookie") != null || headers.value("Set-Cookie2") != null ||
+            bodyLength > HttpUrlConnectionGameResourceFetcher.MAX_RESOURCE_BYTES ||
+            ambiguousLength || (length != null && length != bodyLength)
+        ) {
+            file?.delete()
+            return null
+        }
+        return this
     }
 
     fun fetch(
@@ -114,6 +269,7 @@ class GameResourceCacheEngine(
         waitForSlot: Boolean = false,
     ): GameResourceResponse? {
         val deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(fetcher.budgetMillis(url).coerceAtLeast(1))
+        val route = resourceRouteGeneration()
         val mode = modeProvider()
         if (!mode.readsCache || requestHeaders.size > 32 ||
             requestHeaders.any { (name, value) -> name.length > 128 || value.length > 8_192 } ||
@@ -129,8 +285,10 @@ class GameResourceCacheEngine(
         val lock = locks[(key.hashCode() and Int.MAX_VALUE) % locks.size]
         if (!acquireWithinDeadline(lock, deadlineNanos)) return null
         try {
+            if (resourceRouteGeneration() != route || !modeProvider().readsCache) return null
             val storeGeneration = store.generation()
             val cached = store.readFile(key)
+            if (resourceRouteGeneration() != route || !modeProvider().readsCache) return null
             val cachedLengthMismatch = cached != null && expectedLength != null &&
                 cached.entry.byteLength != expectedLength
             // Keep beta2's hot-cache behavior for reload headers and response no-cache.
@@ -161,6 +319,11 @@ class GameResourceCacheEngine(
             try {
             val validationEntry = cached?.entry?.takeUnless { cachedLengthMismatch }
             val fetched = runCatching { fetcher.fetchWithinDeadline(url, requestHeaders, validationEntry, deadlineNanos) }.getOrNull()
+            if (resourceRouteGeneration() != route || !modeProvider().readsCache) {
+                fetched?.file?.delete()
+                return null
+            }
+            fetched
                 ?: return if (strictValidation || forceValidation || cachedLengthMismatch ||
                     store.generation() != storeGeneration) null else cached?.toResponse()
             var retainFetchedFile = false
@@ -205,7 +368,9 @@ class GameResourceCacheEngine(
                 ?: mimeInfo.mime
             val matchesManifest = expectedLength == null ||
                 expectedLength == fetched.bodyLength
-            if (matchesManifest && cacheableResponse && modeProvider().writesCache && shouldStore()) {
+            if (matchesManifest && cacheableResponse && modeProvider().writesCache && shouldStore() &&
+                resourceRouteGeneration() == route
+            ) {
                 try {
                     if (fetched.file != null) store.commitFileWithEviction(
                     key = key, source = fetched.file,
@@ -232,8 +397,9 @@ class GameResourceCacheEngine(
             // The fetched body was already bounded and the store checks its own copy.
             // Keep the owned download for this response instead of reopening/rehashing
             // the newly committed cache file. A concurrent clear cannot delete it.
+            if (resourceRouteGeneration() != route || !modeProvider().readsCache) return null
             retainFetchedFile = fetched.file != null
-            return fetched.toNetworkResponse(url, mimeType = mimeType)
+            return fetched.toResponse(url, mimeType = mimeType)
             } finally {
                 if (!retainFetchedFile) fetched.file?.delete()
             }
@@ -265,7 +431,10 @@ class GameResourceCacheEngine(
         store.enforcePolicy(maxDurationMs)
     }
 
-    fun closeMaintenance() = store.closeMaintenance()
+    fun closeMaintenance() {
+        store.closeMaintenance()
+        kanxyDiskCache?.closeMaintenance()
+    }
 
     fun clear() = store.clear()
 
@@ -333,10 +502,11 @@ class GameResourceCacheEngine(
         )
     }
 
-    private fun GameResourceFetchResult.toNetworkResponse(
+    private fun GameResourceFetchResult.toResponse(
         url: String,
         responseHeaders: Map<String, String> = headers,
         mimeType: String? = null,
+        source: GameResourceResponseSource = GameResourceResponseSource.NETWORK,
     ): GameResourceResponse {
         val fallback = GameResourceCacheRules.mimeTypeFor(url)
         val mime = mimeType ?: headers.value("Content-Type")?.substringBefore(';')?.trim()
@@ -348,11 +518,14 @@ class GameResourceCacheEngine(
             statusCode = statusCode,
             reasonPhrase = reasonPhrase,
             headers = responseHeaders,
-            source = GameResourceResponseSource.NETWORK,
+            source = source,
             file = file,
             deleteFileOnClose = file != null,
         )
     }
+
+    private fun GameResourceFetchResult.webViewHeaders(): Map<String, String> =
+        headers.filterKeys { !it.equals("Cache-Control", ignoreCase = true) } + ("Cache-Control" to "no-store")
 
     private fun Map<String, String>.value(name: String): String? =
         entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value
@@ -383,6 +556,7 @@ class GameResourceCacheEngine(
             "If-Match", "If-Unmodified-Since", "Authorization", "Proxy-Authorization",
         )
         private val FRESH_BYPASS_HEADERS = BYPASS_REQUEST_HEADERS - setOf("If-None-Match", "If-Modified-Since")
+        private val UNCACHED_IMAGE_REQUEST_HEADERS = setOf("Cache-Control", "Pragma", "If-None-Match", "If-Modified-Since")
     }
 }
 

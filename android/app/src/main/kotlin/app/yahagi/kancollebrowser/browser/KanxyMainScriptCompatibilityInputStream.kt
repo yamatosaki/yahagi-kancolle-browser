@@ -5,15 +5,17 @@ import java.io.InputStream
 import java.io.SequenceInputStream
 
 /** Passes through the game bundle and inspects only its bounded Kanxy injection tail. */
-internal class KanxyDropdownTouchInputStream(
+internal class KanxyMainScriptCompatibilityInputStream(
     private val source: InputStream,
     bodyLength: Long,
-    private val onPatched: () -> Unit,
+    private val onPatched: (Patch) -> Unit,
 ) : InputStream() {
+    enum class Patch { DROPDOWN, CONTROLLER_POINTER }
+
     private var prefixRemaining = (bodyLength - MAX_TAIL_BYTES).coerceAtLeast(0)
     private val tailLength = (bodyLength - prefixRemaining).toInt()
     private var inspectedTail: InputStream? = null
-    private var reportPatchOnRead = false
+    private var patchesToReport = emptyList<Patch>()
 
     override fun read(): Int {
         if (prefixRemaining > 0) {
@@ -41,7 +43,7 @@ internal class KanxyDropdownTouchInputStream(
         prefixRemaining -= prefix
         if (prefix == length || prefixRemaining > 0) return prefix
         val tail = tail().skip(length - prefix)
-        if (tail > 0) reportPatchOnRead = false
+        if (tail > 0) patchesToReport = emptyList()
         return prefix + tail
     }
 
@@ -50,9 +52,10 @@ internal class KanxyDropdownTouchInputStream(
     override fun close() = source.close()
 
     private fun reportPatch() {
-        if (!reportPatchOnRead) return
-        reportPatchOnRead = false
-        runCatching(onPatched)
+        if (patchesToReport.isEmpty()) return
+        val patches = patchesToReport
+        patchesToReport = emptyList()
+        patches.forEach { patch -> runCatching { onPatched(patch) } }
     }
 
     private fun tail(): InputStream {
@@ -73,9 +76,18 @@ internal class KanxyDropdownTouchInputStream(
                 val rest = SequenceInputStream(ByteArrayInputStream(byteArrayOf(extra.toByte())), source)
                 SequenceInputStream(bytes, rest)
             } else {
-                val patched = patchDropdown(original)
-                reportPatchOnRead = patched != null
-                if (patched == null) bytes else ByteArrayInputStream(patched)
+                // Latin-1 is a reversible byte view, including for non-ASCII source.
+                var script = original.toString(Charsets.ISO_8859_1)
+                patchDropdown(script)?.let {
+                    script = it
+                    patchesToReport = listOf(Patch.DROPDOWN)
+                }
+                patchControllerPointer(script)?.let {
+                    script = it
+                    patchesToReport = patchesToReport + Patch.CONTROLLER_POINTER
+                }
+                if (patchesToReport.isEmpty()) bytes
+                else ByteArrayInputStream(script.toByteArray(Charsets.ISO_8859_1))
             }
         }
         inspectedTail = tail
@@ -92,9 +104,7 @@ internal class KanxyDropdownTouchInputStream(
         val socketStart = Regex("(?m)^class WSClient \\{")
         val headerHandler = Regex("(?m)^        selectedBg\\.on\\(\\r?\\n            EventTypeConst_1\\.EventType\\.CLICK,")
 
-        fun patchDropdown(original: ByteArray): ByteArray? {
-            // Latin-1 is a reversible byte view. It preserves every non-ASCII character in the script.
-            val tail = original.toString(Charsets.ISO_8859_1)
+        fun patchDropdown(tail: String): String? {
             val ui = uiStart.findAll(tail).singleOrNull() ?: return null
             val socket = socketStart.findAll(tail).singleOrNull() ?: return null
             if (socket.range.first <= ui.range.last ||
@@ -116,7 +126,56 @@ internal class KanxyDropdownTouchInputStream(
             ) return null
             val offset = ui.range.last + 1 + start.range.last + 1
             return tail.replaceRange(offset, offset + dropdown.length, dropdown.replace(LEGACY_HANDLER, TOUCH_HANDLER))
-                .toByteArray(Charsets.ISO_8859_1)
+        }
+
+        private val controllerStart = Regex("(?m)^class ExtraController \\{\\r?$")
+        private val classStart = Regex("(?m)^class ")
+        private val mouseUpdateStart = Regex("(?m)^ +UpdateMouse\\(\\) \\{\\r?$")
+        private val pointerMoveStart = Regex("(?m)^ +simulatePointerMove\\(\\) \\{\\r?$")
+        private val pointerDispatch = Regex(
+            "(?m)^( +)self\\.interaction\\.mouseOverRenderer = true;\\r?\\n" +
+                "\\1self\\.interaction\\.didMove = true;\\r?\\n\\1this\\.simulatePointerMove\\(\\);",
+        )
+        private const val updateX = "this.x = Math.min(1200, Math.max(0, this.x + this.PointerSpeed * this.CommandState.MoveX));"
+        private const val updateY = "this.y = Math.min(720, Math.max(0, this.y + this.PointerSpeed * this.CommandState.MoveY));"
+
+        fun patchControllerPointer(tail: String): String? {
+            val controller = controllerStart.findAll(tail).singleOrNull() ?: return null
+            val start = controller.range.last + 1
+            val end = classStart.find(tail, start)?.range?.first ?: tail.length
+            val body = tail.substring(start, end)
+            if (!body.contains("kanxy.AddOnRec(\"ExtraControllerInput\", this.RecExtraControllerInput.bind(this));")) return null
+            val update = mouseUpdateStart.findAll(body).singleOrNull() ?: return null
+            val move = pointerMoveStart.findAll(body).singleOrNull() ?: return null
+            val updateStart = update.range.last + 1
+            if (updateStart >= move.range.first ||
+                !body.substring(move.range.last + 1).trimStart()
+                    .startsWith("kanxy.app.view.dispatchEvent(new PointerEvent(\"pointermove\", {")) return null
+
+            val updateBody = body.substring(updateStart, move.range.first)
+            val dispatch = pointerDispatch.findAll(updateBody).singleOrNull() ?: return null
+            val newline = if (dispatch.value.contains("\r\n")) "\r\n" else "\n"
+            val indent = dispatch.groupValues[1]
+            val position = updateBody.indexOf("$newline$indent$updateX$newline$indent$updateY")
+            if (position < 0 || position >= dispatch.range.first) return null
+            // Idle synthetic events would take over the real pointer's Pixi state each frame.
+            val guard = """
+                const moved = Number.isFinite(this.x) && Number.isFinite(this.y) &&
+                    (this.x !== previousX || this.y !== previousY);
+                if (moved || this.CommandState.Select === "down" ||
+                    this.CommandState.Pointer === "down" || this.CommandState.Pointer === "up" ||
+                    this.CommandState.WheelUp === "down" || this.CommandState.WheelDown === "down") {
+                    self.interaction.mouseOverRenderer = true;
+                    self.interaction.didMove = true;
+                    this.simulatePointerMove();
+                }
+            """.trimIndent().prependIndent(indent).replace("\n", newline)
+            val beforePosition = position + newline.length
+            val patched = updateBody.replaceRange(dispatch.range, guard).replaceRange(
+                beforePosition, beforePosition,
+                "${indent}const previousX = this.x;$newline${indent}const previousY = this.y;$newline",
+            )
+            return tail.replaceRange(start + updateStart, start + move.range.first, patched)
         }
     }
 }

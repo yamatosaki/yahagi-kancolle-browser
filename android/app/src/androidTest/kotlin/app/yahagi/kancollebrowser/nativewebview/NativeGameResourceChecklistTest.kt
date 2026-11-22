@@ -97,6 +97,111 @@ class NativeGameResourceChecklistTest {
         assertEquals(0, gameDowns)
     }
 
+    @Test fun fleetDisplayChipsKeepTheirViewsAndTheGameLiveThroughRapidSingleChoiceChanges() {
+        val items = listOf(
+            mapOf("id" to "appearance-logo", "label" to "LOGO", "value" to "", "checked" to true,
+                "groupLabel" to "胶囊外观"),
+            mapOf("id" to "fleet-name-custom", "label" to "自定义舰队名", "value" to "", "checked" to true,
+                "groupLabel" to "舰队切换名称", "groupSingleChoice" to true),
+            mapOf("id" to "fleet-name-number", "label" to "1–4 简称", "value" to "", "checked" to false,
+                "groupLabel" to "舰队切换名称", "groupSingleChoice" to true),
+        )
+        val payload = checklist("fleetDisplay") + mapOf(
+            "items" to items,
+            "protectInputOnDismiss" to false,
+        )
+        val result = show(payload)
+        val openedAt = javascript("window.ticks").toInt()
+        waitUntil { javascript("window.ticks").toInt() > openedAt }
+        onMain {
+            val root = requireView(R.id.native_game_resource_checklist)
+            val heading = root.findViewWithTag<TextView>("display-group:舰队切换名称")
+            assertNotNull(heading)
+            assertEquals("舰队切换名称", heading.text.toString())
+            val custom = checkbox("fleet-name-custom")
+            val number = checkbox("fleet-name-number")
+            assertNull(custom.buttonDrawable)
+            assertTrue(custom.isChecked)
+            assertFalse(number.isChecked)
+
+            number.performClick()
+            assertTrue(number.isChecked)
+            assertFalse(custom.isChecked)
+            custom.performClick()
+            assertTrue(custom.isChecked)
+            assertFalse(number.isChecked)
+            custom.performClick()
+            val oldItems = items.map { item ->
+                when (item["id"]) {
+                    "fleet-name-custom" -> item + ("checked" to false)
+                    "fleet-name-number" -> item + ("checked" to true)
+                    else -> item
+                }
+            }
+            update(payload + mapOf("items" to oldItems, "appliedChangeId" to 1L))
+            assertSame(custom, checkbox("fleet-name-custom"))
+            assertSame(number, checkbox("fleet-name-number"))
+            assertTrue(custom.isChecked)
+            assertFalse(number.isChecked)
+            assertEquals(listOf("fleet-name-number", "fleet-name-custom"), changes.map { it["itemId"] })
+            assertTrue(game.isShown)
+        }
+        val tappedAt = javascript("window.ticks").toInt()
+        waitUntil { javascript("window.ticks").toInt() > tappedAt }
+        onMain {
+            requireView(R.id.native_game_resource_checklist_done).performClick()
+            assertNull(dialog())
+            assertTrue(game.isShown)
+        }
+        waitResult(result)
+        val closedAt = javascript("window.ticks").toInt()
+        waitUntil { javascript("window.ticks").toInt() > closedAt }
+        assertEquals(0, gameDowns)
+    }
+
+    @Test fun groupedModuleDisplayTogglesIndependentChipsInPlace() {
+        val items = listOf(
+            mapOf("id" to "appearance-logo", "label" to "LOGO", "value" to "", "checked" to true,
+                "groupLabel" to "胶囊外观"),
+            mapOf("id" to "appearance-name", "label" to "名字", "value" to "", "checked" to true,
+                "groupLabel" to "胶囊外观"),
+            mapOf("id" to "field-portrait", "label" to "飞机图片", "value" to "", "checked" to false,
+                "groupLabel" to "显示内容"),
+        )
+        val payload = checklist("moduleDisplay") + mapOf(
+            "items" to items,
+            "protectInputOnDismiss" to false,
+        )
+        val result = show(payload)
+        onMain {
+            val root = requireView(R.id.native_game_resource_checklist)
+            assertEquals("胶囊外观", root.findViewWithTag<TextView>("display-group:胶囊外观").text.toString())
+            assertEquals("显示内容", root.findViewWithTag<TextView>("display-group:显示内容").text.toString())
+            val logo = checkbox("appearance-logo")
+            val name = checkbox("appearance-name")
+            val portrait = checkbox("field-portrait")
+            assertNull(logo.buttonDrawable)
+            logo.performClick()
+            portrait.performClick()
+            assertFalse(logo.isChecked)
+            assertTrue(name.isChecked)
+            assertTrue(portrait.isChecked)
+            val updatedItems = items.map { item ->
+                when (item["id"]) {
+                    "appearance-logo" -> item + ("checked" to false)
+                    "field-portrait" -> item + ("checked" to true)
+                    else -> item
+                }
+            }
+            update(payload + mapOf("items" to updatedItems, "appliedChangeId" to 2L))
+            assertSame(logo, checkbox("appearance-logo"))
+            assertSame(portrait, checkbox("field-portrait"))
+            assertEquals(listOf("appearance-logo", "field-portrait"), changes.map { it["itemId"] })
+            requireView(R.id.native_game_resource_checklist_done).performClick()
+        }
+        waitResult(result)
+    }
+
     @Test fun bundledResourceAndMaterialGlyphIconsKeepTheCheckboxAccessible() {
         show(checklist())
         onMain {

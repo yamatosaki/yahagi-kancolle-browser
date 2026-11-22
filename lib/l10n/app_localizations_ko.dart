@@ -9,6 +9,90 @@ class AppLocalizationsKo extends AppLocalizations {
   AppLocalizationsKo([String locale = 'ko']) : super(locale);
 
   @override
+  String get gameStartupCheckTitle => '시작 상태 확인';
+
+  @override
+  String get gameStartupCheckDescription =>
+      '시작 단계, 진행률, 연결 상태를 표시합니다. 끄면 기존 방식으로 시작합니다.';
+
+  @override
+  String get gameStartupCheckSaveFailed =>
+      '시작 상태 확인 설정을 저장하지 못했습니다. 다시 시도해 주세요.';
+
+  @override
+  String get gameStartupLoadingResources => '게임 리소스 불러오는 중';
+
+  @override
+  String gameStartupResourceRequests(int count) {
+    return '요청 $count건';
+  }
+
+  @override
+  String get gameStartupPreparingStep => '연결 준비';
+
+  @override
+  String get gameStartupPageStep => '접속 페이지';
+
+  @override
+  String get gameStartupGameStep => '게임 시작';
+
+  @override
+  String get gameStartupPreparing => '연결을 준비하는 중';
+
+  @override
+  String get gameStartupPage => '접속 페이지를 불러오는 중';
+
+  @override
+  String get gameStartupLoadingGame => '게임을 시작하는 중';
+
+  @override
+  String get gameStartupStalled => '20초 동안 진행이 없습니다. 계속 기다리거나 다시 불러올 수 있습니다.';
+
+  @override
+  String get gameStartupConnectionDetails => '연결 세부 정보';
+
+  @override
+  String get gameStartupStageLabel => '실패 단계';
+
+  @override
+  String get gameStartupHostLabel => '호스트';
+
+  @override
+  String get gameStartupCodeLabel => '오류 코드';
+
+  @override
+  String get gameStartupCopyDetails => '오류 세부 정보 복사';
+
+  @override
+  String get gameStartupDetailsCopied => '오류 세부 정보를 복사했습니다';
+
+  @override
+  String get gameStartupCopyFailed => '복사하지 못했습니다. 다시 시도해 주세요.';
+
+  @override
+  String get gameStartupLocalHttpProxyUnavailable => '로컬 HTTP 프록시에 연결할 수 없습니다';
+
+  @override
+  String get gameStartupLocalHttpProxyHelp =>
+      '로컬 프록시가 실행 중인지 확인하고 주소와 포트를 확인한 후 다시 시도해 주세요.';
+
+  @override
+  String get gameStartupPageNetworkError => '게임 접속 페이지를 불러올 수 없습니다';
+
+  @override
+  String get gameStartupPageAccessDenied => '게임 접속 페이지가 접근을 거부했습니다';
+
+  @override
+  String get gameStartupPageServerError => '게임 접속 서버가 일시적으로 응답할 수 없습니다';
+
+  @override
+  String get gameStartupPageTimedOut =>
+      '게임 페이지를 불러오는 중 시간이 초과되었습니다. 다시 시도해 주세요.';
+
+  @override
+  String get gameStartupGadgetError => '게임 시작 스크립트를 불러올 수 없습니다';
+
+  @override
   String get debuffReminderTitle => '장갑 파쇄 알림';
 
   @override
@@ -2722,6 +2806,25 @@ class AppLocalizationsKo extends AppLocalizations {
   @override
   String get gameResourceCacheWaitingForWifi =>
       'Wi-Fi 연결 대기 중입니다. 연결되면 자동으로 다운로드를 계속합니다.';
+
+  @override
+  String get gameResourceCachePreloadProxyBlocked =>
+      'Kanxy를 사용하는 동안 사전 다운로드가 일시 중지됩니다. Kanxy VPN을 끄고 Yahagi의 네트워크 설정을 시스템 네트워크로 바꾸면 계속할 수 있습니다.';
+
+  @override
+  String get gameResourceCacheManifestNotReady =>
+      '리소스 목록이 아직 준비되지 않았습니다. 게임에 들어가 목록을 불러온 뒤 다운로드하세요.';
+
+  @override
+  String get gameResourceCacheKanxyClearAndReload => 'Kanxy 캐시 삭제 및 게임 새로고침';
+
+  @override
+  String get gameResourceCacheKanxyReloaded =>
+      'Yahagi의 Kanxy 리소스 캐시를 삭제하고 게임을 새로고침했습니다.';
+
+  @override
+  String get gameResourceCacheKanxyCleared =>
+      'Yahagi의 Kanxy 리소스 캐시를 삭제했습니다. 게임을 직접 새로고침하세요.';
 
   @override
   String get gameResourceCacheClearConfirmTitle => '게임 리소스 캐시를 삭제할까요?';

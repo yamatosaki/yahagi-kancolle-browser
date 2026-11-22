@@ -79,6 +79,9 @@ class NetworkProxyChannel {
     return _invokeProxyMethod('clearProxyOverride');
   }
 
+  static Future<ProxyResult> probeStartupLocalHttpProxy() =>
+      _invokeProxyMethod('probeStartupLocalHttpProxy');
+
   static Future<ProxyResult> runNetworkDiagnostic(
     String mode,
     String host,

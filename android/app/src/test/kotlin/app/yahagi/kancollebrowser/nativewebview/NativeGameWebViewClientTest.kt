@@ -7,6 +7,63 @@ import org.junit.Test
 
 class NativeGameWebViewClientTest {
     @Test
+    fun disabledStartupChecksDoNotReadTheProgressUrlOrEmitProgress() {
+        val events = mutableListOf<String>()
+        var enabled = false
+        val delegate = NativeGameWebViewClientDelegate(
+            generation = 2,
+            sink = recordingSink(events),
+            acceptsGeneration = { true },
+            prepareRenderProcessGone = { true },
+            onRenderProcessGone = {},
+            startupChecksEnabled = { enabled },
+        )
+        delegate.pageStarted("https://example.test/game")
+        events.clear()
+        delegate.pageProgress(25) { error("Disabled progress must not read the URL") }
+        delegate.receivedHttpError(false, 503, "https://w00g.kancolle-server.com/gadget_html5/js/kcs_const.js")
+        assertTrue(events.isEmpty())
+
+        enabled = true
+        delegate.pageProgress(75) { "https://example.test/game" }
+        assertEquals(listOf("progress:2:75:https://example.test/game"), events)
+    }
+
+    @Test
+    fun progressFollowsTheCurrentDocumentAndNeverEmitsPrivateUrlComponents() {
+        val events = mutableListOf<String>()
+        val delegate = delegate(events)
+        delegate.pageProgress(25) { "https://example.test/old" }
+        assertTrue(events.isEmpty())
+        delegate.pageStarted("https://example.test/game/private=%3D?token=secret")
+        events.clear()
+
+        delegate.pageProgress(12) { "https://example.test/old" }
+        delegate.pageProgress(101) { null }
+        delegate.pageProgress(25) { "HTTPS://EXAMPLE.TEST:443/game/private=%3D?token=secret#fragment" }
+        delegate.pageProgress(100) { null }
+
+        assertEquals(listOf("progress:2:25:https://example.test/game", "progress:2:100:null"), events)
+    }
+
+    @Test
+    fun reportsGadgetKindOnlyForKnownScriptsAtTheOfficialOrigin() {
+        val events = mutableListOf<String>()
+        val delegate = delegate(events)
+        delegate.receivedHttpError(false, 503, "https://w00g.kancolle-server.com/gadget_html5/js/kcs_login.js?v=private")
+        delegate.receivedError(false, -2, "private", "https://w00g.kancolle-server.com/gadget_html5/script/jquery.min.js")
+        delegate.receivedHttpError(false, 503, "https://mirror.example/gadget_html5/js/kcs_const.js")
+        delegate.receivedHttpError(false, 404, "https://w00g.kancolle-server.com/gadget_html5/img/kcs_login.js")
+        delegate.receivedHttpError(false, 503, "https://w00g.kancolle-server.com/gadget_html5/js/kcs_optional.js")
+        delegate.receivedHttpError(false, 503, "https://w00g.kancolle-server.com:444/gadget_html5/js/kcs_const.js")
+
+        assertEquals(
+            listOf("gadget:503", "gadget:-2"),
+            events,
+        )
+    }
+
+    @Test
     fun oldMainDocumentErrorsDoNotFailTheNewerDocument() {
         val events = mutableListOf<String>()
         val delegate = delegate(events)
@@ -24,7 +81,7 @@ class NativeGameWebViewClientTest {
     fun mainAndChildHttpErrorsKeepTheirFrameAttribution() {
         val events = mutableListOf<String>()
         val sink = object : NativeGameWebViewEventSink by recordingSink(events) {
-            override fun resourceError(generation: Long, errorCode: Int) {
+            override fun resourceError(generation: Long, errorCode: Int, kind: NativeGameWebViewResourceKind?) {
                 events += "resource:$generation:$errorCode"
             }
         }
@@ -45,7 +102,7 @@ class NativeGameWebViewClientTest {
     fun childResourceFailureReportsCodeWithoutMainFrameFailureOrPrivateText() {
         val events = mutableListOf<String>()
         val sink = object : NativeGameWebViewEventSink by recordingSink(events) {
-            override fun resourceError(generation: Long, errorCode: Int) {
+            override fun resourceError(generation: Long, errorCode: Int, kind: NativeGameWebViewResourceKind?) {
                 events += "resource:$generation:$errorCode"
             }
         }
@@ -138,7 +195,9 @@ class NativeGameWebViewClientTest {
         )
 
         delegate.pageStarted("https://example.test")
+        delegate.pageProgress(25) { "https://example.test" }
         delegate.receivedError(true, -1, "error")
+        delegate.receivedHttpError(false, 503, "https://w00g.kancolle-server.com/gadget_html5/js/kcs_const.js")
         assertTrue(delegate.shouldOverrideUrlLoading("intent:#Intent;end"))
         assertTrue(delegate.renderProcessGone(didCrash = true))
 
@@ -211,6 +270,12 @@ class NativeGameWebViewClientTest {
         }
         override fun pageFinished(generation: Long, url: String) {
             events.add("finished:$url")
+        }
+        override fun pageProgress(generation: Long, progress: Int, url: String?) {
+            events.add("progress:$generation:$progress:$url")
+        }
+        override fun resourceError(generation: Long, errorCode: Int, kind: NativeGameWebViewResourceKind?) {
+            if (kind == NativeGameWebViewResourceKind.GADGET) events.add("gadget:$errorCode")
         }
         override fun mainFrameError(generation: Long, errorCode: Int, description: String) {
             events.add("error:$errorCode:$description")

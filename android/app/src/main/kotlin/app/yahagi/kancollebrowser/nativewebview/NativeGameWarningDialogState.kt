@@ -257,6 +257,9 @@ internal data class NativeGameChecklistItem(
     val iconColor: Int? = null,
     val enabled: Boolean = true,
     val detail: String? = null,
+    val groupLabel: String? = null,
+    val groupDetail: String? = null,
+    val groupSingleChoice: Boolean = false,
 ) {
     companion object {
         private val resourceIconAsset = Regex("assets/images/material/[A-Za-z0-9_-]+\\.png")
@@ -292,7 +295,22 @@ internal data class NativeGameChecklistItem(
                 require(it is String && it.length <= 4096) { "Invalid checklist item detail" }
                 it
             }
-            return NativeGameChecklistItem(id, label, value, checked, iconAsset, iconCodePoint, iconColor, enabled, detail)
+            val groupLabel = values["groupLabel"]?.let {
+                require(it is String && it.isNotBlank() && it.length <= 4096) { "Invalid checklist group label" }
+                it
+            }
+            val groupDetail = values["groupDetail"]?.let {
+                require(groupLabel != null && it is String && it.length <= 4096) { "Invalid checklist group detail" }
+                it
+            }
+            val groupSingleChoice = values["groupSingleChoice"] ?: false
+            require(groupSingleChoice is Boolean && (!groupSingleChoice || groupLabel != null)) {
+                "Single choice requires a checklist group"
+            }
+            return NativeGameChecklistItem(
+                id, label, value, checked, iconAsset, iconCodePoint, iconColor, enabled, detail,
+                groupLabel, groupDetail, groupSingleChoice,
+            )
         }
 
         private fun iconInteger(value: Any, name: String): Long {

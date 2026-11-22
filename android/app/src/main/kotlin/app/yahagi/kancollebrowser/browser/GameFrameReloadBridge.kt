@@ -208,6 +208,7 @@ internal class AndroidGameFrameReloadBridge(
     private val activity: Activity,
     private val originPolicy: CaptureOriginPolicy = CaptureOriginPolicy(),
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
+    private val onFrameReloadDispatch: (WebView) -> Unit = {},
     private val onShortcutComplete: (String) -> Unit = {},
 ) : PreparedGameFrameReloadBridgePort {
     private companion object {
@@ -434,6 +435,7 @@ internal class AndroidGameFrameReloadBridge(
                     try {
                         beforeReloadDispatch?.invoke()
                         beforeReloadDispatch = null
+                        onFrameReloadDispatch(webView)
                         replyProxy.postMessage(JSONObject()
                             .put("kind", "reload")
                             .put("requestId", requestId)

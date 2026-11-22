@@ -20,6 +20,7 @@ import 'game_mouse_wheel_settings.dart';
 import 'game_mouse_wheel_settings_section.dart';
 import 'game_rendering_mode_controller.dart';
 import 'game_rendering_mode_section.dart';
+import 'game_startup_check_settings.dart';
 import 'layout_settings_controller.dart';
 import 'screen_awake_controller.dart';
 import 'settings_organization_strings.dart';
@@ -30,6 +31,7 @@ class GameRuntimeSettingsPage extends StatelessWidget with SettingsUIHelpers {
     super.key,
     required this.layoutSettingsController,
     this.gameFrameRateSettingsController,
+    this.gameStartupCheckSettingsController,
     this.gameRenderingModeController,
     this.audioController,
     this.shipSubtitleSettingsController,
@@ -45,6 +47,7 @@ class GameRuntimeSettingsPage extends StatelessWidget with SettingsUIHelpers {
 
   final LayoutSettingsController layoutSettingsController;
   final GameFrameRateSettingsController? gameFrameRateSettingsController;
+  final GameStartupCheckSettingsController? gameStartupCheckSettingsController;
   final GameRenderingModeController? gameRenderingModeController;
   final GameAudioController? audioController;
   final ShipSubtitleSettingsController? shipSubtitleSettingsController;
@@ -64,9 +67,36 @@ class GameRuntimeSettingsPage extends StatelessWidget with SettingsUIHelpers {
         lookupAppLocalizations(const Locale('zh'));
     String text(String source) => settingsOrganizationText(context, source);
     final groups = <Widget>[
-      if (gameFrameRateSettingsController != null ||
+      if (gameStartupCheckSettingsController != null ||
+          gameFrameRateSettingsController != null ||
           gameRenderingModeController != null)
         _section(text('settingsGroupPerformanceRendering'), [
+          if (gameStartupCheckSettingsController case final startupCheck?) ...[
+            AnimatedBuilder(
+              animation: startupCheck,
+              builder: (context, _) => Column(
+                children: [
+                  buildSwitchTile(
+                    title: l10n.gameStartupCheckTitle,
+                    switchKey: const Key('settings-game-startup-check'),
+                    subtitle: l10n.gameStartupCheckDescription,
+                    value: startupCheck.enabled,
+                    onChanged: startupCheck.saving
+                        ? null
+                        : startupCheck.setEnabled,
+                  ),
+                  if (startupCheck.saveFailed)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: Text(l10n.gameStartupCheckSaveFailed),
+                    ),
+                ],
+              ),
+            ),
+            if (gameFrameRateSettingsController != null ||
+                gameRenderingModeController != null)
+              _divider(context),
+          ],
           if (gameFrameRateSettingsController case final frameRate?)
             GameFrameRateSettingsSection(controller: frameRate),
           if (gameRenderingModeController case final rendering?) ...[

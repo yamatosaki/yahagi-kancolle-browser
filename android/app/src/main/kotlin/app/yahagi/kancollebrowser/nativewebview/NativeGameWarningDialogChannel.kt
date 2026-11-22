@@ -10,6 +10,7 @@ import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.RippleDrawable
+import android.graphics.drawable.StateListDrawable
 import android.content.res.ColorStateList
 import android.util.TypedValue
 import android.os.Build
@@ -95,7 +96,12 @@ internal class NativeGameWarningDialogChannel(
     private data class RenderedKey(val key: NativeGameDialogKey, val version: Long)
     private var renderVersion = 0L
     private data class ChecklistIcon(val host: FrameLayout, val asset: ImageView, val glyph: TextView, var assetPath: String? = null)
-    private data class ChecklistRow(val checkbox: CheckBox, val value: TextView, val icon: ChecklistIcon?)
+    private data class ChecklistRow(
+        val checkbox: CheckBox,
+        val value: TextView? = null,
+        val icon: ChecklistIcon? = null,
+        val groupLabel: String? = null,
+    )
     private class ChecklistViews(
         val key: NativeGameDialogKey,
         val version: Long,
@@ -106,6 +112,7 @@ internal class NativeGameWarningDialogChannel(
         val scroll: ScrollView,
         val rows: LinkedHashMap<String, ChecklistRow>,
     ) {
+        val groupHeadings = linkedMapOf<String, TextView>()
         var restoringScroll = true
         var patching = false
     }
@@ -543,11 +550,17 @@ internal class NativeGameWarningDialogChannel(
         if (compact) setPadding(dp(8), dp(3), dp(8), dp(6)) else setDialogPadding(presentation.layout.actionsPadding)
     }
 
-    private fun attachCard(container: FrameLayout, content: ScrollView, actions: View, header: View? = null) {
-        val compact = header != null
+    private fun attachCard(
+        container: FrameLayout,
+        content: ScrollView,
+        actions: View,
+        header: View? = null,
+        compact: Boolean = header != null,
+        maximumWidth: Int = Int.MAX_VALUE,
+    ) {
         val minimumWidth = dp(if (compact) 440f else presentation.layout.minWidth)
         container.addView(NativeGameDialogCard(activity, content, actions, minimumWidth, header,
-            maximumCardWidth = if (compact) minimumWidth else Int.MAX_VALUE,
+            maximumCardWidth = if (compact) minimumWidth else maximumWidth,
             maximumCardHeight = if (compact) dp(480) else Int.MAX_VALUE).apply {
             tag = if (container.id == R.id.native_game_resource_checklist) "resourceChecklistCard" else "dialog-card"
             background = if (compact) rounded(compactColor(0xff101d27, presentation.colors.surface), dp(10).toFloat()).apply {
@@ -614,11 +627,18 @@ internal class NativeGameWarningDialogChannel(
 
     private fun reconcileChecklistUpdate(request: Request, next: NativeGameWarningDialogSpec): NativeGameWarningDialogSpec {
         if (!next.isChecklist || request.checklistChanges.acknowledge(next.appliedChangeId)) return next
-        val previousChecks = request.spec.items.associate { it.id to it.checked }
+        val previousItems = request.spec.items.associateBy { it.id }
         return next.copy(items = next.items.map { item ->
-            previousChecks[item.id]?.let { item.copy(checked = it) } ?: item
+            previousItems[item.id]?.let { item.copy(checked = it.checked, groupDetail = it.groupDetail) } ?: item
         })
     }
+
+    private fun isGroupedDisplayChecklist(value: NativeGameWarningDialogSpec): Boolean =
+        !value.compactShipChecklist && (value.kind == "fleetDisplay" || value.kind == "moduleDisplay") &&
+            value.items.isNotEmpty() && value.items.all { !it.groupLabel.isNullOrEmpty() }
+
+    private fun displayGroupTitle(item: NativeGameChecklistItem): String =
+        listOfNotNull(item.groupLabel, item.groupDetail).joinToString(" · ")
 
     /** A data refresh must not replace the target of a held touch or reset scrolling. */
     private fun patchChecklist(value: NativeGameWarningDialogSpec): Boolean {
@@ -629,6 +649,26 @@ internal class NativeGameWarningDialogChannel(
             (views.close != null) != value.compactShipChecklist ||
             (views.reset == null) != (value.resetLabel == null)
         ) return false
+        val grouped = isGroupedDisplayChecklist(value)
+        if (grouped != views.groupHeadings.isNotEmpty() || grouped && value.items.any {
+            val row = views.rows.getValue(it.id)
+            row.groupLabel != it.groupLabel || (row.checkbox as NativeGameDisplayChip).singleChoice != it.groupSingleChoice
+        }) return false
+        val canToggle = requests[value.key]?.checklistChanges?.canToggle != false
+        if (grouped) {
+            if (views.title.text != value.title) views.title.text = value.title
+            val doneLabel = value.labels.getValue("acknowledge")
+            if (views.done.text != doneLabel) views.done.text = doneLabel
+            views.done.isEnabled = value.enabled.getValue("acknowledge")
+            views.reset?.let { if (it.text != value.resetLabel) it.text = value.resetLabel }
+            for ((groupLabel, heading) in views.groupHeadings) {
+                val text = displayGroupTitle(value.items.first { it.groupLabel == groupLabel })
+                if (heading.text != text) heading.text = text
+            }
+            patchDisplayChips(views, value.items, canToggle, updateLabels = true)
+            views.reset?.isEnabled = canToggle
+            return true
+        }
         views.patching = true
         try {
             views.title.text = value.title
@@ -641,7 +681,7 @@ internal class NativeGameWarningDialogChannel(
                     checkbox.text = checklistItemText(item, value.compactShipChecklist)
                     checkbox.isChecked = item.checked
                     checkbox.isEnabled = item.enabled && requests[value.key]?.checklistChanges?.canToggle != false
-                    this.value.text = item.value
+                    this.value?.text = item.value
                     icon?.let { updateChecklistIcon(it, item) }
                 }
             }
@@ -655,6 +695,7 @@ internal class NativeGameWarningDialogChannel(
     private fun renderChecklist(container: FrameLayout, value: NativeGameWarningDialogSpec) {
         val version = renderVersion
         val compact = value.compactShipChecklist
+        val grouped = isGroupedDisplayChecklist(value)
         val content = if (compact) LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
             else dialogContent(value.title)
         val title = if (compact) styledText(value.title, presentation.text.title.compact(0.6f),
@@ -678,7 +719,7 @@ internal class NativeGameWarningDialogChannel(
                 setOnClickListener { dismissFromUser(value.key, version) }
             }
         }
-        val header = close?.let {
+        val header = if (grouped) content else close?.let {
             LinearLayout(activity).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER_VERTICAL
@@ -706,15 +747,40 @@ internal class NativeGameWarningDialogChannel(
             orientation = LinearLayout.VERTICAL
             if (compact) setPadding(dp(7), dp(3), dp(7), dp(3)) else setDialogPadding(presentation.layout.contentPadding)
         }
-        content.addView(list)
+        if (!grouped) content.addView(list)
         val scroll = ScrollView(activity).apply {
             id = R.id.native_game_resource_checklist_list
             isFillViewport = false
             isVerticalScrollBarEnabled = true
-            addView(content, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            addView(if (grouped) list else content,
+                ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
         val views = ChecklistViews(value.key, version, title, done, reset, close, scroll, linkedMapOf())
         checklistViews = views
+        if (grouped) {
+            renderDisplayChips(list, value, views)
+        } else {
+            renderChecklistRows(list, value, views, compact)
+        }
+        scroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
+            if (!views.restoringScroll) requests[views.key]?.scrollY = scrollY
+        }
+        attachCard(container, scroll, actions, header, compact, maximumWidth = if (grouped) dp(600) else Int.MAX_VALUE)
+        scroll.post {
+            if (checklistViews === views && views.version == renderVersion && queue.active == value.key && !state.actionChosen) {
+                scroll.scrollTo(0, requests[value.key]?.scrollY ?: 0)
+                views.restoringScroll = false
+            }
+        }
+    }
+
+    private fun renderChecklistRows(
+        list: LinearLayout,
+        value: NativeGameWarningDialogSpec,
+        views: ChecklistViews,
+        compact: Boolean,
+    ) {
+        val version = views.version
         value.items.forEach { item ->
             val row = LinearLayout(activity).apply {
                 tag = "row:${item.id}"
@@ -739,14 +805,7 @@ internal class NativeGameWarningDialogChannel(
                 isChecked = item.checked
                 isEnabled = item.enabled && requests[value.key]?.checklistChanges?.canToggle != false
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
-                setOnCheckedChangeListener { _, checked ->
-                    if (!views.patching && !toggleChecklist(value.key, version, item.id, checked) && checklistViews === views) {
-                        // Disabled or obsolete input cannot mutate even the visible optimistic check.
-                        views.patching = true
-                        isChecked = requests[value.key]?.spec?.items?.firstOrNull { it.id == item.id }?.checked ?: item.checked
-                        views.patching = false
-                    }
-                }
+                bindChecklistToggle(this, views, item)
             }
             val valueText = styledText(item.value).apply {
                 tag = "value:${item.id}"
@@ -770,16 +829,102 @@ internal class NativeGameWarningDialogChannel(
             })
             views.rows[item.id] = ChecklistRow(checkbox, valueText, icon)
         }
-        scroll.setOnScrollChangeListener { _, _, scrollY, _, _ ->
-            if (!views.restoringScroll) requests[views.key]?.scrollY = scrollY
+    }
+
+    private fun renderDisplayChips(list: LinearLayout, value: NativeGameWarningDialogSpec, views: ChecklistViews) {
+        val canToggle = requests[value.key]?.checklistChanges?.canToggle != false
+        val groups = mutableMapOf<String, NativeGameDisplayChipGroup>()
+        for (item in value.items) {
+            val groupLabel = requireNotNull(item.groupLabel)
+            val group = groups.getOrPut(groupLabel) {
+                val heading = styledText(displayGroupTitle(item), presentation.text.body.compact(0.9f),
+                    presentation.colors.primary).apply {
+                    tag = "display-group:$groupLabel"
+                    ViewCompat.setAccessibilityHeading(this, true)
+                }
+                list.addView(heading, spaced(if (views.groupHeadings.isEmpty()) 0 else 12))
+                views.groupHeadings[groupLabel] = heading
+                NativeGameDisplayChipGroup(activity, dp(8), dp(2)).also { list.addView(it, spaced(2)) }
+            }
+            val chip = NativeGameDisplayChip(activity, item.groupSingleChoice).apply {
+                id = R.id.native_game_resource_checklist_item
+                tag = item.id
+                text = item.label
+                styleDisplayChip(this)
+                isChecked = item.checked
+                isEnabled = item.enabled && canToggle
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+                bindChecklistToggle(this, views, item)
+            }
+            group.addView(chip)
+            views.rows[item.id] = ChecklistRow(chip, groupLabel = groupLabel)
         }
-        attachCard(container, scroll, actions, header)
-        scroll.post {
-            if (checklistViews === views && views.version == renderVersion && queue.active == value.key && !state.actionChosen) {
-                scroll.scrollTo(0, requests[value.key]?.scrollY ?: 0)
-                views.restoringScroll = false
+    }
+
+    private fun bindChecklistToggle(checkbox: CheckBox, views: ChecklistViews, item: NativeGameChecklistItem) {
+        checkbox.setOnCheckedChangeListener { _, checked ->
+            if (!views.patching && !toggleChecklist(views.key, views.version, item.id, checked) && checklistViews === views) {
+                // Disabled or obsolete input cannot mutate even the visible optimistic check.
+                views.patching = true
+                checkbox.isChecked = requests[views.key]?.spec?.items?.firstOrNull { it.id == item.id }?.checked ?: item.checked
+                views.patching = false
             }
         }
+    }
+
+    private fun patchDisplayChips(
+        views: ChecklistViews,
+        items: List<NativeGameChecklistItem>,
+        canToggle: Boolean,
+        updateLabels: Boolean = false,
+    ) {
+        views.patching = true
+        try {
+            for (item in items) {
+                val chip = views.rows.getValue(item.id).checkbox
+                if (updateLabels && chip.text != item.label) chip.text = item.label
+                if (chip.isChecked != item.checked) chip.isChecked = item.checked
+                val enabled = item.enabled && canToggle
+                if (chip.isEnabled != enabled) chip.isEnabled = enabled
+            }
+        } finally {
+            views.patching = false
+        }
+    }
+
+    private fun styleDisplayChip(chip: CheckBox) {
+        val colors = presentation.colors
+        val disabled = intArrayOf(-android.R.attr.state_enabled)
+        val checked = intArrayOf(android.R.attr.state_checked)
+        val focused = intArrayOf(android.R.attr.state_focused)
+        val checkedAndFocused = intArrayOf(android.R.attr.state_checked, android.R.attr.state_focused)
+        val default = intArrayOf()
+        val off = ColorUtils.blendARGB(colors.surface, Color.GRAY, 0.27f)
+        val disabledFill = ColorUtils.blendARGB(colors.surface, Color.GRAY, 0.11f)
+        val disabledText = ColorUtils.blendARGB(colors.surface, colors.onSurface, 0.48f)
+        val radius = dp(presentation.layout.buttonRadius).toFloat()
+        val appearance = StateListDrawable().apply {
+            addState(disabled, rounded(disabledFill, radius))
+            addState(checkedAndFocused, rounded(colors.primary, radius).apply { setStroke(dp(2), colors.onPrimary) })
+            addState(checked, rounded(colors.primary, radius))
+            addState(focused, rounded(off, radius).apply { setStroke(dp(2), colors.outline) })
+            addState(default, rounded(off, radius))
+        }
+        styleText(chip, presentation.text.body.compact(0.9f, weight = 600), colors.onSurface)
+        chip.setTextColor(ColorStateList(arrayOf(disabled, checked, default), intArrayOf(disabledText, colors.onPrimary, colors.onSurface)))
+        chip.buttonDrawable = null
+        chip.isAllCaps = false
+        chip.gravity = Gravity.CENTER
+        chip.minWidth = 0
+        chip.minimumWidth = 0
+        chip.minHeight = dp(48)
+        chip.minimumHeight = chip.minHeight
+        chip.background = InsetDrawable(
+            RippleDrawable(ColorStateList.valueOf(withAlpha(colors.onSurface, 0.13f)), appearance, rounded(Color.WHITE, radius)),
+            0, dp(3), 0, dp(3),
+        )
+        chip.setPaddingRelative(dp(12), dp(8), dp(12), dp(8))
+        chip.stateListAnimator = null
     }
 
     private fun checklistHeaderButton(label: String, resourceId: Int, filled: Boolean, compact: Boolean) = Button(activity).apply {
@@ -857,9 +1002,21 @@ internal class NativeGameWarningDialogChannel(
     private fun toggleChecklist(key: NativeGameDialogKey, version: Long, itemId: String, checked: Boolean): Boolean {
         val request = currentChecklist(key, version) ?: return false
         val previous = request.spec.items.firstOrNull { it.id == itemId } ?: return false
-        if (!previous.enabled || previous.checked == checked) return false
+        val views = checklistViews
+        val chip = views?.rows?.get(itemId)?.checkbox as? NativeGameDisplayChip
+        val singleChoice = chip?.singleChoice == true
+        if (!previous.enabled || previous.checked == checked || singleChoice && !checked) return false
         val changeId = request.checklistChanges.change(reset = false) ?: return false
-        request.spec = request.spec.copy(items = request.spec.items.map { if (it.id == itemId) it.copy(checked = checked) else it })
+        request.spec = request.spec.copy(items = request.spec.items.map {
+            when {
+                it.id == itemId -> it.copy(checked = checked)
+                singleChoice && it.groupLabel == previous.groupLabel && it.checked -> it.copy(checked = false)
+                else -> it
+            }
+        })
+        if (views != null && singleChoice) {
+            patchDisplayChips(views, request.spec.items, request.checklistChanges.canToggle)
+        }
         publishChecklist(mapOf("kind" to key.kind, "id" to key.id, "event" to "toggle", "itemId" to itemId, "checked" to checked,
             "changeId" to changeId))
         return true

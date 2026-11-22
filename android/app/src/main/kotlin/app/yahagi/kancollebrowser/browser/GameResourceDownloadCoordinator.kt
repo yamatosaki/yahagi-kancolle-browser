@@ -33,6 +33,8 @@ data class GameResourceDownloadStatus(
     val capacityBlocked: Boolean,
     val isMetered: Boolean,
     val waitingForWifi: Boolean,
+    val manifestReady: Boolean,
+    val preloadBlockedByProxy: Boolean,
 )
 
 data class GameResourceNetworkState(
@@ -60,6 +62,7 @@ class GameResourceDownloadCoordinator(
     private val networkProvider: () -> GameResourceNetworkState = {
         GameResourceNetworkState(connected = true, metered = false, wifi = true)
     },
+    private val preloadBlockedByProxy: () -> Boolean = { false },
 ) {
     private val executor = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "game-resource-preloader").apply { isDaemon = true }
@@ -302,9 +305,7 @@ class GameResourceDownloadCoordinator(
     @Synchronized
     fun startDownload(allowMetered: Boolean = false): Boolean {
         if (disposed.get()) return false
-        preloadAuthorized = true
-        userPaused = false
-        return startDownloadInternal(allowMetered)
+        return startDownloadInternal(allowMetered, authorize = true)
     }
 
     @Synchronized
@@ -314,10 +315,15 @@ class GameResourceDownloadCoordinator(
         return startDownloadInternal(allowMetered = false)
     }
 
-    private fun startDownloadInternal(allowMetered: Boolean): Boolean {
-        val mode = modeProvider()
+    private fun startDownloadInternal(allowMetered: Boolean, authorize: Boolean = false): Boolean {
         ensureManifestLoaded()
-        if (mode != GameResourceCacheMode.FULL || urls.isEmpty()) return false
+        if (!hasFullManifest()) return false
+        if (preloadBlockedByProxy()) {
+            if (!authorize && state != GameResourceDownloadState.COMPLETE) {
+                pauseForPreloadRestriction(proxyBlocked = true)
+            }
+            return false
+        }
         val remainingEstimate = (targetBytes - cachedManifestBytes()).coerceAtLeast(0L)
         val reclaimableBudget = engine.availableDeviceBytes().let { available ->
             val used = engine.status().usedBytes
@@ -329,12 +335,13 @@ class GameResourceDownloadCoordinator(
             persist()
             return false
         }
+        if (authorize) {
+            preloadAuthorized = true
+            userPaused = false
+        }
         this.allowMetered = allowMetered
         if (!canUseCurrentNetwork()) {
-            networkPaused = true
-            pauseRequested = true
-            state = GameResourceDownloadState.PAUSED
-            persist()
+            pauseForPreloadRestriction(proxyBlocked = false)
             return false
         }
         networkPaused = false
@@ -347,6 +354,16 @@ class GameResourceDownloadCoordinator(
             scheduleDownload(currentGeneration)
         }
         return true
+    }
+
+    private fun hasFullManifest(): Boolean = modeProvider() == GameResourceCacheMode.FULL &&
+        GameResourceCacheMode.fromWireName(profile) == GameResourceCacheMode.FULL && urls.isNotEmpty()
+
+    private fun pauseForPreloadRestriction(proxyBlocked: Boolean) {
+        networkPaused = !proxyBlocked
+        pauseRequested = true
+        state = GameResourceDownloadState.PAUSED
+        persist()
     }
 
     @Synchronized
@@ -380,17 +397,15 @@ class GameResourceDownloadCoordinator(
     private fun handleNetworkChanged() {
         if (disposed.get()) return
         ensureManifestLoaded()
-        if (!canUseCurrentNetwork()) {
-            if (preloadAuthorized && !userPaused) {
-                networkPaused = true
-                pauseRequested = true
-                state = GameResourceDownloadState.PAUSED
-                persist()
+        if (!preloadAuthorized || userPaused || !hasFullManifest()) return
+        val proxyBlocked = preloadBlockedByProxy()
+        if (proxyBlocked || !canUseCurrentNetwork()) {
+            if (state != GameResourceDownloadState.COMPLETE) {
+                pauseForPreloadRestriction(proxyBlocked)
             }
             return
         }
-        if (!preloadAuthorized || userPaused) return
-        startDownloadInternal(allowMetered = false)
+        startDownloadInternal(allowMetered = allowMetered)
     }
 
     fun checkIntegrity(): GameResourceDownloadStatus {
@@ -419,6 +434,7 @@ class GameResourceDownloadCoordinator(
     @Synchronized
     fun status(): GameResourceDownloadStatus {
         ensureManifestLoaded()
+        val proxyBlocked = preloadBlockedByProxy()
         val cached = cachedManifestBytes()
         val elapsedSeconds = ((System.currentTimeMillis() - startedAt) / 1000).coerceAtLeast(1)
         val speed = if (startedAt == 0L) 0L else downloadedBytes / elapsedSeconds
@@ -435,7 +451,9 @@ class GameResourceDownloadCoordinator(
             outdatedCount = outdatedCount,
             capacityBlocked = state == GameResourceDownloadState.CAPACITY_BLOCKED,
             isMetered = !networkProvider().wifi,
-            waitingForWifi = networkPaused,
+            waitingForWifi = networkPaused && !proxyBlocked,
+            manifestReady = hasFullManifest(),
+            preloadBlockedByProxy = proxyBlocked,
         )
     }
 
@@ -450,19 +468,13 @@ class GameResourceDownloadCoordinator(
         try {
             val work = synchronized(this) { urls.toList() }
             for (url in work) {
-                if (workerGeneration != generation.get()) return
-                if (pauseRequested) return
-                if (!canUseCurrentNetwork()) {
-                    synchronized(this) {
-                        networkPaused = true
-                        pauseRequested = true
-                        state = GameResourceDownloadState.PAUSED
-                        persist()
-                    }
-                    return
-                }
                 val (expectedLength, requiresChecksum) = synchronized(this) {
-                    if (workerGeneration != generation.get()) return
+                    if (workerGeneration != generation.get() || pauseRequested) return
+                    val proxyBlocked = preloadBlockedByProxy()
+                    if (proxyBlocked || !canUseCurrentNetwork()) {
+                        pauseForPreloadRestriction(proxyBlocked)
+                        return
+                    }
                     expectedByteLengths[url] to (url in checksumRequiredUrls)
                 }
                 if (!requiresChecksum && engine.hasCachedMetadata(url, expectedLength)) continue
@@ -473,7 +485,7 @@ class GameResourceDownloadCoordinator(
                         waitForSlot = true,
                         shouldStore = {
                             workerGeneration == generation.get() &&
-                                modeProvider() != GameResourceCacheMode.NONE
+                                modeProvider() != GameResourceCacheMode.NONE && !preloadBlockedByProxy()
                         },
                     )
                 } catch (_: Exception) {
@@ -503,6 +515,11 @@ class GameResourceDownloadCoordinator(
             }
             synchronized(this) {
                 if (!pauseRequested && workerGeneration == generation.get()) {
+                    val proxyBlocked = preloadBlockedByProxy()
+                    if (proxyBlocked || !canUseCurrentNetwork()) {
+                        pauseForPreloadRestriction(proxyBlocked)
+                        return
+                    }
                     refreshInspectionCounts()
                     state = if (missingCount == 0 && damagedCount == 0 && outdatedCount == 0) {
                         GameResourceDownloadState.COMPLETE

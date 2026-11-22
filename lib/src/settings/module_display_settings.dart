@@ -133,53 +133,74 @@ Future<void> showModuleDisplaySettings(
     return Future<void>.value();
   }
 
-  Map<String, Object?> item(String id, String label, bool checked) => {
+  Map<String, Object?> item(
+    String id,
+    String group,
+    String label,
+    bool checked, {
+    bool singleChoice = false,
+  }) => {
     'id': id,
-    'label': label,
+    'label': text(label),
     'value': '',
     'checked': checked,
+    'groupLabel': text(group),
+    if (singleChoice) 'groupSingleChoice': true,
   };
   return showGameDisplaySettingsDialog(
     context: context,
     controller: controller,
     protectInputOnDismiss: false,
+    skipUnchangedUpdates: true,
     kind: 'moduleDisplay',
     title: text(moduleDisplayTitles[module] ?? FleetUiKeys.displayContent),
     resetLabel: text(FleetUiKeys.reset),
     onReset: reset,
     onToggle: toggle,
-    items: () => [
-      item(
-        'appearance-logo',
-        '${text(FleetUiKeys.capsuleAppearance)} · ${text('LOGO')}',
-        controller.moduleShowLogo(module),
-      ),
-      item(
-        'appearance-name',
-        '${text(FleetUiKeys.capsuleAppearance)} · ${text(FleetUiKeys.name)}',
-        controller.moduleShowName(module),
-      ),
-      for (final option in options.entries)
+    items: () {
+      final selected = options.isEmpty
+          ? const <String>{}
+          : controller.moduleDisplayFields(module);
+      return [
         item(
-          'field-${option.key}',
-          '${text(FleetUiKeys.displayContent)} · ${text(option.value)}',
-          controller.moduleDisplayFields(module).contains(option.key),
-        ),
-      if (module == 'repair') ...[
-        item(
-          'fleet-name-custom',
-          '${text(FleetUiKeys.fleetSelectorName)} · ${text(FleetUiKeys.customFleetName)}',
-          controller.repairFleetSelectorLabelMode ==
-              FleetSelectorLabelMode.customName,
+          'appearance-logo',
+          FleetUiKeys.capsuleAppearance,
+          'LOGO',
+          controller.moduleShowLogo(module),
         ),
         item(
-          'fleet-name-number',
-          '${text(FleetUiKeys.fleetSelectorName)} · ${text(FleetUiKeys.shortFleetNumber)}',
-          controller.repairFleetSelectorLabelMode ==
-              FleetSelectorLabelMode.number,
+          'appearance-name',
+          FleetUiKeys.capsuleAppearance,
+          FleetUiKeys.name,
+          controller.moduleShowName(module),
         ),
-      ],
-    ],
+        for (final option in options.entries)
+          item(
+            'field-${option.key}',
+            FleetUiKeys.displayContent,
+            option.value,
+            selected.contains(option.key),
+          ),
+        if (module == 'repair') ...[
+          item(
+            'fleet-name-custom',
+            FleetUiKeys.fleetSelectorName,
+            FleetUiKeys.customFleetName,
+            controller.repairFleetSelectorLabelMode ==
+                FleetSelectorLabelMode.customName,
+            singleChoice: true,
+          ),
+          item(
+            'fleet-name-number',
+            FleetUiKeys.fleetSelectorName,
+            FleetUiKeys.shortFleetNumber,
+            controller.repairFleetSelectorLabelMode ==
+                FleetSelectorLabelMode.number,
+            singleChoice: true,
+          ),
+        ],
+      ];
+    },
     builder: (context, close) => Dialog(
       key: Key('module-display-settings-$module'),
       child: ConstrainedBox(

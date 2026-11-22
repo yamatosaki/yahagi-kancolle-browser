@@ -2,6 +2,7 @@ package app.yahagi.kancollebrowser.browser
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Message
 import android.os.SystemClock
 import android.view.KeyEvent
@@ -43,6 +44,7 @@ class GadgetBypassWebViewClient(
     val ownerToken: Any? = null,
     private val onDocumentStarted: (WebView?) -> Unit = {},
     private val useFreshGameResources: () -> Boolean = { false },
+    private val ownsKanxyHttpImageCache: (WebView) -> Boolean = { true },
     private val needsKanxyScriptFallback: (WebView) -> Boolean = { false },
     private val isKanxyDiagnosticsEnabled: () -> Boolean = { false },
     private val onKanxyMainScript: (KanxyDiagnosticStatus) -> Unit = {},
@@ -50,6 +52,7 @@ class GadgetBypassWebViewClient(
 
     private companion object {
         const val TAG = "GadgetBypass"
+        const val KANXY_CACHE_TAG = "YahagiKanxyCache"
         const val SLOW_CACHE_REQUEST_MS = 500L
         const val GAME_MAIN_SCRIPT_PATH = "/kcs2/js/main.js"
         val kanxyScriptPrefix by lazy { "${KanxyWebSocketScript.source}\n".toByteArray(Charsets.UTF_8) }
@@ -67,6 +70,8 @@ class GadgetBypassWebViewClient(
     val originalClient: WebViewClient
         get() = original
 
+    @Volatile internal var startupActivityTracker = GameStartupActivityTracker()
+
     var documentEpoch: Long = 0
         private set
 
@@ -74,8 +79,11 @@ class GadgetBypassWebViewClient(
         view: WebView,
         request: WebResourceRequest,
     ): WebResourceResponse? {
-        val url = request.url?.toString() ?: return null
-        return interceptResources(view, url, request.method, request.requestHeaders, request)
+        val uri = request.url ?: return null
+        val url = uri.toString()
+        val method = request.method
+        if (startupActivityTracker.hasPendingNavigation) observeStartupRequest(uri, method)
+        return interceptResources(view, url, method, request.requestHeaders, request)
             ?: original.shouldInterceptRequest(view, request)
     }
 
@@ -83,7 +91,12 @@ class GadgetBypassWebViewClient(
     @Deprecated("Deprecated in WebView")
     override fun shouldInterceptRequest(view: WebView, url: String?): WebResourceResponse? {
         if (url == null) return null
+        if (startupActivityTracker.hasPendingNavigation) observeStartupRequest(Uri.parse(url), "GET")
         return interceptResources(view, url, "GET", emptyMap()) ?: original.shouldInterceptRequest(view, url)
+    }
+
+    private fun observeStartupRequest(uri: Uri, method: String) {
+        startupActivityTracker.recordRequest(uri.scheme, uri.host, uri.port, uri.encodedUserInfo, uri.encodedPath, method)
     }
 
     private fun interceptResources(
@@ -103,6 +116,7 @@ class GadgetBypassWebViewClient(
             serveFromGameCache(
                 url, headers, method, kanxy = true,
                 traceMainScript = traceMainScript, rewriteMainScript = rewriteMainScript,
+                canUseKanxyImageCache = { ownsKanxyHttpImageCache(view) },
             ) {
                 needsKanxyScriptFallback(view)
             }?.let { return it }
@@ -140,6 +154,7 @@ class GadgetBypassWebViewClient(
         kanxy: Boolean,
         traceMainScript: Boolean = false,
         rewriteMainScript: Boolean = false,
+        canUseKanxyImageCache: () -> Boolean = { false },
         needsBridgePrefix: () -> Boolean = { false },
     ): WebResourceResponse? {
         if (kanxy && !GameResourceCacheRules.shouldCache(url, method)) return null
@@ -161,10 +176,27 @@ class GadgetBypassWebViewClient(
                 GameResourceCacheRules.withFallbackCookie(requestHeaders, cookie)
             }
             // Let Kanxy serve fresh bytes without reading or updating the stock cache.
-            val response = if (kanxy) gameResourceEngine?.fetchFresh(url, cacheHeaders, method)
-                else gameResourceEngine?.fetch(url, cacheHeaders, method = method)
+            val cacheEvents = if (kanxy && Log.isLoggable(KANXY_CACHE_TAG, Log.DEBUG)) {
+                ArrayList<KanxyImageCacheEvent>(2)
+            } else null
+            val response = if (kanxy) {
+                gameResourceEngine?.fetchFresh(
+                    url, cacheHeaders, method, canUseKanxyImageCache,
+                    report = cacheEvents?.let { events -> { event -> events.add(event); Unit } },
+                )
+            } else gameResourceEngine?.fetch(url, cacheHeaders, method = method)
             val elapsedMs = SystemClock.elapsedRealtime() - startedAt
-            if (elapsedMs >= SLOW_CACHE_REQUEST_MS) {
+            if (!cacheEvents.isNullOrEmpty()) {
+                val kind = when (GameResourceCacheRules.mimeTypeFor(url).mime) {
+                    "application/json" -> "atlas"
+                    "audio/mpeg" -> "audio"
+                    else -> "image"
+                }
+                Log.d(KANXY_CACHE_TAG, "kind=$kind result=${cacheEvents.joinToString("/")} elapsedMs=$elapsedMs")
+            }
+            if (kanxy && response?.source == GameResourceResponseSource.CACHE) {
+                Log.d(TAG, "Kanxy resource cache hit for $path (${elapsedMs}ms)")
+            } else if (elapsedMs >= SLOW_CACHE_REQUEST_MS) {
                 Log.w(TAG, "resource cache ${response?.source ?: "fallback"} took ${elapsedMs}ms for $path")
             } else if (response?.source == GameResourceResponseSource.NETWORK) {
                 Log.d(TAG, "resource cache NETWORK took ${elapsedMs}ms for $path")
@@ -186,8 +218,16 @@ class GadgetBypassWebViewClient(
                 )
             } else source
             val body = if (rewrite) {
-                KanxyDropdownTouchInputStream(inspected, response.bodyLength) {
-                    if (traceMainScript) recordKanxyMainScript(KanxyDiagnosticStatus.MAIN_SCRIPT_DROPDOWN_PATCHED)
+                KanxyMainScriptCompatibilityInputStream(inspected, response.bodyLength) { patch ->
+                    if (traceMainScript) {
+                        val status = when (patch) {
+                            KanxyMainScriptCompatibilityInputStream.Patch.DROPDOWN ->
+                                KanxyDiagnosticStatus.MAIN_SCRIPT_DROPDOWN_PATCHED
+                            KanxyMainScriptCompatibilityInputStream.Patch.CONTROLLER_POINTER ->
+                                KanxyDiagnosticStatus.MAIN_SCRIPT_CONTROLLER_POINTER_PATCHED
+                        }
+                        recordKanxyMainScript(status)
+                    }
                 }
             } else inspected
             val stream = if (prefix) SequenceInputStream(ByteArrayInputStream(kanxyScriptPrefix), body) else body
@@ -261,6 +301,8 @@ class GadgetBypassWebViewClient(
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         documentEpoch++
+        val uri = url?.let(Uri::parse)
+        startupActivityTracker.pageStarted(uri?.scheme, uri?.host)
         onDocumentStarted(view)
         original.onPageStarted(view, url, favicon)
     }

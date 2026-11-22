@@ -16,6 +16,7 @@ import 'package:yahagi_kancolle_browser/src/browser/game_browser_controller.dart
 import 'package:yahagi_kancolle_browser/src/browser/game_environment_host.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_frame_reload_port.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_frame_rate_port.dart';
+import 'package:yahagi_kancolle_browser/src/browser/game_startup_overlay.dart';
 import 'package:yahagi_kancolle_browser/src/browser/game_toolbar_controller.dart';
 import 'package:yahagi_kancolle_browser/src/browser/native_game_surface_slot.dart';
 import 'package:yahagi_kancolle_browser/src/capture/battle_result_warning_overlay.dart';
@@ -174,7 +175,7 @@ void main() {
             platform.delegate.started('https://game.example/');
             platform.delegate.finished('https://game.example/');
             await _drain(tester);
-            expect(find.byType(CircularProgressIndicator), findsNothing);
+            expect(find.byType(GameStartupOverlay), findsNothing);
           }
 
           final baselineBarriers = find.byType(ModalBarrier).evaluate().length;
@@ -213,7 +214,7 @@ void main() {
               platform.delegate.finished('https://game.example/');
               await _drain(tester);
             }
-            expect(find.byType(CircularProgressIndicator), findsNothing);
+            expect(find.byType(GameStartupOverlay), findsNothing);
           }
           expect(tester.takeException(), isNull);
         });
@@ -337,6 +338,8 @@ class _Delegate extends PlatformNavigationDelegate {
       finished = callback;
   @override
   Future<void> setOnWebResourceError(WebResourceErrorCallback callback) async {}
+  @override
+  Future<void> setOnProgress(ProgressCallback onProgress) async {}
   @override
   Future<void> setOnHttpError(HttpResponseErrorCallback callback) async {}
 }

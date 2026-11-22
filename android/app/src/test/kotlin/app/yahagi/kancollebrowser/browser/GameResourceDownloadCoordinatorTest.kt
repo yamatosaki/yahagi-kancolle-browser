@@ -10,6 +10,7 @@ import org.junit.rules.TemporaryFolder
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -704,6 +705,91 @@ class GameResourceDownloadCoordinatorTest {
     }
 
     @Test
+    fun `an early download click does not authorize auto updates when the manifest arrives`() {
+        val fixture = fixture()
+        try {
+            assertTrue(fixture.coordinator.configureModeChange("full", false) { true })
+            assertFalse(fixture.coordinator.status().manifestReady)
+            assertFalse(fixture.coordinator.startDownload())
+
+            val url = official("/kcs2/resources/ship/banner/early.png?version=1")
+            fixture.coordinator.setManifest("full", listOf(url), 1)
+
+            assertTrue(fixture.coordinator.status().manifestReady)
+            assertFalse(fixture.coordinator.startAutoUpdate())
+            assertEquals(GameResourceDownloadState.IDLE, fixture.coordinator.status().state)
+            assertTrue(fixture.coordinator.startDownload())
+            awaitState(fixture.coordinator, GameResourceDownloadState.COMPLETE)
+        } finally {
+            fixture.coordinator.dispose()
+        }
+    }
+
+    @Test
+    fun `manual click during proxy block does not authorize a download after disconnect`() {
+        val proxyBlocked = AtomicBoolean(true)
+        val fixture = fixture(preloadBlockedByProxy = proxyBlocked::get)
+        try {
+            fixture.coordinator.setManifest("full", listOf(official("/kcs2/resources/a.png")), 1)
+            assertTrue(fixture.coordinator.status().manifestReady)
+            assertTrue(fixture.coordinator.status().preloadBlockedByProxy)
+            assertFalse(fixture.coordinator.status().waitingForWifi)
+            assertFalse(fixture.coordinator.startDownload())
+
+            proxyBlocked.set(false)
+            assertFalse(fixture.coordinator.status().preloadBlockedByProxy)
+            assertFalse(fixture.coordinator.startAutoUpdate())
+            assertEquals(GameResourceDownloadState.IDLE, fixture.coordinator.status().state)
+        } finally {
+            fixture.coordinator.dispose()
+        }
+    }
+
+    @Test
+    fun `proxy pauses authorized work without claiming wifi loss and resumes after disconnect`() {
+        val proxyBlocked = AtomicBoolean(false)
+        val firstFetchEntered = CountDownLatch(1)
+        val finishFirstFetch = CountDownLatch(1)
+        val requests = CopyOnWriteArrayList<String>()
+        val first = official("/kcs2/resources/a.png?version=1")
+        val second = official("/kcs2/resources/b.png?version=1")
+        val fixture = fixture(
+            fetcher = GameResourceFetcher { url, _, _ ->
+                requests.add(url)
+                if (requests.size == 1) {
+                    firstFetchEntered.countDown()
+                    assertTrue(finishFirstFetch.await(5, TimeUnit.SECONDS))
+                }
+                response(byteArrayOf(1))
+            },
+            preloadBlockedByProxy = proxyBlocked::get,
+        )
+        try {
+            fixture.coordinator.setManifest("full", listOf(first, second), 2)
+            assertTrue(fixture.coordinator.startDownload())
+            assertTrue(firstFetchEntered.await(5, TimeUnit.SECONDS))
+            proxyBlocked.set(true)
+            fixture.coordinator.onNetworkChanged()
+            finishFirstFetch.countDown()
+
+            awaitState(fixture.coordinator, GameResourceDownloadState.PAUSED)
+            val paused = fixture.coordinator.status()
+            assertTrue(paused.preloadBlockedByProxy)
+            assertFalse(paused.waitingForWifi)
+            assertEquals(0L, paused.cachedBytes)
+            assertEquals(listOf(first), requests.toList())
+
+            proxyBlocked.set(false)
+            fixture.coordinator.onNetworkChanged()
+            awaitState(fixture.coordinator, GameResourceDownloadState.COMPLETE)
+            assertEquals(listOf(first, first, second), requests.toList())
+        } finally {
+            finishFirstFetch.countDown()
+            fixture.coordinator.dispose()
+        }
+    }
+
+    @Test
     fun `automatic update starts only after first manual authorization`() {
         val fixture = fixture()
         val first = official("/kcs2/resources/a.png?version=1")
@@ -882,6 +968,7 @@ class GameResourceDownloadCoordinatorTest {
         networkProvider: () -> GameResourceNetworkState = {
             GameResourceNetworkState(connected = true, metered = false)
         },
+        preloadBlockedByProxy: () -> Boolean = { false },
     ): Fixture {
         val root = temporaryFolder.newFolder()
         val store = GameResourceCacheStore(root, GameResourceCacheIndex(root.resolve("index.json")), maxBytes)
@@ -889,7 +976,7 @@ class GameResourceDownloadCoordinatorTest {
         return Fixture(
             root,
             engine,
-            GameResourceDownloadCoordinator(engine, { mode }, stateFile, networkProvider),
+            GameResourceDownloadCoordinator(engine, { mode }, stateFile, networkProvider, preloadBlockedByProxy),
         )
     }
 

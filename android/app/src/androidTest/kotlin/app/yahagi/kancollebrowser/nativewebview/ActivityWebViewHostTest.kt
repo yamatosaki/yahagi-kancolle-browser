@@ -1,15 +1,23 @@
 package app.yahagi.kancollebrowser.nativewebview
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.os.Build
+import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import org.junit.After
@@ -100,6 +108,66 @@ class ActivityWebViewHostTest {
         assertTrue(NativeGameWebViewConfigurationAction.WEB_VIEW_CLIENT_SET in configurationActions)
         assertTrue(NativeGameWebViewConfigurationAction.WEB_CHROME_CLIENT_SET in configurationActions)
         assertEquals(listOf("created:$generation"), events)
+    }
+
+    @Test
+    fun loadingAWebDocumentReportsChromiumProgressForTheHostGeneration() {
+        val pageProgress = LinkedBlockingQueue<Pair<Long, String?>>()
+        val stylesheetRequested = CountDownLatch(1)
+        val releaseStylesheet = CountDownLatch(1)
+        val safeUrl = "https://example.test/game"
+        val documentUrl = "$safeUrl?token=private"
+        var generation = 0L
+        onMain {
+            val gameHost = ActivityWebViewHost(
+                context,
+                sizedRoot(),
+                object : NativeGameWebViewEventSink by recordingSink(mutableListOf()) {
+                    override fun pageProgress(generation: Long, progress: Int, url: String?) {
+                        if (progress in 1..99) pageProgress.add(generation to url)
+                    }
+                },
+                configureWebView = { webView, client, onPresentation ->
+                    NativeGameWebViewConfigurator.configure(webView, client, onPresentation)
+                    webView.webViewClient = object : WebViewClient() {
+                        override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                            client.onPageStarted(view, url, favicon)
+                        }
+
+                        override fun shouldInterceptRequest(
+                            view: WebView?,
+                            request: WebResourceRequest?,
+                        ): WebResourceResponse? = when (request?.url?.toString()) {
+                            documentUrl -> WebResourceResponse(
+                                "text/html",
+                                "UTF-8",
+                                "<link rel='stylesheet' href='/style.css'><p>Local page</p>".byteInputStream(),
+                            )
+                            "https://example.test/style.css" -> {
+                                stylesheetRequested.countDown()
+                                releaseStylesheet.await(10, TimeUnit.SECONDS)
+                                WebResourceResponse("text/css", "UTF-8", "p {color: blue}".byteInputStream())
+                            }
+                            else -> null
+                        }
+                    }
+                },
+            )
+            host = gameHost
+            generation = requireNotNull(gameHost.create())
+            requireNotNull(gameHost.currentWebView).loadUrl(documentUrl)
+        }
+
+        val report = try {
+            assertTrue("Chromium requested the local stylesheet", stylesheetRequested.await(10, TimeUnit.SECONDS))
+            pageProgress.poll(5, TimeUnit.SECONDS)
+        } finally {
+            releaseStylesheet.countDown()
+        }
+        assertNotNull("Chromium reported progress before the stylesheet completed", report)
+        val (reportedGeneration, url) = requireNotNull(report)
+        assertEquals(generation, reportedGeneration)
+        assertTrue(url == null || url == safeUrl)
     }
 
     @Test
@@ -196,6 +264,102 @@ class ActivityWebViewHostTest {
         assertFalse(host!!.setBounds(generation, NativeGameWebViewBounds(1000.0, 0.0, 10.0, 10.0, 1.0)))
         assertEquals(View.INVISIBLE, overlay.visibility)
         assertFalse(host!!.setBounds(generation + 1, NativeGameWebViewBounds(1.0, 1.0, 10.0, 10.0, 1.0)))
+    }
+
+    @Test
+    fun startupIndicatorSweepsShortSegmentAndRetainsMeasuredProgress() = onMain {
+        var time = 280L
+        val tone = 0xff6fc3bd.toInt()
+        val width = 200
+        val height = 8
+        val indicator = NativeGameStartupIndicator(context, { time }, animationsEnabled = true)
+        indicator.layout(0, 0, width, height)
+        indicator.update(null, tone, stalled = false)
+
+        fun highlightedPixels(): List<Int> {
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            return try {
+                indicator.draw(Canvas(bitmap))
+                (0 until width).filter { x -> bitmap.getPixel(x, height / 2) == tone }
+            } finally {
+                bitmap.recycle()
+            }
+        }
+
+        val first = highlightedPixels()
+        time = 980L
+        val later = highlightedPixels()
+        assertTrue(first.size in 50..58)
+        assertTrue(later.size in 50..58)
+        assertTrue(later.first() > first.last())
+        time += 1_400L
+        assertEquals(later, highlightedPixels())
+
+        indicator.update(60, tone, stalled = false)
+        assertTrue(highlightedPixels().size in 116..120)
+        indicator.update(null, tone, stalled = true)
+        assertTrue(highlightedPixels().isEmpty())
+    }
+
+    @Test
+    fun startupCardDrawsAboveTheWebViewInsideTheViewportWithoutTakingTouch() = onMain {
+        val root = sizedRoot()
+        val gameHost = ActivityWebViewHost(context, root, recordingSink(mutableListOf()))
+        host = gameHost
+        val generation = requireNotNull(gameHost.create())
+        val overlay = root.getChildAt(0) as FrameLayout
+        val loading = NativeGameStartupCardData("Loading entry page", pageProgress = 38)
+
+        assertTrue(gameHost.setStartupCard(generation, loading))
+        assertSame(gameHost.currentWebView, overlay.getChildAt(0))
+        val passiveLayer = overlay.getChildAt(1) as FrameLayout
+        val card = passiveLayer.getChildAt(0)
+        assertEquals(Gravity.CENTER, (card.layoutParams as FrameLayout.LayoutParams).gravity)
+        assertEquals(View.INVISIBLE, overlay.visibility)
+        assertTrue(gameHost.setBounds(generation, NativeGameWebViewBounds(10.0, 20.0, 226.0, 125.0, 2.0)))
+        assertTrue(gameHost.setVisible(generation, true))
+        assertEquals(View.VISIBLE, overlay.visibility)
+
+        assertTrue(gameHost.setStartupCard(generation, loading))
+        assertSame(card, passiveLayer.getChildAt(0))
+        assertEquals(2, overlay.childCount)
+        assertTrue(gameHost.setStartupCard(generation, loading.copy(
+            title = "Loading game resources",
+            pageProgress = null,
+            requests = "8 requests",
+        )))
+        assertEquals(
+            Gravity.CENTER,
+            (card.layoutParams as FrameLayout.LayoutParams).gravity,
+        )
+        root.measure(
+            View.MeasureSpec.makeMeasureSpec(800, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(600, View.MeasureSpec.EXACTLY),
+        )
+        root.layout(0, 0, 800, 600)
+        assertTrue(card.left >= 0 && card.right <= passiveLayer.width)
+        assertTrue(card.top >= 0 && card.bottom < passiveLayer.height)
+        assertTrue(kotlin.math.abs(card.top + card.bottom - passiveLayer.height) <= 1)
+        assertTrue(gameHost.setVisible(generation, false))
+        assertEquals(View.INVISIBLE, overlay.visibility)
+        assertTrue(gameHost.setVisible(generation, true))
+        val down = MotionEvent.obtain(0L, 0L, MotionEvent.ACTION_DOWN, 10f, 10f, 0)
+        try {
+            assertFalse(passiveLayer.dispatchTouchEvent(down))
+        } finally {
+            down.recycle()
+        }
+        assertFalse(gameHost.setStartupCard(generation + 1, null))
+        assertEquals(2, overlay.childCount)
+        assertTrue(gameHost.setStartupCard(generation, null))
+        assertEquals(1, overlay.childCount)
+
+        assertTrue(gameHost.setStartupCard(generation, loading))
+        assertTrue(gameHost.destroy(generation))
+        val replacement = requireNotNull(gameHost.create())
+        assertFalse(gameHost.setStartupCard(generation, loading))
+        assertEquals(1, (root.getChildAt(0) as FrameLayout).childCount)
+        assertTrue(gameHost.destroy(replacement))
     }
 
     @Test

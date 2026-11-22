@@ -19,6 +19,7 @@ import 'package:yahagi_kancolle_browser/src/browser/gadget_bypass_store.dart';
 import 'package:yahagi_kancolle_browser/src/layout/display_corners.dart';
 import 'package:yahagi_kancolle_browser/src/layout/workspace_context_header.dart';
 import 'package:yahagi_kancolle_browser/src/settings/header_resource_settings.dart';
+import 'package:yahagi_kancolle_browser/src/settings/fleet_display_options.dart';
 import 'package:yahagi_kancolle_browser/src/settings/game_rendering_mode.dart';
 import 'package:yahagi_kancolle_browser/src/settings/game_rendering_mode_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_controller.dart';
@@ -26,6 +27,7 @@ import 'package:yahagi_kancolle_browser/src/settings/dashboard_display_mode.dart
 import 'package:yahagi_kancolle_browser/src/settings/ui_font_size.dart';
 import 'package:yahagi_kancolle_browser/src/theme/app_theme.dart';
 import 'package:yahagi_kancolle_browser/src/settings/layout_settings_store.dart';
+import 'package:yahagi_kancolle_browser/src/settings/module_display_settings.dart';
 import 'package:yahagi_kancolle_browser/src/settings/network_settings_controller.dart';
 import 'package:yahagi_kancolle_browser/src/settings/network_settings_store.dart';
 import 'package:yahagi_kancolle_browser/src/settings/display_mode_controller.dart';
@@ -6433,6 +6435,90 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets(
+      'fleet display edits refresh the panel without refitting the game',
+      (tester) async {
+        final originalFleetLabelMode = fleetSelectorLabelModeSetting;
+        setFleetSelectorLabelModeSetting(FleetSelectorLabelMode.customName);
+        addTearDown(
+          () => setFleetSelectorLabelModeSetting(originalFleetLabelMode),
+        );
+        final browserPort = _NoopBrowserPort();
+        final layout = await _pumpMinimalShell(
+          tester,
+          browserPort: browserPort,
+        );
+        await tester.pumpAndSettle(const Duration(milliseconds: 250));
+        final card = find.byType(FleetSummaryCard);
+        final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+        final fitCalls = browserPort.fitGameScreenCalls;
+
+        await layout.setModuleShowLogo('fleet', false);
+        await tester.pump();
+        expect(tester.widget<FleetSummaryCard>(card).showLogo, isFalse);
+
+        await layout.setModuleShowName('fleet', false);
+        await layout.setFleetSelectorLabelMode(FleetSelectorLabelMode.number);
+        await layout.setFleetShipTypeLabelMode(
+          FleetShipTypeLabelMode.abbreviation,
+        );
+        await layout.setFleetDisplayFields({'hp', 'air-power'});
+        await layout.setHdFleetDisplayFields({'hp', 'firepower'});
+        await tester.pumpAndSettle(const Duration(milliseconds: 250));
+
+        final fleet = tester.widget<FleetSummaryCard>(card);
+        expect(fleet.showTitle, isFalse);
+        expect(fleet.shipTypeLabelMode, FleetShipTypeLabelMode.abbreviation);
+        expect(fleet.visible, {'hp', 'air-power'});
+        expect(fleet.twoColumnVisible, {'hp', 'firepower'});
+        expect(tester.widget<MaterialApp>(find.byType(MaterialApp)), same(app));
+        expect(browserPort.fitGameScreenCalls, fitCalls);
+      },
+    );
+
+    testWidgets(
+      'module display edits refresh the panel without refitting the game',
+      (tester) async {
+        final originalRepairLabelMode = repairFleetSelectorLabelModeSetting;
+        setRepairFleetSelectorLabelModeSetting(
+          FleetSelectorLabelMode.customName,
+        );
+        addTearDown(
+          () => setRepairFleetSelectorLabelModeSetting(originalRepairLabelMode),
+        );
+        final browserPort = _NoopBrowserPort();
+        final layout = await _pumpMinimalShell(
+          tester,
+          browserPort: browserPort,
+        );
+        await layout.setDashboardCardOrder([
+          'repair',
+          ...layout.dashboardCardOrder.where((id) => id != 'repair'),
+        ]);
+        await tester.pumpAndSettle(const Duration(milliseconds: 250));
+        final card = find.byType(RepairSummaryCard);
+        final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+        final fitCalls = browserPort.fitGameScreenCalls;
+
+        await layout.setModuleShowLogo('repair', false);
+        await tester.pump();
+        expect(tester.widget<RepairSummaryCard>(card).showLogo, isFalse);
+
+        await layout.setModuleShowName('repair', false);
+        await layout.setRepairFleetSelectorLabelMode(
+          FleetSelectorLabelMode.number,
+        );
+        await layout.setModuleDisplayFields('repair', {'empty'});
+        await tester.pumpAndSettle(const Duration(milliseconds: 250));
+
+        final repair = tester.widget<RepairSummaryCard>(card);
+        expect(repair.showTitle, isFalse);
+        expect(repair.visible, {'empty'});
+        expect(tester.widget<MaterialApp>(find.byType(MaterialApp)), same(app));
+        expect(browserPort.fitGameScreenCalls, fitCalls);
+      },
+    );
 
     testWidgets('switching compact and minimal keeps info card state', (
       tester,

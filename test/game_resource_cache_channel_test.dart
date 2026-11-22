@@ -11,6 +11,27 @@ void main() {
 
   tearDown(() => messenger.setMockMethodCallHandler(channel, null));
 
+  test(
+    'status keeps manifest readiness separate from the proxy pause',
+    () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'status');
+        return <String, Object?>{
+          'mode': 'full',
+          'manifestReady': true,
+          'preloadBlockedByProxy': true,
+        };
+      });
+      const port = MethodChannelGameResourceCachePort(channel);
+
+      final status = await port.status();
+
+      expect(status.manifestReady, isTrue);
+      expect(status.preloadBlockedByProxy, isTrue);
+      expect(status.waitingForWifi, isFalse);
+    },
+  );
+
   test('large manifests are transferred in bounded batches', () async {
     final calls = <MethodCall>[];
     messenger.setMockMethodCallHandler(channel, (call) async {

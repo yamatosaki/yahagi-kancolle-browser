@@ -233,6 +233,8 @@ class GameResourceCacheManager(
             "capacityBlocked" to status.capacityBlocked,
             "isMetered" to status.isMetered,
             "waitingForWifi" to status.waitingForWifi,
+            "manifestReady" to status.manifestReady,
+            "preloadBlockedByProxy" to status.preloadBlockedByProxy,
         )
     }
 
