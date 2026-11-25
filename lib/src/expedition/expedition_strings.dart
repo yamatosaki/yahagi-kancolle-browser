@@ -203,7 +203,7 @@ class ExpeditionStrings {
       : _ja
       ? '目標確率'
       : traditional
-      ? '目標概率'
+      ? '目標機率'
       : '目标概率';
   String get timeAndCost => _en
       ? 'Time and cost'
@@ -419,7 +419,7 @@ class ExpeditionStrings {
         _ja
             ? '現在の大成功率 ≥ $number%'
             : traditional
-            ? '目前大成功概率 ≥ $number%'
+            ? '目前大成功機率 ≥ $number%'
             : value.label,
       ExpeditionConditionKind.allSparkled =>
         _ja

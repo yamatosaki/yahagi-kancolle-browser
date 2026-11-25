@@ -256,7 +256,7 @@ void main() {
             );
             expect(
               fakePort.scheduledAlarms['expedition_3_complete']!.body,
-              '遠征 99 が無事に母港へ帰投しました！',
+              '「遠征 99」の遠征艦隊が母港に帰投しました！',
             );
           }
           if (code == 'zh_Hant') expect(alarm.title, '遠征完成 · 我的舰队');
@@ -276,7 +276,7 @@ void main() {
               fakePort.scheduledAlarms['expedition_3_complete']!.title,
               'Expedition complete · Fleet 3',
             );
-            expect(alarm.body, '东京急行 has safely returned to port!');
+            expect(alarm.body, 'The fleet has returned from 东京急行!');
             for (final seconds in [1, 2]) {
               await settingsController.setExpeditionPreemptSeconds(seconds);
               await Future<void>.delayed(Duration.zero);

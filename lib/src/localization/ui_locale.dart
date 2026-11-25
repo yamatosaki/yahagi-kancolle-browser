@@ -1,5 +1,11 @@
 import 'package:flutter/widgets.dart';
 
+Locale? uiLocaleFromStorageCode(String? code) => switch (code) {
+  null => null,
+  'zh_Hant' => const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
+  _ => Locale(code),
+};
+
 /// Shares the same regional-language rules between UI, fonts and notifications.
 String uiLocaleStorageCode(Locale? locale) {
   if (locale?.languageCode == 'ja') return 'ja';

@@ -228,7 +228,7 @@ const uiTextTranslations = <String, (String, String, String, String)>{
   '二队旗舰': ('二隊旗艦', '第二艦隊旗艦', '제2함대 기함', 'Second fleet flagship'),
   '二队 MVP': ('二隊 MVP', '第二艦隊 MVP', '제2함대 MVP', 'Second fleet MVP'),
   '旧版记录': ('舊版記錄', '旧形式の記録', '이전 형식의 기록', 'Legacy record'),
-  '演习': ('演習', '演習', '연습', 'Exercise'),
+  '演习': ('演習', '演習', '연습전', 'Exercise'),
   '除籍': ('除籍', '除籍', '제적', 'Removal'),
   '暂无记录': ('暫無記錄', '記録はありません', '기록이 없습니다', 'No records'),
   '未知舰种': ('未知艦種', '不明な艦種', '알 수 없는 함종', 'Unknown ship type'),

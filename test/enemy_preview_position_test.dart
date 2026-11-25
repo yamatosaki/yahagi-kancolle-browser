@@ -147,6 +147,21 @@ void main() {
   final raidPanel = find.byKey(const Key('land-base-raid-panel'));
   final formation = find.byKey(const Key('battle-last-formation-pill'));
 
+  for (final (locale, title) in const [
+    (Locale('zh'), '敌方部队（战前预测）'),
+    (Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'), '敵方部隊（戰前預測）'),
+    (Locale('ja'), '敵艦隊（戦闘前予測）'),
+    (Locale('ko'), '적 함대 (전투 전 예측)'),
+    (Locale('en'), 'Enemy fleet (pre-battle prediction)'),
+  ]) {
+    testWidgets('enemy forecast heading uses $locale', (tester) async {
+      final controller = await _navigationController();
+      addTearDown(controller.dispose);
+      await _pumpCard(tester, controller, compact: false, locale: locale);
+      expect(find.text(title), findsOneWidget);
+    });
+  }
+
   for (final compact in [false, true]) {
     testWidgets(
       'English air raid fits a narrow battle card (compact=$compact)',

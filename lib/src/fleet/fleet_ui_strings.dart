@@ -551,7 +551,7 @@ String fleetText(BuildContext context, String source) {
     "耐久": ("耐久", "耐久", "내구", "HP"),
     "功能区位置": ("功能區位置", "機能エリアの位置", "기능 영역 위치", "Panel position"),
     "拓展功能区位置": (
-      "拓展功能區位置",
+      "擴充功能區位置",
       "拡張機能エリアの位置",
       "확장 기능 영역 위치",
       "Extended panel position",
@@ -838,7 +838,7 @@ String fleetText(BuildContext context, String source) {
   const templates = <(String, String, String, String, String)>[
     (
       r"^当前配装预估发动概率约为 (\d+)%。$",
-      "目前配裝預估發動概率約為 {0}%。",
+      "目前配裝的預估發動機率約為 {0}%。",
       "現在の装備での推定発動率は約{0}%です。",
       "현재 장비 구성의 예상 발동 확률은 약 {0}%입니다.",
       "Estimated activation chance with the current equipment: about {0}%.",

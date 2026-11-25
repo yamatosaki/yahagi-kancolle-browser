@@ -45,7 +45,7 @@ void main() {
         ),
       ],
     );
-    expect(expeditionSummary(l10n, state, now), '进行中 2/3 · 最近 00:14:21');
+    expect(expeditionSummary(l10n, state, now), '进行中 2/3 · 下次完成 00:14:21');
   });
 
   test('没有远征时摘要为空', () {
@@ -76,7 +76,7 @@ void main() {
         ),
       },
     );
-    expect(fleetSummary(l10n, state, 1), '大破 1 · 最低疲劳 17');
+    expect(fleetSummary(l10n, state, 1), '大破 1 · 最低士气 17');
   });
 
   test('舰队摘要同时显示大破与中破', () {
@@ -103,7 +103,7 @@ void main() {
         ),
       },
     );
-    expect(fleetSummary(l10n, state, 1), '大破 1 · 中破 1 · 最低疲劳 33');
+    expect(fleetSummary(l10n, state, 1), '大破 1 · 中破 1 · 最低士气 33');
   });
 
   test('没有舰船的舰队没有摘要', () {
@@ -129,7 +129,7 @@ void main() {
         const RepairDock(id: 4),
       ],
     );
-    expect(repairSummary(l10n, state, now), '使用中 2/4 · 最近 00:02:01');
+    expect(repairSummary(l10n, state, now), '使用中 2/4 · 下次完成 00:02:01');
     expect(repairSummary(l10n, const GameState(), now), isNull);
   });
 

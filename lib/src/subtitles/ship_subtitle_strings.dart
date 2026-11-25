@@ -35,7 +35,7 @@ class ShipSubtitleStrings {
   );
 
   String get fontSize =>
-      _t('字幕字体大小', '字幕字體大小', '字幕の文字サイズ', 'Subtitle font size', '자막 글꼴 크기');
+      _t('字幕字体大小', '字幕字級', '字幕の文字サイズ', 'Subtitle font size', '자막 글꼴 크기');
 
   String get language =>
       _t('字幕语言', '字幕語言', '字幕の言語', 'Subtitle language', '자막 언어');

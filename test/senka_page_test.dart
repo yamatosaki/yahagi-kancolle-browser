@@ -143,8 +143,8 @@ void main() {
     expect(find.text('所属サーバー'), findsOneWidget);
     await tester.tap(find.byKey(const Key('senka-tab-calculator')));
     await tester.pump();
-    expect(find.text('集計後増分'), findsOneWidget);
-    expect(find.text('利用可能日数（本日含む）'), findsOneWidget);
+    expect(find.text('集計後の増加分'), findsOneWidget);
+    expect(find.text('残り日数（今日を含む）'), findsOneWidget);
 
     await pumpSenka(
       tester,

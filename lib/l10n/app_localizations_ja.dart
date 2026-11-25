@@ -12,7 +12,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get gameStartupCheckTitle => '起動チェック';
 
   @override
-  String get gameStartupCheckDescription => '起動時の段階、進捗、接続状況を表示します。';
+  String get gameStartupCheckDescription => '起動の各段階と進捗、接続に関する案内を表示します。';
 
   @override
   String get gameStartupCheckSaveFailed => '起動チェックの設定を保存できませんでした。もう一度お試しください。';
@@ -128,7 +128,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String debuffReminderMessage(String source) {
-    return '$source：ギミック・弱体化の通知を検出しました。';
+    return '$source：ギミック解除・装甲破砕の合図を検出しました。';
   }
 
   @override
@@ -139,7 +139,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get debuffReminderSettingSubtitle =>
-      'どちらも振動付き。ギミック解除・弱体化の合図を検出するとお知らせします。';
+      'ギミック解除・装甲破砕の合図を検出すると通知します。どちらの通知方法でも端末が振動します。';
 
   @override
   String get debuffReminderStyleDialog => '確認ダイアログ（初期設定）';
@@ -281,7 +281,8 @@ class AppLocalizationsJa extends AppLocalizations {
   String get resourceTrendExpand => 'グラフを拡大';
 
   @override
-  String get resourceTrendSampled => '長期間のグラフは極値を保持し、選択時は実際の抽出記録を表示';
+  String get resourceTrendSampled =>
+      '長期間のグラフでも山と谷を残して表示します。指で選ぶと、その時点の実際の記録値を確認できます。';
 
   @override
   String get resourceTrendLocalScale => '縦軸は在庫の範囲に合わせて拡大・縮小';
@@ -544,7 +545,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get minimalResourcePositionDesc =>
-      'ミニマルでスマートフォン横向き時、ゲームページの資源を情報バー上部、ゲーム上の細いバー、または画面下部の細いバーに表示します';
+      'ミニマル表示でスマートフォンを横向きにしたときの資源の表示位置を選びます。情報バーの上部、ゲーム画面の上、または画面下部に表示できます。';
 
   @override
   String get minimalResourcePositionPanel => '情報バー';
@@ -671,7 +672,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get clearQuestCacheDesc =>
-      'ローカルにキャッシュされた個人情報除去済みの任務データを消去します。アプリ再起動後にゲーム内の任務画面で再取得する必要があります。';
+      '端末に保存された個人情報を除いた任務データを消去します。アプリを再起動し、ゲーム内の任務画面を開くと再取得できます。';
 
   @override
   String get clearWebCache => 'ブラウザのWebキャッシュを消去';
@@ -795,7 +796,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get questBrief => '任務情報';
 
   @override
-  String get preSortieCheck => '出撃前検査';
+  String get preSortieCheck => '出撃前チェック';
 
   @override
   String get sortieExperience => '出撃経験値';
@@ -892,13 +893,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get gameSound => 'ゲームのサウンド';
 
   @override
-  String get aboutApp => 'ヤハギ について';
+  String get aboutApp => 'ヤハギについて';
 
   @override
-  String get aboutSubtitle => 'バージョン 学習版 1.0.2 · 免責事項 · 更新の確認';
-
-  @override
-  String get version => 'バージョン 学習版 1.0.2';
+  String editionVersion(String number) {
+    return '学習版 $number';
+  }
 
   @override
   String get disclaimerTitle => '免責事項 (DISCLAIMER)';
@@ -993,7 +993,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get advanceWarningSmartDescription =>
-      '全大破艦の残存ダメコンを確認できれば上部通知、それ以外は確認ダイアログ。';
+      '大破艦すべてに使用可能なダメコンが残っていると確認できた場合は上部に通知し、それ以外は確認ダイアログを表示します。';
 
   @override
   String get advanceWarningAlwaysConfirmDescription => '大破を検出すると確認ダイアログを表示。';
@@ -1030,14 +1030,14 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get postBattleDamageControlEquippedBody =>
-      '戦闘結果の後に大破艦があります。艦船と残りのダメコンを確認してください。';
+      '戦闘終了時点で大破している艦がいます。該当艦と残りのダメコンを確認してください。';
 
   @override
   String get postBattleDamageControlDangerBody =>
-      '戦闘結果の後に大破艦があります！進撃を止め、次の戦闘に入る前にゲーム内の状態を確認してください。';
+      '戦闘終了時点で大破している艦がいます！ 次の戦闘に進まず、ゲーム画面で状態を確認してください。';
 
   @override
-  String get advanceWarningDamageControlActive => 'ダメコン有効中';
+  String get advanceWarningDamageControlActive => '大破艦にダメコン装備あり';
 
   @override
   String get advanceWarningReloadGame => 'ゲーム再読み込み';
@@ -1089,7 +1089,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get logbookCleared => '航海日誌データをすべて消去しました';
 
   @override
-  String get antiCatbomb => '通信エラー保護 (防猫)';
+  String get antiCatbomb => '通信切断時の再試行（猫対策）';
 
   @override
   String get antiCatbombDesc =>
@@ -1748,22 +1748,22 @@ class AppLocalizationsJa extends AppLocalizations {
   String get browserFailed => 'Web ページ読み込み失敗';
 
   @override
-  String get capturePreparing => 'ゲーム API 取得を準備中';
+  String get capturePreparing => 'ゲームAPIの通信キャプチャを準備中';
 
   @override
   String get captureReady => '取得準備完了';
 
   @override
-  String get captureActive => 'ゲーム API を取得中';
+  String get captureActive => 'ゲームAPIの通信をキャプチャ中';
 
   @override
-  String get captureUnsupported => '現在の WebView はフレーム間取得に対応していません';
+  String get captureUnsupported => 'この WebView はフレームをまたぐ通信キャプチャに対応していません';
 
   @override
-  String get captureFailed => 'ゲーム API 取得の起動に失敗しました';
+  String get captureFailed => 'ゲームAPIの通信キャプチャを開始できませんでした';
 
   @override
-  String get captureCheckingDesc => 'Android WebView の取得能力を確認しています。';
+  String get captureCheckingDesc => 'Android WebView が通信キャプチャに対応しているか確認しています。';
 
   @override
   String get captureReadyDesc => '/kcsapi/ の応答待機中です。ゲームは通常どおり操作できます。';
@@ -1772,7 +1772,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get portCaptureVerified => '母港 API の確認に成功しました';
 
   @override
-  String get captureReceived => 'ゲーム API を受信しました。';
+  String get captureReceived => 'ゲームAPIの応答を受信しました。';
 
   @override
   String captureLatest(String path) {
@@ -1927,18 +1927,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get gameFrameRateStable30Desc => '常に 30 FPS で動作し、消費電力と発熱を抑えます。';
 
   @override
-  String get gameFrameRateHighRefresh => '高リフレッシュ';
+  String get gameFrameRateHighRefresh => '高リフレッシュレート';
 
   @override
   String get gameFrameRateHighRefreshDesc =>
       '60 FPS の制限を解除し、画面のリフレッシュレートに追従します。消費電力や発熱が増える場合があります。';
 
   @override
-  String get gameFrameRateHighRefreshDialogTitle => '高リフレッシュモードを有効にしますか？';
+  String get gameFrameRateHighRefreshDialogTitle => '高リフレッシュレートモードを有効にしますか？';
 
   @override
   String get gameFrameRateHighRefreshDialogBody =>
-      '高リフレッシュはゲームの動作フレームレートを変更するため、消費電力や発熱の増加、アニメーションの異常が発生する可能性があり、アカウントに関する未知のリスクもあります。結果についてはご自身で責任を負ってください。';
+      '高リフレッシュレートモードはゲームのフレームレートを変更します。消費電力や発熱が増えたり、アニメーションが乱れたりする場合があります。アカウントへの影響には不明な点もあります。リスクを理解したうえで有効にしてください。';
 
   @override
   String get gameFrameRateHighRefreshDialogConfirm => 'リスクを理解して有効にする';
@@ -1959,7 +1959,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get gameRenderingModeStandardDesc =>
-      'Flutter PlatformView + Texture Layer + WebGL。一部の合成負荷を軽減しますが、一部の端末で表示やタッチの互換性問題が発生する場合があります。';
+      'Flutter PlatformView + Texture Layer + WebGL。画面合成の負荷を軽減します。端末によっては表示やタッチ操作に問題が生じることがあります。';
 
   @override
   String get gameRenderingModeCompatibility => 'バランスモード';
@@ -2216,13 +2216,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get battleDamagePulse => '損傷点滅';
 
   @override
-  String get battleDamagePulseDesc => '現在の HP 損傷段階に応じて艦娘画像の枠を点滅させます。';
+  String get battleDamagePulseDesc => '現在の耐久値に応じて、艦娘画像の枠を損傷段階別に点滅させます。';
 
   @override
   String get battleDamageVibrationEffect => '損傷振動';
 
   @override
-  String get battleDamageVibrationEffectDesc => '味方艦娘が戦闘中に選択した損傷段階へ入ったとき振動します。';
+  String get battleDamageVibrationEffectDesc => '味方艦が戦闘中に指定した損傷段階になった時点で振動します。';
 
   @override
   String get battleMoraleSparkle => '士気キラキラ効果';
@@ -2466,7 +2466,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get unownedShipReminderHint =>
-      '未選択の艦娘を入手すると通常どおり通知と振動を行い、選択した艦娘は通知しません。';
+      'チェックを外した艦娘を入手すると、通知と振動でお知らせします。チェックを入れた艦娘は通知の対象外です。';
 
   @override
   String get clearNewShipExclusions => '除外を解除';
@@ -2758,7 +2758,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get gameResourceCacheClear => 'ローカルキャッシュを削除';
 
   @override
-  String get gameResourceCacheIntegrityComplete => '現在のキャッシュは完全です';
+  String get gameResourceCacheIntegrityComplete => 'キャッシュに不足や破損はありません';
 
   @override
   String get gameResourceCacheMissing => '不足';
@@ -2937,7 +2937,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get gameConnectorYahagi => 'Yahagi 接続';
 
   @override
-  String get gameConnectorYahagiDesc => '現在の DMM 公式ログイン入口を使用します。';
+  String get gameConnectorYahagiDesc => 'DMM公式のログインページを開きます。';
 
   @override
   String get gameConnectorOoi => 'OOI 接続（実験的）';
@@ -2951,11 +2951,11 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get gameConnectorOoiRisk =>
-      'アカウント情報は第三者サイト ooi.moe に送信されます。Yahagi はアカウント名やパスワードを読み取り、保存、自動入力しません。';
+      'ログイン情報は第三者サイトの ooi.moe に送信されます。Yahagi がアカウント名やパスワードを読み取ったり、保存・自動入力したりすることはありません。';
 
   @override
   String get gameConnectorActiveWarning =>
-      '切り替えると現在のゲーム画面が中断され、対象のログイン入口へ戻ります。';
+      '切り替えると現在のゲーム画面が閉じ、選択した接続先のログインページに戻ります。';
 
   @override
   String get gameConnectorApplied => 'ゲーム接続を切り替えました。';
@@ -2979,14 +2979,14 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get kcwikiReportEnabledDesc =>
-      'オンです。進路、任務前提、戦闘、友軍、基地航空／空襲、改修データのみ送信します。';
+      '有効です。ルート分岐、任務の前提条件、戦闘、友軍艦隊、基地航空隊・空襲、装備改修のデータのみを送信します。';
 
   @override
   String get kcwikiReportConfirmTitle => 'KCWiki データ提供を有効にしますか？';
 
   @override
   String get kcwikiReportConfirmDesc =>
-      '有効にすると、設定済みの HTTPS アドレスへ進路、任務前提、戦闘、友軍、基地航空／空襲、改修記録を送信します。ログイントークン、Cookie、リクエストヘッダーは送信せず、送信失敗でゲーム機能が停止することもありません。';
+      '有効にすると、設定済みの HTTPS 送信先にルート分岐、任務の前提条件、戦闘、友軍艦隊、基地航空隊・空襲、装備改修の記録を送信します。ログイントークン、Cookie、リクエストヘッダーは送信しません。送信に失敗してもゲームは続けられます。';
 
   @override
   String get kcwikiReportUnavailable =>
@@ -3137,16 +3137,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get senkaPlannedQuest => '予定任務';
 
   @override
-  String get senkaDailyRequired => '1日あたり必要';
+  String get senkaDailyRequired => '1日あたりの必要戦果';
 
   @override
   String get senkaTodayRemaining => '本日の残り';
 
   @override
-  String get senkaUnsettledDelta => '集計後増分';
+  String get senkaUnsettledDelta => '集計後の増加分';
 
   @override
-  String get senkaAvailableDaysIncludingToday => '利用可能日数（本日含む）';
+  String get senkaAvailableDaysIncludingToday => '残り日数（今日を含む）';
 
   @override
   String get senkaProjected => '予想戦果';
@@ -3250,10 +3250,10 @@ class AppLocalizationsJa extends AppLocalizations {
   String get senkaMonthSorties => '今月の出撃';
 
   @override
-  String get senkaBossArrivals => 'Boss 到達';
+  String get senkaBossArrivals => 'ボス到達';
 
   @override
-  String get senkaSWins => 'S 勝利';
+  String get senkaSWins => 'S勝利';
 
   @override
   String get senkaMonth => '今月';
@@ -3265,7 +3265,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get senkaShowHiddenAreas => '非表示海域を表示';
 
   @override
-  String get senkaShowHidden => '非表示を表示';
+  String get senkaShowHidden => '非表示の海域も表示';
 
   @override
   String get senkaArea => '海域';
@@ -3508,7 +3508,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get developmentAvailableRecipes => '利用可能なレシピ';
 
   @override
-  String get developmentPoolType => 'プール種類';
+  String get developmentPoolType => '開発テーブルの種類';
 
   @override
   String get developmentSelectSecretary => '秘書艦タイプを選択';
@@ -3590,7 +3590,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get developmentNoTargets => '目標装備を選ぶとおすすめレシピを表示します';
 
   @override
-  String get developmentNoResults => 'すべての目標を同時に開発できるレシピはありません';
+  String get developmentNoResults => '目標装備すべてを開発候補に含むレシピはありません';
 
   @override
   String get developmentTargetRate => '目標装備の開発率';
@@ -3683,7 +3683,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get workspaceMenuPosition => 'メニューの位置';
 
   @override
-  String get workspaceMenuPositionDesc => '上はゲーム画面のすぐ下に表示します。';
+  String get workspaceMenuPositionDesc => '「上」を選ぶと、ゲーム画面のすぐ下にメニューを表示します。';
 
   @override
   String get menuPositionTop => '上';
@@ -3710,7 +3710,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get topNoticeDurationTitle => '表示時間';
 
   @override
-  String get topNoticeDurationSubtitle => '通知ポップアップが表示されてから自動で閉じるまでの時間';
+  String get topNoticeDurationSubtitle => '通知を操作せずに自動で閉じるまでの時間';
 
   @override
   String get topNoticeDuration5s => '5秒 (デフォルト)';
@@ -3894,20 +3894,20 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String noticePreSortieCheckFailed(String reasons) {
-    return '出撃前チェック未通過：$reasons';
+    return '出撃前チェックで要確認：$reasons';
   }
 
   @override
   String get noticeSortieReasonUnresupplied => '補給未完了';
 
   @override
-  String get noticeSortieReasonFatigue => '疲労状態 (間宮点滅/赤疲労)';
+  String get noticeSortieReasonFatigue => '疲労艦あり（黄・赤の疲労マーク）';
 
   @override
-  String get noticeSortieReasonMainSlot => '主スロット未装備';
+  String get noticeSortieReasonMainSlot => '通常の装備スロットに空きあり';
 
   @override
-  String get noticeSortieReasonExpansionSlot => '増設スロット未装備';
+  String get noticeSortieReasonExpansionSlot => '補強増設スロットに空きあり';
 
   @override
   String noticeSortieHeavyDamage(String fleets) {
@@ -4008,7 +4008,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get expCalcTrackDeleted => '経験値追跡リストから削除しました';
 
   @override
-  String get expCalcTrackLoadFailed => '追跡リストの読み込みに失敗しました。再試行';
+  String get expCalcTrackLoadFailed => '追跡リストを読み込めませんでした。タップして再試行してください';
 
   @override
   String get expCalcTrackSaveFailed => '追跡リストを保存できませんでした。再試行してください';
@@ -4056,16 +4056,16 @@ class AppLocalizationsJa extends AppLocalizations {
   String get expCalcStep1Title => 'ステップ 1 · 艦娘と目標レベル';
 
   @override
-  String get expCalcStep2Title => 'ステップ 2 · 出撃海域マスと戦術ルート編成';
+  String get expCalcStep2Title => 'ステップ 2 · 出撃ルートと戦闘マスを設定';
 
   @override
-  String get expCalcResultHudTitle => '出撃ルート総合試算結果';
+  String get expCalcResultHudTitle => '出撃ルートの経験値試算';
 
   @override
-  String get expCalcTargetGapLabel => 'レベルアップ必要EXP';
+  String get expCalcTargetGapLabel => '目標レベルまでの残り経験値';
 
   @override
-  String get expCalcTargetAlignHint => '目標経験値はテーブルに自動同期';
+  String get expCalcTargetAlignHint => '目標レベルに必要な経験値は経験値表から自動で設定されます';
 
   @override
   String get expCalcRouteSummaryPrefix => '現在のルート合計';
@@ -4159,17 +4159,17 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String summaryFleetMinMorale(int value) {
-    return '最低疲労 $value';
+    return '最低コンディション $value';
   }
 
   @override
   String summaryExpedition(int active, String time) {
-    return '遠征中 $active/3 · 直近 $time';
+    return '遠征中 $active/3 · 次の帰投まで $time';
   }
 
   @override
   String summaryRepair(int busy, int total, String time) {
-    return '使用中 $busy/$total · 直近 $time';
+    return '使用中 $busy/$total · 次の修理完了まで $time';
   }
 
   @override
@@ -4246,7 +4246,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsGroupAppearance => '基本の外観';
 
   @override
-  String get settingsGroupScreenAdaptation => '画面への適応';
+  String get settingsGroupScreenAdaptation => '画面サイズへの対応';
 
   @override
   String get settingsGroupLayoutPosition => '配置と位置';
@@ -4354,7 +4354,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get briefingDisplayTabs => 'タブ式';
 
   @override
-  String get briefingTabForecast => '戦況';
+  String get briefingTabForecast => '予測';
 
   @override
   String get briefingTabFleet => '編成';

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../fleet/ship_portrait.dart';
 import '../game_state/game_state.dart';
 import '../layout/panel_style.dart';
+import 'battle_detail_strings.dart';
 import 'battle_fleet_block.dart';
 import 'battle_models.dart';
 
@@ -38,7 +39,7 @@ class OfficialEnemyPreview extends StatelessWidget {
     return BattleFleetBlock(
       key: const Key('official-enemy-preview'),
       title: Text(
-        '敌方部队（战前预测）',
+        BattleDetailStrings.of(context).localize('敌方部队（战前预测）'),
         key: const Key('official-enemy-preview-title'),
         style: appTextStyle(
           context,

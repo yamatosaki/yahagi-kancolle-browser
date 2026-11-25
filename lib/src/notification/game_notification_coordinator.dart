@@ -649,7 +649,7 @@ class GameNotificationCoordinator {
                 title: _text(
                   '远征即将归还 · $fleetName',
                   '遠征即將歸還 · $fleetName',
-                  '遠征帰投まもなく · $fleetName',
+                  'まもなく遠征から帰投 · $fleetName',
                   '원정 귀환 임박 · $fleetName',
                   'Expedition returning soon · $fleetName',
                 ),
@@ -683,9 +683,9 @@ class GameNotificationCoordinator {
             body: _text(
               '$missionName 已顺利返抵母港！',
               '$missionName 已順利返回母港！',
-              '$missionName が無事に母港へ帰投しました！',
+              '「$missionName」の遠征艦隊が母港に帰投しました！',
               '$missionName 원정에서 무사히 모항으로 귀환했습니다!',
-              '$missionName has safely returned to port!',
+              'The fleet has returned from $missionName!',
             ),
           );
         }
@@ -724,7 +724,7 @@ class GameNotificationCoordinator {
                 title: _text(
                   '修复即将完成 · 船坞 #${dock.id}',
                   '修復即將完成 · 船塢 #${dock.id}',
-                  '修理完了まもなく · ドック #${dock.id}',
+                  'まもなく修理完了 · 入渠ドック #${dock.id}',
                   '수리 완료 임박 · 도크 #${dock.id}',
                   'Repairs almost complete · Dock #${dock.id}',
                 ),
@@ -800,7 +800,7 @@ class GameNotificationCoordinator {
                 title: _text(
                   '建造即将完成 · 船坞 #${dock.id}',
                   '建造即將完成 · 船塢 #${dock.id}',
-                  '建造完了まもなく · ドック #${dock.id}',
+                  'まもなく建造完了 · 建造ドック #${dock.id}',
                   '건조 완료 임박 · 도크 #${dock.id}',
                   'Construction almost complete · Dock #${dock.id}',
                 ),
@@ -880,7 +880,7 @@ class GameNotificationCoordinator {
             title: _text(
               '泊地修理结算就绪 · $fleet1Name',
               '泊地修理結算就緒 · $fleet1Name',
-              '泊地修理の回復反映が可能 · $fleet1Name',
+              '泊地修理の初回回復を反映できます · $fleet1Name',
               '정박지 수리 정산 가능 · $fleet1Name',
               'Anchorage repair ready to apply · $fleet1Name',
             ),
@@ -923,7 +923,7 @@ class GameNotificationCoordinator {
               body: _text(
                 '$fleet1Name 中符合条件的舰船预计已全部修复。',
                 '$fleet1Name 中符合條件的艦船預計已全部修復。',
-                '$fleet1Name の対象艦はすべて修理が完了した見込みです。',
+                '$fleet1Name の対象艦はすべて修理を終えた見込みです。',
                 '$fleet1Name 내 수리 대상 함선이 모두 수리된 것으로 예상됩니다.',
                 'All eligible ships in $fleet1Name are estimated to be fully repaired.',
               ),
@@ -981,7 +981,7 @@ class GameNotificationCoordinator {
                   title: _text(
                     '野埼刷闪即将完成 · $fleetName',
                     '野埼刷閃即將完成 · $fleetName',
-                    '野埼のキラ付け完了まもなく · $fleetName',
+                    '野埼のキラ付けがまもなく完了 · $fleetName',
                     '노사키 반짝이 작업 완료 임박 · $fleetName',
                     'Nosaki morale training almost complete · $fleetName',
                   ),
@@ -1054,7 +1054,7 @@ class GameNotificationCoordinator {
                   title: _text(
                     '疲劳即将恢复 · $fleetName',
                     '疲勞即將恢復 · $fleetName',
-                    '疲労回復まもなく · $fleetName',
+                    'まもなく疲労回復 · $fleetName',
                     '피로 회복 완료 임박 · $fleetName',
                     'Fatigue recovery almost complete · $fleetName',
                   ),

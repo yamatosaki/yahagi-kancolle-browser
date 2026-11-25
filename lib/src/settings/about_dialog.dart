@@ -12,7 +12,7 @@ typedef ExternalUrlLauncher = Future<bool> Function(Uri uri);
 class AboutContentWidget extends StatelessWidget {
   const AboutContentWidget({
     super.key,
-    this.currentVersion = '1.0.2',
+    this.currentVersion = '—',
     this.releaseChecker,
     this.externalUrlLauncher,
     this.supportSection,
@@ -271,8 +271,7 @@ class AboutContentWidget extends StatelessWidget {
                               ),
                             ),
                             child: Text(
-                              l10n.version.replaceFirst(
-                                RegExp(r'\d+(?:\.\d+){1,2}'),
+                              l10n.editionVersion(
                                 displayReleaseVersion(currentVersion),
                               ),
                               style: TextStyle(

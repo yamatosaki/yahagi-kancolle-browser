@@ -6,10 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yahagi_kancolle_browser/l10n/app_localizations.dart';
+import 'package:yahagi_kancolle_browser/main.dart' show buildBackupRecoveryApp;
 import 'package:yahagi_kancolle_browser/src/account/account_session.dart';
 import 'package:yahagi_kancolle_browser/src/backup/record_backup.dart';
 import 'package:yahagi_kancolle_browser/src/bridge/captured_api_event.dart';
 import 'package:yahagi_kancolle_browser/src/game_state/game_state.dart';
+import 'package:yahagi_kancolle_browser/src/localization/record_backup_strings.dart';
 import 'package:yahagi_kancolle_browser/src/logbook/logbook_database.dart';
 import 'package:yahagi_kancolle_browser/src/logbook/logbook_experience_record.dart';
 import 'package:yahagi_kancolle_browser/src/settings/record_backup_section.dart';
@@ -247,6 +249,93 @@ class _MigratingDocumentPort implements BackupDocumentPort {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('cold-start backup recovery uses the saved or system language', (
+    tester,
+  ) async {
+    final session = AccountSession(initialMemberId: 1001);
+    final service = RecordBackupService(
+      session: session,
+      port: _MemoryDocumentPort(),
+    );
+    addTearDown(session.dispose);
+    addTearDown(service.dispose);
+    final platform = tester.binding.platformDispatcher;
+    addTearDown(platform.clearLocaleTestValue);
+    addTearDown(platform.clearLocalesTestValue);
+    const hant = Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant');
+    const error = FormatException('Backup checksum mismatch');
+    for (final (saved, system, expected) in const [
+      ('ja', Locale('en'), Locale('ja')),
+      ('zh_Hant', Locale('ja'), hant),
+      (null, Locale('ko'), Locale('ko')),
+      (null, Locale('zh', 'HK'), hant),
+      (null, Locale('fr'), Locale('zh')),
+    ]) {
+      platform.localeTestValue = system;
+      platform.localesTestValue = [system];
+      await tester.pumpWidget(
+        buildBackupRecoveryApp(
+          localeCode: saved,
+          service: service,
+          initialError: error,
+          onRecovered: () {},
+        ),
+      );
+      await tester.pumpAndSettle();
+      final context = tester.element(find.byType(Scaffold));
+      expect(Localizations.localeOf(context), expected);
+      expect(AppLocalizations.of(context), isNotNull);
+      final strings = RecordBackupStrings(expected);
+      expect(find.text(strings.recoveryPending), findsOneWidget);
+      expect(find.text(strings.errorMessage(error)), findsOneWidget);
+    }
+  });
+
+  test('backup errors use the selected language and keep external details', () {
+    const checksumError = FormatException('Backup checksum mismatch');
+    final directoryError = PlatformException(
+      code: 'invalid_backup_directory',
+      message: '请选择本机文档文件夹或其子文件夹',
+    );
+    for (final (locale, folder, checksum) in const [
+      (Locale('zh'), '请选择本机文档文件夹或其子文件夹', '备份校验和不匹配'),
+      (
+        Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
+        '請選擇本機的文件資料夾或其子資料夾',
+        '備份校驗碼不符',
+      ),
+      (
+        Locale('ja'),
+        '端末のドキュメントフォルダーか、その中のフォルダーを選択してください',
+        'バックアップのチェックサムが一致しません',
+      ),
+      (Locale('ko'), '기기의 문서 폴더나 그 하위 폴더를 선택하세요', '백업 체크섬이 일치하지 않습니다'),
+      (
+        Locale('en'),
+        'Select the Documents folder on this device or one of its subfolders',
+        'Backup checksum mismatch',
+      ),
+    ]) {
+      final strings = RecordBackupStrings(locale);
+      expect(strings.errorMessage(directoryError), folder);
+      expect(strings.errorMessage(checksumError), checksum);
+      expect(strings.syncFailed(checksumError.toString()), contains(checksum));
+      expect(
+        strings.clearFailed(StateError('Game account changed')),
+        contains(strings.accountChanged),
+      );
+    }
+    const ja = RecordBackupStrings(Locale('ja'));
+    final denied = PlatformException(
+      code: 'invalid_backup_directory',
+      message: 'Permission denied',
+      details: '/Documents/logs',
+    );
+    expect(ja.errorMessage(denied), denied.toString());
+    final unknown = StateError('External document data');
+    expect(ja.errorMessage(unknown), unknown.toString());
+    expect(ja.syncFailed(unknown.toString()), contains(unknown.toString()));
+  });
   test('import decoding yields the event loop before completing', () async {
     SharedPreferences.setMockInitialValues({});
     final root = await Directory.systemTemp.createTemp('yahagi-worker-import-');

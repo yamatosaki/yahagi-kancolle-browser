@@ -42,7 +42,7 @@ class ExpCalcStrings {
     '演习（手动输入）',
     '演習（手動輸入）',
     '演習（手動入力）',
-    '연습(직접 입력)',
+    '연습전(직접 입력)',
     'Exercise (manual entry)',
   );
   String get equalWeight => text(
@@ -120,7 +120,7 @@ class ExpCalcStrings {
   String get roundedHint => text(
     '各编成平均，四舍五入至 10 的倍数',
     '各編成平均，四捨五入至 10 的倍數',
-    '各編成の平均を10刻みで四捨五入',
+    '各編成の平均を、一の位で四捨五入した値',
     '각 편성의 평균을 10 단위로 반올림',
     'Average across compositions, rounded to the nearest 10',
   );

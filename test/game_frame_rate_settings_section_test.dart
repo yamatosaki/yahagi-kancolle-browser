@@ -104,7 +104,7 @@ void main() {
     ),
     (
       locale: const Locale('ja'),
-      texts: <String>['ゲームフレームレート', '自動', '60 FPS', '30 FPS', '高リフレッシュ'],
+      texts: <String>['ゲームフレームレート', '自動', '60 FPS', '30 FPS', '高リフレッシュレート'],
     ),
   ]) {
     testWidgets('localizes all modes for ${localeCase.locale}', (tester) async {

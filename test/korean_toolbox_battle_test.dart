@@ -168,7 +168,7 @@ void main() {
     expect(exp.target, '함선과 목표');
     expect(exp.coverage(2, 5), '5개 편성 중 2개 확인');
     expect(exp.equalWeight, contains('최종 형태'));
-    expect(enemy.preciseConfiguration, '정확한 편성');
+    expect(enemy.preciseConfiguration, '능력치 및 장비 일치');
     expect(enemy.antiSub, '대잠');
     expect(enemy.hp, 'HP');
     expect(enemyEquipmentTypeIconIds['艦上戦闘機'], 6);

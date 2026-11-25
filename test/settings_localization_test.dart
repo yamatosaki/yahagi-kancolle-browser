@@ -32,8 +32,8 @@ void main() {
       ),
     );
 
-    expect(find.text('外觀與布局'), findsOneWidget);
-    expect(find.text('遊戲運行'), findsOneWidget);
+    expect(find.text('外觀與版面'), findsOneWidget);
+    expect(find.text('遊戲執行'), findsOneWidget);
     expect(find.text('出擊與戰鬥'), findsOneWidget);
     expect(find.text('網路與連線'), findsOneWidget);
     expect(find.text('資料管理'), findsOneWidget);

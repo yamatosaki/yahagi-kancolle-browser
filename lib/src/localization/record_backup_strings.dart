@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 /// Reviewed labels for account-scoped logbook and composition backups.
@@ -27,6 +28,193 @@ class RecordBackupStrings {
     '기록 백업 및 복원',
     'Record backup and restore',
   );
+  String errorMessage(Object error) {
+    final original = error.toString();
+    if (error is PlatformException) {
+      if (error.code == 'invalid_backup_directory' &&
+          error.message == '请选择本机文档文件夹或其子文件夹') {
+        return _text(
+          '请选择本机文档文件夹或其子文件夹',
+          '請選擇本機的文件資料夾或其子資料夾',
+          '端末のドキュメントフォルダーか、その中のフォルダーを選択してください',
+          '기기의 문서 폴더나 그 하위 폴더를 선택하세요',
+          'Select the Documents folder on this device or one of its subfolders',
+        );
+      }
+      return original;
+    }
+
+    // Sync status retains the exception text after the operation finishes.
+    final message = switch (error) {
+      StateError(:final message) => message,
+      FormatException(:final message) => message,
+      String text when text.startsWith('Bad state: ') => text.substring(
+        'Bad state: '.length,
+      ),
+      String text when text.startsWith('FormatException: ') => text.substring(
+        'FormatException: '.length,
+      ),
+      _ => null,
+    };
+    if (message == null) return original;
+    if (message == 'Game account changed' || message == accountChanged) {
+      return accountChanged;
+    }
+    if (message == 'Game account is not verified') return loginRequired;
+    final key = switch (message) {
+      'Backup copy belongs to another account' ||
+      'Current backup belongs to another account' =>
+        'Backup belongs to another account',
+      'Restore journal belongs to another account' =>
+        'Restore journal account mismatch',
+      _ => message,
+    };
+    final texts = _errorMessages[key];
+    if (texts == null) return original;
+    return _text(texts.$1, texts.$2, texts.$3, texts.$4, message);
+  }
+
+  static const _errorMessages = <String, (String, String, String, String)>{
+    'Backup belongs to another account': (
+      '备份属于其他账号',
+      '備份屬於其他帳號',
+      'このバックアップは別のアカウントのものです',
+      '다른 계정의 백업입니다',
+    ),
+    'Destination contains another account backup': (
+      '目标文件夹中已有其他账号的备份',
+      '目標資料夾中已有其他帳號的備份',
+      '選択したフォルダーに別のアカウントのバックアップがあります',
+      '선택한 폴더에 다른 계정의 백업이 있습니다',
+    ),
+    'Destination contains a conflicting backup': (
+      '目标文件夹中已有冲突的备份',
+      '目標資料夾中已有衝突的備份',
+      '選択したフォルダーに競合するバックアップがあります',
+      '선택한 폴더에 충돌하는 백업이 있습니다',
+    ),
+    'An export is already in progress': (
+      '正在导出备份',
+      '正在匯出備份',
+      'バックアップの書き出しがすでに進行中です',
+      '이미 백업을 내보내는 중입니다',
+    ),
+    'Backup folder picker is already open': (
+      '备份文件夹选择器已打开',
+      '備份資料夾選擇器已開啟',
+      'バックアップ先の選択画面はすでに開いています',
+      '백업 폴더 선택 창이 이미 열려 있습니다',
+    ),
+    'Backup folder has not been selected': (
+      '尚未选择备份文件夹',
+      '尚未選擇備份資料夾',
+      'バックアップ先のフォルダーが選択されていません',
+      '백업 폴더를 선택하지 않았습니다',
+    ),
+    'Backup folder permission is required to finish restore': (
+      '请授予备份文件夹访问权限以完成恢复',
+      '請授予備份資料夾存取權限以完成復原',
+      '復元を完了するには、バックアップ先フォルダーへのアクセスを許可してください',
+      '복원을 마치려면 백업 폴더 접근 권한을 허용하세요',
+    ),
+    'Unsupported backup format': (
+      '不支持此备份格式',
+      '不支援此備份格式',
+      'このバックアップ形式には対応していません',
+      '지원하지 않는 백업 형식입니다',
+    ),
+    'Backup checksum mismatch': (
+      '备份校验和不匹配',
+      '備份校驗碼不符',
+      'バックアップのチェックサムが一致しません',
+      '백업 체크섬이 일치하지 않습니다',
+    ),
+    'Invalid backup content': (
+      '备份内容无效',
+      '備份內容無效',
+      'バックアップの内容が正しくありません',
+      '백업 내용이 올바르지 않습니다',
+    ),
+    'Backup is too large': (
+      '备份文件过大',
+      '備份檔案過大',
+      'バックアップファイルのサイズが上限を超えています',
+      '백업 파일이 너무 큽니다',
+    ),
+    'Backup verification failed': (
+      '备份校验失败',
+      '備份驗證失敗',
+      'バックアップの検証に失敗しました',
+      '백업 검증에 실패했습니다',
+    ),
+    'No valid backup copy was found': (
+      '未找到有效的备份副本',
+      '找不到有效的備份副本',
+      '有効なバックアップのコピーが見つかりません',
+      '유효한 백업 사본을 찾을 수 없습니다',
+    ),
+    'Record backup and restore is disabled': (
+      '记录备份与恢复已关闭',
+      '記錄備份與復原已關閉',
+      '記録のバックアップと復元が無効になっています',
+      '기록 백업 및 복원이 꺼져 있습니다',
+    ),
+    'Game data changed during cleanup; please retry': (
+      '清理期间游戏数据发生变化，请重试',
+      '清理期間遊戲資料有變動，請重試',
+      '削除中にゲームデータが変更されました。もう一度お試しください',
+      '삭제 중 게임 데이터가 변경되었습니다. 다시 시도하세요',
+    ),
+    'Composition records changed during cleanup; please retry': (
+      '清理期间编成记录发生变化，请重试',
+      '清理期間編成記錄有變動，請重試',
+      '削除中に編成記録が変更されました。もう一度お試しください',
+      '삭제 중 편성 기록이 변경되었습니다. 다시 시도하세요',
+    ),
+    'Invalid restore journal': (
+      '恢复日志无效',
+      '復原日誌無效',
+      '復元用ログの内容が正しくありません',
+      '복원 로그가 올바르지 않습니다',
+    ),
+    'Invalid restore journal name': (
+      '恢复日志文件名无效',
+      '復原日誌檔名無效',
+      '復元用ログのファイル名が正しくありません',
+      '복원 로그의 파일 이름이 올바르지 않습니다',
+    ),
+    'Restore journal is too large': (
+      '恢复日志过大',
+      '復原日誌過大',
+      '復元用ログのサイズが上限を超えています',
+      '복원 로그가 너무 큽니다',
+    ),
+    'Restore journal account mismatch': (
+      '恢复日志的账号与当前账号不匹配',
+      '復原日誌的帳號與目前帳號不符',
+      '復元用ログのアカウントが現在のアカウントと一致しません',
+      '복원 로그의 계정이 현재 계정과 일치하지 않습니다',
+    ),
+    'Restore journal verification failed': (
+      '恢复日志校验失败',
+      '復原日誌驗證失敗',
+      '復元用ログの検証に失敗しました',
+      '복원 로그 검증에 실패했습니다',
+    ),
+    'Restore completion marker mismatch': (
+      '恢复完成标记不匹配',
+      '復原完成標記不符',
+      '復元の完了を示す記録が一致しません',
+      '복원 완료 표시가 일치하지 않습니다',
+    ),
+    'Restore deletion marker mismatch': (
+      '恢复过程中的删除标记不匹配',
+      '復原過程中的刪除標記不符',
+      '復元時の削除を示す記録が一致しません',
+      '복원 중 삭제 표시가 일치하지 않습니다',
+    ),
+  };
+
   String get enabled => _text(
     '启用记录备份与恢复',
     '啟用記錄備份與復原',
@@ -62,13 +250,17 @@ class RecordBackupStrings {
       _text('等待同步', '等待同步', '同期待ち', '동기화 대기 중', 'Waiting to sync');
   String get neverSynced =>
       _text('尚未同步', '尚未同步', '未同期', '아직 동기화하지 않음', 'Not synced yet');
-  String syncFailed(Object error) => _text(
-    '同步失败：$error',
-    '同步失敗：$error',
-    '同期失敗：$error',
-    '동기화 실패: $error',
-    'Sync failed: $error',
-  );
+  String syncFailed(Object error) {
+    final detail = errorMessage(error);
+    return _text(
+      '同步失败：$detail',
+      '同步失敗：$detail',
+      '同期失敗：$detail',
+      '동기화 실패: $detail',
+      'Sync failed: $detail',
+    );
+  }
+
   String lastSync(DateTime time) {
     final stamp = time.toString().split('.').first;
     return _text(
@@ -160,14 +352,14 @@ class RecordBackupStrings {
   String get recoveryCorruptAdvice => _text(
     '内部恢复文件可能损坏。重新授权文件夹无法修复此问题。请保留应用数据并联系支持；若已确认文档文件夹中有可用备份，可重装后导入。',
     '內部復原檔案可能損壞。重新授權資料夾無法修復此問題。請保留應用程式資料並聯絡支援；若已確認文件資料夾中有可用備份，可重新安裝後匯入。',
-    '内部の復元ファイルが破損している可能性があります。フォルダーを再選択しても修復できません。アプリのデータを保持し、サポートにお問い合わせください。ドキュメントフォルダーに使用可能なバックアップがあることを確認できた場合は、再インストール後に読み込めます。',
+    '内部の復元ファイルが破損している可能性があります。フォルダーへのアクセスを許可し直しても修復できません。アプリのデータを保持し、サポートにお問い合わせください。ドキュメントフォルダーに使用可能なバックアップがあることを確認できた場合は、再インストール後に読み込めます。',
     '내부 복원 파일이 손상되었을 수 있습니다. 폴더 접근 권한을 다시 허용해도 해결되지 않습니다. 앱 데이터를 보존하고 지원팀에 문의하세요. 문서 폴더에 사용 가능한 백업이 있음을 확인했다면 재설치 후 가져올 수 있습니다.',
     'The internal recovery file may be damaged. Granting folder access again will not fix this. Keep the app data and contact support. If you have verified that a usable backup exists in the Documents folder, you can reinstall the app and import it.',
   );
   String get recoveryRetryAdvice => _text(
     '若反复失败，请保留应用数据和文档备份文件，重新授权备份文件夹后再试。',
     '若反覆失敗，請保留應用程式資料及文件備份檔案，重新授權備份資料夾後再試。',
-    '繰り返し失敗する場合は、アプリのデータとバックアップファイルを保持し、バックアップ先を再選択してお試しください。',
+    '繰り返し失敗する場合は、アプリのデータとバックアップファイルを保持し、バックアップ先を選び直し、アクセスを許可してから再試行してください。',
     '계속 실패하면 앱 데이터와 문서 백업 파일을 보존하고 백업 폴더 접근 권한을 다시 허용한 후 시도하세요.',
     'If this keeps failing, keep the app data and document backup files, grant access to the backup folder again, and retry.',
   );
@@ -266,13 +458,17 @@ class RecordBackupStrings {
           '현재 계정의 기기 내 편성 기록 $count건을 삭제합니다. 백업이 비활성화되었거나 폴더가 설정되지 않아 삭제 전에 동기화하지 않습니다. 복원 가능한 백업이 있는지 확인하세요.',
           'Delete $count local composition ${count == 1 ? 'record' : 'records'} for the current account. Backup is disabled or no folder is set, so the app will not sync before deleting. Make sure you have a usable backup.',
         );
-  String clearFailed(Object error) => _text(
-    '清理失败：$error',
-    '清理失敗：$error',
-    '削除失敗：$error',
-    '삭제 실패: $error',
-    'Deletion failed: $error',
-  );
+  String clearFailed(Object error) {
+    final detail = errorMessage(error);
+    return _text(
+      '清理失败：$detail',
+      '清理失敗：$detail',
+      '削除失敗：$detail',
+      '삭제 실패: $detail',
+      'Deletion failed: $detail',
+    );
+  }
+
   String compositionCleared(int count) => _text(
     '已清理 $count 条编成记录',
     '已清理 $count 筆編成記錄',

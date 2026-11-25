@@ -25,7 +25,7 @@ final class LogbookExperienceStrings {
     '已加载 $count 条',
     '已載入 $count 筆',
     '$count 件を表示中',
-    '$count개 표시 중',
+    '기록 $count건 표시 중',
     '$count loaded',
   );
   String total(int count) => uiTextForLocale(_locale, '共 $count 条');
@@ -55,12 +55,12 @@ final class LogbookExperienceStrings {
   String get retry => _text(
     '读取失败，点击重试',
     '讀取失敗，點擊重試',
-    '読み込みに失敗しました。再試行',
+    '読み込めませんでした。タップして再試行してください',
     '불러오지 못했습니다. 다시 시도',
     'Unable to load. Retry',
   );
 
   String gained(bool practice) => practice
-      ? _text('本次演习经验', '本次演習經驗', '今回の演習経験値', '이번 연습 경험치', 'Exercise EXP')
+      ? _text('本次演习经验', '本次演習經驗', '今回の演習経験値', '이번 연습전 경험치', 'Exercise EXP')
       : _text('本次出击经验', '本次出擊經驗', '今回の出撃経験値', '이번 출격 경험치', 'Sortie EXP');
 }

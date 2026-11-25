@@ -9,7 +9,6 @@ import 'src/widgets/app_scroll_behavior.dart';
 import 'src/settings/fleet_display_settings_section.dart';
 import 'src/settings/module_display_settings.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as p;
@@ -966,18 +965,34 @@ Future<void> main() async {
 
   if (backupStartupError != null && backupService != null) {
     runApp(
-      MaterialApp(
-        home: _BackupRecoveryGate(
-          service: backupService,
-          initialError: backupStartupError,
-          onRecovered: launchMainApp,
-        ),
+      buildBackupRecoveryApp(
+        localeCode: layoutSettingsController.localeCode,
+        service: backupService,
+        initialError: backupStartupError,
+        onRecovered: launchMainApp,
       ),
     );
   } else {
     launchMainApp();
   }
 }
+
+MaterialApp buildBackupRecoveryApp({
+  required String? localeCode,
+  required RecordBackupService service,
+  required Object initialError,
+  required VoidCallback onRecovered,
+}) => MaterialApp(
+  locale: uiLocaleFromStorageCode(localeCode),
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+  localeResolutionCallback: resolveUiLocale,
+  home: _BackupRecoveryGate(
+    service: service,
+    initialError: initialError,
+    onRecovered: onRecovered,
+  ),
+);
 
 class _BackupLifecycleFlushObserver with WidgetsBindingObserver {
   _BackupLifecycleFlushObserver({
@@ -1064,7 +1079,7 @@ class _BackupRecoveryGateState extends State<_BackupRecoveryGate> {
             children: [
               Text(strings.recoveryPending),
               const SizedBox(height: 12),
-              Text('$_error'),
+              Text(strings.errorMessage(_error)),
               const SizedBox(height: 12),
               Text(
                 journalCorrupt
@@ -1181,7 +1196,7 @@ class YahagiApp extends StatelessWidget {
     this.enemyCatalogController,
     this.improvementPlannerController,
     this.gameSurface,
-    this.currentVersion = '1.0.2',
+    this.currentVersion = '—',
     this.releaseChecker,
     this.screenAwakeController,
     this.headerNoticeController,
@@ -1304,20 +1319,8 @@ class YahagiApp extends StatelessWidget {
           ),
           scrollBehavior: const AppScrollBehavior(),
           title: 'ヤハギ',
-          locale: layoutSettingsController.localeCode != null
-              ? (layoutSettingsController.localeCode == 'zh_Hant'
-                    ? const Locale.fromSubtags(
-                        languageCode: 'zh',
-                        scriptCode: 'Hant',
-                      )
-                    : Locale(layoutSettingsController.localeCode!))
-              : null,
-          localizationsDelegates: const [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
+          locale: uiLocaleFromStorageCode(layoutSettingsController.localeCode),
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           localeResolutionCallback: resolveUiLocale,
           navigatorObservers: <NavigatorObserver>[routeObserver],

@@ -885,10 +885,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aboutApp => '关于 ヤハギ';
 
   @override
-  String get aboutSubtitle => '版本 学习版 1.0.2 · 免责声明 · 检查更新';
-
-  @override
-  String get version => '版本 学习版 1.0.2';
+  String editionVersion(String number) {
+    return '学习版 $number';
+  }
 
   @override
   String get disclaimerTitle => '免责声明 (DISCLAIMER)';
@@ -4107,17 +4106,17 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String summaryFleetMinMorale(int value) {
-    return '最低疲劳 $value';
+    return '最低士气 $value';
   }
 
   @override
   String summaryExpedition(int active, String time) {
-    return '进行中 $active/3 · 最近 $time';
+    return '进行中 $active/3 · 下次完成 $time';
   }
 
   @override
   String summaryRepair(int busy, int total, String time) {
-    return '使用中 $busy/$total · 最近 $time';
+    return '使用中 $busy/$total · 下次完成 $time';
   }
 
   @override
@@ -4553,7 +4552,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get exitFullscreenConfirmTitle => '確定要退出遊戲全螢幕嗎？';
 
   @override
-  String get exitFullscreenConfirmDescription => '退出全螢幕後將恢復控制台與工具列顯示。';
+  String get exitFullscreenConfirmDescription => '離開全螢幕後，會再次顯示資訊面板與工具列。';
 
   @override
   String get exitFullscreenSkipConfirmation => '下次不再提醒';
@@ -4565,7 +4564,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get gameFullscreenHint => '點擊浮鈕或按返回鍵退出全螢幕；可拖動浮鈕調整位置';
 
   @override
-  String get gameFullscreenUnavailable => '無法顯示退出按鈕，已恢復一般佈局';
+  String get gameFullscreenUnavailable => '無法顯示退出按鈕，已恢復一般版面';
 
   @override
   String get questCompletionNotice => '有任務已完成';
@@ -4576,7 +4575,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get resourceTrend90d => '90天';
+  String get resourceTrend90d => '90 天';
 
   @override
   String get resourceTrendInventoryTitle => '庫存趨勢';
@@ -4616,7 +4615,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get resourceTrendPartial => '缺少期初紀錄，按首條紀錄計算增減';
+  String get resourceTrendPartial => '缺少期初紀錄，改以此時段的第一筆紀錄計算增減';
 
   @override
   String get resourceTrendInsufficient => '可比較的紀錄不足';
@@ -4672,7 +4671,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get diagnosticPrivacyDesc =>
-      '匯出前會再次檢查內容。日誌不記錄帳號、密碼、Cookie、權杖、請求正文、回應正文、聊天內容或截圖，也不會自動上傳。';
+      '匯出前會再次檢查內容。日誌不會記錄帳號、密碼、Cookie、權杖、請求與回應的本文、聊天內容或螢幕截圖，也不會自動上傳。';
 
   @override
   String get diagnosticStatusEnabled => '正在記錄';
@@ -4833,7 +4832,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settingsTitle => '設定';
 
   @override
-  String get layoutSettings => '介面與配置';
+  String get layoutSettings => '介面與版面配置';
 
   @override
   String get themeColorTitle => '主題色';
@@ -4866,10 +4865,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get uiFontSizeLarge => '大';
 
   @override
-  String get uiDisplaySizeTitle => '介面UI大小';
+  String get uiDisplaySizeTitle => '介面大小';
 
   @override
-  String get uiDisplaySizeDesc => '調整頂欄、導航欄與資訊欄的顯示密度';
+  String get uiDisplaySizeDesc => '調整頂欄、導覽列與資訊欄的顯示密度';
 
   @override
   String get uiDisplaySizeNormal => '標準';
@@ -4897,7 +4896,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get minimalResourcePositionDesc =>
-      '極簡檔手機橫屏遊戲頁的資源顯示在資訊欄頂部、遊戲上方的細橫欄，或螢幕底部的細橫欄';
+      '手機橫向遊玩時，極簡模式可將資源顯示在資訊欄頂端、遊戲畫面上方的細橫列，或螢幕底部的細橫列。';
 
   @override
   String get minimalResourcePositionPanel => '資訊欄';
@@ -4958,13 +4957,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get httpProxy => 'HTTP 代理';
 
   @override
-  String get httpProxyDesc => '連接自訂 HTTP 代理伺服器。';
+  String get httpProxyDesc => '連線至自訂 HTTP 代理伺服器。';
 
   @override
   String get socks5Proxy => 'SOCKS5 代理';
 
   @override
-  String get socks5ProxyDesc => '連接自訂 SOCKS5 代理伺服器。';
+  String get socks5ProxyDesc => '連線至自訂 SOCKS5 代理伺服器。';
 
   @override
   String get hostAddress => '主機位址 (IP 或網域)';
@@ -5205,7 +5204,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get questDaily => '日常';
 
   @override
-  String get questWeekly => '周常';
+  String get questWeekly => '週常';
 
   @override
   String get questMonthly => '月常';
@@ -5245,10 +5244,9 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get aboutApp => '關於 ヤハギ';
 
   @override
-  String get aboutSubtitle => '版本 學習版 1.0.2 · 免責聲明 · 檢查更新';
-
-  @override
-  String get version => '版本 學習版 1.0.2';
+  String editionVersion(String number) {
+    return '學習版 $number';
+  }
 
   @override
   String get disclaimerTitle => '免責聲明 (DISCLAIMER)';
@@ -5385,7 +5383,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
       '戰鬥結算後存在大破艦娘！請停止進擊並核對遊戲內狀態，避免進入下一場戰鬥。';
 
   @override
-  String get advanceWarningDamageControlActive => '管損有效中';
+  String get advanceWarningDamageControlActive => '大破艦均已攜帶損管';
 
   @override
   String get advanceWarningReloadGame => '重新整理遊戲';
@@ -5540,7 +5538,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get expeditionInProgress => '遠征進行中';
 
   @override
-  String get progress => '進行進度';
+  String get progress => '進度';
 
   @override
   String get unlocked => '未解鎖';
@@ -5606,13 +5604,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get noResourceRecords => '暫無資源記錄';
 
   @override
-  String get resourceTrend24h => '24小時';
+  String get resourceTrend24h => '24 小時';
 
   @override
-  String get resourceTrend7d => '7天';
+  String get resourceTrend7d => '7 天';
 
   @override
-  String get resourceTrend30d => '30天';
+  String get resourceTrend30d => '30 天';
 
   @override
   String get resourceTrendAll => '全部記錄';
@@ -5624,7 +5622,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get resourceTrendAuxGroup => '輔助資源';
 
   @override
-  String get gadgetBypass => '遊戲資源鏡像與IP限制繞行';
+  String get gadgetBypass => '遊戲資源鏡像與 IP 限制繞行';
 
   @override
   String get gadgetBypassDesc => '開啟後透過鏡像載入遊戲用戶端靜態資源。DMM 地區限制相容處理自動生效，不受此開關影響。';
@@ -5651,7 +5649,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get gadgetBypassClearCache => '清空快取';
 
   @override
-  String get gadgetBypassError => '繞行配置失敗';
+  String get gadgetBypassError => '無法設定鏡像繞行';
 
   @override
   String get gadgetBypassDiagnose => '檢查 403 與鏡像連通性';
@@ -5666,13 +5664,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get gadgetBypassEndpointProbe => '鏡像端點';
 
   @override
-  String get gadgetBypassKcsapi => '遊戲資料介面 (kcsapi)';
+  String get gadgetBypassKcsapi => '遊戲資料 API（kcsapi）';
 
   @override
   String get gadgetBypassReachable => '暢通';
 
   @override
-  String get gadgetBypassUnreachable => '無法連接';
+  String get gadgetBypassUnreachable => '無法連線';
 
   @override
   String get resourceTrendChart => '資源趨勢變化 (最近 100 次記錄)';
@@ -6053,7 +6051,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String capturedCount(int count) {
-    return '已擷取 $count 條';
+    return '已擷取 $count 筆';
   }
 
   @override
@@ -6072,7 +6070,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get noCookieRead => '不讀取 Cookie';
 
   @override
-  String get noCookieReadDesc => 'JS 橋接擷取介面路徑、去識別化的請求參數與回應等遊戲資料，不讀取 Cookie。';
+  String get noCookieReadDesc => 'JS 橋接會擷取遊戲 API 路徑、去識別化的請求參數和回應，不會讀取 Cookie。';
 
   @override
   String get browserIdle => '等待網頁';
@@ -6087,19 +6085,19 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get browserFailed => '網頁載入失敗';
 
   @override
-  String get capturePreparing => '正在準備遊戲介面擷取';
+  String get capturePreparing => '正在準備擷取遊戲 API 回應';
 
   @override
   String get captureReady => '擷取已就緒';
 
   @override
-  String get captureActive => '正在擷取遊戲介面';
+  String get captureActive => '正在擷取遊戲 API 回應';
 
   @override
   String get captureUnsupported => '目前 WebView 不支援跨框架擷取';
 
   @override
-  String get captureFailed => '遊戲介面擷取啟動失敗';
+  String get captureFailed => '無法開始擷取遊戲 API 回應';
 
   @override
   String get captureCheckingDesc => '正在檢查 Android WebView 擷取能力。';
@@ -6108,10 +6106,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get captureReadyDesc => '等待 /kcsapi/ 回應，遊戲仍可正常操作。';
 
   @override
-  String get portCaptureVerified => '母港介面驗證通過';
+  String get portCaptureVerified => '母港 API 已通過驗證';
 
   @override
-  String get captureReceived => '已經收到遊戲介面。';
+  String get captureReceived => '已收到遊戲 API 回應。';
 
   @override
   String captureLatest(String path) {
@@ -6338,11 +6336,11 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get gameRenderingModeApplied => '渲染模式已切換。';
 
   @override
-  String get gameRenderingModeFailed => '切換失敗，已保留或回退至安全模式。';
+  String get gameRenderingModeFailed => '切換失敗，已保留原設定或恢復安全模式。';
 
   @override
   String get nativeGameSurfaceSwitchRenderingModeHint =>
-      '目前裝置暫不相容此模式。請捲動左側選單，前往【設定 - 遊戲運行】切換渲染模式。';
+      '目前裝置不支援此模式。請捲動左側選單，前往「設定」中的「遊戲執行」切換渲染模式。';
 
   @override
   String nativeGameSurfacePageInitializationFailed(
@@ -6371,14 +6369,14 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get restoreDefaultOrder => '還原預設排序';
 
   @override
-  String get sortAscending => '升序';
+  String get sortAscending => '遞增';
 
   @override
-  String get sortDescending => '降序';
+  String get sortDescending => '遞減';
 
   @override
   String sortPriority(int priority) {
-    return '第$priority優先級';
+    return '第 $priority 優先順位';
   }
 
   @override
@@ -6394,13 +6392,13 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get sortHeaderLockedHint => '點擊切換排序方向；長按或按 Shift+Enter 解除鎖定';
 
   @override
-  String get sortLockAction => '鎖定為下一優先級';
+  String get sortLockAction => '鎖定為下一個排序條件';
 
   @override
   String get sortUnlockAction => '解除目前排序鎖定';
 
   @override
-  String get settingsTabScreen => '外觀與布局';
+  String get settingsTabScreen => '外觀與版面';
 
   @override
   String get settingsTabSound => '聲音';
@@ -6458,7 +6456,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get notificationVibration => '震動提醒';
 
   @override
-  String get notificationSectionOngoing => '背景常駐進行中進度';
+  String get notificationSectionOngoing => '背景常駐進度通知';
 
   @override
   String get notificationOngoingLive => '常駐即時進度條卡片';
@@ -6506,7 +6504,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get notificationRepairPunctual => '準時';
 
   @override
-  String get notificationAnchorage20m => '滿 20 分鐘首輪';
+  String get notificationAnchorage20m => '20 分鐘後首次修理';
 
   @override
   String get notificationAnchorageFull => '全部修滿';
@@ -6862,10 +6860,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get equipmentImprovementProficiency => '改修／熟練度';
 
   @override
-  String get equipmentOfficialId => '官方ID';
+  String get equipmentOfficialId => '官方 ID';
 
   @override
-  String get equipmentInstanceId => '實例ID';
+  String get equipmentInstanceId => '實例 ID';
 
   @override
   String get equipmentUsage => '裝備情況';
@@ -7014,10 +7012,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get completionConditions => '完成條件';
 
   @override
-  String get questEligibleFleets => '可完成任務編隊:';
+  String get questEligibleFleets => '符合編成條件的艦隊：';
 
   @override
-  String get questNoEligibleFleet => '無滿足要求艦隊';
+  String get questNoEligibleFleet => '沒有符合條件的艦隊';
 
   @override
   String get questEligibleFleetFirst => '第一艦隊';
@@ -7047,7 +7045,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get gameResourceCacheTitle => '遊戲資源本機快取';
 
   @override
-  String get gameResourceCacheDesc => '資源從艦隊 Collection 官方伺服器取得；快取可隨時清除。';
+  String get gameResourceCacheDesc => '遊戲資源取自《艦隊Collection》官方伺服器，快取可隨時清除。';
 
   @override
   String get gameResourceCacheNone => '暫存快取';
@@ -7295,7 +7293,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get kcwikiReportTitle => '協助 KCWiki 收集資料';
 
   @override
-  String get kcwikiReportDisabledDesc => '預設關閉。關閉時不收集、不組包、不連線，也不影響遊戲和本機功能。';
+  String get kcwikiReportDisabledDesc => '預設關閉。關閉時不會收集、打包或傳送資料，遊戲與本機功能仍可正常使用。';
 
   @override
   String get kcwikiReportEnabledDesc => '已開啟；僅傳送帶路、任務前置、戰鬥、友軍、陸航／空襲和改修資料。';
@@ -8011,7 +8009,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get menuPositionRight => '右';
 
   @override
-  String get topNoticeSectionTitle => '頂欄消息通知';
+  String get topNoticeSectionTitle => '頂欄通知設定';
 
   @override
   String get topNoticeEnabledTitle => '頂欄通知';
@@ -8023,10 +8021,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get topNoticeDurationTitle => '提示停留時間';
 
   @override
-  String get topNoticeDurationSubtitle => '消息氣泡彈出後無操作自動收起的時長';
+  String get topNoticeDurationSubtitle => '通知出現後，若未操作，會在指定時間後自動收起。';
 
   @override
-  String get topNoticeDuration5s => '5 秒 (默認)';
+  String get topNoticeDuration5s => '5 秒（預設）';
 
   @override
   String get topNoticeDuration10s => '10 秒';
@@ -8210,7 +8208,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get noticeSortieReasonUnresupplied => '未補滿補給';
+  String get noticeSortieReasonUnresupplied => '尚未完成補給';
 
   @override
   String get noticeSortieReasonFatigue => '艦娘疲勞 (黃臉/紅臉)';
@@ -8277,7 +8275,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get expCalcShip => '艦娘';
 
   @override
-  String get expCalcCurrentLevel => '現在等級';
+  String get expCalcCurrentLevel => '目前等級';
 
   @override
   String get expCalcTargetLevel => '目標等級';
@@ -8307,7 +8305,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get expCalcBattle => '戰鬥';
 
   @override
-  String get expCalcEmptyTrackList => '暫無練級追蹤計劃，點擊上方 ＋ 新增';
+  String get expCalcEmptyTrackList => '目前沒有練等計畫，點選上方的 ＋ 即可新增';
 
   @override
   String get expCalcBaseExpHelpTitle => '常用海域基本經驗參考';
@@ -8355,10 +8353,10 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get expCalcTableView => '表格';
 
   @override
-  String get expCalcTrackListTitle => '練級追蹤列表';
+  String get expCalcTrackListTitle => '練等追蹤清單';
 
   @override
-  String get expCalcAutoSyncHint => '母港數據變動時自動更新剩餘經驗與場次';
+  String get expCalcAutoSyncHint => '母港資料更新時，自動重新計算剩餘經驗與場次';
 
   @override
   String get expCalcDelete => '刪除';
@@ -8440,7 +8438,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get browserMenuMute => '靜音';
 
   @override
-  String get browserMenuUnmute => '開聲音';
+  String get browserMenuUnmute => '取消靜音';
 
   @override
   String get browserMenuScreenshot => '截圖';
@@ -8452,7 +8450,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get browserMenuFullscreen => '全螢幕';
 
   @override
-  String get browserMenuHome => '主頁';
+  String get browserMenuHome => '首頁';
 
   @override
   String get browserMenuDismissHint => '點擊空白處關閉';
@@ -8469,17 +8467,17 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String summaryFleetMinMorale(int value) {
-    return '最低疲勞 $value';
+    return '最低士氣 $value';
   }
 
   @override
   String summaryExpedition(int active, String time) {
-    return '進行中 $active/3 · 最近 $time';
+    return '進行中 $active/3 · 下次歸還 $time';
   }
 
   @override
   String summaryRepair(int busy, int total, String time) {
-    return '使用中 $busy/$total · 最近 $time';
+    return '使用中 $busy/$total · 距下次修復 $time';
   }
 
   @override
@@ -8550,7 +8548,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   }
 
   @override
-  String get settingsTabRuntime => '遊戲運行';
+  String get settingsTabRuntime => '遊戲執行';
 
   @override
   String get settingsGroupAppearance => '基本外觀';
@@ -8559,22 +8557,22 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get settingsGroupScreenAdaptation => '螢幕適配';
 
   @override
-  String get settingsGroupLayoutPosition => '布局與位置';
+  String get settingsGroupLayoutPosition => '版面與位置';
 
   @override
   String get settingsGroupContentCustomization => '內容自訂';
 
   @override
-  String get settingsGroupLayoutManagement => '布局管理';
+  String get settingsGroupLayoutManagement => '版面管理';
 
   @override
   String get settingsOtherModuleDisplay => '其他模組顯示';
 
   @override
-  String get settingsEditInformationLayout => '資訊面板布局編輯';
+  String get settingsEditInformationLayout => '編輯資訊面板版面';
 
   @override
-  String get settingsEditHdLayout => 'HD布局編輯';
+  String get settingsEditHdLayout => '編輯 HD 版面';
 
   @override
   String get settingsResetMenuOrder => '還原選單列順序';

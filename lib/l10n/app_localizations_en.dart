@@ -162,14 +162,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get debuffReminderStyleTopNotice => 'Top notice';
 
   @override
-  String get cameraAvoidanceTitle => 'Camera avoidance';
+  String get cameraAvoidanceTitle => 'Camera cutout spacing';
 
   @override
   String get cameraAvoidanceDesc =>
       'Adjust the interface spacing on the camera side. The spacing switches sides automatically when you flip the screen.';
 
   @override
-  String get cameraAvoidanceDistance => 'Avoidance distance';
+  String get cameraAvoidanceDistance => 'Spacing';
 
   @override
   String get operationProtectionTitle => 'Accidental action protection';
@@ -937,11 +937,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aboutApp => 'About ヤハギ';
 
   @override
-  String get aboutSubtitle =>
-      'Learning edition 1.0.2 · Disclaimer · Check for updates';
-
-  @override
-  String get version => 'Learning edition 1.0.2';
+  String editionVersion(String number) {
+    return 'Learning edition $number';
+  }
 
   @override
   String get disclaimerTitle => 'Disclaimer (DISCLAIMER)';
@@ -1090,7 +1088,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'A heavily damaged ship remains after battle results! Stop advancing and check the in-game state before entering another battle.';
 
   @override
-  String get advanceWarningDamageControlActive => 'Damage control active';
+  String get advanceWarningDamageControlActive => 'Damage control equipped';
 
   @override
   String get advanceWarningReloadGame => 'Reload game';
@@ -2369,7 +2367,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get fleetInformationSyncImmediate => 'Immediate';
 
   @override
-  String get fleetInformationSyncSettlement => 'At battle result';
+  String get fleetInformationSyncSettlement => 'After battle results';
 
   @override
   String get fleetInformationSyncImmediateDesc =>
@@ -2594,7 +2592,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get newShipAlertTitle => 'New unowned ship found';
+  String get newShipAlertTitle => 'New ship acquired';
 
   @override
   String newShipAlertBody(String names) {
@@ -2824,7 +2822,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gameResourceCacheDesc =>
-      'Resources are downloaded from the official 艦隊これくしょん servers. The cache can be cleared at any time.';
+      'Resources are downloaded from the official KanColle servers. You can clear the cache at any time.';
 
   @override
   String get gameResourceCacheNone => 'Temporary cache';
@@ -3890,7 +3888,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get topNoticeKindMarriage => 'Marriage';
 
   @override
-  String get topNoticeKindPracticeExperience => 'Practice experience';
+  String get topNoticeKindPracticeExperience => 'Exercise EXP';
 
   @override
   String get topNoticeKindQuestCompletion => 'Quest completion';
@@ -4352,7 +4350,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String questApplyQuery(int count) {
-    return 'Show $count quests';
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Show $count quests',
+      one: 'Show 1 quest',
+    );
+    return '$_temp0';
   }
 
   @override
@@ -4382,7 +4386,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String questQueryActive(int count) {
-    return '$count query conditions applied';
+    return 'Active filters: $count';
   }
 
   @override
@@ -4492,7 +4496,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get briefingDisplayDescription =>
-      'Accordion opens several modules at once. Tabs switch modules from the top. This setting has no effect in HD mode.';
+      'In accordion mode, you can expand several panels at once. In tab mode, use the tabs at the top to switch panels. This setting has no effect in HD mode.';
 
   @override
   String get briefingDisplayAccordion => 'Accordion';

@@ -169,12 +169,14 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
 
-    await tester.pumpWidget(withTopNotice(const AboutContentWidget()));
+    await tester.pumpWidget(
+      withTopNotice(const AboutContentWidget(currentVersion: '1.10.0')),
+    );
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
     expect(find.byKey(const Key('about-disclaimer-scroll')), findsOneWidget);
-    expect(find.textContaining('1.0.2'), findsOneWidget);
+    expect(find.text('学习版 1.10'), findsOneWidget);
   });
 
   testWidgets('about header wraps actions on a narrow viewport', (

@@ -337,9 +337,9 @@ void main() {
   for (final scenario in <(String, double, double)>[
     ('大破舰已携带损管', 1, 1),
     ('大破舰已携带损管', 1, 20),
-    ('Damage control active', 1, 20),
+    ('Damage control equipped', 1, 20),
     ('大破舰已携带损管', 2, 120),
-    ('Damage control active', 1.6, 240),
+    ('Damage control equipped', 1.6, 240),
     ('大破舰已携带损管', 3, 600),
   ]) {
     testWidgets('unreadable slot returns false for $scenario', (tester) async {
@@ -358,7 +358,7 @@ void main() {
     });
   }
 
-  for (final message in ['大破舰已携带损管', 'Damage control active']) {
+  for (final message in ['大破舰已携带损管', 'Damage control equipped']) {
     testWidgets('readability follows the rendered phrase width for $message', (
       tester,
     ) async {

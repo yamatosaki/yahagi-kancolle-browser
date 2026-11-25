@@ -143,7 +143,7 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
     expect(dialog, findsOneWidget);
-    expect(find.text('New unowned ship found'), findsOneWidget);
+    expect(find.text('New ship acquired'), findsOneWidget);
     expect(
       find.descendant(of: dialog, matching: find.textContaining('三日月')),
       findsOneWidget,

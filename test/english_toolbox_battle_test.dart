@@ -156,7 +156,7 @@ void main() {
     expect(exp.coverage(2, 5), '2 of 5 compositions known');
     expect(exp.equalWeight, contains('final forms'));
     expect(exp.addNode, 'Add battle node');
-    expect(enemy.preciseConfiguration, 'Exact configuration');
+    expect(enemy.preciseConfiguration, 'Exact loadout');
     expect(enemy.antiSub, 'ASW');
     expect(enemy.hp, 'HP');
     expect(enemy.speedValue('高速'), 'Fast');

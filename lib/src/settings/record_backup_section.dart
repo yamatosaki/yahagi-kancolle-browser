@@ -29,7 +29,13 @@ class RecordBackupSection extends StatelessWidget with SettingsUIHelpers {
       final result = await operation();
       if (result != null && context.mounted) _notice(context, result);
     } catch (error) {
-      if (context.mounted) _notice(context, '$error', error: true);
+      if (context.mounted) {
+        _notice(
+          context,
+          RecordBackupStrings.of(context).errorMessage(error),
+          error: true,
+        );
+      }
     }
   }
 
@@ -71,7 +77,13 @@ class RecordBackupSection extends StatelessWidget with SettingsUIHelpers {
       await service.restore(archive);
       if (context.mounted) _notice(context, strings.restoreDone);
     } catch (error) {
-      if (context.mounted) _notice(context, '$error', error: true);
+      if (context.mounted) {
+        _notice(
+          context,
+          RecordBackupStrings.of(context).errorMessage(error),
+          error: true,
+        );
+      }
     }
   }
 

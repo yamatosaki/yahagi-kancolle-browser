@@ -62,13 +62,13 @@ final class EnemyDetailsStrings {
   String get preciseConfigurationMissing => _pick(
     '未找到该敌舰的精确配置资料',
     '未找到該敵艦的精確配置資料',
-    'この敵艦の正確な編成データはありません',
-    '이 적 함선의 정확한 편성 데이터가 없습니다',
-    'No exact configuration data for this enemy ship',
+    'この敵艦に一致する性能・装備データが見つかりません',
+    '이 적 함선과 일치하는 능력치 및 장비 정보가 없습니다',
+    'No matching stats or equipment data for this enemy ship',
   );
   String get enemyShip => _pick('敌舰', '敵艦', '敵艦', '적 함선', 'Enemy ship');
   String get preciseConfiguration =>
-      _pick('精确配置', '精確配置', '正確な編成', '정확한 편성', 'Exact configuration');
+      _pick('精确配置', '精確配置', '性能・装備データが一致', '능력치 및 장비 일치', 'Exact loadout');
   String get hp => 'HP';
   String get speed => _pick('速力', '速力', '速力', '속력', 'Speed');
   String get range => _pick('射程', '射程', '射程', '사거리', 'Range');

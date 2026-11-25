@@ -1759,17 +1759,11 @@ abstract class AppLocalizations {
   /// **'关于 ヤハギ'**
   String get aboutApp;
 
-  /// No description provided for @aboutSubtitle.
+  /// No description provided for @editionVersion.
   ///
   /// In zh, this message translates to:
-  /// **'版本 学习版 1.0.2 · 免责声明 · 检查更新'**
-  String get aboutSubtitle;
-
-  /// No description provided for @version.
-  ///
-  /// In zh, this message translates to:
-  /// **'版本 学习版 1.0.2'**
-  String get version;
+  /// **'学习版 {number}'**
+  String editionVersion(String number);
 
   /// No description provided for @disclaimerTitle.
   ///
@@ -7703,19 +7697,19 @@ abstract class AppLocalizations {
   /// No description provided for @summaryFleetMinMorale.
   ///
   /// In zh, this message translates to:
-  /// **'最低疲劳 {value}'**
+  /// **'最低士气 {value}'**
   String summaryFleetMinMorale(int value);
 
   /// No description provided for @summaryExpedition.
   ///
   /// In zh, this message translates to:
-  /// **'进行中 {active}/3 · 最近 {time}'**
+  /// **'进行中 {active}/3 · 下次完成 {time}'**
   String summaryExpedition(int active, String time);
 
   /// No description provided for @summaryRepair.
   ///
   /// In zh, this message translates to:
-  /// **'使用中 {busy}/{total} · 最近 {time}'**
+  /// **'使用中 {busy}/{total} · 下次完成 {time}'**
   String summaryRepair(int busy, int total, String time);
 
   /// No description provided for @summaryRepairBusy.

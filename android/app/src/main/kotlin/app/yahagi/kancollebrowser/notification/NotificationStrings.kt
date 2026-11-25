@@ -14,15 +14,15 @@ internal class NotificationStrings(private val localeCode: String = "zh") {
         "expedition" to text("远征通知", "遠征通知", "遠征通知", "원정 알림", "Expedition alerts"),
         "repair" to text("入渠修复", "入渠修復", "入渠修理", "입거 수리", "Dock repairs"),
         "anchorage" to text("泊地修理", "泊地修理", "泊地修理", "정박지 수리", "Anchorage repair"),
-        "construction" to text("工厂建造", "工廠建造", "工廠建造", "공창 건조", "Ship construction"),
-        "morale" to text("士气与刷闪", "士氣與刷閃", "士気・キラ付け", "사기 및 반짝이", "Morale and training"),
+        "construction" to text("工厂建造", "工廠建造", "艦の建造", "공창 건조", "Ship construction"),
+        "morale" to text("士气与刷闪", "士氣與刷閃", "士気・キラ付け", "컨디션 및 반짝이 작업", "Morale and sparkle"),
         "newShip" to text("新舰提醒", "新艦提醒", "未所持艦の通知", "미보유 함선 알림", "New ship alerts"),
     )
-    val ongoingChannelName get() = text("母港实时进行中概览", "母港即時進行中概覽", "母港の進行状況", "모항 진행 상황", "Live port progress")
+    val ongoingChannelName get() = text("母港实时进行中概览", "母港即時進度", "母港の進行状況", "모항 진행 상황", "Live port progress")
     val completed get() = text("已完成", "已完成", "完了", "완료", "Complete")
     val fallbackTitle get() = text("矢矧通知", "矢矧通知", "矢矧の通知", "矢矧 알림", "矢矧 notification")
     val retentionTitle get() = text("矢矧正在后台运行", "矢矧正在背景執行", "矢矧はバックグラウンドで動作中", "矢矧가 백그라운드에서 실행 중입니다", "矢矧 is running in the background")
-    val retentionBody get() = text("游戏会话保持中 · 点击返回游戏", "遊戲工作階段保持中 · 點擊返回遊戲", "ゲームセッションを維持中 · タップしてゲームに戻る", "게임 세션 유지 중 · 눌러서 게임으로 돌아가기", "Keeping the game session active · Tap to return to the game")
+    val retentionBody get() = text("游戏会话保持中 · 点击返回游戏", "正在保持遊戲工作階段 · 點擊返回遊戲", "ゲームセッションを維持中 · タップしてゲームに戻る", "게임 세션 유지 중 · 눌러서 게임으로 돌아가기", "Keeping the game session active · Tap to return to the game")
 
     fun preemptBody(alarm: NotificationAlarm, remainingSeconds: Long): String {
         val seconds = remainingSeconds.coerceAtLeast(1L)
@@ -49,7 +49,7 @@ internal class NotificationStrings(private val localeCode: String = "zh") {
 
     fun ongoingTitle(count: Int) = text(
         "矢矧 · 母港实时进行中 ($count 项)",
-        "矢矧 · 母港即時進行中（$count 項）",
+        "矢矧 · 母港進度（$count 項）",
         "矢矧 · 母港の進行状況（${count}件）",
         "矢矧 · 모항 진행 상황 (${count}건)",
         "矢矧 · Port progress ($count ${if (count == 1) "task" else "tasks"})",

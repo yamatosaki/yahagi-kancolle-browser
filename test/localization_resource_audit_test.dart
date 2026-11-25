@@ -55,6 +55,13 @@ void main() {
     },
   );
 
+  test('English quest filter action agrees with the result count', () {
+    final l10n = lookupAppLocalizations(const Locale('en'));
+    expect(l10n.questApplyQuery(0), 'Show 0 quests');
+    expect(l10n.questApplyQuery(1), 'Show 1 quest');
+    expect(l10n.questApplyQuery(2), 'Show 2 quests');
+  });
+
   test('ARB resources have no duplicate top-level keys or empty messages', () {
     for (final locale in resources.keys) {
       final source = File('lib/l10n/app_$locale.arb').readAsStringSync();
@@ -175,7 +182,6 @@ void main() {
         'langJa',
         'backgroundGameRetentionNotificationTitle',
         'startupUpdateMessage',
-        'gameResourceCacheDesc',
         'topNoticeEnabledSubtitle',
       });
     },
@@ -223,7 +229,6 @@ void main() {
       'briefingTabConstruction',
       'briefingTabRepair',
       // Standard labels shared by both Chinese scripts.
-      'settingsGroupLayoutManagement',
       'settingsGroupSubtitles',
       // Small, medium and large are the same single-character size labels.
       'uiFontSizeSmall',
@@ -240,8 +245,7 @@ void main() {
       'battlePredictionSection',
       'battleSectionOrderMoveDown',
       'battleSectionOrderMoveUp',
-      // Numeric period and established material/inventory labels share spelling.
-      'resourceTrend90d',
+      // These material and inventory labels share the same spelling.
       'resourceTrendBuildMaterial',
       'resourceTrendLatest',
       'appTitle',
@@ -262,7 +266,6 @@ void main() {
       'accepted',
       'completed',
       'questDaily',
-      'questWeekly',
       'questMonthly',
       'questOther',
       'questUnknown',
@@ -284,8 +287,6 @@ void main() {
       'lsc',
       'constructing',
       'constructComplete',
-      'resourceTrend7d',
-      'resourceTrend30d',
       'langZh',
       'langZhHant',
       'langJa',
@@ -311,8 +312,6 @@ void main() {
       // 改修 is the in-game term in both Chinese scripts; 受限 is unchanged.
       'improvement',
       'gadgetBypassRestricted',
-      // 官方ID is the same developer-facing label in both Chinese scripts.
-      'equipmentOfficialId',
       // These compact scope labels intentionally use the same wording in
       // Simplified and Traditional Chinese.
       'equipmentCompatibilityOwnedCompact',
@@ -334,9 +333,6 @@ void main() {
       // These labels use the same characters in both Chinese scripts.
       'postBattleWarningTitle',
       'logbookItemDrop',
-      // “升序/降序” are standard sorting terms in both Chinese scripts.
-      'sortAscending',
-      'sortDescending',
       'sortieCheckMapsMode',
       'mapHpGauges',
       'allMapsCleared',
@@ -428,7 +424,6 @@ void main() {
       // Damage grades, dock usage and construction status are shared game terms.
       'summaryFleetHeavy',
       'summaryFleetMedium',
-      'summaryRepair',
       'summaryRepairBusy',
       'summaryConstruction',
       'summaryWarnings',

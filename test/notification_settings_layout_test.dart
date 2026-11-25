@@ -402,11 +402,11 @@ void main() {
       expect(zh.notificationRepairPunctual, '准点');
       expect(zh.notificationAnchorage20m, '满 20 分钟首轮');
 
-      expect(zhHant.notificationSectionOngoing, '背景常駐進行中進度');
+      expect(zhHant.notificationSectionOngoing, '背景常駐進度通知');
       expect(zhHant.notificationSectionTypes, '通知類型與時機');
       expect(zhHant.notificationPreempt60s, '提前 60 秒');
       expect(zhHant.notificationPreempt120s, '提前 2 分鐘');
-      expect(zhHant.notificationAnchorage20m, '滿 20 分鐘首輪');
+      expect(zhHant.notificationAnchorage20m, '20 分鐘後首次修理');
 
       expect(ja.notificationSectionOngoing, 'バックグラウンドで進行状況を常時表示');
       expect(ja.notificationSectionTypes, '通知種別とタイミング');

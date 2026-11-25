@@ -20,12 +20,12 @@
   "gameStartupDetailsCopied": "오류 세부 정보를 복사했습니다",
   "gameStartupCopyFailed": "복사하지 못했습니다. 다시 시도해 주세요.",
   "gameStartupLocalHttpProxyUnavailable": "로컬 HTTP 프록시에 연결할 수 없습니다",
-  "gameStartupLocalHttpProxyHelp": "로컬 프록시가 실행 중인지 확인하고 주소와 포트를 확인한 후 다시 시도해 주세요.",
+  "gameStartupLocalHttpProxyHelp": "로컬 프록시의 실행 상태와 주소, 포트를 확인한 뒤 다시 시도해 주세요.",
   "gameStartupPageNetworkError": "게임 접속 페이지를 불러올 수 없습니다",
   "gameStartupPageAccessDenied": "게임 접속 페이지가 접근을 거부했습니다",
   "gameStartupPageServerError": "게임 접속 서버가 일시적으로 응답할 수 없습니다",
   "gameStartupPageTimedOut": "게임 페이지를 불러오는 중 시간이 초과되었습니다. 다시 시도해 주세요.",
-  "gameStartupGadgetError": "게임 시작 스크립트를 불러올 수 없습니다",
+  "gameStartupGadgetError": "현재 게임 시작 스크립트를 불러올 수 없습니다",
   "gameWebViewStartupFailed": "게임 페이지 시작 실패: {errorType}",
   "@gameWebViewStartupFailed": {"placeholders": {"errorType": {"type": "String"}}},
   "gameWebViewPageLoadFailed": "게임 페이지 로드 실패 [{code}]. 새로고침하거나 네트워크를 확인하세요.",
@@ -51,7 +51,7 @@
   "cameraAvoidanceDesc": "카메라가 있는 쪽의 화면 여백을 조정합니다. 화면을 뒤집으면 여백도 자동으로 반대쪽으로 바뀝니다.",
   "cameraAvoidanceDistance": "회피 거리",
   "operationProtectionTitle": "오조작 방지",
-  "confirmBeforeExitTitle": "실수로 종료 방지",
+  "confirmBeforeExitTitle": "종료 전 확인",
   "confirmBeforeExitDescription": "뒤로 버튼이나 뒤로 가기 제스처로 앱을 나가기 전에 확인합니다.",
   "confirmBeforeExitSaveFailed": "종료 방지 설정을 저장하지 못했습니다. 다시 시도해 주세요.",
   "appExitConfirmTitle": "홈 화면으로 이동할까요?",
@@ -311,7 +311,7 @@
   "fleetShowTransportDetails": "수송량 상세 보기",
   "fleetTransportContribution": "함대 기본 TP",
   "fleetTransportTotal": "합계",
-  "fleetTransportKinuBonus": "키누改二 기본 보너스",
+  "fleetTransportKinuBonus": "키누 개2의 기본 수송 보너스",
   "fleetTransportRankValues": "S: {s} (A: {a})",
   "@fleetTransportRankValues": {"placeholders": {"s":{"type":"int"},"a":{"type":"int"}}},
   "expeditionBrief": "원정 요약",
@@ -358,8 +358,8 @@
   "gameAndSound": "게임 및 소리",
   "gameSound": "게임 소리",
   "aboutApp": "ヤハギ 정보",
-  "aboutSubtitle": "학습용 버전 1.0.2 · 면책 조항 · 업데이트 확인",
-  "version": "학습용 버전 1.0.2",
+  "editionVersion": "학습용 버전 {number}",
+  "@editionVersion": {"placeholders": {"number": {"type": "String"}}},
   "disclaimerTitle": "면책 조항 (DISCLAIMER)",
   "disclaimerP1": "이 프로젝트는 프로그래밍 기술 교류 및 학습 목적으로만 제공되는 비영리·비공식 서드파티 범용 브라우저 도구입니다. Kantai Collection (KanColle) 공식 운영 주체 및 관련 권리자와 아무런 관계가 없습니다.",
   "disclaimerP2": "이 소프트웨어는 게임 서버의 통신 데이터에 관여하거나 이를 차단·재전송·변조하지 않으며, 플레이어를 대신해 게임을 조작하지 않습니다. 원저작자는 소프트웨어의 품질에 대해 명시적 또는 묵시적으로 보증하지 않습니다. 여기에는 버그 없음, 적합성, 시스템 안정성에 대한 보증 등이 포함됩니다.",
@@ -389,7 +389,7 @@
   "advanceWarningDisplayModeTitle": "경고 표시 방식",
   "advanceWarningAlwaysConfirm": "항상 확인",
   "advanceWarningSmart": "스마트 알림",
-  "advanceWarningSmartDescription": "모든 대파함의 남은 응급수리 장비가 확인되면 상단 알림, 그 외에는 확인창 표시.",
+  "advanceWarningSmartDescription": "모든 대파함에서 사용 가능한 응급수리 장비가 확인되면 상단 알림을 표시합니다. 그 외에는 확인창을 엽니다.",
   "advanceWarningAlwaysConfirmDescription": "대파 감지 시 확인창을 표시합니다.",
   "advanceWarningTimingModeTitle": "알림 시점",
   "advanceWarningTimingModeDescription": "변경은 다음 출격부터 적용됩니다.",
@@ -401,9 +401,9 @@
   "advanceWarningBothTimingsDescription": "전투 결과 후와 진격 성공 후 대파를 확인합니다.",
   "advanceWarningTimingRequired": "알림 시점을 하나 이상 선택해 주세요.",
   "advanceWarningPostBattleOnlyWarning": "진격에 성공한 후에는 대파 상태를 확인하지 않습니다.",
-  "postBattleDamageControlEquippedBody": "전투 결과 확인 후 대파된 칸무스가 있습니다. 함선과 남은 응급수리 장비를 확인해 주세요.",
-  "postBattleDamageControlDangerBody": "전투 결과 확인 후 대파된 칸무스가 있습니다! 진격을 멈추고 다음 전투에 들어가기 전에 게임 내 상태를 확인해 주세요.",
-  "advanceWarningDamageControlActive": "응급수리 장비 유효",
+  "postBattleDamageControlEquippedBody": "전투 종료 시점에 대파 상태인 칸무스가 있습니다. 함선과 남은 응급수리 장비를 확인해 주세요.",
+  "postBattleDamageControlDangerBody": "전투 종료 시점에 대파 상태인 칸무스가 있습니다! 진격을 멈추고 게임 내 상태를 확인해 주세요. 다음 전투에 진입하지 않도록 주의하세요.",
+  "advanceWarningDamageControlActive": "대파함에 응급수리 장비 장착됨",
   "advanceWarningReloadGame": "게임 새로고침",
   "advanceWarningReloadFrame": "프레임 새로고침",
   "advanceWarningRefreshFailed": "새로고침이 완료되지 않았습니다. 게임 상태와 장비를 확인해 주세요.",
@@ -604,7 +604,7 @@
     }
   },
   "postBattleWarningTitle": "대파 안전 경고",
-  "advanceWarningMissingHeadline": "응급수리 장비를 장착하지 않은 대파된 칸무스가 있습니다!",
+  "advanceWarningMissingHeadline": "대파된 칸무스 중 응급수리 장비를 장착하지 않은 함선이 있습니다!",
   "advanceWarningUnknownHeadline": "대파된 칸무스의 응급수리 장비 장착 여부를 알 수 없습니다!",
   "advanceWarningEquippedHeadline": "대파된 칸무스가 응급수리 장비를 장착하고 있습니다. 남은 장비를 확인해 주세요.",
   "advanceWarningEquippedBody": "대파 상태에서 진격을 선택했습니다. 함선과 남은 응급수리 장비를 확인해 주세요.",
@@ -647,7 +647,7 @@
       }
     }
   },
-  "preSortieMainEquipmentWarning": "{fleetName} 장비 부족 (일반 슬롯): {shipNames}",
+  "preSortieMainEquipmentWarning": "{fleetName} · 일반 장비 슬롯이 비어 있는 함선: {shipNames}",
   "@preSortieMainEquipmentWarning": {
     "placeholders": {
       "fleetName": {
@@ -658,7 +658,7 @@
       }
     }
   },
-  "preSortieExtraEquipmentWarning": "{fleetName} 장비 부족 (보강증설 슬롯): {shipNames}",
+  "preSortieExtraEquipmentWarning": "{fleetName} · 보강증설 슬롯이 비어 있는 함선: {shipNames}",
   "@preSortieExtraEquipmentWarning": {
     "placeholders": {
       "fleetName": {
@@ -696,7 +696,7 @@
     }
   },
   "screenshotFailed": "게임 스크린샷을 저장하지 못했습니다. 나중에 다시 시도해 주세요.",
-  "startupUpdateMessage": "ヤハギ {version}이(가) 출시되었습니다.",
+  "startupUpdateMessage": "ヤハギ {version} 버전이 출시되었습니다.",
   "@startupUpdateMessage": {
     "placeholders": {
       "version": {
@@ -967,9 +967,9 @@
   "battleDamageVibrationDesc": "아군 칸무스가 전투 중 중파 또는 대파 상태가 되는 순간 진동으로 알립니다.",
   "battleStatusEffectsSection": "전투 상태 효과",
   "battleStatusEffectsEnabled": "상태 효과 활성화",
-  "battleStatusEffectsEnabledDesc": "손상 점멸, 손상 진동, 사기 반짝임을 함께 켜거나 끕니다.",
+  "battleStatusEffectsEnabledDesc": "손상 시 깜빡임과 진동, 컨디션 반짝임 효과를 한 번에 켜거나 끕니다.",
   "battleEffectDisplayScope": "화면 표시 범위",
-  "battleEffectDisplayScopeDesc": "손상 점멸과 사기 반짝임을 표시할 칸무스 화면을 선택합니다.",
+  "battleEffectDisplayScopeDesc": "손상 시 깜빡임과 컨디션 반짝임 효과를 어느 화면에 표시할지 선택합니다.",
   "battleEffectScopePredictionOnly": "전투 예측만",
   "battleEffectScopeFleetOnly": "함대 편성만",
   "battleEffectScopeAll": "전체",
@@ -977,7 +977,7 @@
   "battleDamagePulseDesc": "현재 HP의 손상 단계에 따라 초상화 테두리가 점멸합니다.",
   "battleDamageVibrationEffect": "손상 진동",
   "battleDamageVibrationEffectDesc": "아군 칸무스가 전투 중 선택한 손상 상태가 되는 순간 진동으로 알립니다.",
-  "battleMoraleSparkle": "사기 반짝임 효과",
+  "battleMoraleSparkle": "컨디션 반짝임 효과",
   "battleMoraleSparkleDesc": "Cond ≥ 50일 때 칸무스 초상화 주변에 점멸하거나 계속 빛나는 별을 표시합니다. 피로도 표정과 피로 경고에는 영향을 주지 않습니다.",
   "battleMoraleSparkleBlinking": "점멸",
   "battleMoraleSparkleSteady": "계속 켜짐",
@@ -993,9 +993,9 @@
   "battleLastFormationHintDesc": "출격 지점에 도달하면 전투 예측에 해당 지점에서 이전에 사용한 진형을 표시합니다.",
   "fleetInformationSyncTitle": "함대 정보 동기화",
   "fleetInformationSyncImmediate": "즉시 동기화",
-  "fleetInformationSyncSettlement": "결과에서 동기화",
-  "fleetInformationSyncImmediateDesc": "전투 데이터를 받으면 함대 내구도와 응급수리 아이템 소모를 반영합니다.",
-  "fleetInformationSyncSettlementDesc": "전투 결과를 받으면 함대 내구도와 응급수리 아이템 소모를 반영합니다.",
+  "fleetInformationSyncSettlement": "전투 결과 수신 시",
+  "fleetInformationSyncImmediateDesc": "전투 데이터를 받으면 함선별 내구도와 응급수리 장비 소모를 반영합니다.",
+  "fleetInformationSyncSettlementDesc": "전투 결과를 받으면 함선별 내구도와 응급수리 장비 소모를 반영합니다.",
   "fleetInformationSyncSaveFailed": "저장하지 못했습니다. 다시 시도해 주세요.",
   "battleEnemyPreviewPosition": "전투 전 적 함대 예측 위치",
   "battleEnemyPreviewPositionDesc": "전투 전 적 함대 예측을 아군 HP 막대 위 또는 아래에 표시합니다.",
@@ -1214,7 +1214,7 @@
   "allTypes": "모든 유형",
   "questFormation": "편성",
   "questSortie": "출격",
-  "questExercise": "연습",
+  "questExercise": "연습전",
   "questSupplyRepair": "보급 / 입거",
   "questFactory": "공창",
   "questRemodeling": "개장",
@@ -1239,7 +1239,7 @@
   "followingQuests": "후속 임무",
   "notCompleted": "미완료",
   "gameResourceCacheTitle": "게임 리소스 로컬 캐시",
-  "gameResourceCacheDesc": "리소스는 艦隊これくしょん 공식 서버에서 받습니다. 캐시는 언제든 삭제할 수 있습니다.",
+  "gameResourceCacheDesc": "게임 리소스는 함대 컬렉션 공식 서버에서 받습니다. 캐시는 언제든 삭제할 수 있습니다.",
   "gameResourceCacheNone": "임시 캐시",
   "gameResourceCacheNoneDesc": "미리 다운로드하지 않고 플레이 중 필요에 따라 캐시합니다. 최대 7일 및 2 GB까지 보관하며, 기간이나 용량을 초과하면 자동으로 정리합니다.",
   "gameResourceCacheLight": "경량 캐시",
@@ -1948,7 +1948,7 @@
       }
     }
   },
-  "noticePracticeExp": "연습 경험치 (약): S 승리 {sExp} · A 승리 {aExp}",
+  "noticePracticeExp": "예상 연습전 경험치: S 승리 {sExp} · A 승리 {aExp}",
   "@noticePracticeExp": {
     "placeholders": {
       "sExp": {
@@ -1959,7 +1959,7 @@
       }
     }
   },
-  "noticePracticeExpCtBonus": "연습 경험치 (약): S 승리 {sExp} · A 승리 {aExp} (연습순양함 +{bonus})",
+  "noticePracticeExpCtBonus": "예상 연습전 경험치: S 승리 {sExp} · A 승리 {aExp} (연습순양함 +{bonus})",
   "@noticePracticeExpCtBonus": {
     "placeholders": {
       "sExp": {
@@ -2014,7 +2014,7 @@
   },
   "noticeSortieReasonUnresupplied": "보급 미완료",
   "noticeSortieReasonFatigue": "칸무스 피로 (노란 얼굴 / 빨간 얼굴)",
-  "noticeSortieReasonMainSlot": "일반 장비 슬롯 미장착",
+  "noticeSortieReasonMainSlot": "비어 있는 일반 장비 슬롯",
   "noticeSortieReasonExpansionSlot": "보강증설 슬롯 미사용",
   "noticeSortieHeavyDamage": "출격 알림: 제 {fleets} 함대에 대파 함선이 있습니다",
   "@noticeSortieHeavyDamage": {
@@ -2133,17 +2133,17 @@
   "@summaryFleetHeavy": {"placeholders": {"count":{"type":"int"}}},
   "summaryFleetMedium": "중파 {count}",
   "@summaryFleetMedium": {"placeholders": {"count":{"type":"int"}}},
-  "summaryFleetMinMorale": "최저 피로도 {value}",
+  "summaryFleetMinMorale": "최저 컨디션 {value}",
   "@summaryFleetMinMorale": {"placeholders": {"value":{"type":"int"}}},
-  "summaryExpedition": "진행 중 {active}/3 · 최근 {time}",
+  "summaryExpedition": "원정 중 {active}/3 · 다음 귀환까지 {time}",
   "@summaryExpedition": {"placeholders": {"active":{"type":"int"},"time":{"type":"String"}}},
-  "summaryRepair": "사용 중 {busy}/{total} · 최근 {time}",
+  "summaryRepair": "사용 중 {busy}/{total} · 다음 수리 완료까지 {time}",
   "@summaryRepair": {"placeholders": {"busy":{"type":"int"},"total":{"type":"int"},"time":{"type":"String"}}},
   "summaryRepairBusy": "사용 중 {busy}/{total}",
   "@summaryRepairBusy": {"placeholders": {"busy":{"type":"int"},"total":{"type":"int"}}},
   "summaryConstruction": "완료 {done} · 건조 중 {building}",
   "@summaryConstruction": {"placeholders": {"done":{"type":"int"},"building":{"type":"int"}}},
-  "summaryQuests": "완료 가능 {done} · 진행 중 {active}",
+  "summaryQuests": "달성 {done} · 진행 중 {active}",
   "@summaryQuests": {"placeholders": {"done":{"type":"int"},"active":{"type":"int"}}},
   "summaryLandBase": "출격 {sortie} · 방공 {defense}",
   "@summaryLandBase": {"placeholders": {"sortie":{"type":"int"},"defense":{"type":"int"}}},
@@ -2197,8 +2197,8 @@
   "settingsStatusDisabled": "꺼짐",
   "settingsFleetDisplayStandard": "일반 함대 카드",
   "settingsFleetDisplayHd": "HD 2열 함대 카드",
-  "briefingDisplayTitle": "브리핑 표시 방식",
-  "briefingDisplayDescription": "접기 방식은 여러 모듈을 동시에 펼치고, 탭 방식은 상단 탭으로 모듈을 전환합니다. HD 모드에서는 적용되지 않습니다.",
+  "briefingDisplayTitle": "요약 표시 방식",
+  "briefingDisplayDescription": "접기 방식에서는 여러 모듈을 동시에 펼칠 수 있습니다. 탭 방식에서는 상단 탭을 눌러 모듈을 전환합니다. HD 모드에서는 이 설정이 적용되지 않습니다.",
   "briefingDisplayAccordion": "접기 방식",
   "briefingDisplayTabs": "탭 방식",
   "briefingTabForecast": "예측",

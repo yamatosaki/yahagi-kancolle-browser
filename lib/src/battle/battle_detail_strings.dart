@@ -283,6 +283,12 @@ class BattleDetailStrings {
   }
 
   static const _labels = <String, (String, String, String, String)>{
+    '敌方部队（战前预测）': (
+      '敵方部隊（戰前預測）',
+      '敵艦隊（戦闘前予測）',
+      '적 함대 (전투 전 예측)',
+      'Enemy fleet (pre-battle prediction)',
+    ),
     '海域小地图': ('海域小地圖', '海域ミニマップ', '해역 미니맵', 'Map overview'),
     '当前': ('目前', '現在', '현재', 'Current'),
     '已走': ('已走', '通過済み', '통과 완료', 'Visited'),
@@ -321,7 +327,7 @@ class BattleDetailStrings {
     '已确认': ('已確認', '確認済み', '확인 완료', 'Confirmed'),
     '航行中': ('航行中', '航行中', '항해 중', 'Underway'),
     '基地空袭': ('基地空襲', '基地空襲', '기지 공습', 'Air raid on base'),
-    '演习': ('演習', '演習', '연습', 'Exercise'),
+    '演习': ('演習', '演習', '연습전', 'Exercise'),
     '节点': ('節點', 'マス', '지점', 'Sortie node'),
     '起点': ('起點', '開始マス', '시작 지점', 'Start node'),
     '无战斗': ('無戰鬥', '戦闘なし', '전투 없음', 'No battle'),

@@ -73,7 +73,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get gameStartupLocalHttpProxyHelp =>
-      '로컬 프록시가 실행 중인지 확인하고 주소와 포트를 확인한 후 다시 시도해 주세요.';
+      '로컬 프록시의 실행 상태와 주소, 포트를 확인한 뒤 다시 시도해 주세요.';
 
   @override
   String get gameStartupPageNetworkError => '게임 접속 페이지를 불러올 수 없습니다';
@@ -89,7 +89,7 @@ class AppLocalizationsKo extends AppLocalizations {
       '게임 페이지를 불러오는 중 시간이 초과되었습니다. 다시 시도해 주세요.';
 
   @override
-  String get gameStartupGadgetError => '게임 시작 스크립트를 불러올 수 없습니다';
+  String get gameStartupGadgetError => '현재 게임 시작 스크립트를 불러올 수 없습니다';
 
   @override
   String gameWebViewStartupFailed(String errorType) {
@@ -163,7 +163,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get operationProtectionTitle => '오조작 방지';
 
   @override
-  String get confirmBeforeExitTitle => '실수로 종료 방지';
+  String get confirmBeforeExitTitle => '종료 전 확인';
 
   @override
   String get confirmBeforeExitDescription =>
@@ -761,7 +761,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get fleetTransportTotal => '합계';
 
   @override
-  String get fleetTransportKinuBonus => '키누改二 기본 보너스';
+  String get fleetTransportKinuBonus => '키누 개2의 기본 수송 보너스';
 
   @override
   String fleetTransportRankValues(int s, int a) {
@@ -902,10 +902,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get aboutApp => 'ヤハギ 정보';
 
   @override
-  String get aboutSubtitle => '학습용 버전 1.0.2 · 면책 조항 · 업데이트 확인';
-
-  @override
-  String get version => '학습용 버전 1.0.2';
+  String editionVersion(String number) {
+    return '학습용 버전 $number';
+  }
 
   @override
   String get disclaimerTitle => '면책 조항 (DISCLAIMER)';
@@ -1000,7 +999,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get advanceWarningSmartDescription =>
-      '모든 대파함의 남은 응급수리 장비가 확인되면 상단 알림, 그 외에는 확인창 표시.';
+      '모든 대파함에서 사용 가능한 응급수리 장비가 확인되면 상단 알림을 표시합니다. 그 외에는 확인창을 엽니다.';
 
   @override
   String get advanceWarningAlwaysConfirmDescription => '대파 감지 시 확인창을 표시합니다.';
@@ -1039,14 +1038,14 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get postBattleDamageControlEquippedBody =>
-      '전투 결과 확인 후 대파된 칸무스가 있습니다. 함선과 남은 응급수리 장비를 확인해 주세요.';
+      '전투 종료 시점에 대파 상태인 칸무스가 있습니다. 함선과 남은 응급수리 장비를 확인해 주세요.';
 
   @override
   String get postBattleDamageControlDangerBody =>
-      '전투 결과 확인 후 대파된 칸무스가 있습니다! 진격을 멈추고 다음 전투에 들어가기 전에 게임 내 상태를 확인해 주세요.';
+      '전투 종료 시점에 대파 상태인 칸무스가 있습니다! 진격을 멈추고 게임 내 상태를 확인해 주세요. 다음 전투에 진입하지 않도록 주의하세요.';
 
   @override
-  String get advanceWarningDamageControlActive => '응급수리 장비 유효';
+  String get advanceWarningDamageControlActive => '대파함에 응급수리 장비 장착됨';
 
   @override
   String get advanceWarningReloadGame => '게임 새로고침';
@@ -1580,7 +1579,8 @@ class AppLocalizationsKo extends AppLocalizations {
   String get postBattleWarningTitle => '대파 안전 경고';
 
   @override
-  String get advanceWarningMissingHeadline => '응급수리 장비를 장착하지 않은 대파된 칸무스가 있습니다!';
+  String get advanceWarningMissingHeadline =>
+      '대파된 칸무스 중 응급수리 장비를 장착하지 않은 함선이 있습니다!';
 
   @override
   String get advanceWarningUnknownHeadline =>
@@ -1657,12 +1657,12 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String preSortieMainEquipmentWarning(String fleetName, String shipNames) {
-    return '$fleetName 장비 부족 (일반 슬롯): $shipNames';
+    return '$fleetName · 일반 장비 슬롯이 비어 있는 함선: $shipNames';
   }
 
   @override
   String preSortieExtraEquipmentWarning(String fleetName, String shipNames) {
-    return '$fleetName 장비 부족 (보강증설 슬롯): $shipNames';
+    return '$fleetName · 보강증설 슬롯이 비어 있는 함선: $shipNames';
   }
 
   @override
@@ -1710,7 +1710,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String startupUpdateMessage(String version) {
-    return 'ヤハギ $version이(가) 출시되었습니다.';
+    return 'ヤハギ $version 버전이 출시되었습니다.';
   }
 
   @override
@@ -2219,14 +2219,14 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get battleStatusEffectsEnabledDesc =>
-      '손상 점멸, 손상 진동, 사기 반짝임을 함께 켜거나 끕니다.';
+      '손상 시 깜빡임과 진동, 컨디션 반짝임 효과를 한 번에 켜거나 끕니다.';
 
   @override
   String get battleEffectDisplayScope => '화면 표시 범위';
 
   @override
   String get battleEffectDisplayScopeDesc =>
-      '손상 점멸과 사기 반짝임을 표시할 칸무스 화면을 선택합니다.';
+      '손상 시 깜빡임과 컨디션 반짝임 효과를 어느 화면에 표시할지 선택합니다.';
 
   @override
   String get battleEffectScopePredictionOnly => '전투 예측만';
@@ -2251,7 +2251,7 @@ class AppLocalizationsKo extends AppLocalizations {
       '아군 칸무스가 전투 중 선택한 손상 상태가 되는 순간 진동으로 알립니다.';
 
   @override
-  String get battleMoraleSparkle => '사기 반짝임 효과';
+  String get battleMoraleSparkle => '컨디션 반짝임 효과';
 
   @override
   String get battleMoraleSparkleDesc =>
@@ -2301,15 +2301,15 @@ class AppLocalizationsKo extends AppLocalizations {
   String get fleetInformationSyncImmediate => '즉시 동기화';
 
   @override
-  String get fleetInformationSyncSettlement => '결과에서 동기화';
+  String get fleetInformationSyncSettlement => '전투 결과 수신 시';
 
   @override
   String get fleetInformationSyncImmediateDesc =>
-      '전투 데이터를 받으면 함대 내구도와 응급수리 아이템 소모를 반영합니다.';
+      '전투 데이터를 받으면 함선별 내구도와 응급수리 장비 소모를 반영합니다.';
 
   @override
   String get fleetInformationSyncSettlementDesc =>
-      '전투 결과를 받으면 함대 내구도와 응급수리 아이템 소모를 반영합니다.';
+      '전투 결과를 받으면 함선별 내구도와 응급수리 장비 소모를 반영합니다.';
 
   @override
   String get fleetInformationSyncSaveFailed => '저장하지 못했습니다. 다시 시도해 주세요.';
@@ -2666,7 +2666,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get questSortie => '출격';
 
   @override
-  String get questExercise => '연습';
+  String get questExercise => '연습전';
 
   @override
   String get questSupplyRepair => '보급 / 입거';
@@ -2742,7 +2742,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get gameResourceCacheDesc =>
-      '리소스는 艦隊これくしょん 공식 서버에서 받습니다. 캐시는 언제든 삭제할 수 있습니다.';
+      '게임 리소스는 함대 컬렉션 공식 서버에서 받습니다. 캐시는 언제든 삭제할 수 있습니다.';
 
   @override
   String get gameResourceCacheNone => '임시 캐시';
@@ -3882,12 +3882,12 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String noticePracticeExp(int sExp, int aExp) {
-    return '연습 경험치 (약): S 승리 $sExp · A 승리 $aExp';
+    return '예상 연습전 경험치: S 승리 $sExp · A 승리 $aExp';
   }
 
   @override
   String noticePracticeExpCtBonus(int sExp, int aExp, String bonus) {
-    return '연습 경험치 (약): S 승리 $sExp · A 승리 $aExp (연습순양함 +$bonus)';
+    return '예상 연습전 경험치: S 승리 $sExp · A 승리 $aExp (연습순양함 +$bonus)';
   }
 
   @override
@@ -3931,7 +3931,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get noticeSortieReasonFatigue => '칸무스 피로 (노란 얼굴 / 빨간 얼굴)';
 
   @override
-  String get noticeSortieReasonMainSlot => '일반 장비 슬롯 미장착';
+  String get noticeSortieReasonMainSlot => '비어 있는 일반 장비 슬롯';
 
   @override
   String get noticeSortieReasonExpansionSlot => '보강증설 슬롯 미사용';
@@ -4187,17 +4187,17 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String summaryFleetMinMorale(int value) {
-    return '최저 피로도 $value';
+    return '최저 컨디션 $value';
   }
 
   @override
   String summaryExpedition(int active, String time) {
-    return '진행 중 $active/3 · 최근 $time';
+    return '원정 중 $active/3 · 다음 귀환까지 $time';
   }
 
   @override
   String summaryRepair(int busy, int total, String time) {
-    return '사용 중 $busy/$total · 최근 $time';
+    return '사용 중 $busy/$total · 다음 수리 완료까지 $time';
   }
 
   @override
@@ -4212,7 +4212,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String summaryQuests(int done, int active) {
-    return '완료 가능 $done · 진행 중 $active';
+    return '달성 $done · 진행 중 $active';
   }
 
   @override
@@ -4369,11 +4369,11 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsFleetDisplayHd => 'HD 2열 함대 카드';
 
   @override
-  String get briefingDisplayTitle => '브리핑 표시 방식';
+  String get briefingDisplayTitle => '요약 표시 방식';
 
   @override
   String get briefingDisplayDescription =>
-      '접기 방식은 여러 모듈을 동시에 펼치고, 탭 방식은 상단 탭으로 모듈을 전환합니다. HD 모드에서는 적용되지 않습니다.';
+      '접기 방식에서는 여러 모듈을 동시에 펼칠 수 있습니다. 탭 방식에서는 상단 탭을 눌러 모듈을 전환합니다. HD 모드에서는 이 설정이 적용되지 않습니다.';
 
   @override
   String get briefingDisplayAccordion => '접기 방식';

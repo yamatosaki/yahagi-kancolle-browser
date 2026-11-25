@@ -114,10 +114,11 @@ final class SortieExperienceStrings {
   String get active => _text('出击中', '出擊中', '出撃中', '출격 중', 'Underway');
   String get returned => _text('已返港', '已返港', '帰投済み', '귀항 완료', 'Returned');
   String get practiceActive =>
-      _text('演习中', '演習中', '演習中', '연습 중', 'In exercise');
-  String get settled => _text('已结算', '已結算', '結果確定', '결과 확정', 'Settled');
+      _text('演习中', '演習中', '演習中', '연습전 진행 중', 'Exercise in progress');
+  String get settled =>
+      _text('已结算', '已結算', '結果確定', '결과 확정', 'Results recorded');
   String get practiceSettled =>
-      _text('演习已结算', '演習已結算', '演習終了', '연습 완료', 'Exercise settled');
+      _text('演习已结算', '演習已結算', '演習終了', '연습전 결과 확정', 'Exercise results recorded');
   String get fleetMain => _text('主力舰队', '主力艦隊', '主力艦隊', '주력 함대', 'Main fleet');
   String get fleetEscort =>
       _text('护卫舰队', '護衛艦隊', '護衛艦隊', '호위 함대', 'Escort fleet');
@@ -179,7 +180,7 @@ final class SortieExperienceStrings {
     '出击返港或演习结算后更新',
     '出擊返港或演習結算後更新',
     '出撃は帰投後、演習は結果確定後に更新します',
-    '출격은 귀항 후, 연습은 결과 확정 후 갱신됩니다',
+    '출격 기록은 귀항 후, 연습전 기록은 결과 확정 후 갱신됩니다',
     'Updates after returning to port or finishing an exercise',
   );
   String get offHint => _text(
