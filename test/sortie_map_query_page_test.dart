@@ -291,7 +291,7 @@ void main() {
   });
 
   for (final localeAndLabel in const <(Locale, String)>[
-    (Locale('ja'), '正確な編成'),
+    (Locale('ja'), '性能・装備データが一致'),
     (Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'), '精確配置'),
   ]) {
     testWidgets('enemy details localize for ${localeAndLabel.$1}', (
