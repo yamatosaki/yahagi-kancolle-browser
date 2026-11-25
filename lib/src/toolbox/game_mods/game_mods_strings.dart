@@ -3,6 +3,8 @@ import 'package:flutter/widgets.dart';
 import 'game_mods_models.dart';
 import 'game_mods_library.dart';
 
+part 'game_mod_library_detail_localization.dart';
+
 /// Feature-owned labels; archive names and trusted resource names remain intact.
 class GameModsStrings {
   const GameModsStrings(this.locale);
@@ -78,7 +80,7 @@ class GameModsStrings {
   }
 
   String get progressCurrentPackage =>
-      _t('当前包', '目前套件', '現在のMOD', 'Current package', '현재 패키지');
+      _t('当前包', '目前魔改包', '現在のMOD', 'Current package', '현재 패키지');
   String get progressCurrentFile =>
       _t('当前文件', '目前檔案', '現在のファイル', 'Current file', '현재 파일');
   String progressFiles(int done, int? total) {
@@ -275,14 +277,14 @@ class GameModsStrings {
   String get syncPortraitsHint => _t(
     '编队简报、舰娘详情和持有一览',
     '編隊簡報、艦娘詳情和持有一覽',
-    '編成サマリー・艦娘詳細・所持一覧',
+    '編成情報・艦娘詳細・保有一覧',
     'Fleet summary, ship details and owned inventory',
     '함대 요약, 함선 상세 및 보유 목록',
   );
   String get syncPortraitsHelp => _t(
     '界面同步开关立即生效，使用当前已应用的魔改立绘。关闭后，编队简报、舰娘详情和持有一览恢复原版头像，不影响游戏内的魔改。',
     '介面同步開關立即生效，使用目前已套用的魔改立繪。關閉後，編隊簡報、艦娘詳情和持有一覽恢復原版頭像，不影響遊戲內的魔改。',
-    '画面への反映設定はすぐに有効になり、適用済みのMOD画像を使用します。オフにすると編成サマリー・艦娘詳細・所持一覧の画像を元に戻します。ゲーム内のMODには影響しません。',
+    '画面への反映設定はすぐに有効になり、適用済みのMOD画像を使用します。オフにすると編成情報・艦娘詳細・保有一覧の画像を元に戻します。ゲーム内のMODには影響しません。',
     'Interface sync takes effect immediately and uses currently applied mod portraits. Turning it off restores original portraits in the fleet summary, ship details and owned inventory without affecting in-game mods.',
     '화면 동기화는 즉시 적용되며 현재 적용된 모드 이미지를 사용합니다. 끄면 함대 요약, 함선 상세 및 보유 목록이 원본 이미지로 돌아갑니다. 게임 내 모드에는 영향을 주지 않습니다.',
   );
@@ -365,7 +367,7 @@ class GameModsStrings {
   String get coordinatesFailed => _t(
     '游戏坐标写入失败，请重新应用或查看日志',
     '遊戲座標寫入失敗，請重新套用或檢視日誌',
-    'ゲーム座標の更新に失敗しました。再適用またはログを確認してください',
+    'ゲーム座標の更新に失敗しました。設定を再適用するか、ログを確認してください',
     'Game coordinate update failed; apply again or check the logs',
     '게임 좌표 업데이트에 실패했습니다. 다시 적용하거나 로그를 확인하세요',
   );
@@ -523,14 +525,19 @@ class GameModsStrings {
     '$n/$total selected',
     '$n/$total개 선택됨',
   );
-  String overwritten(int n) =>
-      _t('$n 项被覆盖', '$n 項被覆蓋', '$n 件は他のMODが優先', '$n overridden', '$n개 덮어씀');
+  String overwritten(int n) => _t(
+    '$n 项被覆盖',
+    '$n 項被覆蓋',
+    '$n 件は他のMODが優先',
+    '$n overridden',
+    '다른 패키지가 우선인 리소스 $n개',
+  );
   String source(String name, int n) => _t(
     '「$name」覆盖 $n 项',
     '「$name」覆蓋 $n 項',
     '「$name」が $n 件で優先',
     '$name overrides $n ${n == 1 ? 'resource' : 'resources'}',
-    '$name에서 $n개 덮어씀',
+    '리소스 $n개에 우선 적용되는 패키지: $name',
   );
   String providedBy(String name) => _t(
     '当前由「$name」提供',
@@ -562,7 +569,7 @@ class GameModsStrings {
     '移除「$name」？套用後刪除已匯入檔案及魔改資源資料夾中的對應包。套用前可點底部「取消」復原。魔改資源資料夾之外的原始 ZIP 保留。',
     '「$name」を削除しますか？適用後にインポートファイルとMODフォルダー内の該当MODを削除します。適用前は画面下の「キャンセル」で取り消せます。MODフォルダー外の元のZIPは残ります。',
     'Remove $name? Imported files and this package in the mod folder are deleted after applying. Use Cancel at the bottom before applying to undo. Source ZIPs outside the mod folder are preserved.',
-    '$name을 삭제할까요? 적용하면 가져온 파일과 모드 폴더의 해당 패키지가 삭제됩니다. 적용 전에는 화면 아래의 취소로 되돌릴 수 있습니다. 모드 폴더 밖의 원본 ZIP은 유지됩니다.',
+    '패키지 ‘$name’을 삭제할까요? 적용하면 가져온 파일과 모드 폴더의 해당 패키지가 삭제됩니다. 적용 전에는 화면 아래의 취소로 되돌릴 수 있습니다. 모드 폴더 밖의 원본 ZIP은 유지됩니다.',
   );
   String get reset =>
       _t('删除全部魔改', '刪除全部魔改', 'MODをすべて削除', 'Delete all mods', '모든 모드 삭제');
@@ -590,7 +597,7 @@ class GameModsStrings {
       _t('确认更新', '確認更新', '更新を確定', 'Confirm update', '업데이트 확인');
   String get updateArchiveBody => _t(
     '此 ZIP 将替换所选包的资源。匹配的资源保留原有选择，新增的支持资源默认选中。确认后，在页面底部点击「应用」生效。',
-    '此 ZIP 將取代所選套件的資源。相符的資源保留原有選擇，新增的支援資源預設選取。確認後，在頁面底部點選「套用」生效。',
+    '此 ZIP 將取代所選魔改包的資源。原有資源會保留選取狀態，新增且支援的資源預設選取。確認後，點選頁面底部的「套用」即可生效。',
     '選択したMODの素材をこのZIPで置き換えます。一致する素材の選択は保持され、新しい対応素材はオンになります。確定後、画面下の「適用」で反映します。',
     'This ZIP replaces the resources in the selected package. Matching resources keep their selections, and new supported resources are selected. After confirming, use Apply at the bottom of the page.',
     '이 ZIP으로 선택한 패키지의 리소스를 교체합니다. 일치하는 리소스의 선택은 유지되며 새로 추가된 지원 리소스는 선택됩니다. 확인 후 화면 아래에서 적용을 누르세요.',
@@ -606,7 +613,7 @@ class GameModsStrings {
       _t('更新待应用', '更新待套用', '更新の適用待ち', 'Update pending', '업데이트 적용 대기');
   String get updateUnchanged => _t(
     '此 ZIP 的资源与当前包相同',
-    '此 ZIP 的資源與目前的套件相同',
+    '此 ZIP 的資源與目前的魔改包相同',
     'このZIPの素材は現在のMODと同じです',
     'This ZIP matches the current package',
     '이 ZIP의 리소스가 현재 패키지와 같습니다',
@@ -788,7 +795,7 @@ class GameModsStrings {
       '語音檔名需使用遊戲的數字編號，備份或自訂名稱無法替換',
       '音声ファイル名はゲームの数字IDが必要です。バックアップ名や独自名は置換できません',
       'Voice filenames must use numeric game IDs; backup or custom names cannot replace game voices',
-      '음성 파일명은 게임의 숫자 ID여야 합니다. 백업이나 사용자 지정 이름은 대체할 수 없습니다',
+      '음성 파일명에는 게임의 숫자 ID를 사용해야 합니다. 백업용 이름이나 사용자 지정 이름으로는 게임 음성을 교체할 수 없습니다',
     ),
     'audio_path_unsupported' => _t(
       '仅支持 kcs/sound 下的标准游戏语音路径',

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,6 +19,45 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(mockGameModPortraitPlatform);
   tearDown(clearGameModPortraitPlatformMock);
+
+  test('every scan status detail from Android has an English translation', () {
+    final library = File(
+      'android/app/src/main/kotlin/app/yahagi/kancollebrowser/mods/GameModLibrary.kt',
+    ).readAsLinesSync();
+    final messages = <String>{};
+    final statusDetail = RegExp(r'"([^"]*[\u3400-\u9fff][^"]*)"');
+    for (final line in library) {
+      if (line.contains('items.add(item(') || line.contains('row["error"]')) {
+        for (final match in statusDetail.allMatches(line)) {
+          messages.add(match[1]!);
+        }
+      }
+    }
+    expect(messages, contains('公共目录中的文件已缺失，当前生效副本会保留。'));
+    const english = GameModsStrings(Locale('en'));
+    for (final message in messages) {
+      final result = english.libraryScanDetail(message);
+      expect(
+        result,
+        isNot(contains(RegExp(r'[\u3400-\u9fff]'))),
+        reason: message,
+      );
+    }
+  });
+
+  test('scan diagnostics preserve unknown provider text and literal paths', () {
+    const hant = GameModsStrings(Locale('zh', 'HK'));
+    const unknown = '  提供者：無法開啟 /路径/画像.png  ';
+    expect(hant.libraryScanDetail(unknown), unknown);
+    expect(
+      hant.libraryScanDetail(
+        'Invalid or unsupported display table: text/英:语/表.json',
+      ),
+      '顯示文字表無效或不受支援：text/英:语/表.json',
+    );
+    expect(hant.libraryScanDetail('文件读取失败。 '), '無法讀取檔案。');
+    expect(hant.libraryScanDetail('单个魔改文件不能超过 64 MiB。'), contains('64 MiB'));
+  });
 
   test(
     'library channel sends token operations and decodes scan/status',
@@ -497,6 +537,54 @@ void main() {
     Locale('en'),
     Locale('ko'),
   ]) {
+    testWidgets(
+      'scan details follow ${locale.toLanguageTag()} and preserve paths and provider diagnostics',
+      (tester) async {
+        const rawStatus = '内容与已有魔改包相同，已跳过。';
+        const rawChecksum = 'ZIP 文件长度或校验和错误：';
+        const path = 'kcs2/漢字：画像.png';
+        const providerMessage = 'EIO /storage/游戏/資源: read failed';
+        const expected = {
+          'zh': (rawStatus, rawChecksum),
+          'zh-Hant': ('內容與現有魔改包相同，已略過。', 'ZIP 內的檔案長度或校驗值有誤：'),
+          'ja': ('既存のMODと内容が同じためスキップしました。', 'ZIP内のファイルの長さまたはチェックサムが一致しません：'),
+          'en': (
+            'Skipped because the contents match an existing mod package.',
+            'The file length or checksum is incorrect in the ZIP: ',
+          ),
+          'ko': (
+            '기존 모드 패키지와 내용이 같아 건너뛰었습니다.',
+            'ZIP에 있는 파일의 길이 또는 체크섬이 잘못되었습니다: ',
+          ),
+        };
+        final (statusLabel, checksumLabel) = expected[locale.toLanguageTag()]!;
+        final port = _LibraryPort()
+          ..setLibrary()
+          ..details = [rawStatus, '$rawChecksum$path', providerMessage];
+        final controller = GameModsController(port: port);
+        addTearDown(controller.dispose);
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: locale,
+            supportedLocales: [locale],
+            localizationsDelegates: GlobalMaterialLocalizations.delegates,
+            home: Scaffold(
+              body: GameModsPage(controller: controller, visible: false),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final scan = find.byKey(const Key('game-mods-library-scan'));
+        await tester.ensureVisible(scan);
+        await tester.tap(scan);
+        await tester.pumpAndSettle();
+        expect(find.text(statusLabel), findsOneWidget);
+        expect(find.text('$checksumLabel$path'), findsOneWidget);
+        expect(find.text(providerMessage), findsOneWidget);
+        expect(port.committed, isEmpty);
+        expect(port.applyCalls, 0);
+      },
+    );
     for (final errorCode in const [
       'library_metadata_invalid',
       'library_directory_required',
@@ -637,6 +725,7 @@ class _LibraryPort extends FakeGameModsPort implements GameModsLibraryPort {
   final committed = <String>[], discardedScans = <String>[];
   Completer<void>? scanGate;
   String? chooseError;
+  List<String> details = [];
   void setLibrary({bool configured = true, bool available = true}) {
     current = GameModsStatus.fromMap({
       ...current.toMap(),
@@ -674,19 +763,31 @@ class _LibraryPort extends FakeGameModsPort implements GameModsLibraryPort {
       'token': 'scan-${++scanCalls}',
       'restoreAvailable': !cleanupOnly,
       'cleanupCount': cleanupCount,
-      'entries': [
-        for (final kind
-            in cleanupOnly
-                ? [GameModLibraryEntryKind.unchanged]
-                : GameModLibraryEntryKind.values)
-          {
-            'id': kind.name,
-            'name': kind.name,
-            'kind': kind == GameModLibraryEntryKind.added ? 'new' : kind.name,
-            'supportedCount': 2,
-            'resourceCount': 2,
-          },
-      ],
+      'entries': details.isNotEmpty
+          ? [
+              for (final (index, detail) in details.indexed)
+                {
+                  'id': 'pkg-$index',
+                  'name': 'pkg-$index',
+                  'kind': 'invalid',
+                  'detail': detail,
+                },
+            ]
+          : [
+              for (final kind
+                  in cleanupOnly
+                      ? [GameModLibraryEntryKind.unchanged]
+                      : GameModLibraryEntryKind.values)
+                {
+                  'id': kind.name,
+                  'name': kind.name,
+                  'kind': kind == GameModLibraryEntryKind.added
+                      ? 'new'
+                      : kind.name,
+                  'supportedCount': 2,
+                  'resourceCount': 2,
+                },
+            ],
     });
   }
 

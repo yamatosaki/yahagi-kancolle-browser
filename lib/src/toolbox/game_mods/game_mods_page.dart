@@ -819,7 +819,7 @@ class _GameModsPageState extends State<GameModsPage> {
                           ),
                         if (entry.detail != null && entry.detail!.isNotEmpty)
                           Text(
-                            entry.detail!,
+                            s.libraryScanDetail(entry.detail!),
                             style: appTextStyle(
                               context,
                               TextStyle(

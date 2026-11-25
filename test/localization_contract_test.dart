@@ -95,6 +95,7 @@ void main() {
       'lib/src/toolbox/composition_image_strings.dart',
       'lib/src/toolbox/exp_calc/exp_calc_strings.dart',
       'lib/src/toolbox/game_mods/game_mods_strings.dart',
+      'lib/src/toolbox/game_mods/game_mod_library_detail_localization.dart',
       // Five-locale subtitle UI catalogs; actual subtitle data stays untouched.
       'lib/src/subtitles/ship_subtitle_strings.dart',
       'lib/src/subtitles/ship_subtitle_data_strings.dart',
