@@ -776,7 +776,7 @@ void main() {
   });
 
   testWidgets(
-    'native reports a Gadget failure after the game frame is visible',
+    'native Gadget error can be closed to reveal the current game page',
     (tester) async {
       final fixture = _SurfaceFixture();
       _addLoadingTearDown(tester, fixture);
@@ -813,6 +813,37 @@ void main() {
         find.byKey(const Key('native-game-surface-page-reload')),
         findsOneWidget,
       );
+
+      await _pumpUntil(
+        tester,
+        () => fixture.port.calls.last == 'visible:false',
+      );
+      fixture.port.calls.clear();
+      await tester.tap(find.byKey(const Key('game-startup-close')));
+      await _pumpUntil(
+        tester,
+        () => fixture.port.calls.contains('visible:true'),
+      );
+      await tester.pump();
+      expect(find.byKey(const Key('native-game-surface-error')), findsNothing);
+      expect(fixture.browserController.loadState, GamePageLoadState.failed);
+      expect(fixture.port.calls, isNot(contains('reload')));
+
+      fixture.port.addEvent(_event('pageStarted', generationId: 7, url: url));
+      fixture.port.addEvent(
+        _event(
+          'mainFrameError',
+          generationId: 7,
+          errorCode: -2,
+          description: 'network failed',
+        ),
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const Key('native-game-surface-error')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('game-startup-close')), findsOneWidget);
     },
   );
 

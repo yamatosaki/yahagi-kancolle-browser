@@ -182,7 +182,7 @@ void main() {
       );
       expect(toggle, findsOneWidget);
       expect(find.text('启动检查'), findsOneWidget);
-      expect(find.textContaining('关闭后使用原来的启动方式'), findsOneWidget);
+      expect(find.text('查看启动阶段、进度和连接提示。'), findsOneWidget);
       expect(find.text('性能与画面'), findsOneWidget);
       expect(tester.widget<Switch>(toggle).value, isTrue);
       await tester.tap(toggle);

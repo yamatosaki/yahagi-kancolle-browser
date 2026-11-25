@@ -1132,6 +1132,48 @@ void main() {
     expect(find.byKey(const Key('game-webview-page-reload')), findsOneWidget);
   });
 
+  testWidgets('closing a startup error only hides its card until reload', (
+    tester,
+  ) async {
+    var webViewTaps = 0;
+    platform.onTap = () => webViewTaps++;
+    final fixture = await pump(tester);
+    const url = 'https://game.example/';
+    void failPage() {
+      platform.delegate.started(url);
+      platform.delegate.httpError?.call(
+        HttpResponseError(
+          request: WebResourceRequest(uri: Uri.parse(url)),
+          response: const WebResourceResponse(uri: null, statusCode: 503),
+        ),
+      );
+    }
+
+    failPage();
+    await tester.pump();
+    final close = find.byKey(const Key('game-startup-close'));
+    final retry = find.byKey(const Key('game-webview-page-reload'));
+    expect(close, findsOneWidget);
+    final buttonPosition = tester.getCenter(close);
+    final errorMessage = fixture.browser.errorMessage;
+    await tester.tap(close);
+    await tester.pump();
+    expect(find.byType(GameStartupOverlay), findsNothing);
+    expect(fixture.browser.loadState, GamePageLoadState.failed);
+    expect(fixture.browser.errorMessage, errorMessage);
+    expect(platform.controller.loads, hasLength(1));
+    expect(platform.controller.reloads, 0);
+    await tester.tapAt(buttonPosition);
+    expect(webViewTaps, 1);
+
+    await fixture.browser.reload();
+    expect(platform.controller.reloads, 1);
+    failPage();
+    await tester.pump();
+    expect(close, findsOneWidget);
+    expect(retry, findsOneWidget);
+  });
+
   testWidgets('platform late page command response cannot hide a usable page', (
     tester,
   ) async {

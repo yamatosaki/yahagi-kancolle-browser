@@ -1,6 +1,6 @@
 {
   "gameStartupCheckTitle": "启动检查",
-  "gameStartupCheckDescription": "查看启动阶段、进度和连接提示。关闭后使用原来的启动方式。",
+  "gameStartupCheckDescription": "查看启动阶段、进度和连接提示。",
   "gameStartupCheckSaveFailed": "启动检查设置未保存，请重试。",
   "gameStartupLoadingResources": "正在加载游戏资源",
   "gameStartupResourceRequests": "{count} 个请求",

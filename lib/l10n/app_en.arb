@@ -1,6 +1,6 @@
 {
   "gameStartupCheckTitle": "Startup checks",
-  "gameStartupCheckDescription": "Show loading stages, progress, and connection details. Turn this off to use the previous startup behavior.",
+  "gameStartupCheckDescription": "Show loading stages, progress, and connection details.",
   "gameStartupCheckSaveFailed": "Startup check settings could not be saved. Try again.",
   "gameStartupLoadingResources": "Loading game resources",
   "gameStartupResourceRequests": "{count, plural, one{{count} request} other{{count} requests}}",

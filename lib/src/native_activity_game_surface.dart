@@ -371,6 +371,7 @@ final class _NativeActivityGameSurfaceState
   String _startupErrorMessage = '';
   GameStartupStage _startupStage = GameStartupStage.preparing;
   GameStartupFailure? _startupFailure;
+  bool _startupErrorDismissed = false;
   int? _pageProgress;
   bool _startupStalled = false;
   late bool _startupCheckActive;
@@ -674,6 +675,16 @@ final class _NativeActivityGameSurfaceState
       _navigationIssued &&
       (_startupState == GameStartupState.networkReady ||
           _startupState == GameStartupState.loadingGame);
+
+  bool get _startupErrorIsDismissed =>
+      _startupCheckActive &&
+      _startupState == GameStartupState.error &&
+      _startupErrorDismissed;
+
+  void _dismissStartupError() {
+    setState(() => _startupErrorDismissed = true);
+    _observeVisibilityUpdate(_requestVisibility());
+  }
 
   void _beginNativeStartupCard({bool waitForPageStart = false}) {
     _startupSampleEpoch++;
@@ -1795,6 +1806,7 @@ final class _NativeActivityGameSurfaceState
     if (!_active || !mounted) return;
     setState(() {
       _startupState = state;
+      _startupErrorDismissed = false;
       if (errorMessage != null) _startupErrorMessage = errorMessage;
       if (state == GameStartupState.applyingNetwork) {
         _startupCheckActive = _startupCheckEnabled;
@@ -1961,7 +1973,9 @@ final class _NativeActivityGameSurfaceState
           !_fatal &&
           _desiredVisible &&
           _latestBounds != null &&
-          (_startupState == GameStartupState.ready || _showWebViewWhileLoading);
+          (_startupState == GameStartupState.ready ||
+              _showWebViewWhileLoading ||
+              (_startupErrorIsDismissed && _documentFinished));
       if (force || target != _actualVisible) {
         Object? lastError;
         StackTrace? lastStackTrace;
@@ -2239,6 +2253,7 @@ final class _NativeActivityGameSurfaceState
             ),
           ),
         if (_startupState != GameStartupState.ready &&
+            !_startupErrorIsDismissed &&
             !_showWebViewWhileLoading &&
             (!_startupCheckActive ||
                 _startupCardPort == null ||
@@ -2270,6 +2285,7 @@ final class _NativeActivityGameSurfaceState
               runtimeMessageText(context, _startupErrorMessage),
             ),
         failureMessageKey: const Key('native-game-surface-error'),
+        onClose: _dismissStartupError,
         onRetry: _renderProcessRecoveryAvailable
             ? _reloadAfterRenderProcessGone
             : _pageReloadAvailable

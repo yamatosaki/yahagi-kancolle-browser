@@ -1,6 +1,6 @@
 {
   "gameStartupCheckTitle": "起動チェック",
-  "gameStartupCheckDescription": "起動時の段階、進捗、接続状況を表示します。オフにすると従来の方法で起動します。",
+  "gameStartupCheckDescription": "起動時の段階、進捗、接続状況を表示します。",
   "gameStartupCheckSaveFailed": "起動チェックの設定を保存できませんでした。もう一度お試しください。",
   "gameStartupLoadingResources": "ゲームリソースを読み込み中",
   "gameStartupResourceRequests": "{count} 件のリクエスト",

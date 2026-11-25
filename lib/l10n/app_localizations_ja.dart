@@ -12,8 +12,7 @@ class AppLocalizationsJa extends AppLocalizations {
   String get gameStartupCheckTitle => '起動チェック';
 
   @override
-  String get gameStartupCheckDescription =>
-      '起動時の段階、進捗、接続状況を表示します。オフにすると従来の方法で起動します。';
+  String get gameStartupCheckDescription => '起動時の段階、進捗、接続状況を表示します。';
 
   @override
   String get gameStartupCheckSaveFailed => '起動チェックの設定を保存できませんでした。もう一度お試しください。';

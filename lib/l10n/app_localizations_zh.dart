@@ -12,7 +12,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get gameStartupCheckTitle => '启动检查';
 
   @override
-  String get gameStartupCheckDescription => '查看启动阶段、进度和连接提示。关闭后使用原来的启动方式。';
+  String get gameStartupCheckDescription => '查看启动阶段、进度和连接提示。';
 
   @override
   String get gameStartupCheckSaveFailed => '启动检查设置未保存，请重试。';
@@ -4371,7 +4371,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get gameStartupCheckTitle => '啟動檢查';
 
   @override
-  String get gameStartupCheckDescription => '顯示啟動階段、進度與連線提示。關閉後將使用原本的啟動方式。';
+  String get gameStartupCheckDescription => '顯示啟動階段、進度與連線提示。';
 
   @override
   String get gameStartupCheckSaveFailed => '啟動檢查設定未儲存，請重試。';

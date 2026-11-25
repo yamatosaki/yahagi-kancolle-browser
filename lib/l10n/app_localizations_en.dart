@@ -13,7 +13,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gameStartupCheckDescription =>
-      'Show loading stages, progress, and connection details. Turn this off to use the previous startup behavior.';
+      'Show loading stages, progress, and connection details.';
 
   @override
   String get gameStartupCheckSaveFailed =>

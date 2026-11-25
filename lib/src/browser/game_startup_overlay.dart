@@ -29,6 +29,7 @@ class GameStartupOverlay extends StatefulWidget {
     this.failure,
     this.onRetry,
     this.onRetryWithSystemNetwork,
+    this.onClose,
     this.extra,
     this.statusText,
     this.retryKey,
@@ -45,6 +46,7 @@ class GameStartupOverlay extends StatefulWidget {
   final GameStartupFailure? failure;
   final VoidCallback? onRetry;
   final VoidCallback? onRetryWithSystemNetwork;
+  final VoidCallback? onClose;
   final Widget? extra;
   final String? statusText;
   final Key? retryKey;
@@ -361,12 +363,27 @@ class _GameStartupOverlayState extends State<GameStartupOverlay> {
                             child: Text(l10n.retryWithSystemNetwork),
                           ),
                         if (failure != null)
-                          TextButton(
-                            onPressed: () => _copyDetails(details),
-                            style: TextButton.styleFrom(
-                              foregroundColor: foreground,
-                            ),
-                            child: Text(l10n.gameStartupCopyDetails),
+                          Wrap(
+                            spacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              TextButton(
+                                onPressed: () => _copyDetails(details),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: foreground,
+                                ),
+                                child: Text(l10n.gameStartupCopyDetails),
+                              ),
+                              if (widget.onClose case final onClose?)
+                                TextButton(
+                                  key: const Key('game-startup-close'),
+                                  onPressed: onClose,
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: foreground,
+                                  ),
+                                  child: Text(l10n.close),
+                                ),
+                            ],
                           ),
                       ],
                     ),

@@ -113,6 +113,7 @@ void main() {
   testWidgets('copies bounded failure details without the message or URL', (
     tester,
   ) async {
+    var closes = 0;
     String? clipboardText;
     final messenger = tester.binding.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(SystemChannels.platform, (method) async {
@@ -126,13 +127,14 @@ void main() {
     );
     await _pump(
       tester,
-      const GameStartupOverlay(
+      GameStartupOverlay(
         stage: GameStartupStage.page,
-        failure: GameStartupFailure(
+        failure: const GameStartupFailure(
           '入口页面加载失败',
           host: 'https://user:secret@example.test/?token=private',
           code: 'HTTP 503',
         ),
+        onClose: () => closes++,
       ),
     );
 
@@ -147,6 +149,13 @@ void main() {
     expect(clipboardText, isNot(contains('secret')));
     expect(clipboardText, isNot(contains('入口页面加载失败')));
     expect(find.text('已复制错误详情'), findsOneWidget);
+    final copyPosition = tester.getCenter(find.text('复制错误详情'));
+    final close = find.byKey(const Key('game-startup-close'));
+    final closePosition = tester.getCenter(close);
+    expect(closePosition.dy, copyPosition.dy);
+    expect(closePosition.dx, greaterThan(copyPosition.dx));
+    await tester.tap(close);
+    expect(closes, 1);
   });
 
   testWidgets('fits a narrow, short game viewport with enlarged text', (
@@ -164,6 +173,7 @@ void main() {
         ),
         onRetry: () {},
         onRetryWithSystemNetwork: () {},
+        onClose: () {},
       ),
       size: const Size(300, 220),
       textScale: 1.4,
@@ -173,6 +183,9 @@ void main() {
     final retry = find.text('重新载入游戏');
     await tester.ensureVisible(retry);
     expect(retry.hitTestable(), findsOneWidget);
+    final close = find.byKey(const Key('game-startup-close'));
+    await tester.ensureVisible(close);
+    expect(close.hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }

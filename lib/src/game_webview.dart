@@ -867,6 +867,7 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
   GameStartupState _startupState = GameStartupState.loadingSettings;
   GameStartupStage _startupStage = GameStartupStage.preparing;
   GameStartupFailure? _startupFailure;
+  bool _startupFailureDismissed = false;
   final ValueNotifier<int?> _pageProgress = ValueNotifier(null);
   bool _startupStalled = false;
   bool _foreground = true;
@@ -1276,6 +1277,7 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
         _startupCheckActive = _startupCheckEnabled;
         _startupState = GameStartupState.applyingNetwork;
         _startupFailure = null;
+        _startupFailureDismissed = false;
         _beginStartupOverlay();
         _beginStartupStage(GameStartupStage.preparing);
       });
@@ -1404,9 +1406,15 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
       _startupStage = stage ?? _startupStage;
       _startupFailure =
           failure ?? GameStartupFailure(runtimeMessageText(context, message));
+      _startupFailureDismissed = false;
       _startupStalled = false;
       _closeStartupOverlay();
     });
+  }
+
+  void _dismissStartupFailure() {
+    if (_startupFailure == null || _startupFailureDismissed) return;
+    setState(() => _startupFailureDismissed = true);
   }
 
   bool get _isGameStartupPage => switch (classifyGamePage(_navigationUri)) {
@@ -1874,6 +1882,7 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
       if (newStartupCheck) _startupCheckActive = _startupCheckEnabled;
       _startupState = GameStartupState.loadingGame;
       _startupFailure = null;
+      _startupFailureDismissed = false;
       _beginStartupOverlay(keepDelay: true);
       _beginStartupStage(GameStartupStage.page);
     });
@@ -2117,6 +2126,7 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final showFailure = _startupFailure != null && !_startupFailureDismissed;
     return Stack(
       children: [
         _buildWebView(),
@@ -2127,8 +2137,7 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
               child: Center(child: _buildLegacyStartupOverlay()),
             ),
           )
-        else if (_startupCheckActive &&
-            (_startupOverlayVisible || _startupFailure != null))
+        else if (_startupCheckActive && (_startupOverlayVisible || showFailure))
           Positioned.fill(
             child: IgnorePointer(
               ignoring: _startupFailure == null && !_startupStalled,
@@ -2217,6 +2226,7 @@ class _GameWebViewState extends State<GameWebView> with WidgetsBindingObserver {
     onRetryWithSystemNetwork: !_retryInProgress && _startupFailure != null
         ? () => unawaited(_retryWithSystemNetwork())
         : null,
+    onClose: _startupFailure == null ? null : _dismissStartupFailure,
   );
 
   Widget _buildLegacyStartupOverlay() {

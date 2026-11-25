@@ -112,7 +112,7 @@ abstract class AppLocalizations {
   /// No description provided for @gameStartupCheckDescription.
   ///
   /// In zh, this message translates to:
-  /// **'查看启动阶段、进度和连接提示。关闭后使用原来的启动方式。'**
+  /// **'查看启动阶段、进度和连接提示。'**
   String get gameStartupCheckDescription;
 
   /// No description provided for @gameStartupCheckSaveFailed.

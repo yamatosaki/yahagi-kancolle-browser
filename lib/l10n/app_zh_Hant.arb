@@ -1,6 +1,6 @@
 {
   "gameStartupCheckTitle": "啟動檢查",
-  "gameStartupCheckDescription": "顯示啟動階段、進度與連線提示。關閉後將使用原本的啟動方式。",
+  "gameStartupCheckDescription": "顯示啟動階段、進度與連線提示。",
   "gameStartupCheckSaveFailed": "啟動檢查設定未儲存，請重試。",
   "gameStartupLoadingResources": "正在載入遊戲資源",
   "gameStartupResourceRequests": "{count} 個請求",

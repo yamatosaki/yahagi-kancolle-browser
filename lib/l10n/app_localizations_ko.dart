@@ -12,8 +12,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get gameStartupCheckTitle => '시작 상태 확인';
 
   @override
-  String get gameStartupCheckDescription =>
-      '시작 단계, 진행률, 연결 상태를 표시합니다. 끄면 기존 방식으로 시작합니다.';
+  String get gameStartupCheckDescription => '시작 단계, 진행률, 연결 상태를 표시합니다.';
 
   @override
   String get gameStartupCheckSaveFailed =>
