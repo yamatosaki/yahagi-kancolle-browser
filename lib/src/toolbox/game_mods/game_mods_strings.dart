@@ -250,11 +250,11 @@ class GameModsStrings {
     '모드 리소스를 자유롭게 조합',
   );
   String get importHint => _t(
-    '支持 cache.zip 以及包含游戏资源、舰娘坐标或翻译数据的 ZIP',
-    '支援 cache.zip 以及包含遊戲資源、艦娘座標或翻譯資料的 ZIP',
-    'cache.zip や、ゲーム素材・艦娘座標・翻訳データを含む ZIP に対応',
-    'Choose a cache.zip or a ZIP containing game assets, ship coordinates, or translations',
-    'cache.zip 또는 게임 리소스, 함선 좌표, 번역 데이터가 포함된 ZIP 지원',
+    '支持 cache.zip，以及含图片、字体、MP3 / WAV 语音、舰娘坐标或翻译的 ZIP',
+    '支援 cache.zip，以及含圖片、字型、MP3 / WAV 語音、艦娘座標或翻譯的 ZIP',
+    'cache.zip のほか、画像・フォント・MP3 / WAV 音声・艦娘座標・翻訳を含む ZIP に対応',
+    'Choose cache.zip or a ZIP with images, fonts, MP3 / WAV audio, ship coordinates, or translations',
+    'cache.zip 또는 이미지, 글꼴, MP3 / WAV 음성, 함선 좌표, 번역이 포함된 ZIP 지원',
   );
   String get master =>
       _t('使用魔改资源', '使用魔改資源', 'MOD素材を使用', 'Use mod resources', '모드 리소스 사용');

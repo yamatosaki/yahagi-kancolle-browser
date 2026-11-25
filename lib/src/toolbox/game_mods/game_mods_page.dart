@@ -1,5 +1,6 @@
 import '../../theme/app_palette.dart';
 import '../../widgets/app_segmented_style.dart';
+import '../../widgets/top_notice.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -2161,9 +2162,11 @@ class _GameModsPageState extends State<GameModsPage> {
         ? s.updateUnchanged
         : null;
     if (message == null) return;
-    ScaffoldMessenger.maybeOf(
+    TopNotice.show(
       context,
-    )?.showSnackBar(SnackBar(content: Text(message)));
+      message: message,
+      tone: error == null ? TopNoticeTone.info : TopNoticeTone.error,
+    );
   }
 
   String _size(int bytes) => bytes >= 1024 * 1024

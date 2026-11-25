@@ -8,6 +8,7 @@ import 'package:yahagi_kancolle_browser/src/toolbox/game_mods/game_mods_models.d
 import 'package:yahagi_kancolle_browser/src/toolbox/game_mods/game_mods_page.dart';
 import 'package:yahagi_kancolle_browser/src/toolbox/game_mods/game_mods_port.dart';
 import 'package:yahagi_kancolle_browser/src/toolbox/game_mods/game_mods_strings.dart';
+import 'package:yahagi_kancolle_browser/src/widgets/top_notice.dart';
 
 import 'game_mods_controller_test.dart' show FakeGameModsPort;
 import 'support/game_mod_portrait_platform_mock.dart';
@@ -120,7 +121,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Confirm update'));
     await tester.pumpAndSettle();
-    expect(find.text('This ZIP matches the current package'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.byKey(topNoticeTextKey)).data,
+      'This ZIP matches the current package',
+    );
     expect(find.text('Update pending'), findsNothing);
     expect(calls.where((c) => c.method == 'applyAndReload'), hasLength(1));
     _expectNoFrameworkErrors(tester);
@@ -467,7 +471,9 @@ Future<void> _pumpPage(
         ).copyWith(textScaler: TextScaler.linear(scale)),
         child: child!,
       ),
-      home: Scaffold(body: GameModsPage(controller: controller)),
+      home: TopNoticeHost(
+        child: Scaffold(body: GameModsPage(controller: controller)),
+      ),
     ),
   );
   await tester.pumpAndSettle();
