@@ -28,6 +28,9 @@ class GameModsController extends ChangeNotifier with WidgetsBindingObserver {
   GameModsPreflight? preflight;
   GameModLibraryScan? libraryScan;
   bool get librarySupported => _port is GameModsLibraryPort;
+  bool _archiveUpdateSupported = false;
+  bool get archiveUpdateSupported =>
+      supported == true && _archiveUpdateSupported;
   GameModsLibraryPort? get _libraryPort =>
       _port is GameModsLibraryPort ? _port as GameModsLibraryPort : null;
   GameModsApplyResult? lastApplyResult;
@@ -69,6 +72,9 @@ class GameModsController extends ChangeNotifier with WidgetsBindingObserver {
       final capability = await _port.capabilities();
       if (_disposed) return;
       supported = capability.supported;
+      _archiveUpdateSupported =
+          capability.archiveUpdateSupported &&
+          _port is GameModsArchiveUpdatePort;
       errorCode = capability.supported
           ? null
           : capability.reason ?? 'unsupported';
@@ -279,11 +285,22 @@ class GameModsController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> flushDraft() => _saveTail;
-  Future<void> pickArchive() async {
+  Future<void> pickArchive({String? updatePackageId}) async {
     if (!canEdit || preflight != null || libraryScan != null) return;
+    if (updatePackageId != null &&
+        (!archiveUpdateSupported ||
+            !_status.packages.any(
+              (p) => p.id == updatePackageId && !p.pendingRemoval,
+            ))) {
+      return;
+    }
     await _run(() async {
       if (!await _ensureLibrary()) return;
-      final candidate = await _port.pickAndPreflightArchive();
+      final candidate = updatePackageId == null
+          ? await _port.pickAndPreflightArchive()
+          : await (_port as GameModsArchiveUpdatePort).pickAndPreflightUpdate(
+              updatePackageId,
+            );
       if (_disposed) {
         if (candidate != null) {
           try {
@@ -441,12 +458,24 @@ class GameModsController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> confirmImport() async {
-    if (!canEdit || preflight == null || preflight!.supportedCount == 0) return;
+    final candidate = preflight;
+    if (!canEdit || candidate == null || candidate.supportedCount == 0) return;
     await _run(() async {
-      await flushDraft();
-      if (!_saved()) return;
-      await _port.commitImport(preflight!.token);
-      preflight = null;
+      var committed = false;
+      try {
+        await flushDraft();
+        if (!_saved()) return;
+        await _port.commitImport(candidate.token);
+        committed = true;
+        lastApplyResult = null;
+      } finally {
+        preflight = null;
+        if (!committed) {
+          try {
+            await _port.discardImport(candidate.token);
+          } catch (_) {}
+        }
+      }
       _status = await _port.status();
       _revision++;
     }, operation: 'import');

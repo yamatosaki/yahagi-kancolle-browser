@@ -250,11 +250,11 @@ class GameModsStrings {
     '모드 리소스를 자유롭게 조합',
   );
   String get importHint => _t(
-    '支持 cache.zip、标准游戏 PNG / MP3 / WAV 及舰娘坐标 INI / JSON 资源 ZIP',
-    '支援 cache.zip、標準遊戲 PNG / MP3 / WAV 及艦娘座標 INI / JSON 資源 ZIP',
-    'cache.zip、標準ゲーム PNG / MP3 / WAV、艦娘座標 INI / JSON のZIPに対応',
-    'Choose a cache.zip or a ZIP of standard game PNG / MP3 / WAV and ship coordinate INI / JSON files',
-    'cache.zip, 표준 게임 PNG / MP3 / WAV, 함선 좌표 INI / JSON 리소스 ZIP 지원',
+    '支持 cache.zip 以及包含游戏资源、舰娘坐标或翻译数据的 ZIP',
+    '支援 cache.zip 以及包含遊戲資源、艦娘座標或翻譯資料的 ZIP',
+    'cache.zip や、ゲーム素材・艦娘座標・翻訳データを含む ZIP に対応',
+    'Choose a cache.zip or a ZIP containing game assets, ship coordinates, or translations',
+    'cache.zip 또는 게임 리소스, 함선 좌표, 번역 데이터가 포함된 ZIP 지원',
   );
   String get master =>
       _t('使用魔改资源', '使用魔改資源', 'MOD素材を使用', 'Use mod resources', '모드 리소스 사용');
@@ -584,6 +584,40 @@ class GameModsStrings {
   );
   String get confirmImport =>
       _t('确认导入', '確認匯入', 'インポート', 'Confirm import', '가져오기 확인');
+  String get updateArchive =>
+      _t('从 ZIP 更新', '從 ZIP 更新', 'ZIPから更新', 'Update from ZIP', 'ZIP에서 업데이트');
+  String get confirmUpdate =>
+      _t('确认更新', '確認更新', '更新を確定', 'Confirm update', '업데이트 확인');
+  String get updateArchiveBody => _t(
+    '此 ZIP 将替换所选包的资源。匹配的资源保留原有选择，新增的支持资源默认选中。确认后，在页面底部点击「应用」生效。',
+    '此 ZIP 將取代所選套件的資源。相符的資源保留原有選擇，新增的支援資源預設選取。確認後，在頁面底部點選「套用」生效。',
+    '選択したMODの素材をこのZIPで置き換えます。一致する素材の選択は保持され、新しい対応素材はオンになります。確定後、画面下の「適用」で反映します。',
+    'This ZIP replaces the resources in the selected package. Matching resources keep their selections, and new supported resources are selected. After confirming, use Apply at the bottom of the page.',
+    '이 ZIP으로 선택한 패키지의 리소스를 교체합니다. 일치하는 리소스의 선택은 유지되며 새로 추가된 지원 리소스는 선택됩니다. 확인 후 화면 아래에서 적용을 누르세요.',
+  );
+  String updateCounts(int added, int removed) => _t(
+    '新增 $added 项资源 · 移除 $removed 项',
+    '新增 $added 項資源 · 移除 $removed 項',
+    '素材 $added 件を追加・$removed 件を削除',
+    '$added ${added == 1 ? 'resource' : 'resources'} added · $removed removed',
+    '리소스 $added개 추가 · $removed개 제거',
+  );
+  String get updatePending =>
+      _t('更新待应用', '更新待套用', '更新の適用待ち', 'Update pending', '업데이트 적용 대기');
+  String get updateUnchanged => _t(
+    '此 ZIP 的资源与当前包相同',
+    '此 ZIP 的資源與目前的套件相同',
+    'このZIPの素材は現在のMODと同じです',
+    'This ZIP matches the current package',
+    '이 ZIP의 리소스가 현재 패키지와 같습니다',
+  );
+  String get pendingUpdateHint => _t(
+    '应用后使用更新后的资源。应用前可点击「取消」撤回更新。',
+    '套用後使用更新的資源。套用前可點選「取消」撤回更新。',
+    '適用後に更新した素材を使用します。適用前は「キャンセル」で更新を取り消せます。',
+    'Apply to use the updated resources. Use Cancel before applying to discard the update.',
+    '적용하면 업데이트된 리소스가 사용됩니다. 적용 전에는 취소를 눌러 업데이트를 되돌릴 수 있습니다.',
+  );
   String get importDefault => _t(
     '新包默认关闭，排在列表下方。导入后可调整资源选择。',
     '新包預設關閉，排在清單下方。匯入後可調整資源選擇。',
@@ -868,12 +902,40 @@ class GameModsStrings {
       'The image is not a valid PNG',
       '올바른 PNG 이미지가 아닙니다',
     ),
+    'invalid_jpeg' => _t(
+      'JPEG 图像无效或超过大小限制',
+      'JPEG 圖像無效或超過大小限制',
+      'JPEG画像が無効か、サイズ上限を超えています',
+      'The JPEG is invalid or exceeds the size limit',
+      'JPEG 이미지가 올바르지 않거나 크기 제한을 초과합니다',
+    ),
+    'invalid_font' => _t(
+      '游戏字体文件无效或超出支持范围',
+      '遊戲字型檔案無效或超出支援範圍',
+      'ゲーム用フォントファイルが無効か、非対応です',
+      'The game font file is invalid or unsupported',
+      '게임 글꼴 파일이 올바르지 않거나 지원되지 않습니다',
+    ),
+    'invalid_quest_translation' => _t(
+      '任务翻译文件格式无效或超出大小限制',
+      '任務翻譯檔案格式無效或超出大小限制',
+      '任務翻訳ファイルの形式が無効か、サイズ上限を超えています',
+      'The quest translation file is invalid or exceeds the size limit',
+      '임무 번역 파일의 형식이 올바르지 않거나 크기 제한을 초과합니다',
+    ),
+    'invalid_display_translation' => _t(
+      '游戏文字、正则或曲名翻译数据无效',
+      '遊戲文字、正規表示式或曲名翻譯資料無效',
+      'ゲーム内テキスト、正規表現、または曲名の翻訳データが無効です',
+      'The game text, regular expression, or track title translation data is invalid',
+      '게임 문구, 정규식 또는 곡 제목 번역 데이터가 올바르지 않습니다',
+    ),
     'invalid_token' => _t(
-      '导入预检已失效，请重新选择 ZIP',
-      '匯入預檢已失效，請重新選擇 ZIP',
+      'ZIP 预检已失效，请重新选择文件',
+      'ZIP 預檢已失效，請重新選擇檔案',
       '確認の有効期限が切れました。ZIPを選び直してください',
-      'Import review expired; choose the ZIP again',
-      '가져오기 확인이 만료되었습니다. ZIP을 다시 선택하세요',
+      'ZIP review expired. Choose the ZIP again.',
+      'ZIP 검토가 만료되었습니다. ZIP을 다시 선택하세요',
     ),
     'save_failed' || 'storage_error' => _t(
       '设置未能保存，请重试保存后再应用',
@@ -976,6 +1038,35 @@ class GameModsStrings {
     'background' ||
     'ship' ||
     'ship_image' => _t('图像资源', '圖像資源', '画像素材', 'Image resources', '이미지 리소스'),
+    'font' => _t('字体资源', '字型資源', 'フォント素材', 'Fonts', '글꼴 리소스'),
+    'quest_translation' => _t(
+      '游戏任务翻译',
+      '遊戲任務翻譯',
+      'ゲーム内任務の翻訳',
+      'In-game quest translations',
+      '게임 내 임무 번역',
+    ),
+    'text_translation' => _t(
+      '游戏文字词典',
+      '遊戲文字詞典',
+      'ゲーム内テキスト辞書',
+      'Game text dictionaries',
+      '게임 문구 사전',
+    ),
+    'text_regex_translation' => _t(
+      '正则文字替换',
+      '正規表示式文字替換',
+      '正規表現によるテキスト置換',
+      'Regular expression replacements',
+      '정규식 문구 치환',
+    ),
+    'bgm_translation' => _t(
+      '游戏曲名翻译',
+      '遊戲曲名翻譯',
+      'ゲーム内の曲名翻訳',
+      'In-game track titles',
+      '게임 내 곡 제목 번역',
+    ),
     _ => _t('其他资源', '其他資源', 'その他の素材', 'Other resources', '기타 리소스'),
   };
   String groupLabel(String id, String resourceKind) =>

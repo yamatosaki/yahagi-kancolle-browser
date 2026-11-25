@@ -73,13 +73,18 @@ class GameModsOperationProgress {
 }
 
 class GameModsCapabilities {
-  const GameModsCapabilities({required this.supported, this.reason});
-  final bool supported;
+  const GameModsCapabilities({
+    required this.supported,
+    this.reason,
+    this.archiveUpdateSupported = false,
+  });
+  final bool supported, archiveUpdateSupported;
   final String? reason;
   factory GameModsCapabilities.fromMap(Map<String, dynamic> map) =>
       GameModsCapabilities(
         supported: map['supported'] == true,
         reason: map['reason'] as String?,
+        archiveUpdateSupported: map['archiveUpdateSupported'] == true,
       );
 }
 
@@ -135,13 +140,14 @@ class GameModPackage {
     this.resources = const [],
     this.warnings = const [],
     this.pendingRemoval = false,
+    this.pendingUpdate = false,
   });
   final String id, name;
   final int sizeBytes;
   final Object? importedAt;
   final List<GameModResource> resources;
   final List<String> warnings;
-  final bool pendingRemoval;
+  final bool pendingRemoval, pendingUpdate;
   factory GameModPackage.fromMap(Map<String, dynamic> map) => GameModPackage(
     id: map['id'] as String? ?? '',
     name: map['name'] as String? ?? '',
@@ -152,6 +158,7 @@ class GameModPackage {
         .toList(growable: false),
     warnings: _strings(map['warnings']),
     pendingRemoval: map['pendingRemoval'] == true,
+    pendingUpdate: map['pendingUpdate'] == true,
   );
   Map<String, dynamic> toMap() => {
     'id': id,
@@ -161,6 +168,7 @@ class GameModPackage {
     'resources': resources.map((r) => r.toMap()).toList(),
     'warnings': warnings,
     'pendingRemoval': pendingRemoval,
+    'pendingUpdate': pendingUpdate,
   };
 }
 
@@ -213,10 +221,12 @@ class GameModsPreflight {
     required this.unsupportedCount,
     this.warnings = const [],
     this.sourceFileCount,
+    this.addedCount,
+    this.removedCount,
   });
   final String token, name;
   final int resourceCount, supportedCount, unsupportedCount;
-  final int? sourceFileCount;
+  final int? sourceFileCount, addedCount, removedCount;
   int get fileCount => sourceFileCount ?? resourceCount;
   final List<String> warnings;
   factory GameModsPreflight.fromMap(Map<String, dynamic> map) =>
@@ -230,6 +240,8 @@ class GameModsPreflight {
         sourceFileCount: map['sourceFileCount'] is num
             ? _int(map['sourceFileCount'])
             : null,
+        addedCount: (map['addedCount'] as num?)?.toInt(),
+        removedCount: (map['removedCount'] as num?)?.toInt(),
       );
 }
 

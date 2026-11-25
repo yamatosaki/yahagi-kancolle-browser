@@ -31,7 +31,8 @@ internal class GameModCoordinateEndpoint(
         return try {
             if (base.rawPath == CONFIG_PATH) {
                 if (url.contains('?') || url.contains('#')) return response(400, "Bad Request")
-                val local = snapshot() ?: mapOf("sessionId" to 0, "token" to "", "ships" to emptyMap<String, Any>())
+                val local = snapshot() ?: mapOf("sessionId" to 0, "token" to "",
+                    "ships" to emptyMap<String, Any>(), "questTranslations" to emptyMap<String, Any>())
                 val config = if (kanxyActive()) {
                     local + mapOf("kanxy" to true, "stockShipNames" to stockShipNames())
                 } else local

@@ -33,6 +33,31 @@ class GameModLibraryDocumentsTest {
     private val imagePath = "kcs2/resources/ship/banner/0001_1234.png"
     private val extraPath = "kcs2/resources/ship/banner/0002_1234.png"
 
+    @Test fun freshImportWritesUseExactDocumentNamesAndNeverOverwriteCollisions() = isolated { store, _, _ ->
+        val staging = "$GAME_MOD_IMPORT_STAGING_PREFIX${UUID.randomUUID()}"
+        store.createFreshTree(staging)
+        store.createMediaMarker(staging)
+        val nested = "$staging/资源"
+        store.createDirectory(nested)
+
+        val pngPath = "$nested/图标.png"
+        val fontPath = "$nested/字体.woff2"
+        val image = png(Color.BLUE)
+        val font = byteArrayOf(0, 1, -1)
+        store.openFreshFile(pngPath).use { it.write(image) }
+        store.openFreshFile(fontPath).use { it.write(font) }
+        assertEquals(setOf("图标.png", "字体.woff2"), store.list(nested).map { it.name }.toSet())
+        assertArrayEquals(image, read(store, pngPath))
+        assertArrayEquals(font, read(store, fontPath))
+
+        val collision = runCatching { store.openFreshFile(pngPath).close() }.exceptionOrNull()
+        assertEquals("library_write_failed", (collision as? GameModException)?.code)
+        assertEquals(setOf("图标.png", "字体.woff2"), store.list(nested).map { it.name }.toSet())
+        assertArrayEquals(image, read(store, pngPath))
+        expectUnsafe { store.openFreshFile("existing.png").close() }
+        expectUnsafe { store.openFreshFile("$staging/../outside.png").close() }
+    }
+
     @Test fun documentsReadWriteTruncateRenameAndRejectUnsafePaths() = isolated { store, _, resolver ->
         val longText = "魔改文件夹 / 伊47 / voice\n".repeat(40).toByteArray(Charsets.UTF_8)
         val shortText = "短文：吹雪".toByteArray(Charsets.UTF_8)

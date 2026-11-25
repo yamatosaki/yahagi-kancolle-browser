@@ -18,8 +18,8 @@ const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 const sourceHash = sha(fs.readFileSync(process.env.YAHAGI_GAME_DECODED_JS));
 const inputPaths = [process.env.YAHAGI_REAL_MOD_ZIP, process.env.YAHAGI_REAL_VOICE_MOD_ZIP];
 const inputHashes = inputPaths.map(path => sha(fs.readFileSync(path)));
-const kotlin = fs.readFileSync(process.argv[2], 'utf8');
-const hook = kotlin.match(/val source: String\s*=\s*"""([\s\S]*?)"""/)[1];
+const {readGameModScript} = require('../game_mod_script_source.cjs');
+const hook = readGameModScript(process.argv[2]);
 const capture = fs.readFileSync(process.argv[3], 'utf8');
 
 // Only ZIP data is decoded. No archive scripts, executables, or bundled JS run.

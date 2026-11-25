@@ -197,6 +197,11 @@ String buildNativeGameCaptureScript() {
     }
   };
 
+  const originalFetchResponse = (response) => {
+    const originalResponses = window.__yahagiModOriginalResponses;
+    return originalResponses ? originalResponses.fetch(response) : response;
+  };
+
   const fetchQuestPage = async (url, baseParams, pageNo) => {
     if (nativeFetch === null) throw new Error('fetch unavailable');
     const params = new URLSearchParams(baseParams.toString());
@@ -211,7 +216,7 @@ String buildNativeGameCaptureScript() {
       body: params.toString(),
     });
     if (!response.ok) throw new Error('quest snapshot request failed');
-    const responseBody = await response.text();
+    const responseBody = await originalFetchResponse(response).text();
     const envelope = decodeKcsapiEnvelope(responseBody);
     if (
       !envelope ||
@@ -338,9 +343,7 @@ String buildNativeGameCaptureScript() {
 
       return originalFetch.apply(this, args).then((response) => {
         if (path !== null) {
-          const originalResponses = window.__yahagiModOriginalResponses;
-          const capturedResponse = originalResponses
-            ? originalResponses.fetch(response) : response;
+          const capturedResponse = originalFetchResponse(response);
           Promise.all([capturedResponse.clone().text(), requestBodyPromise])
             .then(([responseBody, capturedRequestBody]) => {
               publish({

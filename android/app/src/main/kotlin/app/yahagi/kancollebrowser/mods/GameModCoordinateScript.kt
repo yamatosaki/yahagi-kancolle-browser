@@ -1,6 +1,6 @@
 package app.yahagi.kancollebrowser.mods
 
-/** Runs before game code. Only the game's view of successful startup data is modified. */
+/** Installs the active local modifications before the game's own scripts. */
 internal object GameModCoordinateScript {
     val allowedOriginRules = setOf("https://*.kancolle-server.com")
 
@@ -27,21 +27,32 @@ internal object GameModCoordinateScript {
             if (request.status !== 200) return;
             config = JSON.parse(textDescriptor.get.call(request));
           } catch (_) { return; }
-          if (!config || !config.ships || (config.kanxy !== true && !Object.keys(config.ships).length) ||
-              !Number.isSafeInteger(config.sessionId) || typeof config.token !== 'string') return;
+          if (!config?.ships || !Number.isSafeInteger(config.sessionId) || typeof config.token !== 'string') return;
+          if (config.displayTranslations && new URL(location.href).pathname.startsWith('/kcs2/')) {
+            try {
+              ${GameModChsBgmNames.source}
+              ${GameModChsTextScript.source}
+              installGameText(config.displayTranslations);
+            } catch (_) {}
+          }
+          const kanxy = config.kanxy === true;
+          const hasStartupMods = kanxy || Object.keys(config.ships).length > 0;
+          const questTranslations = config.questTranslations;
+          const hasQuestTranslations = questTranslations && typeof questTranslations === 'object' &&
+            !Array.isArray(questTranslations) && Object.keys(questTranslations).length > 0;
+          if (!hasStartupMods && !hasQuestTranslations) return;
           window.__yahagiModCoordinatesInstalled = true;
           const xhrState = new WeakMap();
           const rawFetch = new WeakMap();
           const knownIds = [...new Set(Object.values(config.ships).flatMap(ship => ship.resourceIds))];
           const nativeParse = JSON.parse;
-          const kanxy = config.kanxy === true;
+          const origin = new URL(location.href).origin;
           if (kanxy) {
             // PIXI can reuse Chromium's cached image before native interception.
             // Keep the resource path intact so Yahagi's local replacements still win.
             const imageProto = window.HTMLImageElement?.prototype;
             const src = imageProto && Object.getOwnPropertyDescriptor(imageProto, 'src');
             const documentVersion = 'yahagi-' + Date.now().toString(36) + Math.random().toString(36).slice(2);
-            const origin = new URL(location.href).origin;
             const shipArtPath = /^\/kcs2\/resources\/ship\/[a-z0-9_]+\/[A-Za-z0-9_-]+\.png$/;
             if (src?.configurable && src.set) {
               Object.defineProperty(imageProto, 'src', {...src, set(value) {
@@ -125,12 +136,15 @@ internal object GameModCoordinateScript {
               nativeSend.call(request);
             } catch (_) {}
           };
-          const isStartup = (value) => {
+          const startupPath = '/kcsapi/api_start2/getData';
+          const questListPath = '/kcsapi/api_get_member/questlist';
+          const targetPath = (value) => {
             try {
               const url = new URL(String(value), location.href);
-              const current = new URL(location.href);
-              return url.origin === current.origin && url.pathname === '/kcsapi/api_start2/getData';
-            } catch (_) { return false; }
+              if (url.origin === origin && ((hasStartupMods && url.pathname === startupPath) ||
+                  (hasQuestTranslations && url.pathname === questListPath))) return url.pathname;
+            } catch (_) {}
+            return null;
           };
           const isFalseName = (value) => value === false ||
             (typeof value === 'string' && value.trim().toLowerCase() === 'false');
@@ -149,7 +163,7 @@ internal object GameModCoordinateScript {
             }
             return repaired;
           };
-          const patchObject = (data) => {
+          const patchStartup = (data) => {
             if (!data || data.api_result !== 1 || !data.api_data) throw new Error('startup_shape');
             const namesRepaired = repairNames(data.api_data.api_mst_ship);
             if (!Array.isArray(data.api_data.api_mst_shipgraph)) {
@@ -166,11 +180,35 @@ internal object GameModCoordinateScript {
             }
             return {data, applied: [...new Set(applied)], failed: [...new Set(failed)]};
           };
-          const patchText = (text) => {
+          const patchQuestList = (data) => {
+            const quests = data?.api_data?.api_list;
+            if (data?.api_result !== 1 || !Array.isArray(quests)) return null;
+            let changed = false;
+            for (const quest of quests) {
+              const id = quest?.api_no;
+              if ((typeof id !== 'number' && typeof id !== 'string') ||
+                  !/^[1-9][0-9]*$/.test(id) || !Object.hasOwn(questTranslations, id)) continue;
+              const translation = questTranslations[id];
+              if (typeof quest.api_title === 'string' && typeof translation?.title === 'string' &&
+                  quest.api_title !== translation.title) {
+                quest.api_title = translation.title;
+                changed = true;
+              }
+              if (typeof quest.api_detail === 'string' && typeof translation?.detail === 'string' &&
+                  quest.api_detail !== translation.detail) {
+                quest.api_detail = translation.detail;
+                changed = true;
+              }
+            }
+            return changed ? {data} : null;
+          };
+          const patchObject = (data, path) => path === startupPath ? patchStartup(data) : patchQuestList(data);
+          const patchText = (text, path) => {
             const prefix = text.startsWith('svdata=') ? 'svdata=' : '';
-            const result = patchObject(nativeParse(text.slice(prefix.length)));
+            const result = patchObject(nativeParse(text.slice(prefix.length)), path);
+            if (!result) return null;
             let body = JSON.stringify(result.data);
-            if (kanxy) {
+            if (kanxy && path === startupPath) {
               body = ' \n' + body;
               startupBodies.add(body);
               if (startupBodies.size > 4) startupBodies.delete(startupBodies.values().next().value);
@@ -189,8 +227,9 @@ internal object GameModCoordinateScript {
           });
           const patchedXhr = (xhr) => {
             const state = xhrState.get(xhr);
-            if (!state || !state.target || xhr.readyState !== 4 || xhr.status !== 200 ||
-                (xhr.responseURL && !isStartup(xhr.responseURL))) return null;
+            const path = state?.path;
+            if (!path || xhr.readyState !== 4 || xhr.status !== 200 ||
+                (xhr.responseURL && targetPath(xhr.responseURL) !== path)) return null;
             if (state.done) return state.result;
             state.done = true;
             try {
@@ -199,18 +238,20 @@ internal object GameModCoordinateScript {
                 // Never mutate the native object: capture and other consumers retain the original.
                 const original = responseDescriptor.get.call(xhr);
                 if (typeof original === 'string') {
-                  result = patchText(original);
-                  result.data = result.text;
+                  result = patchText(original, path);
+                  if (result) result.data = result.text;
                 } else {
-                  result = patchObject(nativeParse(JSON.stringify(original)));
-                  if (kanxy) attachKanxy(result.data);
+                  result = patchObject(nativeParse(JSON.stringify(original)), path);
+                  if (kanxy && path === startupPath) attachKanxy(result.data);
                 }
               } else if (xhr.responseType === '' || xhr.responseType === 'text') {
-                result = patchText(textDescriptor.get.call(xhr));
+                result = patchText(textDescriptor.get.call(xhr), path);
               } else throw new Error('response_type');
               state.result = result;
-              acknowledge(result);
-            } catch (_) { report(knownIds, 'coordinate_apply_failed'); }
+              if (path === startupPath) acknowledge(result);
+            } catch (_) {
+              if (path === startupPath) report(knownIds, 'coordinate_apply_failed');
+            }
             return state.result;
           };
           try {
@@ -225,36 +266,42 @@ internal object GameModCoordinateScript {
             }});
             proto.open = function(method, url, ...rest) {
               const value = nativeOpen.call(this, method, url, ...rest);
-              xhrState.set(this, {target: isStartup(url), done: false, result: null});
+              xhrState.set(this, {path: targetPath(url), done: false, result: null});
               return value;
             };
           } catch (_) { report(knownIds, 'coordinate_apply_failed'); }
           if (typeof window.fetch === 'function') {
             const nativeFetch = window.fetch;
-            const decorate = (modified, original) => {
+            const decorate = (modified, original, path) => {
               rawFetch.set(modified, original);
-              if (kanxy) Object.defineProperty(modified, 'json', {value: async () => JSON.parse(await modified.text())});
+              if (kanxy && path === startupPath) {
+                Object.defineProperty(modified, 'json', {value: async () => JSON.parse(await modified.text())});
+              }
               for (const key of ['url', 'redirected', 'type']) {
                 Object.defineProperty(modified, key, {value: original[key], configurable: true});
               }
               const clone = modified.clone.bind(modified);
-              Object.defineProperty(modified, 'clone', {value: () => decorate(clone(), original.clone())});
+              Object.defineProperty(modified, 'clone', {value: () => decorate(clone(), original.clone(), path)});
               return modified;
             };
             window.fetch = function(...args) {
               const input = args[0];
-              const target = isStartup(typeof Request !== 'undefined' && input instanceof Request ? input.url : input);
+              const path = targetPath(typeof Request !== 'undefined' && input instanceof Request ? input.url : input);
               return nativeFetch.apply(this, args).then(async response => {
-                if (!target || response.status !== 200 || (response.url && !isStartup(response.url))) return response;
+                if (!path || response.status !== 200 || (response.url && targetPath(response.url) !== path)) return response;
                 try {
-                  const result = patchText(await response.clone().text());
+                  const result = patchText(await response.clone().text(), path);
+                  if (!result) return response;
                   const headers = new Headers(response.headers);
                   headers.delete('content-length'); headers.delete('content-encoding');
                   const modified = decorate(new Response(result.text, {status: response.status,
-                    statusText: response.statusText, headers}), response);
-                  acknowledge(result);
+                    statusText: response.statusText, headers}), response, path);
+                  if (path === startupPath) acknowledge(result);
                   return modified;
-                } catch (_) { report(knownIds, 'coordinate_apply_failed'); return response; }
+                } catch (_) {
+                  if (path === startupPath) report(knownIds, 'coordinate_apply_failed');
+                  return response;
+                }
               });
             };
           }

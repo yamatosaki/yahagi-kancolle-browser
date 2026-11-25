@@ -79,7 +79,17 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
         val snapshot = synchronized(this) { active }
         val ships = snapshot.coordinateShips.mapValues { (_, ship) -> linkedMapOf(
             "graph" to ship.graph.mapValues { it.value.toList() }, "resourceIds" to ship.resourceIds.toList()) }
-        val config = linkedMapOf<String, Any?>("sessionId" to snapshot.id, "token" to snapshot.token, "ships" to ships)
+        val config = linkedMapOf<String, Any?>(
+            "sessionId" to snapshot.id,
+            "token" to snapshot.token,
+            "ships" to ships,
+            "questTranslations" to snapshot.questTranslations.mapValues { (_, translation) ->
+                mapOf("title" to translation.title, "detail" to translation.detail)
+            },
+        )
+        if (snapshot.displayTranslations.isNotEmpty()) {
+            config[GameModDisplayTranslations.CONFIG_KEY] = snapshot.displayTranslations
+        }
         if (kanxyVpnActive) {
             config["localArtShips"] = snapshot.winners.values.asSequence()
                 .map { it.resource }
@@ -128,10 +138,19 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
     /** ZIP validation never holds the monitor needed by status and request interception. */
     fun preflight(input: InputStream, sourceName: String): Map<String, Any?> = preflightChecked(input, sourceName, false)
 
+    fun preflightUpdate(input: InputStream, sourceName: String, id: String): Map<String, Any?> {
+        val base = synchronized(this) {
+            requireIdle()
+            state.packages.firstOrNull { it.id == id && !it.pendingRemoval }
+                ?: throw GameModException("invalid_config", "Choose an existing mod package to update")
+        }
+        return preflightChecked(input, sourceName, false, base)
+    }
+
     /** Library archives are generated locally from bounded, checked resource trees. */
     fun preflightLibrary(input: InputStream, sourceName: String): Map<String, Any?> = preflightChecked(input, sourceName, true)
 
-    private fun preflightChecked(input: InputStream, sourceName: String, library: Boolean): Map<String, Any?> {
+    private fun preflightChecked(input: InputStream, sourceName: String, library: Boolean, updateBase: ModPackage? = null): Map<String, Any?> {
         progress?.update(phase = "validate", currentPackage = sourceName)
         val token = UUID.randomUUID().toString()
         val directory = child("staging/$token")
@@ -144,11 +163,19 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
                 val archive = GameModArchive(progress)
                 if (library) archive.unpackLibrary(it, sourceName, directory) else archive.unpack(it, sourceName, directory)
             }
-            synchronized(this) { staging[token] = StagedImport(directory, parsed) }
-            return linkedMapOf("token" to token, "name" to parsed.name,
+            synchronized(this) { staging[token] = StagedImport(directory, parsed, updateBase) }
+            val preview = linkedMapOf<String, Any?>("token" to token, "name" to parsed.name,
                 "resourceCount" to parsed.resources.size, "supportedCount" to parsed.resources.count { it.supported },
                 "unsupportedCount" to parsed.resources.count { !it.supported }, "sourceFileCount" to parsed.resources.sumOf { it.sourcePaths.size },
                 "warnings" to parsed.warnings.toList())
+            if (updateBase != null) {
+                val oldPaths = updateBase.resources.map { it.path }.toSet()
+                val newPaths = parsed.resources.map { it.path }.toSet()
+                preview["packageName"] = updateBase.name
+                preview["addedCount"] = (newPaths - oldPaths).size
+                preview["removedCount"] = (oldPaths - newPaths).size
+            }
+            return preview
         } catch (error: Exception) {
             deletePrivateTree(directory)
             if (error is GameModException) throw error
@@ -159,6 +186,7 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
     @Synchronized fun commitImport(token: String): Map<String, Any?> {
         requireIdle()
         val staged = staging[token] ?: throw GameModException("invalid_token", "Import preview has expired")
+        if (staged.updateBase != null) throw GameModException("invalid_token", "Use the mod library to confirm this update")
         progress?.update(phase = "import", currentPackage = staged.result.name)
         val id = UUID.randomUUID().toString()
         val destination = child("packages/$id")
@@ -198,6 +226,14 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
         val staged = staging[token] ?: throw GameModException("invalid_token", "Import preview has expired")
         progress?.update(phase = "import", currentPackage = staged.result.name)
         val existing = state.packages.firstOrNull { it.id == id }
+        val updateBase = staged.updateBase
+        val original = state.zipUpdateOriginals.firstOrNull { it.id == id }
+        if (updateBase != null && (updateBase.id != id || updateBase != existing)) {
+            throw GameModException("invalid_token", "The package changed after preview; choose the ZIP again")
+        }
+        if (updateBase == null && original != null) {
+            throw GameModException("library_changed", "Apply or cancel the pending ZIP update before replacing this package")
+        }
         if (existing?.pendingRemoval == true) throw GameModException("invalid_config", "Cancel pending removal before updating this package")
         val oldResources = existing?.resources.orEmpty().associateBy { it.path }
         val revision = "revisions/${UUID.randomUUID()}"
@@ -222,16 +258,20 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
             val supported = available.flatMap { it.resources }.filter { it.supported }.map { it.id }.toSet()
             val draft = state.draft.withAvailablePackages(available).let {
                 val retained = it.enabledResources.filter { resourceId -> resourceId in supported }
-                it.copy(enabledResources = retained + if (existing == null) resources.filter { resource -> resource.supported }.map { resource -> resource.id } else emptyList())
+                val added = resources.filter { resource ->
+                    resource.supported && (existing == null || (updateBase != null && oldResources[resource.path]?.supported != true))
+                }.map { resource -> resource.id }
+                it.copy(enabledResources = (retained + added).distinct())
             }
-            val next = state.copy(packages = packages, draft = draft)
+            val originals = if (updateBase != null && original == null) state.zipUpdateOriginals + updateBase else state.zipUpdateOriginals
+            val next = state.copy(packages = packages, draft = draft, zipUpdateOriginals = originals)
             persist(next); state = next; staging.remove(token)
             // A housekeeping failure must not move the newly committed revision back to staging.
             // This import can only obsolete revisions belonging to its own package.
             // Avoid rediscovering every package for every item in a large scan batch.
             pendingCleanup.add(id)
             try { collectGarbage() } catch (_: Exception) { /* Retry on the next lease release or startup. */ }
-            return packageMap(entry)
+            return packageMap(entry, pendingUpdate = updateBase != null)
         } catch (error: Exception) {
             if (destination.exists() && !staged.directory.exists()) {
                 try { move(destination, staged.directory) } catch (_: Exception) { deletePrivateTree(destination) }
@@ -240,6 +280,37 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
             if (error is GameModException) throw error
             throw GameModException("storage_error", "Cannot save library mod revision")
         }
+    }
+
+    @Synchronized internal fun preflightUpdateTarget(token: String): ZipUpdateTarget? {
+        requireIdle()
+        val staged = staging[token] ?: throw GameModException("invalid_token", "Import preview has expired")
+        val base = staged.updateBase ?: return null
+        if (state.packages.none { it == base }) throw GameModException("invalid_token", "The package changed after preview; choose the ZIP again")
+        if (staged.result.resources.none { it.supported }) {
+            throw GameModException("unsupported_archive", "The ZIP contains no supported game resources")
+        }
+        val original = state.zipUpdateOriginals.firstOrNull { it.id == base.id } ?: base
+        return ZipUpdateTarget(base.id, base.name, original.sourceFingerprint, base.sourceFingerprint)
+    }
+
+    @Synchronized internal fun zipUpdates(published: Boolean): List<ZipUpdateTarget> {
+        val packages = state.packages.associateBy { it.id }
+        val applied = state.appliedPackages.associateBy { it.id }
+        return state.zipUpdateOriginals.mapNotNull { original ->
+            val current = packages[original.id] ?: return@mapNotNull null
+            if ((current == applied[current.id]) != published || current.pendingRemoval) return@mapNotNull null
+            ZipUpdateTarget(current.id, current.name, original.sourceFingerprint, current.sourceFingerprint)
+        }
+    }
+
+    @Synchronized internal fun finishZipUpdateSync(ids: Set<String>) {
+        requireIdle()
+        if (ids.isEmpty()) return
+        val next = state.copy(zipUpdateOriginals = state.zipUpdateOriginals.filterNot { it.id in ids })
+        persist(next); state = next
+        pendingCleanup.addAll(ids)
+        collectGarbage()
     }
 
     /** Migration adds a library link without changing the applied revision or pending choices. */
@@ -305,9 +376,11 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
     }
 
     /** Editable resource paths preserve unsupported files; runtime file names remain private. */
-    fun exportPackageTree(id: String, directory: File): Map<String, Any?> {
+    @JvmOverloads fun exportPackageTree(id: String, directory: File, originalBeforeZipUpdate: Boolean = false): Map<String, Any?> {
         val entry = synchronized(this) {
-            val entry = state.packages.firstOrNull { it.id == id } ?: throw GameModException("invalid_config", "Unknown mod package")
+            val original = if (originalBeforeZipUpdate) state.zipUpdateOriginals.firstOrNull { it.id == id } else null
+            val entry = original ?: state.packages.firstOrNull { it.id == id }
+                ?: throw GameModException("invalid_config", "Unknown mod package")
             leases[id] = (leases[id] ?: 0) + 1
             entry
         }
@@ -369,10 +442,13 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
     fun status(): Map<String, Any?> {
         val captured = synchronized(this) { StatusSnapshot(state, active, active.hits.toList(), active.partialHits.toList(), active.failures.toMap()) }
         val current = captured.state
+        val updateIds = current.zipUpdateOriginals.map { it.id }.toSet()
+        val applied = current.appliedPackages.associateBy { it.id }
         // Package metadata is immutable. Encoding a large inventory must not delay publication
         // or request interception while the UI polls completed-response counters.
         return linkedMapOf(
-            "packages" to current.packages.map(::packageMap), "draft" to current.draft.toMap(), "applied" to current.applied.toMap(),
+            "packages" to current.packages.map { packageMap(it, it.id in updateIds && it != applied[it.id]) },
+            "draft" to current.draft.toMap(), "applied" to current.applied.toMap(),
             "pending" to isPending(current), "sessionId" to captured.session.id,
             "winners" to winners(current.draft, current.packages.filterNot { it.pendingRemoval }).mapValues { it.value.resource.id },
             "activeWinners" to captured.session.winners.mapValues { it.value.resource.id },
@@ -389,8 +465,12 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
     @Synchronized fun cancelChanges() {
         requireIdle()
         val applied = state.appliedPackages.associateBy { it.id }
-        val packages = state.packages.map { applied[it.id] ?: if (it.pendingRemoval) it.copy(pendingRemoval = false) else it }
-        val next = state.copy(packages = packages, draft = state.applied.withAvailablePackages(packages))
+        val originals = state.zipUpdateOriginals.associateBy { it.id }
+        val packages = state.packages.map { applied[it.id] ?: originals[it.id] ?: it.copy(pendingRemoval = false) }
+        // Keep the source sync receipt only for an already published ZIP revision.
+        val published = state.packages.filter { it.copy(pendingRemoval = false) == applied[it.id] }.map { it.id }.toSet()
+        val next = state.copy(packages = packages, draft = state.applied.withAvailablePackages(packages),
+            zipUpdateOriginals = state.zipUpdateOriginals.filter { it.id in published })
         persist(next); state = next
         collectGarbage(discover = true)
     }
@@ -405,7 +485,9 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
         try {
             val before = reservation.before
             val appliedPackages = before.packages.filterNot { it.pendingRemoval }
-            val next = before.copy(applied = before.draft, appliedPackages = appliedPackages, sessionId = before.sessionId + 1)
+            val appliedIds = appliedPackages.map { it.id }.toSet()
+            val next = before.copy(applied = before.draft, appliedPackages = appliedPackages, sessionId = before.sessionId + 1,
+                zipUpdateOriginals = before.zipUpdateOriginals.filter { it.id in appliedIds })
             val session = buildSession(next.applied, next.sessionId, appliedPackages)
             temporary = writeStateTemporary(next)
             synchronized(this) {
@@ -420,14 +502,18 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
         }
     }
 
-    /** Verified reload callback: one atomic rename and two reference swaps; no encoding or fsync. */
-    @Synchronized fun publishApply(token: GameModApplyToken) {
+    /** Publish the prepared session and report whether an effective game font changed. */
+    @Synchronized fun publishApply(token: GameModApplyToken): Boolean {
         val current = requireTransaction(token)
         if (current.published) throw GameModException("invalid_token", "Apply transaction was already published")
         val prepared = current.prepared ?: throw GameModException("busy", "Apply preparation is still in progress")
+        val fontsChanged = GameModStaticAssets.fontPaths.any { path ->
+            current.session.winners[path] != prepared.session.winners[path]
+        }
         try { move(prepared.file, child("state.json")) }
         catch (error: Exception) { throw GameModException("storage_error", "Cannot publish prepared mod configuration") }
         state = prepared.next; active = prepared.session; current.published = true
+        return fontsChanged
     }
 
     /** Run on IO after verification fails. This never rolls back a published session. */
@@ -514,14 +600,22 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
         }
         val range = if (audio && method == "GET" && headers.keys.none { it.equals("If-Range", true) })
             audioByteRange(rangeHeaders.singleOrNull(), resource.sizeBytes) else null
-        val mime = when {
-            !audio -> "image/png"
-            resource.relativeFile.endsWith(".wav", ignoreCase = true) -> "audio/wav"
-            else -> "audio/mpeg"
+        val mime = try {
+            when {
+                audio && resource.relativeFile.endsWith(".wav", ignoreCase = true) -> "audio/wav"
+                audio -> "audio/mpeg"
+                GameModStaticAssets.isJpegPath(resource.path) -> "image/jpeg"
+                GameModStaticAssets.isFontPath(resource.path) -> GameModStaticAssets.fontMime(file)
+                else -> "image/png"
+            }
+        } catch (error: Exception) {
+            recordFailure(session, resource.id, error.message ?: "Cannot open imported resource")
+            return null
         }
         val responseHeaders = linkedMapOf("Content-Type" to mime,
             "Content-Length" to resource.sizeBytes.toString(), "Cache-Control" to "no-store",
             "Accept-Ranges" to if (audio) "bytes" else "none", "Access-Control-Allow-Origin" to "*")
+        if (!audio) responseHeaders["X-Content-Type-Options"] = "nosniff"
         if (range?.unsatisfiable == true) {
             responseHeaders["Content-Length"] = "0"
             responseHeaders["Content-Range"] = "bytes */${resource.sizeBytes}"
@@ -580,10 +674,14 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
             session.hits.add(id); session.audioCoverage.remove(id)
         } else session.audioCoverage[id] = merged
     }
-    private fun isPending(snapshot: State = state) =
-        snapshot.packages.any { entry -> entry.pendingRemoval || snapshot.appliedPackages.any { it.id == entry.id && it != entry } } || !snapshot.draft.sameAs(
-            snapshot.applied.withAvailablePackages(snapshot.packages),
-        )
+    private fun isPending(snapshot: State = state): Boolean {
+        val applied = snapshot.appliedPackages.associateBy { it.id }
+        val updating = snapshot.zipUpdateOriginals.map { it.id }.toSet()
+        return snapshot.packages.any { entry ->
+            val active = applied[entry.id]
+            entry.pendingRemoval || (active != entry && (active != null || entry.id in updating))
+        } || !snapshot.draft.sameAs(snapshot.applied.withAvailablePackages(snapshot.packages))
+    }
     private fun winners(config: Config, packages: List<ModPackage>): Map<String, Selected> {
         if (!config.master) return emptyMap()
         val byId = packages.associateBy { it.id }
@@ -614,17 +712,60 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
             }
         }
         val ships = coordinateFields.mapValues { (shipId, graph) -> CoordinateShip(graph.toMap(), coordinateIds.getValue(shipId).toList()) }
-        return Session(id, selected, ships)
+        val questTranslations = selected[GameModQuestTranslations.PATH]?.let { source ->
+            readQuestTranslations(source.packageId, source.resource.relativeFile, source.resource.sizeBytes)
+        }.orEmpty()
+        return Session(id, selected, ships, questTranslations, readDisplayTranslations(selected))
     }
+
+    private fun readDisplayTranslations(selected: Map<String, Selected>): Map<String, Any> {
+        val tables = GameModDisplayTranslations.Category.entries.associateWith { linkedMapOf<String, Any>() }
+        var bytes = 0L
+        var tableCount = 0
+        var regexCount = 0
+        for ((path, source) in selected) {
+            val table = GameModDisplayTranslations.table(path) ?: continue
+            val resource = source.resource
+            if (resource.kind != table.kind) continue
+            val content = readDisplayTable(table, source.packageId, resource.relativeFile, resource.sizeBytes) ?: continue
+            bytes += resource.sizeBytes
+            tableCount++
+            if (table.category == GameModDisplayTranslations.Category.REGEX) regexCount += content.count
+            if (bytes > GameModDisplayTranslations.MAX_TOTAL_BYTES || tableCount > GameModDisplayTranslations.MAX_TABLES ||
+                regexCount > GameModDisplayTranslations.MAX_TOTAL_REGEX) {
+                throw GameModException("quota_exceeded", "Selected display translation tables exceed the session quota")
+            }
+            tables.getValue(table.category)[table.name] = content.data
+        }
+        if (tableCount == 0) return emptyMap()
+        return tables.entries.associate { (category, content) -> category.configKey to content }
+    }
+
+    private fun readDisplayTable(table: GameModDisplayTranslations.Table, packageId: String, relativeFile: String,
+        sizeBytes: Long): GameModDisplayTranslations.Content? = try {
+        val file = child("packages/$packageId/$relativeFile")
+        if (file.length() == sizeBytes) GameModDisplayTranslations.parse(file, table) else null
+    } catch (_: GameModException) {
+        null
+    }
+
+    private fun readQuestTranslations(packageId: String, relativeFile: String, sizeBytes: Long):
+        Map<String, GameModQuestTranslations.Translation>? = try {
+        val file = child("packages/$packageId/$relativeFile")
+        if (file.length() == sizeBytes) GameModQuestTranslations.parse(file) else null
+    } catch (_: GameModException) {
+        null
+    }
+
     private fun resourceTargets(resource: Resource): List<String> = if (resource.kind == "coordinates" && resource.coordinateShipId != null)
         resource.coordinateGraph.keys.map { "${resource.path}/$it" } else listOf(resource.path)
-    private fun packageMap(entry: ModPackage): Map<String, Any?> = linkedMapOf(
+    private fun packageMap(entry: ModPackage, pendingUpdate: Boolean = false): Map<String, Any?> = linkedMapOf(
         "id" to entry.id, "name" to entry.name, "sizeBytes" to entry.sizeBytes, "importedAt" to entry.importedAt,
         "sourceFileCount" to entry.resources.sumOf { it.sourcePaths.size },
         "resources" to entry.resources.map { r -> linkedMapOf("id" to r.id, "path" to r.path, "kind" to r.kind,
             "label" to r.label, "supported" to r.supported, "reason" to r.reason, "groupId" to r.groupId,
             "sourcePaths" to r.sourcePaths.toList(), "targetPaths" to resourceTargets(r)) },
-        "warnings" to entry.warnings.toList(), "pendingRemoval" to entry.pendingRemoval,
+        "warnings" to entry.warnings.toList(), "pendingRemoval" to entry.pendingRemoval, "pendingUpdate" to pendingUpdate,
         "sourceFingerprint" to entry.sourceFingerprint)
 
     private fun parseConfig(value: Map<*, *>, packages: List<ModPackage>): Config {
@@ -648,9 +789,14 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
             (uri.port != -1 && uri.port != 443) || !Regex("w[0-9]+[a-z]\\.kancolle-server\\.com").matches(uri.host ?: "")) null
         else if (uri.rawQuery != null && !Regex("version=[A-Za-z0-9._~-]+").matches(uri.rawQuery)) null
         else {
-            val path = uri.rawPath ?: ""
-            if ('%' in path || '\\' in path || path.split('/').any { it == "." || it == ".." } ||
-                !((path.startsWith("/kcs2/") && path.endsWith(".png")) || Regex("/kcs/sound/kc[a-z0-9]+/[0-9]+\\.mp3").matches(path))) null else path.removePrefix("/")
+            val path = uri.rawPath.orEmpty().removePrefix("/")
+            if ('%' in path || '\\' in path || path.split('/').any { it == "." || it == ".." }) null
+            else when {
+                path.startsWith("kcs2/") && path.endsWith(".png") -> path
+                GameModStaticAssets.isJpegPath(path) || GameModStaticAssets.isFontPath(path) -> path
+                GameModArchive.AUDIO_PATH.matches(path) -> path
+                else -> GameModStaticAssets.maintenanceTarget(path)
+            }
         }
     } catch (_: Exception) { null }
 
@@ -677,7 +823,8 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
         }
         val ready = pendingCleanup.filter { (leases[it] ?: 0) == 0 }
         if (ready.isEmpty()) return
-        val retained = state.packages + state.appliedPackages + transaction?.before?.let { it.packages + it.appliedPackages }.orEmpty()
+        val retained = state.packages + state.appliedPackages + state.zipUpdateOriginals +
+            transaction?.before?.let { it.packages + it.appliedPackages + it.zipUpdateOriginals }.orEmpty()
         val packages = retained.groupBy { it.id }
         ready.forEach { id ->
             val directory = child("packages/$id")
@@ -797,19 +944,22 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
         try {
             if (file.length() > MAX_INDEX_BYTES) throw IOException("Mod index is too large")
             val json = storedObject(JsonParser.parseString(file.readText()).asJsonObject,
-                listOf("version", "packages", "draft", "applied", "sessionId", "appliedPackages"))
+                listOf("version", "packages", "draft", "applied", "sessionId", "appliedPackages", "zipUpdateOriginals"))
             if (json["version"].asInt != 1) throw IOException("Unsupported mod index version")
+            val promotedDraftIds = mutableListOf<String>()
+            val validatedTranslationFiles = mutableMapOf<Pair<File, Long>, Boolean>()
             fun packages(name: String): List<ModPackage> = json[name].asJsonArray.map { node ->
                 val entry = storedObject(node.asJsonObject,
                     listOf("id", "name", "sizeBytes", "importedAt", "resources", "warnings", "pendingRemoval", "sourceFingerprint"))
                 val id = entry.text("id")
                 if (!Regex("[0-9a-f-]{36}").matches(id)) throw IOException("Invalid package identity")
                 child("packages/$id")
+                val pendingRemoval = entry["pendingRemoval"].asBoolean
                 val resources = entry["resources"].asJsonArray.map { item ->
                     val r = storedObject(item.asJsonObject,
                         listOf("id", "path", "kind", "label", "supported", "reason", "groupId", "relativeFile", "sizeBytes", "sourcePaths", "coordinateShipId", "coordinateGraph"))
                     val relativeFile = r.text("relativeFile")
-                    child("packages/$id/$relativeFile")
+                    val file = child("packages/$id/$relativeFile")
                     val path = r.text("path"); val resourceId = r.text("id")
                     if (path.startsWith('/') || '\\' in path || path.split('/').any { it == "." || it == ".." } ||
                         !resourceId.startsWith("$id:")) throw IOException("Invalid resource identity")
@@ -818,15 +968,32 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
                     } ?: emptyMap()
                     val shipId = r.optionalText("coordinateShipId")
                     if (shipId != null && (shipId.toIntOrNull() !in 1..9999 || path != "coordinates/ship/$shipId" || graph.isEmpty())) throw IOException("Invalid coordinate identity")
-                    Resource(resourceId, path, r.text("kind"), r.text("label"), r["supported"].asBoolean,
-                        r.optionalText("reason"), r.optionalText("groupId"), relativeFile,
-                        r["sizeBytes"].asLong.also { if (it < 0) throw IOException("Invalid resource size") },
-                        r["sourcePaths"]?.asJsonArray?.map { it.asString } ?: listOf(path), shipId, graph)
+                    val sizeBytes = r["sizeBytes"].asLong.also { if (it < 0) throw IOException("Invalid resource size") }
+                    val sourcePaths = r["sourcePaths"]?.asJsonArray?.map { it.asString } ?: listOf(path)
+                    val kind = r.text("kind")
+                    val supported = r["supported"].asBoolean
+                    val reason = r.optionalText("reason")
+                    // Legacy indexes retained these files as unsupported JSON. Select the validated files in the draft.
+                    val quest = path == GameModQuestTranslations.PATH
+                    val table = GameModDisplayTranslations.table(path)
+                    val dataKind = if (quest) GameModQuestTranslations.KIND else table?.kind
+                    val promote = dataKind != null && kind == "unsupported" && !supported && reason == "json_unsupported" &&
+                        sourcePaths.any { it.replace('\\', '/').let { source -> source == path || source.endsWith("/$path") } } &&
+                        validatedTranslationFiles.getOrPut(file to sizeBytes) {
+                            if (quest) readQuestTranslations(id, relativeFile, sizeBytes) != null
+                            else table != null && readDisplayTable(table, id, relativeFile, sizeBytes) != null
+                        }
+                    if (promote && name == "packages" && !pendingRemoval) promotedDraftIds.add(resourceId)
+                    Resource(resourceId, path, if (promote) checkNotNull(dataKind) else kind,
+                        r.text("label"), promote || supported, if (promote) null else reason, r.optionalText("groupId"),
+                        relativeFile, sizeBytes, sourcePaths, shipId, graph)
                 }
                 if (resources.map { it.id }.distinct().size != resources.size || resources.map { it.path }.distinct().size != resources.size) throw IOException("Duplicate resource")
+                val warnings = entry["warnings"].asJsonArray.map { it.asString }.let {
+                    if (resources.none { r -> r.kind == "unsupported" && !r.supported }) it - "unsupported_files" else it
+                }
                 ModPackage(id, entry.text("name"), entry["sizeBytes"].asLong, entry["importedAt"].asLong,
-                    resources, entry["warnings"].asJsonArray.map { it.asString }, entry["pendingRemoval"].asBoolean,
-                    entry.optionalText("sourceFingerprint") ?: "")
+                    resources, warnings, pendingRemoval, entry.optionalText("sourceFingerprint") ?: "")
             }
             val packages = packages("packages")
             if (packages.map { it.id }.distinct().size != packages.size) throw IOException("Duplicate package")
@@ -836,7 +1003,9 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
                     "enabledPackages" to c["enabledPackages"].asJsonArray.map { it.asString },
                     "enabledResources" to c["enabledResources"].asJsonArray.map { it.asString }), available)
             }
-            val draft = config("draft", packages.filterNot { it.pendingRemoval })
+            val draft = config("draft", packages.filterNot { it.pendingRemoval }).let {
+                it.copy(enabledResources = (it.enabledResources + promotedDraftIds).distinct())
+            }
             val appliedOrder = storedObject(json["applied"].asJsonObject,
                 listOf("master", "order", "enabledPackages", "enabledResources"))["order"].asJsonArray.map { it.asString }.toSet()
             // Older indexes shared package metadata with their applied configuration.
@@ -844,8 +1013,13 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
             val appliedPackages = if (json.has("appliedPackages")) packages("appliedPackages") else packages.filter { it.id in appliedOrder }.map { it.copy(pendingRemoval = false) }
             if (appliedPackages.map { it.id }.distinct().size != appliedPackages.size || appliedPackages.any { it.pendingRemoval }) throw IOException("Invalid applied packages")
             val applied = config("applied", appliedPackages)
+            val zipUpdateOriginals = if (json.has("zipUpdateOriginals")) packages("zipUpdateOriginals") else emptyList()
+            val ids = packages.map { it.id }.toSet()
+            if (zipUpdateOriginals.map { it.id }.distinct().size != zipUpdateOriginals.size ||
+                zipUpdateOriginals.any { it.pendingRemoval || it.id !in ids }) throw IOException("Invalid ZIP update packages")
             return State(packages = packages, draft = draft, applied = applied,
-                sessionId = json["sessionId"].asLong.also { if (it < 0) throw IOException("Invalid session") }, appliedPackages = appliedPackages)
+                sessionId = json["sessionId"].asLong.also { if (it < 0) throw IOException("Invalid session") },
+                appliedPackages = appliedPackages, zipUpdateOriginals = zipUpdateOriginals)
         } catch (error: Exception) { throw GameModException("storage_error", "Cannot read saved mod configuration: ${error.message ?: "invalid index"}") }
     }
     private fun JsonObject.text(name: String): String = this[name].asString
@@ -864,10 +1038,12 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
         }
     }
 
-    private fun stateMap(value: State): Map<String, Any> = linkedMapOf(
+    private fun stateMap(value: State): Map<String, Any> = linkedMapOf<String, Any>(
         "version" to value.version, "packages" to value.packages.map(::storedPackageMap),
         "draft" to value.draft.toMap(), "applied" to value.applied.toMap(),
-        "sessionId" to value.sessionId, "appliedPackages" to value.appliedPackages.map(::storedPackageMap))
+        "sessionId" to value.sessionId, "appliedPackages" to value.appliedPackages.map(::storedPackageMap)).apply {
+        if (value.zipUpdateOriginals.isNotEmpty()) put("zipUpdateOriginals", value.zipUpdateOriginals.map(::storedPackageMap))
+    }
 
     private fun storedPackageMap(value: ModPackage): Map<String, Any> = linkedMapOf(
         "id" to value.id, "name" to value.name, "sizeBytes" to value.sizeBytes,
@@ -905,11 +1081,18 @@ class GameModRepository @JvmOverloads constructor(root: File, private val progre
         val sourceFingerprint: String = "")
     private data class State(val version: Int = 1, val packages: List<ModPackage> = emptyList(),
         val draft: Config = Config(), val applied: Config = Config(), val sessionId: Long = 0,
-        val appliedPackages: List<ModPackage> = emptyList())
-    private data class StagedImport(val directory: File, val result: ArchiveResult)
+        val appliedPackages: List<ModPackage> = emptyList(), val zipUpdateOriginals: List<ModPackage> = emptyList())
+    private data class StagedImport(val directory: File, val result: ArchiveResult, val updateBase: ModPackage?)
+    internal data class ZipUpdateTarget(val id: String, val name: String, val oldFingerprint: String, val newFingerprint: String)
     private data class Selected(val packageId: String, val resource: Resource)
     private data class PortraitLease(val packageId: String, val size: Int, val input: FileInputStream)
-    private class Session(val id: Long, val winners: Map<String, Selected>, val coordinateShips: Map<String,CoordinateShip>) {
+    private class Session(
+        val id: Long,
+        val winners: Map<String, Selected>,
+        val coordinateShips: Map<String, CoordinateShip>,
+        val questTranslations: Map<String, GameModQuestTranslations.Translation>,
+        val displayTranslations: Map<String, Any>,
+    ) {
         val token = UUID.randomUUID().toString()
         val portraits = winners.values.filter { selected ->
             selected.resource.kind in setOf("ship", "image") && selected.resource.path.endsWith(".png")

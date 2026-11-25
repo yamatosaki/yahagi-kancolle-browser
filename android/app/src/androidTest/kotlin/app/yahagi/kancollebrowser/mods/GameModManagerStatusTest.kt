@@ -44,6 +44,7 @@ class GameModManagerStatusTest {
                     override fun isSupported() = true
                     override fun configure() = Unit
                     override fun dispose() = Unit
+                    override fun clearMemoryCache() = Unit
                     override fun reload(onComplete: (String) -> Unit) = error("Unexpected reload")
                     override fun gamePagePresence() = GameModPagePresence.ABSENT
                     override fun reloadPrepared(beforeDispatch: () -> Unit, onComplete: (String, Boolean) -> Unit) = error("Unexpected reload")

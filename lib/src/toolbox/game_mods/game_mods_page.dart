@@ -1223,7 +1223,7 @@ class _GameModsPageState extends State<GameModsPage> {
           ),
         if (p.pendingRemoval) _badge(s.removing, removing: true),
         if (c.status.pending && !p.pendingRemoval)
-          _badge(s.pending, warning: true),
+          _badge(p.pendingUpdate ? s.updatePending : s.pending, warning: true),
         if (hits > 0) _badge(s.supplied(hits)),
         if (partial > 0) _badge(s.partialProvided(partial)),
         if (coordinateWritten > 0)
@@ -1320,6 +1320,8 @@ class _GameModsPageState extends State<GameModsPage> {
                         : c.status.pending
                         ? c.status.packages.any((p) => p.pendingRemoval)
                               ? s.pendingRemovalHint
+                              : c.status.packages.any((p) => p.pendingUpdate)
+                              ? s.pendingUpdateHint
                               : s.pendingHint
                         : s.telemetry(
                             c.status.providedFileCount,
@@ -1616,6 +1618,17 @@ class _GameModsPageState extends State<GameModsPage> {
                     runSpacing: 8,
                     alignment: WrapAlignment.end,
                     children: [
+                      if (c.archiveUpdateSupported)
+                        OutlinedButton(
+                          key: Key('game-mods-update-$id'),
+                          onPressed: c.canEdit && !p.pendingRemoval
+                              ? () {
+                                  Navigator.pop(sheetContext);
+                                  unawaited(_import(this.context, target: p));
+                                }
+                              : null,
+                          child: Text(s.updateArchive),
+                        ),
                       TextButton(
                         key: Key('game-mods-remove-$id'),
                         onPressed: c.canEdit && !p.pendingRemoval
@@ -2039,7 +2052,8 @@ class _GameModsPageState extends State<GameModsPage> {
     }
   }
 
-  Future<void> _import(BuildContext context) async {
+  Future<void> _import(BuildContext context, {GameModPackage? target}) async {
+    final updating = target != null;
     if (c.librarySupported && !c.status.library.available) {
       final s = GameModsStrings.of(context);
       if (!await _confirm(
@@ -2052,31 +2066,48 @@ class _GameModsPageState extends State<GameModsPage> {
         return;
       }
     }
-    await c.pickArchive();
+    await c.pickArchive(updatePackageId: target?.id);
     if (!context.mounted) {
       await c.cancelImport();
       return;
     }
-    if (c.preflight == null) return;
+    if (c.preflight == null) {
+      if (updating) _showArchiveUpdateFeedback(context);
+      return;
+    }
     final s = GameModsStrings.of(context), candidate = c.preflight!;
+    final added = candidate.addedCount, removed = candidate.removedCount;
     final confirmed = await showDialog<bool>(
       barrierDismissible: false,
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(s.preflight),
+        title: Text(updating ? s.updateArchive : s.preflight),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (updating) ...[
+                Text(
+                  target.name,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+              ],
               Text(
                 candidate.name,
-                style: const TextStyle(fontWeight: FontWeight.w700),
+                style: updating
+                    ? null
+                    : const TextStyle(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
               Text(s.preflightCounts(candidate)),
+              if (updating && added != null && removed != null) ...[
+                const SizedBox(height: 8),
+                Text(s.updateCounts(added, removed)),
+              ],
               const SizedBox(height: 12),
-              Text(s.importDefault),
+              Text(updating ? s.updateArchiveBody : s.importDefault),
               for (final warning in candidate.warnings)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
@@ -2095,7 +2126,9 @@ class _GameModsPageState extends State<GameModsPage> {
                 ? () => Navigator.pop(context, true)
                 : null,
             child: Text(
-              candidate.unsupportedCount > 0
+              updating
+                  ? s.confirmUpdate
+                  : candidate.unsupportedCount > 0
                   ? s.importSupported
                   : s.confirmImport,
             ),
@@ -2106,9 +2139,31 @@ class _GameModsPageState extends State<GameModsPage> {
     if (!mounted) return;
     if (confirmed == true) {
       await c.confirmImport();
+      if (updating && context.mounted) {
+        _showArchiveUpdateFeedback(context, updatedPackageId: target.id);
+      }
     } else {
       await c.cancelImport();
     }
+  }
+
+  void _showArchiveUpdateFeedback(
+    BuildContext context, {
+    String? updatedPackageId,
+  }) {
+    final s = GameModsStrings.of(context);
+    final error = c.errorCode;
+    final message = error != null
+        ? s.reason(error)
+        : c.status.packages.any(
+            (p) => p.id == updatedPackageId && !p.pendingUpdate,
+          )
+        ? s.updateUnchanged
+        : null;
+    if (message == null) return;
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _size(int bytes) => bytes >= 1024 * 1024

@@ -21,6 +21,30 @@ class GameModLibraryTest {
     @get:Rule val temporary = TemporaryFolder()
     private val path = "kcs2/resources/ship/full/0001_1234_secret.png"
 
+    @Test fun `library copy creates the shared parent once for files in the same directory`() {
+        val root = temporary.newFolder()
+        val tree = temporary.newFolder()
+        val paths = listOf(path, path.replace("0001", "0002"), path.replace("/full/", "/banner/"))
+        paths.forEachIndexed { index, relative ->
+            tree.resolve(relative).apply { requireNotNull(parentFile).mkdirs(); writeBytes(png(index)) }
+        }
+        val delegate = GameModFileLibraryStore(root)
+        val created = mutableListOf<String>()
+        val store = object : GameModLibraryStore by delegate {
+            override fun createDirectory(relative: String) {
+                created.add(relative)
+                delegate.createDirectory(relative)
+            }
+        }
+        val library = GameModLibrary(store, temporary.newFolder())
+        val saved = library.savePackage(UUID.randomUUID().toString(), "Ship", tree)
+        assertEquals(3, created.size)
+        assertEquals(3, created.toSet().size)
+        paths.forEachIndexed { index, relative ->
+            assertArrayEquals(png(index), root.resolve("${saved["path"]}/$relative").readBytes())
+        }
+    }
+
     @Test fun `migration keeps editable files and stable package id across reinstall`() {
         val root = temporary.newFolder(); val tree = temporary.newFolder()
         tree.resolve(path).apply { parentFile.mkdirs(); writeBytes(png()) }

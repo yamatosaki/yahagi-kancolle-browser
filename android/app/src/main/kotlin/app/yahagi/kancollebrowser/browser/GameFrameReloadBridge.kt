@@ -31,6 +31,7 @@ internal interface GameFrameReloadBridgePort {
 
 internal interface PreparedGameFrameReloadBridgePort : GameFrameReloadBridgePort {
     fun gamePagePresence(): GameModPagePresence
+    fun clearMemoryCache()
     fun reloadPrepared(beforeDispatch: () -> Unit, onComplete: (String, Boolean) -> Unit)
 }
 
@@ -301,6 +302,10 @@ internal class AndroidGameFrameReloadBridge(
 
     override fun reload(onComplete: (String) -> Unit) =
         reloadPrepared({}) { result, _ -> onComplete(result) }
+
+    override fun clearMemoryCache() {
+        attachedWebView?.clearCache(false)
+    }
 
     override fun reloadPrepared(beforeDispatch: () -> Unit, onComplete: (String, Boolean) -> Unit) =
         reloadWhen({ true }, beforeDispatch, onComplete)

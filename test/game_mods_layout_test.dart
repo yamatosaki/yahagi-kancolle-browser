@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yahagi_kancolle_browser/src/toolbox/game_mods/game_mods_controller.dart';
 import 'package:yahagi_kancolle_browser/src/toolbox/game_mods/game_mods_models.dart';
 import 'package:yahagi_kancolle_browser/src/toolbox/game_mods/game_mods_page.dart';
+import 'package:yahagi_kancolle_browser/src/toolbox/game_mods/game_mods_port.dart';
 import 'package:yahagi_kancolle_browser/src/toolbox/game_mods/game_mods_strings.dart';
 
 import 'game_mods_controller_test.dart' show FakeGameModsPort;
@@ -25,6 +27,105 @@ const _locales = [
 void main() {
   setUp(mockGameModPortraitPlatform);
   tearDown(clearGameModPortraitPlatformMock);
+  testWidgets('ZIP update targets the open package and waits for Apply', (
+    tester,
+  ) async {
+    const channel = MethodChannel('app.yahagi.kancollebrowser/mod_manager');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    final initial = _layoutStatus('Existing CHS package');
+    var pending = false;
+    var installed = false;
+    final calls = <MethodCall>[];
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      if (call.method == 'commitImport') pending = !installed;
+      if (call.method == 'applyAndReload') {
+        pending = false;
+        installed = true;
+      }
+      return switch (call.method) {
+        'capabilities' => {'supported': true, 'archiveUpdateSupported': true},
+        'status' => {
+          ...initial.toMap(),
+          'applied': initial.draft.toMap(),
+          'pending': pending,
+          'packages': [
+            for (final p in initial.packages)
+              {...p.toMap(), 'pendingUpdate': pending && p.id == 'mixed'},
+          ],
+          'library': {'configured': true, 'available': true},
+        },
+        'pickAndPreflightUpdate' => {
+          'token': 'update-token',
+          'name': 'chs-next.zip',
+          'resourceCount': 3,
+          'supportedCount': 3,
+          'unsupportedCount': 0,
+          'addedCount': 2,
+          'removedCount': 1,
+        },
+        'applyAndReload' => {'result': 'noGame'},
+        _ => null,
+      };
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    final controller = GameModsController(
+      port: const MethodChannelGameModsPort(channel),
+    );
+    await _pumpPage(
+      tester,
+      controller,
+      locale: const Locale('en'),
+      size: const Size(360, 760),
+      scale: 1.6,
+    );
+    await _openDetails(tester);
+
+    final action = find.byKey(const Key('game-mods-update-mixed'));
+    _expectTouchTarget(tester, action);
+    _expectVisible(tester, action);
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+
+    final review = find.byType(AlertDialog);
+    expect(review, findsOneWidget);
+    expect(
+      find.descendant(of: review, matching: find.text('Existing CHS package')),
+      findsOneWidget,
+    );
+    expect(find.text('chs-next.zip'), findsOneWidget);
+    expect(find.text('2 resources added · 1 removed'), findsOneWidget);
+    expect(
+      calls.singleWhere((c) => c.method == 'pickAndPreflightUpdate').arguments,
+      {'id': 'mixed'},
+    );
+    expect(calls.where((c) => c.method == 'commitImport'), isEmpty);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Confirm update'));
+    await tester.pumpAndSettle();
+    expect(calls.singleWhere((c) => c.method == 'commitImport').arguments, {
+      'token': 'update-token',
+    });
+    expect(calls.where((c) => c.method == 'applyAndReload'), isEmpty);
+    expect(find.text('Update pending'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('game-mods-apply')));
+    await tester.pumpAndSettle();
+    expect(calls.where((c) => c.method == 'applyAndReload'), hasLength(1));
+    expect(find.text('Update pending'), findsNothing);
+
+    await _openDetails(tester);
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Confirm update'));
+    await tester.pumpAndSettle();
+    expect(find.text('This ZIP matches the current package'), findsOneWidget);
+    expect(find.text('Update pending'), findsNothing);
+    expect(calls.where((c) => c.method == 'applyAndReload'), hasLength(1));
+    _expectNoFrameworkErrors(tester);
+  });
+
   for (final name in [_chineseName, _englishName]) {
     testWidgets(
       '360px large text keeps long ${name == _chineseName ? 'Chinese' : 'English'} package actions usable',

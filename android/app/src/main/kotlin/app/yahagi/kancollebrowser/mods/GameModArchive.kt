@@ -44,7 +44,7 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
         unpackChecked(input, sourceName, directory, GAME_MOD_LIBRARY_ARCHIVE_LIMIT)
 
     fun unpack(input: InputStream, sourceName: String, directory: File): ArchiveResult =
-        unpackChecked(input, sourceName, directory, MAX_ARCHIVE_BYTES)
+        unpackChecked(input, sourceName, directory, MAX_STATIC_ARCHIVE_BYTES)
 
     private data class SeenEntry(
         val resourceIndex: Int,
@@ -72,7 +72,8 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
                     if (count < 0) break
                     if (count == 0) continue
                     compressed += count
-                    requireQuota(compressed <= archiveLimit, if (archiveLimit == MAX_ARCHIVE_BYTES) "ZIP 不能超过 256 MiB。" else "魔改库内部检查文件超过限额。")
+                    requireQuota(compressed <= archiveLimit, if (archiveLimit == MAX_STATIC_ARCHIVE_BYTES)
+                        "ZIP 不能超过 512 MiB。" else "魔改库内部检查文件超过限额。")
                     output.write(buffer, 0, count)
                     progress?.files(0, null, null, compressed, null)
                 }
@@ -84,11 +85,22 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
             var expanded = 0L
             var retainedBytes = 0L
             var decoded = 0L
+            var nonStaticDecoded = 0L
+            var displayTranslationBytes = 0L
+            var displayTranslationFiles = 0
+            var regexTranslationRows = 0
             if (!files.mkdir()) throw GameModException("invalid_archive", "无法创建导入目录。")
             ZipFile(archive, archiveCharset).use { zip ->
                 val allEntries = zip.entries().asSequence().toList()
                 requireQuota(allEntries.size <= MAX_ENTRIES, "ZIP 文件数量不能超过 20000。")
                 val wrapperPrefix = detectWrapperDirectory(allEntries.asSequence().map { it.name })
+                if (archiveLimit == MAX_STATIC_ARCHIVE_BYTES && archive.length() > MAX_ARCHIVE_BYTES) {
+                    val staticCompressed = allEntries.asSequence().filterNot { it.name.replace('\\', '/').endsWith('/') }
+                        .filter { GameModStaticAssets.eligibleForStaticQuota(parseEntryPath(it.name, wrapperPrefix).normalizedPath) }
+                        .sumOf { it.compressedSize }
+                    requireQuota(archive.length() - staticCompressed <= MAX_ARCHIVE_BYTES,
+                        "ZIP 中的非静态资源和归档开销不能超过 256 MiB。")
+                }
                 val fileTotal = allEntries.count { !it.name.replace('\\', '/').endsWith('/') }
                 val byteTotal = allEntries.asSequence().filter { !it.name.replace('\\', '/').endsWith('/') }
                     .sumOf { it.size.coerceAtLeast(0L) }.takeIf { it <= MAX_EXPANDED_BYTES }
@@ -152,14 +164,29 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
                     if (actual != entry.size || crc.value != entry.crc) {
                         throw GameModException("invalid_archive", "ZIP 文件长度或校验和错误：$path")
                     }
+                    val displayTable = GameModDisplayTranslations.table(path)
                     if (path.endsWith(".png", ignoreCase = true)) {
                         val originalLength = target.length()
-                        decoded += GameModPng.validateImport(target)
+                        val decodedSize = GameModPng.validateImport(target)
+                        decoded += decodedSize
+                        if (!GameModStaticAssets.eligibleForStaticQuota(path)) nonStaticDecoded += decodedSize
                         if (target.length() != originalLength) formatWarnings.add("png_trailing_data_removed")
-                        requireQuota(decoded <= MAX_EXPANDED_BYTES, "PNG 解码总大小超过 1 GiB。")
-                    }
+                        requireQuota(nonStaticDecoded <= MAX_EXPANDED_BYTES, "其他 PNG 资源解码总大小超过 1 GiB。")
+                        requireQuota(decoded <= MAX_PNG_DECODED_BYTES, "PNG 解码总大小超过 2 GiB。")
+                    } else if (GameModStaticAssets.isJpegPath(path)) GameModStaticAssets.validateJpeg(target)
+                    else if (GameModStaticAssets.isFontPath(path)) GameModStaticAssets.validateFont(target)
                     if (wav) GameModWav.validate(target)
                     else if (AUDIO_PATH.matches(path)) GameModMp3.validate(target)
+                    else if (path == GameModQuestTranslations.PATH) GameModQuestTranslations.parse(target)
+                    else if (displayTable != null) {
+                        displayTranslationBytes += actual
+                        displayTranslationFiles++
+                        requireQuota(displayTranslationBytes <= GameModDisplayTranslations.MAX_TOTAL_BYTES &&
+                            displayTranslationFiles <= GameModDisplayTranslations.MAX_TABLES, "游戏文字翻译表总大小或数量超过限额。")
+                        val translations = GameModDisplayTranslations.parse(target, displayTable)
+                        if (displayTable.category == GameModDisplayTranslations.Category.REGEX) regexTranslationRows += translations.count
+                        requireQuota(regexTranslationRows <= GameModDisplayTranslations.MAX_TOTAL_REGEX, "游戏文字正则翻译总数量超过限额。")
+                    }
                     val rawEntryPath = entry.name.replace('\\', '/')
                     if (existing == null) {
                         resources.add(classify(path, relativeFile).copy(sourcePaths = listOf(rawEntryPath)))
@@ -310,6 +337,7 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
     private fun classify(path: String, relativeFile: String): ArchiveResource {
         val ship = SHIP_PATH.matchEntire(path)
         val coordinate = isCoordinate(path)
+        val displayTable = GameModDisplayTranslations.table(path)
         val kind: String
         val reason: String?
         val groupId: String?
@@ -319,12 +347,14 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
             path.startsWith("kcs/sound/") && (path.endsWith(".mp3", true) || path.endsWith(".wav", true)) -> { kind = "audio"; reason = "audio_filename_unsupported"; groupId = null }
             path.endsWith(".mp3", true) || path.endsWith(".wav", true) -> { kind = "audio"; reason = "audio_path_unsupported"; groupId = null }
             path.endsWith(".js", true) -> { kind = "unsupported"; reason = "script_unsupported"; groupId = null }
+            path == GameModQuestTranslations.PATH -> { kind = GameModQuestTranslations.KIND; reason = null; groupId = null }
+            displayTable != null -> { kind = displayTable.kind; reason = null; groupId = null }
             path.endsWith(".json", true) -> { kind = "unsupported"; reason = "json_unsupported"; groupId = null }
             ship != null && ship.groupValues[1] in SHIP_TYPES -> {
                 kind = "ship"; reason = null; groupId = "ship:${ship.groupValues[2]}"
             }
-            path.startsWith("kcs2/img/") && path.endsWith(".png") -> { kind = "image"; reason = null; groupId = null }
-            path.startsWith("kcs2/resources/furniture/") && path.endsWith(".png") -> { kind = "image"; reason = null; groupId = null }
+            GameModStaticAssets.isPngPath(path) || GameModStaticAssets.isJpegPath(path) -> { kind = "image"; reason = null; groupId = null }
+            GameModStaticAssets.isFontPath(path) -> { kind = "font"; reason = null; groupId = null }
             path.startsWith("kcs2/resources/ship/") -> { kind = "unsupported"; reason = "unknown_ship_asset"; groupId = null }
             path.startsWith("kcs/") || path.startsWith("kcs2/") -> { kind = "unsupported"; reason = "unsupported_type"; groupId = null }
             else -> { kind = "unsupported"; reason = "unsupported_path"; groupId = null }
@@ -374,8 +404,8 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
             when {
                 resource.kind == "ship" && unknownCoordinates ->
                     resource.copy(supported = false, reason = "coordinate_dependency_unresolved")
-                resource.supported && resource.path.endsWith(".png") &&
-                    (resource.path.removeSuffix(".png") + ".json" in paths || resource.path + ".json" in paths) -> {
+                resource.supported && (resource.path.endsWith(".png") || GameModStaticAssets.isJpegPath(resource.path)) &&
+                    (resource.path.substringBeforeLast('.') + ".json" in paths || resource.path + ".json" in paths) -> {
                     warnings.add("spritesheet_json_unsupported")
                     resource.copy(supported = false, reason = "spritesheet_json_dependency")
                 }
@@ -388,6 +418,7 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
     }
 
     private fun isCoordinate(path: String): Boolean {
+        if (path.startsWith("text/")) return false
         val name = path.substringAfterLast('/').lowercase()
         return name == "config.ini" || name == "config.json" || name.endsWith(".config.ini") || name.endsWith(".config.json")
     }
@@ -404,14 +435,16 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
 
     internal companion object {
         const val MAX_ARCHIVE_BYTES = 256L * 1024 * 1024
+        const val MAX_STATIC_ARCHIVE_BYTES = 512L * 1024 * 1024
         const val MAX_EXPANDED_BYTES = 1024L * 1024 * 1024
+        private const val MAX_PNG_DECODED_BYTES = 2 * MAX_EXPANDED_BYTES
         const val MAX_FILE_BYTES = 64L * 1024 * 1024
         const val MAX_ENTRIES = 20_000
         const val MAX_RATIO = 200L
         val HACK_SUFFIX = Regex("\\.hack\\.([A-Za-z0-9]+)$")
         val GBK_CHARSET: Charset = runCatching { Charset.forName("GBK") }.getOrDefault(Charsets.ISO_8859_1)
         val GAME_ROOTS = setOf("kcs", "kcs2", "cache")
-        val RESERVED_ROOTS = setOf("kcs", "kcs2", "cache", "ship", ".", "..")
+        val RESERVED_ROOTS = setOf("kcs", "kcs2", "cache", "ship", "text", ".", "..")
         val SHIP_PATH = Regex("kcs2/resources/ship/([a-z0-9_]+)/([0-9]{4})(?:_d)?_[A-Za-z0-9]+(?:_[A-Za-z0-9]+)?\\.png")
         val AUDIO_PATH = Regex("kcs/sound/kc[a-z0-9]+/[0-9]+\\.mp3")
         val WAV_PATH = Regex("kcs/sound/kc[a-z0-9]+/[0-9]+\\.(?i:wav)")
@@ -450,7 +483,11 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
                 if (wrapper == null) wrapper = first
                 else if (wrapper != first) return null
                 hasFiles = true
-                if (parts[1] in GAME_ROOTS) hasGameSubdir = true
+                val childPath = parts.drop(1).joinToString("/")
+                if (parts[1] in GAME_ROOTS || childPath == GameModQuestTranslations.PATH ||
+                    GameModDisplayTranslations.table(childPath) != null) {
+                    hasGameSubdir = true
+                }
             }
             return if (hasFiles && hasGameSubdir) wrapper else null
         }
@@ -473,7 +510,10 @@ internal class GameModArchive(private val progress: GameModProgress? = null) {
             val afterCache = if (afterWrapper.firstOrNull() == "cache") afterWrapper.drop(1) else afterWrapper
             val preHackPath = afterCache.joinToString("/")
             val isHack = HACK_SUFFIX.containsMatchIn(preHackPath)
-            val normalizedPath = preHackPath.replace(HACK_SUFFIX, ".$1")
+            val plainPath = preHackPath.replace(HACK_SUFFIX, ".$1")
+            // The data-table whitelist is exact across extraction and public-library rescans.
+            val normalizedPath = if (plainPath == GameModQuestTranslations.PATH ||
+                GameModDisplayTranslations.table(plainPath) != null) preHackPath else plainPath
             return ParsedEntryPath(
                 strippedRaw = strippedRaw,
                 preHackPath = preHackPath,

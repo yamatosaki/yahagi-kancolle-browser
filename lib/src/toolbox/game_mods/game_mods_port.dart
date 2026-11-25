@@ -16,6 +16,10 @@ abstract interface class GameModsPort {
   Future<void> resetAll();
 }
 
+abstract interface class GameModsArchiveUpdatePort {
+  Future<GameModsPreflight?> pickAndPreflightUpdate(String packageId);
+}
+
 /// Optional extension so other platforms can keep their existing mod manager.
 abstract interface class GameModsLibraryPort {
   Future<bool> chooseLibraryDirectory();
@@ -31,7 +35,11 @@ abstract interface class GameModsProgressPort {
 }
 
 final class MethodChannelGameModsPort
-    implements GameModsPort, GameModsLibraryPort, GameModsProgressPort {
+    implements
+        GameModsPort,
+        GameModsArchiveUpdatePort,
+        GameModsLibraryPort,
+        GameModsProgressPort {
   const MethodChannelGameModsPort([
     this.channel = const MethodChannel(
       'app.yahagi.kancollebrowser/mod_manager',
@@ -59,6 +67,15 @@ final class MethodChannelGameModsPort
   Future<GameModsPreflight?> pickAndPreflightArchive() async {
     final value = await channel.invokeMethod<Object?>(
       'pickAndPreflightArchive',
+    );
+    return value == null ? null : GameModsPreflight.fromMap(gameModsMap(value));
+  }
+
+  @override
+  Future<GameModsPreflight?> pickAndPreflightUpdate(String packageId) async {
+    final value = await channel.invokeMethod<Object?>(
+      'pickAndPreflightUpdate',
+      {'id': packageId},
     );
     return value == null ? null : GameModsPreflight.fromMap(gameModsMap(value));
   }

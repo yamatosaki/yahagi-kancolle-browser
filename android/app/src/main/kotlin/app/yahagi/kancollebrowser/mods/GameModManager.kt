@@ -54,6 +54,7 @@ internal class GameModManager(
     private val replies = mutableSetOf<Reply>()
     private var picker: Reply? = null
     private var pickerRequest = 0
+    private var pickerPackageId: String? = null
     private var disposed = false
     @Volatile private var repository: GameModRepository? = null
     @Volatile private var initializationFailed = false
@@ -122,12 +123,18 @@ internal class GameModManager(
         val reply = Reply(result).also { replies.add(it) }
         if (disposed) { reply.error("activity_destroyed", "The activity is no longer available"); return }
         if (call.method == "capabilities") {
-            reply.success(mapOf("supported" to supported(), "reason" to if (supported()) "" else "unsupported_platform"))
+            val available = supported()
+            reply.success(mapOf("supported" to available, "reason" to if (available) "" else "unsupported_platform",
+                "archiveUpdateSupported" to available))
             return
         }
         if (!supported()) { reply.error("unsupported_platform", "Mod resources require a supported Android WebView"); return }
         when (call.method) {
             "pickAndPreflightArchive" -> pickArchive(reply)
+            "pickAndPreflightUpdate" -> {
+                val id = ((call.arguments as? Map<*, *>)?.get("id") as? String)?.takeIf { it.isNotEmpty() }
+                if (id == null) reply.error("invalid_argument", "Missing id") else pickArchive(reply, id)
+            }
             "chooseLibraryDirectory" -> chooseLibrary(reply)
             "openLibraryDirectory" -> openLibrary(reply)
             "operationProgress" -> reply.success(progress.snapshot())
@@ -343,10 +350,11 @@ internal class GameModManager(
     }
 
     @Suppress("DEPRECATION")
-    private fun pickArchive(reply: Reply) {
+    private fun pickArchive(reply: Reply, packageId: String? = null) {
         if (picker != null) { reply.error("busy", "A document selection is already open"); return }
         picker = reply
         pickerRequest = PICK_ZIP_REQUEST
+        pickerPackageId = packageId
         try {
             activity.startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
@@ -357,6 +365,7 @@ internal class GameModManager(
         } catch (error: Exception) {
             picker = null
             pickerRequest = 0
+            pickerPackageId = null
             reply.failure(error)
         }
     }
@@ -365,6 +374,8 @@ internal class GameModManager(
         if (requestCode != PICK_ZIP_REQUEST && requestCode != PICK_LIBRARY_REQUEST) return false
         if (requestCode != pickerRequest) return true
         val reply = picker ?: return true
+        val packageId = pickerPackageId
+        pickerPackageId = null
         picker = null
         pickerRequest = 0
         val uri = data?.data
@@ -408,13 +419,15 @@ internal class GameModManager(
             return true
         }
         runIo(reply, progressOperation = "import") {
-            requireLibrary()
+            val library = requireLibrary()
             val resolver = activity.contentResolver
             val name = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) cursor.getString(0)?.take(240) else null
             } ?: "cache.zip"
             progress.startPackage("read", name, 0, 1)
-            resolver.openInputStream(uri)?.use { preflight(it, name) }
+            resolver.openInputStream(uri)?.use {
+                if (packageId == null) preflight(it, name) else library.preflightUpdate(it, name, packageId)
+            }
                 ?: throw GameModException("archive_unreadable", "Unable to read selected archive")
         }
         return true
@@ -437,14 +450,23 @@ internal class GameModManager(
                                 (entry?.get("id") as? String)?.takeIf { entry["pendingRemoval"] == true }
                             }
                             // Every published setup must have a usable persistent backup destination.
-                            if (libraryPreferences.contains("treeUri")) requireLibrary()
+                            if (libraryPreferences.contains("treeUri") || repo.zipUpdates(published = false).isNotEmpty()) {
+                                requireLibrary().checkReadyToApply()
+                            }
                             prepared = repo.prepareApply()
                         }
                         val token = checkNotNull(prepared)
                         val coordinator = GameModApplyCoordinator(
                             applyConfig = {
-                                repo.publishApply(token)
+                                val fontsChanged = repo.publishApply(token)
                                 published = true
+                                // The game uses the same CSS font URLs for stock and local fonts.
+                                try {
+                                    if (fontsChanged) reloadBridge.clearMemoryCache()
+                                } catch (error: RuntimeException) {
+                                    rollbackRequested = true
+                                    throw error
+                                }
                                 onStateChanged()
                                 token
                             },
@@ -506,6 +528,7 @@ internal class GameModManager(
         if (disposed) return
         disposed = true
         picker = null
+        pickerPackageId = null
         replies.toList().forEach { it.error("activity_destroyed", "The operation was cancelled") }
         scope.cancel()
         ready.countDown()

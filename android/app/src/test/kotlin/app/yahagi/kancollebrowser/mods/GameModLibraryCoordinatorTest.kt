@@ -20,6 +20,143 @@ class GameModLibraryCoordinatorTest {
     @get:Rule val temporary = TemporaryFolder()
     private val path = "kcs2/resources/ship/banner/0001_1234.png"
 
+    @Test fun `ZIP update keeps priority and resource choices while the applied revision stays readable`() {
+        val privateRoot = temporary.newFolder()
+        val repo = GameModRepository(privateRoot)
+        val public = temporary.newFolder()
+        val library = GameModLibrary(GameModFileLibraryStore(public), temporary.newFolder())
+        val workspace = temporary.newFolder()
+        val coordinator = GameModLibraryCoordinator(repo, library, workspace)
+        val disabled = "kcs2/resources/ship/banner/0002_1234.png"
+        val removed = "kcs2/resources/ship/banner/0003_1234.png"
+        val added = "kcs2/resources/ship/banner/0004_1234.png"
+        val oldArchive = archive(path to png(1), disabled to png(1), removed to png(1))
+        val original = coordinator.commitImport(repo.preflight(oldArchive.inputStream(), "Installed.zip")["token"] as String)
+        val id = original["id"] as String
+        val other = coordinator.commitImport(repo.preflight(archive(png(8)).inputStream(), "Other.zip")["token"] as String)
+        val otherId = other["id"] as String
+        val resources = (original["resources"] as List<*>).filterIsInstance<Map<*, *>>().associate { it["path"] to it["id"] }
+        repo.saveDraft(mapOf("master" to true, "order" to listOf(otherId, id), "enabledPackages" to listOf(id),
+            "enabledResources" to listOf(resources[path], resources[removed])))
+        repo.finishApply(repo.applyDraft())
+        coordinator.applied(emptyList())
+        val oldTree = public.listFiles()!!.single { it.isDirectory && it.name.startsWith("Installed-") }
+        val preview = coordinator.preflightUpdate(archive(added to png(2), disabled to png(2), path to png(2)).inputStream(), "Renamed.zip", id)
+        assertEquals("Installed", preview["packageName"])
+        assertEquals(1, preview["addedCount"])
+        assertEquals(1, preview["removedCount"])
+        coordinator.commitImport(preview["token"] as String)
+
+        val restarted = GameModRepository(privateRoot)
+        val pending = restarted.status()
+        val pack = (pending["packages"] as List<*>).filterIsInstance<Map<*, *>>().single { it["id"] == id }
+        assertEquals(true, pack["pendingUpdate"])
+        assertEquals("Renamed", pack["name"])
+        val updatedResources = (pack["resources"] as List<*>).filterIsInstance<Map<*, *>>().associate { it["path"] to it["id"] }
+        assertEquals(resources[path], updatedResources[path])
+        assertEquals(resources[disabled], updatedResources[disabled])
+        val draft = pending["draft"] as Map<*, *>
+        assertEquals(listOf(otherId, id), draft["order"])
+        assertEquals(listOf(id), draft["enabledPackages"])
+        assertEquals(setOf(updatedResources[path], updatedResources[added]), (draft["enabledResources"] as List<*>).toSet())
+        assertArrayEquals(png(1), activeBytes(restarted, path))
+        assertArrayEquals(png(1), activeBytes(restarted, removed))
+        assertArrayEquals(png(1), oldTree.resolve(path).readBytes())
+
+        // A crash after publication still leaves enough durable information to update the backup.
+        val resumed = GameModLibraryCoordinator(restarted, library, workspace)
+        resumed.checkReadyToApply()
+        restarted.finishApply(restarted.applyDraft())
+        val recovered = GameModRepository(privateRoot)
+        val recoveredLibrary = GameModLibrary(GameModFileLibraryStore(public), temporary.newFolder())
+        val refreshed = GameModLibraryCoordinator(recovered, recoveredLibrary, workspace)
+        refreshed.retryPending()
+        assertArrayEquals(png(2), activeBytes(recovered, path))
+        assertArrayEquals(png(2), activeBytes(recovered, added))
+        assertNull(activeBytes(recovered, removed))
+        assertNull(activeBytes(recovered, disabled))
+        assertFalse(oldTree.exists())
+        val saved = public.listFiles()!!.single { it.isDirectory && it.name.startsWith("Renamed-") }
+        assertArrayEquals(png(2), saved.resolve(path).readBytes())
+        assertFalse(saved.resolve(removed).exists())
+        val savedChoices = checkNotNull(recoveredLibrary.appliedConfiguration())
+        val expectedChoices = recovered.exportAppliedConfiguration()
+        listOf("master", "order", "enabledPackages", "enabledResources").forEach { key ->
+            assertEquals(expectedChoices[key], savedChoices[key])
+        }
+        val scan = refreshed.scan()
+        assertEquals(setOf("unchanged"), (scan["entries"] as List<*>).filterIsInstance<Map<*, *>>().map { it["kind"] }.toSet())
+    }
+
+    @Test fun `cancel ZIP update before first apply keeps the original managed package`() {
+        val privateRoot = temporary.newFolder()
+        val repo = GameModRepository(privateRoot)
+        val public = temporary.newFolder()
+        val library = GameModLibrary(GameModFileLibraryStore(public), temporary.newFolder())
+        val coordinator = GameModLibraryCoordinator(repo, library, temporary.newFolder())
+        val original = coordinator.commitImport(repo.preflight(archive(png(1)).inputStream(), "Installed.zip")["token"] as String)
+        val id = original["id"] as String
+        val preview = coordinator.preflightUpdate(archive(png(2)).inputStream(), "Update.zip", id)
+        coordinator.commitImport(preview["token"] as String)
+        val restarted = GameModRepository(privateRoot)
+        restarted.cancelChanges()
+
+        assertEquals(listOf(original), restarted.status()["packages"])
+        assertEquals(false, restarted.status()["pending"])
+        assertArrayEquals(png(1), public.walkTopDown().single { it.name == "0001_1234.png" }.readBytes())
+    }
+
+    @Test fun `ZIP update rejects a changed public source before modifying the draft`() {
+        val public = temporary.newFolder()
+        val repo = GameModRepository(temporary.newFolder())
+        val library = GameModLibrary(GameModFileLibraryStore(public), temporary.newFolder())
+        val coordinator = GameModLibraryCoordinator(repo, library, temporary.newFolder())
+        val original = coordinator.commitImport(repo.preflight(archive(png(1)).inputStream(), "Installed.zip")["token"] as String)
+        val id = original["id"] as String
+        val preview = coordinator.preflightUpdate(archive(png(2)).inputStream(), "Update.zip", id)
+        val originalStatus = repo.status()
+        val source = public.walkTopDown().single { it.name == "0001_1234.png" }
+        source.writeBytes(png(3))
+
+        val rejected = runCatching { coordinator.commitImport(preview["token"] as String) }.exceptionOrNull()
+        assertEquals("library_changed", (rejected as? GameModException)?.code)
+        assertEquals(originalStatus, repo.status())
+        assertArrayEquals(png(3), source.readBytes())
+    }
+
+    @Test fun `ZIP update safely backs up a published revision if the original became externally edited during apply`() {
+        val public = temporary.newFolder()
+        val repo = GameModRepository(temporary.newFolder())
+        val library = GameModLibrary(GameModFileLibraryStore(public), temporary.newFolder())
+        val coordinator = GameModLibraryCoordinator(repo, library, temporary.newFolder())
+        val original = coordinator.commitImport(repo.preflight(archive(png(1)).inputStream(), "Installed.zip")["token"] as String)
+        val id = original["id"] as String
+        enable(repo)
+        coordinator.applied(emptyList())
+        val source = public.walkTopDown().single { it.name == "0001_1234.png" }
+        val preview = coordinator.preflightUpdate(archive(png(2)).inputStream(), "Update.zip", id)
+        coordinator.commitImport(preview["token"] as String)
+        coordinator.checkReadyToApply()
+        source.writeBytes(png(3))
+
+        repo.finishApply(repo.applyDraft())
+        coordinator.applied(emptyList())
+
+        assertArrayEquals(png(3), source.readBytes())
+        assertArrayEquals(png(2), activeBytes(repo, path))
+        assertNull(coordinator.status()["error"])
+        val current = (library.status()["packages"] as List<*>).filterIsInstance<Map<*, *>>().single()
+        val replacement = public.resolve(current["path"] as String)
+        assertArrayEquals(png(2), replacement.resolve(path).readBytes())
+        val rows = (coordinator.scan()["entries"] as List<*>).filterIsInstance<Map<*, *>>()
+        assertEquals(setOf("unchanged", "duplicate"), rows.map { it["kind"] }.toSet())
+        assertTrue(replacement.deleteRecursively())
+        val reopened = GameModLibrary(GameModFileLibraryStore(public), temporary.newFolder())
+        val scan = reopened.scan()
+        assertTrue(reopened.acceptScan(scan.token).isEmpty())
+        assertEquals(setOf("missing", "duplicate"), scan.items.map { it["status"] }.toSet())
+    }
+
     @Test fun `picker import preserves original ZIP outside the library and saves only an editable tree`() {
         val source = temporary.newFile("original.zip").apply { writeBytes(archive(png(1))) }
         val original = source.readBytes()
@@ -507,7 +644,18 @@ class GameModLibraryCoordinatorTest {
         val preview = repo.preflight(archive.inputStream(), "Ship.zip")
         return repo.commitImport(preview["token"] as String)["id"] as String
     }
-    private fun archive(bytes: ByteArray) = ByteArrayOutputStream().also { output -> ZipOutputStream(output).use { zip -> zip.putNextEntry(ZipEntry(path)); zip.write(bytes); zip.closeEntry() } }.toByteArray()
+    private fun archive(bytes: ByteArray) = archive(path to bytes)
+    private fun archive(vararg files: Pair<String, ByteArray>) = ByteArrayOutputStream().also { output ->
+        ZipOutputStream(output).use { zip ->
+            files.forEach { (name, bytes) ->
+                zip.putNextEntry(ZipEntry(name))
+                zip.write(bytes)
+                zip.closeEntry()
+            }
+        }
+    }.toByteArray()
+    private fun activeBytes(repo: GameModRepository, name: String) =
+        repo.openResource("https://w01x.kancolle-server.com/$name", "GET", emptyMap())?.inputStream?.use { it.readBytes() }
     private class FailingStore(private val delegate: GameModLibraryStore) : GameModLibraryStore by delegate {
         var failWrite = false
         var failDeletePackages = false

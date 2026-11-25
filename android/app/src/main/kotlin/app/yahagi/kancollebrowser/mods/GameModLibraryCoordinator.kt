@@ -3,6 +3,7 @@ package app.yahagi.kancollebrowser.mods
 import com.google.gson.Gson
 import java.io.File
 import java.io.FileOutputStream
+import java.io.InputStream
 import java.util.UUID
 
 /** Connects the user-owned source library to immutable game revisions. Called on the IO mutation queue. */
@@ -25,8 +26,9 @@ class GameModLibraryCoordinator @JvmOverloads constructor(
 
     fun status(): Map<String, Any?> {
         val value = library.status()
+        val needsBackup = pendingSync.exists() || repository.zipUpdates(published = true).isNotEmpty()
         return value + mapOf("available" to true, "displayName" to value["location"], "uri" to value["identity"],
-            "lastScan" to lastScan, "error" to (errorCode ?: if (pendingSync.exists()) "library_backup_pending" else null))
+            "lastScan" to lastScan, "error" to (errorCode ?: if (needsBackup) "library_backup_pending" else null))
     }
 
     fun migrateExisting(): Int {
@@ -34,6 +36,7 @@ class GameModLibraryCoordinator @JvmOverloads constructor(
         val known = (library.status()["packages"] as? List<*>).orEmpty().mapNotNull { (it as? Map<*, *>)?.get("id") as? String }.toSet()
         val applied = repository.status()["applied"] as Map<*, *>
         val appliedIds = (applied["order"] as List<*>).filterIsInstance<String>().toSet()
+        val updating = repository.zipUpdates(published = false).associateBy { it.id }
         var count = 0
         val existing = packages()
         for ((index, pack) in existing.withIndex()) {
@@ -46,9 +49,9 @@ class GameModLibraryCoordinator @JvmOverloads constructor(
             progress?.startPackage("save", pack["name"] as String, index, existing.size)
             val directory = temporary("migration")
             try {
-                repository.exportPackageTree(id, directory)
+                repository.exportPackageTree(id, directory, originalBeforeZipUpdate = id in updating)
                 val saved = library.savePackage(id, pack["name"] as String, directory)
-                repository.attachLibraryFingerprint(id, saved["contentHash"] as String)
+                if (id !in updating) repository.attachLibraryFingerprint(id, saved["contentHash"] as String)
                 count++
                 progress?.update(completedPackages = index + 1)
             } finally { directory.deleteRecursively() }
@@ -57,13 +60,30 @@ class GameModLibraryCoordinator @JvmOverloads constructor(
         return count
     }
 
+    fun preflightUpdate(input: InputStream, sourceName: String, id: String): Map<String, Any?> =
+        repository.preflightUpdate(input, sourceName, id)
+
     fun commitImport(token: String): Map<String, Any?> {
         requirePublicSynchronized()
+        val update = repository.preflightUpdateTarget(token)
         val directory = temporary("import")
         try {
+            update?.let { library.verifyPackageUpdate(it.id, it.oldFingerprint) }
             val exported = repository.exportPreflightTree(token, directory)
             val fingerprint = library.fingerprintLocalTree(directory)
-            packages().firstOrNull { it["sourceFingerprint"] == fingerprint }?.let { duplicate ->
+            if (update != null) {
+                val result = if (fingerprint == update.newFingerprint) {
+                    // Reimporting identical bytes must not mark the package as pending.
+                    repository.discardImport(token)
+                    packages().single { it["id"] == update.id } + ("duplicate" to true)
+                } else repository.commitLibraryImport(token, update.id, fingerprint)
+                progress?.update(completedPackages = 1, totalPackages = 1)
+                return result
+            }
+            val pending = repository.zipUpdates(published = false).associateBy { it.id }
+            packages().firstOrNull {
+                it["sourceFingerprint"] == fingerprint || pending[it["id"]]?.oldFingerprint == fingerprint
+            }?.let { duplicate ->
                 repository.discardImport(token)
                 progress?.update(completedPackages = 1, totalPackages = 1)
                 return duplicate + ("duplicate" to true)
@@ -88,18 +108,21 @@ class GameModLibraryCoordinator @JvmOverloads constructor(
         requirePublicSynchronized()
         val preview = library.scan()
         val current = packages().associateBy { it["id"] as String }
+        val updating = repository.zipUpdates(published = false).associateBy { it.id }
         val entries = preview.items.mapIndexed { index, entry ->
             val raw = entry["status"] as? String ?: "invalid"
             val id = entry["id"] as? String
             val installed = current[id]
+            val update = updating[id]
             val kind = if (raw in setOf("new", "updated", "unchanged")) {
                 when {
                     installed == null -> "new"
+                    update != null -> if (update.oldFingerprint == entry["contentHash"]) "unchanged" else "invalid"
                     installed["sourceFingerprint"] != entry["contentHash"] -> "updated"
                     else -> "unchanged"
                 }
             } else if (raw == "deleted") "missing" else raw
-            val reason = entry["reason"] as? String
+            val reason = if (update != null && kind == "invalid") "library_changed" else entry["reason"] as? String
             val detail = entry["error"] as? String ?: reason?.takeUnless { it.matches(Regex("[a-z][a-z0-9_]*")) }
             entry + mapOf("id" to (id ?: "$kind-$index"), "kind" to kind, "detail" to detail,
                 "reason" to reason?.takeIf { it.matches(Regex("[a-z][a-z0-9_]*")) },
@@ -118,7 +141,8 @@ class GameModLibraryCoordinator @JvmOverloads constructor(
         if (token !in restores) throw GameModException("invalid_token", "The scan preview has expired")
         requirePublicSynchronized()
         try {
-            val candidates = library.acceptScan(token)
+            val updating = repository.zipUpdates(published = false).map { it.id }.toSet()
+            val candidates = library.acceptScan(token, updating)
             val current = packages().associateBy { it["id"] as String }
             val changed = candidates.filter { current[it.id]?.get("sourceFingerprint") != it.contentHash }
             // Validate the whole batch before changing repository metadata, releasing each
@@ -138,7 +162,7 @@ class GameModLibraryCoordinator @JvmOverloads constructor(
                 progress?.update(completedPackages = index + 1)
             }
             if (restores[token] == true) library.appliedConfiguration()?.let(repository::restoreLibraryConfiguration)
-            errorCode = if (library.completeScan(token).isEmpty()) null else "library_cleanup_failed"
+            errorCode = if (library.completeScan(token, updating).isEmpty()) null else "library_cleanup_failed"
         } finally {
             restores.remove(token)
             library.discardScan(token)
@@ -146,6 +170,13 @@ class GameModLibraryCoordinator @JvmOverloads constructor(
     }
 
     fun discardScan(token: String) { restores.remove(token); library.discardScan(token) }
+
+    fun checkReadyToApply() {
+        val updates = repository.zipUpdates(published = false)
+        if (updates.isEmpty()) return
+        requirePublicSynchronized()
+        updates.forEach { library.verifyPackageUpdate(it.id, it.oldFingerprint) }
+    }
 
     /** Journal before public IO so lost authorization or process death cannot forget unfinished cleanup. */
     fun journalApplied(removedIds: List<String>) {
@@ -160,12 +191,25 @@ class GameModLibraryCoordinator @JvmOverloads constructor(
     }
 
     fun retryPending() {
-        val pending = readPending() ?: return
+        val pending = readPending()
+        val updates = repository.zipUpdates(published = true)
+        if (pending == null && updates.isEmpty()) return
         try {
-            val config = pending["configuration"] as? Map<*, *> ?: throw GameModException("invalid_config", "Invalid library synchronization journal")
-            val ids = (pending["removedIds"] as? List<*>)?.filterIsInstance<String>().orEmpty()
+            for ((index, update) in updates.withIndex()) {
+                progress?.startPackage("save", update.name, index, updates.size)
+                val directory = temporary("update")
+                try {
+                    repository.exportPackageTree(update.id, directory)
+                    library.publishPackageUpdate(update.id, update.name, update.oldFingerprint, update.newFingerprint, directory)
+                } finally { directory.deleteRecursively() }
+                progress?.update(completedPackages = index + 1)
+            }
+            val config = if (pending == null) repository.exportAppliedConfiguration() else
+                pending["configuration"] as? Map<*, *> ?: throw GameModException("invalid_config", "Invalid library synchronization journal")
+            val ids = (pending?.get("removedIds") as? List<*>)?.filterIsInstance<String>().orEmpty()
             library.saveAppliedConfiguration(config)
             if (library.deletePackages(ids).isNotEmpty()) { errorCode = "library_cleanup_failed"; return }
+            repository.finishZipUpdateSync(updates.map { it.id }.toSet())
             if (!pendingSync.delete() && pendingSync.exists()) throw GameModException("library_write_failed", "Cannot finish library synchronization")
             errorCode = null
         } catch (_: Exception) { errorCode = "library_backup_pending" }
@@ -173,7 +217,7 @@ class GameModLibraryCoordinator @JvmOverloads constructor(
 
     private fun requirePublicSynchronized() {
         retryPending()
-        if (pendingSync.exists()) throw GameModException(errorCode ?: "library_backup_pending",
+        if (pendingSync.exists() || repository.zipUpdates(published = true).isNotEmpty()) throw GameModException(errorCode ?: "library_backup_pending",
             "Finish synchronizing the last applied configuration before importing or scanning the library")
     }
 

@@ -7,13 +7,14 @@ import android.provider.DocumentsContract
 import java.io.FilterOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.UUID
 
 /** SAF-backed user documents; never uses app-specific external storage. */
 internal class GameModDocumentLibraryStore(
     private val resolver: ContentResolver,
     val treeUri: Uri,
     val rootDocumentId: String = DocumentsContract.getTreeDocumentId(treeUri),
-) : GameModLibraryStore {
+) : GameModLibraryStore, GameModFreshTreeStore {
     private val readSessions = GameModLibraryReadSessions(rootDocumentId, ::children, ::documentUri)
     override val displayName: String get() = rootDocumentId.substringAfter(':', rootDocumentId)
     override val identity: String get() = GameModLibraryDirectoryPolicy.libraryIdentity(treeUri.authority.orEmpty(), rootDocumentId)
@@ -51,10 +52,56 @@ internal class GameModDocumentLibraryStore(
         val target = existing?.let { uri(it.id) } ?: DocumentsContract.createDocument(resolver, uri(parentId), mime(name), name)
             ?: throw GameModException("library_write_failed", "Cannot create a library file")
         requireWithin(rootDocumentId, DocumentsContract.getDocumentId(target))
+        openOutput(target)
+    }
+
+    override fun createFreshTree(relative: String) = mutate {
+        checkStagingPath(relative)
+        if ('/' in relative) throw GameModException("unsafe_path", "An import staging directory must be at the library root")
+        createExactDocument(rootDocumentId, relative, DocumentsContract.Document.MIME_TYPE_DIR)
+        Unit
+    }
+
+    override fun openFreshFile(relative: String): OutputStream = mutate {
+        checkStagingPath(relative)
+        val parent = relative.substringBeforeLast('/', "")
+        if (parent.isEmpty()) throw GameModException("unsafe_path", "A fresh file must be inside import staging")
+        val name = relative.substringAfterLast('/')
+        // This store only accepts Android ExternalStorageProvider, whose IDs are
+        // volume:path. The caller has already created this staging parent.
+        val parentId = "$rootDocumentId/$parent"
+        openOutput(createExactDocument(parentId, name, mime(name)))
+    }
+
+    private fun createExactDocument(parentId: String, name: String, mimeType: String): Uri {
+        val target = DocumentsContract.createDocument(resolver, documentUri(parentId), mimeType, name)
+            ?: throw GameModException("library_write_failed", "Cannot create an import staging document")
+        val targetId = DocumentsContract.getDocumentId(target)
+        if (target.authority != treeUri.authority || targetId != "$parentId/$name") {
+            // The provider can generate a unique sibling if a name is occupied. Never
+            // open it for writing, and only clean up a returned child of this parent.
+            if (target.authority == treeUri.authority && targetId.substringBeforeLast('/', "") == parentId) {
+                runCatching { DocumentsContract.deleteDocument(resolver, target) }
+            }
+            throw GameModException("library_write_failed", "The provider renamed an import staging document")
+        }
+        return target
+    }
+
+    private fun checkStagingPath(relative: String) {
+        checkPath(relative)
+        val stagingName = relative.substringBefore('/')
+        val suffix = stagingName.removePrefix(GAME_MOD_IMPORT_STAGING_PREFIX)
+        if (suffix == stagingName || runCatching { UUID.fromString(suffix).toString() }.getOrNull() != suffix) {
+            throw GameModException("unsafe_path", "Fresh imports must stay inside a dedicated staging directory")
+        }
+    }
+
+    private fun openOutput(target: Uri): OutputStream {
         val output = resolver.openOutputStream(target, "wt")
             ?: throw GameModException("library_write_failed", "Cannot write a library file")
         // Size/mtime may change after openWrite returns; release any view collected while writing.
-        object : FilterOutputStream(output) {
+        return object : FilterOutputStream(output) {
             override fun write(bytes: ByteArray, offset: Int, length: Int) = out.write(bytes, offset, length)
             override fun close() {
                 try { super.close() } finally { readSessions.invalidate() }

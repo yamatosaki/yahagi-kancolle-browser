@@ -2,8 +2,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const kotlin = fs.readFileSync(process.argv[2], 'utf8');
-const source = kotlin.match(/val source: String\s*=\s*"""([\s\S]*?)"""/)[1];
+const {readGameModScript} = require('../game_mod_script_source.cjs');
+const source = readGameModScript(process.argv[2]);
 const capture = fs.readFileSync(process.argv[3], 'utf8');
 const config = {sessionId: 7, token: 'test-session', ships: {'607': {
   graph: {api_boko_n: [180, 180], api_boko_d: [20, 240], api_weda: [0, 0]},
@@ -43,7 +43,7 @@ function env(options = {}) {
       network.push({method: this.method, url: this.url, body});
       this._text = options.raw === undefined ? raw : options.raw;
       this._json = (() => { try { return JSON.parse(this._text.replace(/^svdata=/, '')); } catch (_) { return null; } })();
-      this.responseURL = new URL(this.url, 'https://w01y.kancolle-server.com/').href;
+      this.responseURL = options.responseUrl ?? new URL(this.url, 'https://w01y.kancolle-server.com/').href;
       this.status = options.status || 200; this.readyState = 4;
       this.onreadystatechange?.();
       for (const listener of this.events.readystatechange || []) listener.call(this);
@@ -56,7 +56,12 @@ function env(options = {}) {
   const context = vm.createContext({URL, URLSearchParams, Response, Headers, Request, TextEncoder, XMLHttpRequest: Xhr, HTMLImageElement: ImageElement,
     location: options.location || {href: 'https://w01y.kancolle-server.com/kcs2/index.php', protocol: 'https:', hostname: 'w01y.kancolle-server.com', port: ''},
     performance: {timeOrigin: 1}, setTimeout,
-    fetch: async (url, init) => { network.push({url, init}); return new Response(options.raw === undefined ? raw : options.raw, {status: options.status || 200}); },
+    fetch: async (url, init) => {
+      network.push({url, init});
+      const response = new Response(options.raw === undefined ? raw : options.raw, {status: options.status || 200});
+      if (options.responseUrl) Object.defineProperty(response, 'url', {value: options.responseUrl});
+      return response;
+    },
     YahagiNativeCapture: {postMessage: value => messages.push(JSON.parse(value))},
   });
   context.window = context;
@@ -341,6 +346,91 @@ function checkKanxyDocumentLifecycle() {
 }
 
 let assertions = 0;
+async function checkQuestTranslations() {
+  const questList = '/kcsapi/api_get_member/questlist';
+  const title = '日常演習を実施せよ！';
+  const detail = '十分な演習を実施せよ！';
+  const translation = {title: '进行日常演习！', detail: '完成演习。\n确认“任务”中的进度。'};
+  const stock = {
+    api_result: 1,
+    api_result_msg: 'OK',
+    api_data: {api_count: 2, api_exec_count: 1, api_page_count: 1, api_disp_page: 1, api_list: [
+      {api_no: 301, api_title: title, api_detail: detail, api_state: 2, api_progress_flag: 1, api_get_material: [1, 2, 3, 4]},
+      {api_no: 302, api_title: title, api_detail: detail, api_state: 1},
+      -1,
+      null,
+    ]},
+  };
+  const translated = structuredClone(stock);
+  Object.assign(translated.api_data.api_list[0], {api_title: translation.title, api_detail: translation.detail});
+  const payload = JSON.stringify(stock);
+  const body = 'svdata=' + payload;
+  const disabled = {sessionId: 14, token: 'quest-list', ships: {}};
+  const questConfig = {...disabled, questTranslations: {301: translation}};
+
+  for (const order of ['captureFirst', 'captureLast']) {
+    const e = env({raw: body, config: questConfig, [order]: true});
+    const {xhr, observed} = request(e, 'text', questList);
+    assert.ok(observed.startsWith('svdata='));
+    assert.deepEqual(parse(observed), translated);
+    assert.equal(xhr.response, observed);
+    assert.equal(e.messages[0].responseBody, body);
+    assert.deepEqual(e.network[0], {method: 'POST', url: questList, body: 'api_token=unchanged&api_verno=1'});
+    await new Promise(setImmediate);
+    const snapshot = e.messages.find(message => message.requestParams.yahagi_full_quest_snapshot === '1');
+    assert.ok(snapshot);
+    assert.deepEqual(parse(snapshot.responseBody).api_data.api_list, stock.api_data.api_list.slice(0, 2));
+    assert.equal(e.network.length, 2); // The existing capture refresh makes the second request.
+    assert.deepEqual(e.reports, []);
+
+    const json = env({raw: payload, config: questConfig, [order]: true});
+    const jsonResult = request(json, 'json', questList);
+    assert.deepEqual(parse(jsonResult.observed), translated);
+    assert.deepEqual(parse(json.messages[0].responseBody), stock);
+    jsonResult.observed.api_data.api_list[0].api_get_material[0] = 99;
+    assert.deepEqual(parse(json.context.__yahagiModOriginalResponses.xhrJson(jsonResult.xhr)), stock);
+
+    const fetch = env({raw: payload, config: {...config, ...questConfig, ships: config.ships, kanxy: true}, [order]: true});
+    const url = new URL(questList + '?test=1', fetch.context.location.href).href;
+    const init = {method: 'POST', body: 'api_tab_id=0'};
+    const response = await fetch.context.fetch(url, init);
+    assert.deepEqual(await response.clone().json(), translated);
+    assert.deepEqual(parse(await response.text()), translated);
+    await new Promise(setImmediate);
+    assert.equal(fetch.messages[0].responseBody, payload);
+    assert.deepEqual(fetch.network, [{url, init}]);
+    assert.deepEqual(fetch.reports, []);
+    assert.deepEqual(fetch.coordinateRequests, []);
+  }
+
+  const startup = env({config: {...config, questTranslations: questConfig.questTranslations}});
+  checkPatched(request(startup).observed);
+  assert.deepEqual(startup.reports[0].resourceIds, ['package:coordinates']);
+
+  const unchanged = [
+    [questList, {config: disabled}],
+    [questList, {config: {...disabled, questTranslations: {}}}],
+    [questList, {config: {...disabled, questTranslations: {303: translation}}}],
+    ['/kcsapi/api_port/port', {}],
+    [start2, {}],
+    [questList + '/other', {}],
+    ['https://w02y.kancolle-server.com' + questList, {}],
+    [questList, {responseUrl: 'https://w02y.kancolle-server.com' + questList}],
+    [questList, {responseUrl: 'https://w01y.kancolle-server.com' + start2}],
+    [questList, {status: 500}],
+    [questList, {raw: 'svdata={bad'}],
+    [questList, {raw: 'svdata=' + JSON.stringify({...stock, api_result: 0})}],
+    [questList, {raw: 'svdata=' + JSON.stringify({...stock, api_data: null})}],
+  ];
+  for (const [url, options] of unchanged) {
+    const e = env({raw: body, config: questConfig, ...options});
+    const expected = options.raw ?? body;
+    assert.equal(request(e, '', url).observed, expected);
+    assert.equal(await (await e.context.fetch(url)).text(), expected);
+    assert.deepEqual(e.reports, []);
+  }
+}
+
 async function run() {
   for (let round = 1; round <= 3; round++) {
     for (const type of ['', 'text', 'json']) {
@@ -399,5 +489,7 @@ async function run() {
   console.log('Kanxy document lifecycle passed (stock, Kanxy, stock; local selection preserved)');
   await checkKanxyShipNames();
   console.log('Kanxy ship names passed (false sentinels, aliases, native capture, XHR text/json and fetch)');
+  await checkQuestTranslations();
+  console.log('Quest translations passed (XHR text/json, fetch, full snapshot capture, scope and disabled mode)');
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });
