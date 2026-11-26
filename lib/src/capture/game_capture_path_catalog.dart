@@ -61,6 +61,7 @@ abstract final class GameCapturePathCatalog {
     '/kcsapi/api_req_sortie/goback_port',
     '/kcsapi/api_req_combined_battle/goback_port',
     '/kcsapi/api_req_mission/result',
+    '/kcsapi/api_req_mission/return_instruction',
     '/kcsapi/api_req_mission/start',
     '/kcsapi/api_req_practice/battle_result',
     '/kcsapi/api_req_member/get_practice_enemyinfo',

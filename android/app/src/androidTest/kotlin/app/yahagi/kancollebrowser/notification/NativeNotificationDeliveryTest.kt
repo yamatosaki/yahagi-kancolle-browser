@@ -139,6 +139,58 @@ class NativeNotificationDeliveryTest {
         assertTrue((result["failures"] as List<*>).isEmpty())
     }
 
+    @Test
+    fun offlineStartupKeepsTheSavedExpeditionAndItsSystemRegistration() {
+        val deadline = System.currentTimeMillis() + 600_000L
+        val saved = snapshot(deadline, deadline - 60_000L)
+        apply(saved)
+
+        for (memberId in listOf(0L, 1001L)) {
+            apply(startupSnapshot(memberId))
+            val persisted = AppNotificationManager.loadSnapshot(context)
+            assertEquals(session, persisted.sessionId)
+            assertEquals(deadline, persisted.alarms.single { it.stage == "complete" }.triggerTimeEpochMs)
+            assertNotNull(PendingIntent.getBroadcast(context, "expedition_2_complete".hashCode(),
+                Intent(context, NotificationAlarmReceiver::class.java),
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE))
+        }
+    }
+
+    @Test
+    fun confirmedDifferentAccountClearsSavedExpeditionBeforePortData() {
+        val deadline = System.currentTimeMillis() + 600_000L
+        apply(snapshot(deadline, deadline - 60_000L))
+
+        apply(startupSnapshot(2002L))
+
+        val persisted = AppNotificationManager.loadSnapshot(context)
+        assertEquals(2002L, persisted.memberId)
+        assertTrue(persisted.alarms.isEmpty())
+    }
+
+    @Test
+    fun savedExpeditionCanStillBeDeliveredAfterOfflineStartup() {
+        val deadline = System.currentTimeMillis() + 1_000L
+        val saved = snapshot(deadline, deadline - 60_000L).apply {
+            val alarms = get("alarms") as List<*>
+            put("alarms", alarms.filter { (it as Map<*, *>)["stage"] == "complete" })
+        }
+        apply(saved)
+        apply(startupSnapshot(0L))
+
+        // Android can throttle several alarms in a test batch. Dispatch the
+        // saved intent after its deadline to exercise the receiver without that quota.
+        SystemClock.sleep((deadline - System.currentTimeMillis()).coerceAtLeast(0L))
+        NotificationAlarmReceiver().onReceive(context, alarmIntent(saved, "complete"))
+        awaitAlert("Returned")
+    }
+
+    private fun startupSnapshot(memberId: Long) = emptySnapshot().apply {
+        put("memberId", memberId)
+        put("sessionId", "new-process")
+        put("awaitingInitialGameState", true)
+    }
+
     private fun apply(snapshot: Map<String, Any?>) {
         val result = AppNotificationManager.applySnapshot(context, snapshot)
         assertTrue(result.toString(), (result["failures"] as List<*>).isEmpty())
@@ -149,7 +201,7 @@ class NativeNotificationDeliveryTest {
         put("ongoingItems", emptyList<Any>())
     }
 
-    private fun snapshot(deadline: Long, preempt: Long): Map<String, Any?> = base(true).apply {
+    private fun snapshot(deadline: Long, preempt: Long): MutableMap<String, Any?> = base(true).apply {
         put("alarms", listOf(
             mapOf("key" to "expedition_2_preempt", "taskId" to taskId, "type" to "expedition",
                 "stage" to "preempt", "removeTaskOnFire" to false, "triggerTimeEpochMs" to preempt,

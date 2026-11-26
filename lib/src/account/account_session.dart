@@ -7,10 +7,15 @@ import '../game_state/game_api_event_pipeline.dart';
 
 /// Capture once before queueing work; never derive a write's owner after await.
 final class AccountScope {
-  const AccountScope({required this.memberId, required this.generation});
+  const AccountScope({
+    required this.memberId,
+    required this.generation,
+    this.explicitlyReset = false,
+  });
 
   final int memberId;
   final int generation;
+  final bool explicitlyReset;
   bool get isKnown => memberId > 0;
 
   String key(String baseKey) {
@@ -39,18 +44,23 @@ final class AccountSession extends ChangeNotifier
 
   bool isCurrent(AccountScope scope) => identical(scope, _current);
 
-  void reset() => _change(0, force: true);
+  void reset() => _change(0, force: true, explicitlyReset: true);
 
   /// For identity confirmed by the game API (also useful for injected tests).
   void selectMember(int memberId) => _change(memberId > 0 ? memberId : 0);
 
-  void _change(int memberId, {bool force = false}) {
+  void _change(
+    int memberId, {
+    bool force = false,
+    bool explicitlyReset = false,
+  }) {
     if (!force && memberId == _current.memberId) return;
     _admiralName = '';
     _serverName = '';
     _current = AccountScope(
       memberId: memberId,
       generation: _current.generation + 1,
+      explicitlyReset: explicitlyReset,
     );
     notifyListeners();
   }
@@ -65,7 +75,7 @@ final class AccountSession extends ChangeNotifier
   void accept(CapturedApiEvent event) {
     if (!supportsPath(event.path) || event.apiResult != 1) return;
     if (event.path == '/kcsapi/api_start2/getData') {
-      reset();
+      _change(0, force: true);
       return;
     }
     try {

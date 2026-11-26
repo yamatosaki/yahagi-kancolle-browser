@@ -14,6 +14,115 @@ import 'game_notification_coordinator_test.dart' show FakeNotificationPort;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('startup notification state', () {
+    late AccountSession session;
+    late GameStateController game;
+    late NotificationSettingsController settings;
+    late FakeNotificationPort port;
+    late GameNotificationCoordinator coordinator;
+    late GameState state;
+    final now = DateTime.utc(2026, 11, 26);
+
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      session = AccountSession();
+      game = GameStateController(accountSession: session);
+      settings = NotificationSettingsController(
+        store: const SharedPreferencesNotificationSettingsStore(),
+      );
+      await settings.initialize();
+      port = FakeNotificationPort();
+      state = const GameState();
+      coordinator = GameNotificationCoordinator(
+        gameStateController: game,
+        settingsController: settings,
+        notificationPort: port,
+        accountSession: session,
+        gameStateProvider: () => state,
+        nowProvider: () => now,
+      );
+    });
+
+    tearDown(() {
+      coordinator.dispose();
+      settings.dispose();
+      game.dispose();
+      session.dispose();
+    });
+
+    Future<void> settle() async {
+      await coordinator.accountReady;
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    test('cold launch waits for authoritative game state', () async {
+      coordinator.start();
+      await settle();
+      expect(port.latestSnapshot!.toMap()['awaitingInitialGameState'], isTrue);
+      expect(port.latestSnapshot!.memberId, 0);
+
+      session.accept(
+        CapturedApiEvent(
+          path: '/kcsapi/api_start2/getData',
+          responseBody: '{"api_result":1,"api_data":{}}',
+          source: CaptureSource.manual,
+          capturedAt: now,
+        ),
+      );
+      await settle();
+      expect(port.latestSnapshot!.toMap()['awaitingInitialGameState'], isTrue);
+
+      session.selectMember(1001);
+      await settle();
+      expect(port.latestSnapshot!.toMap()['awaitingInitialGameState'], isTrue);
+      expect(port.latestSnapshot!.memberId, 1001);
+
+      final deadline = now.add(const Duration(hours: 1));
+      state = GameState(
+        memberId: 1001,
+        hasPortData: true,
+        fleets: [
+          Fleet(
+            id: 2,
+            name: 'A',
+            shipIds: const [1],
+            mission: FleetMission(
+              state: 1,
+              missionId: 1,
+              completionTime: deadline,
+            ),
+          ),
+        ],
+      );
+      game.notifyListeners();
+      await settle();
+      expect(port.latestSnapshot!.toMap()['awaitingInitialGameState'], isNull);
+      expect(
+        port.scheduledAlarms['expedition_2_complete']!.triggerTime,
+        deadline,
+      );
+    });
+
+    test('explicit session reset clears saved alarms even offline', () async {
+      coordinator.start();
+      await settle();
+      session.reset();
+      await settle();
+      expect(port.latestSnapshot!.toMap()['awaitingInitialGameState'], isNull);
+      expect(port.latestSnapshot!.presentation.enabled, isFalse);
+    });
+
+    test('turning off notifications clears saved alarms offline', () async {
+      coordinator.start();
+      await settle();
+      await settings.setMaster(false);
+      await settle();
+      expect(port.latestSnapshot!.toMap()['awaitingInitialGameState'], isNull);
+      expect(port.latestSnapshot!.presentation.enabled, isFalse);
+    });
+  });
+
   test(
     'switching accounts does not complete the previous account repair',
     () async {

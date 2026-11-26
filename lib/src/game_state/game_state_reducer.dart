@@ -366,6 +366,12 @@ class GameStateReducer {
         event,
       ),
       '/kcsapi/api_req_mission/result' => _missionResult(state, event, origin),
+      '/kcsapi/api_req_mission/return_instruction' => _missionRecall(
+        state,
+        _requiredMap(data, 'mission recall'),
+        event,
+        origin,
+      ),
       '/kcsapi/api_req_mission/start' => _missionStart(
         state,
         _requiredMap(data, 'mission start'),
@@ -1044,6 +1050,40 @@ class GameStateReducer {
     if (deckId <= 0 || missionId <= 0 || completionTime == null) {
       return state.copyWith(serverOrigin: origin, updatedAt: event.capturedAt);
     }
+    return _updateFleetMission(
+      state,
+      deckId,
+      FleetMission(
+        state: 1,
+        missionId: missionId,
+        completionTime: completionTime,
+      ),
+      event,
+      origin,
+    );
+  }
+
+  GameState _missionRecall(
+    GameState state,
+    Map<String, Object?> data,
+    CapturedApiEvent event,
+    String origin,
+  ) {
+    final deckId = _asInt(event.requestParams['api_deck_id']);
+    final mission = _parseFleetMission(data['api_mission']);
+    if (deckId <= 0 || mission.missionId <= 0 || !mission.isActive) {
+      return state;
+    }
+    return _updateFleetMission(state, deckId, mission, event, origin);
+  }
+
+  GameState _updateFleetMission(
+    GameState state,
+    int deckId,
+    FleetMission mission,
+    CapturedApiEvent event,
+    String origin,
+  ) {
     final fleets = <Fleet>[
       for (final fleet in state.fleets)
         if (fleet.id == deckId)
@@ -1052,11 +1092,7 @@ class GameStateReducer {
             name: fleet.name,
             shipIds: fleet.shipIds,
             slotCount: fleet.slotCount,
-            mission: FleetMission(
-              state: 1,
-              missionId: missionId,
-              completionTime: completionTime,
-            ),
+            mission: mission,
           )
         else
           fleet,
@@ -2814,7 +2850,6 @@ class GameStateReducer {
       if (item == null || id <= 0) {
         continue;
       }
-      final mission = _optionalList(item['api_mission']);
       final rawShipIds = _intList(item['api_ship'], includeNonPositive: true);
       result.add(
         Fleet(
@@ -2822,18 +2857,23 @@ class GameStateReducer {
           name: _asString(item['api_name'], '第 $id 舰队'),
           shipIds: rawShipIds.where((shipId) => shipId > 0).toList(),
           slotCount: rawShipIds.length,
-          mission: FleetMission(
-            state: mission.isEmpty ? 0 : _asInt(mission[0]),
-            missionId: mission.length > 1 ? _asInt(mission[1]) : 0,
-            completionTime: mission.length > 2
-                ? _dateTimeFromMilliseconds(mission[2])
-                : null,
-          ),
+          mission: _parseFleetMission(item['api_mission']),
         ),
       );
     }
     result.sort((left, right) => left.id.compareTo(right.id));
     return result;
+  }
+
+  FleetMission _parseFleetMission(Object? value) {
+    final mission = _optionalList(value);
+    return FleetMission(
+      state: mission.isEmpty ? 0 : _asInt(mission[0]),
+      missionId: mission.length > 1 ? _asInt(mission[1]) : 0,
+      completionTime: mission.length > 2
+          ? _dateTimeFromMilliseconds(mission[2])
+          : null,
+    );
   }
 
   List<RepairDock> _parseRepairDocks(List<Object?> values) {

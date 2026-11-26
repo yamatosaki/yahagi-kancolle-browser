@@ -113,6 +113,7 @@ import app.yahagi.kancollebrowser.nativewebview.NativeWebViewStartupGuard
 import app.yahagi.kancollebrowser.nativewebview.SharedPreferencesNativeWebViewStartupStore
 import app.yahagi.kancollebrowser.notification.AppNotificationManager
 import app.yahagi.kancollebrowser.notification.NotificationProgressService
+import app.yahagi.kancollebrowser.notification.NotificationRecoveryReceiver
 import app.yahagi.kancollebrowser.display.DisplayCornerChannel
 import app.yahagi.kancollebrowser.navigation.AppNavigationChannel
 import app.yahagi.kancollebrowser.mods.GameModManager
@@ -181,15 +182,7 @@ class MainActivity : FlutterActivity(), GadgetBypassManager.Host, DiagnosticExpo
             scheduleGameSurfaceRecovery(reason)
         }
         applyPreferredUiRefreshRate()
-        runCatching {
-            val result = AppNotificationManager.restoreScheduledAlarms(this)
-            check((result["failures"] as? List<*>)?.isEmpty() != false) {
-                "Some notification alarms could not be restored"
-            }
-        }
-            .onFailure {
-                Log.w("YahagiNotifications", "Unable to restore saved notification alarms", it)
-            }
+        NotificationRecoveryReceiver.restoreInBackground(this)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {

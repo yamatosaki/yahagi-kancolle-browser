@@ -83,12 +83,17 @@ object AppNotificationManager {
     @Synchronized
     fun applySnapshot(context: Context, raw: Map<*, *>): Map<String, Any> {
         val desired = NotificationSnapshotCodec.fromMap(raw)
-        initChannels(context, desired.presentation.localeCode)
         require(desired.schemaVersion == 1) { "Unsupported notification snapshot schema" }
         require(!desired.presentation.enabled || desired.hasKnownAccountSession) {
             "Enabled notification snapshot requires an account session"
         }
         val previous = loadSnapshot(context)
+        if (raw["awaitingInitialGameState"] == true && !desired.presentation.enabled &&
+            ((desired.memberId ?: 0L) == 0L || desired.memberId == previous.memberId)
+        ) {
+            return mapOf("scheduledExact" to 0, "scheduledInexact" to 0, "canceled" to 0, "failures" to emptyList<String>())
+        }
+        initChannels(context, desired.presentation.localeCode)
         val reconciled = NotificationSnapshotReconciliation.beforeApply(
             previous = previous,
             desired = desired,
@@ -104,9 +109,10 @@ object AppNotificationManager {
                 it.copy(upsert = next.alarms)
             } else it
         }
-        // Commit the new validation state before touching system registrations. A
-        // captured old Intent must never become eligible while applying a change.
-        saveSnapshot(context, next)
+        // Commit the new validation state before touching system registrations. Keep
+        // unfinished registrations retryable if this process stops during the update.
+        val upsertKeys = diff.upsert.mapTo(mutableSetOf(), NotificationAlarm::key)
+        saveSnapshot(context, NotificationSnapshotRecovery.afterScheduleFailures(next, upsertKeys))
         if (!previous.hasSameAccountSession(next)) clearPreviousAccountAlerts(context, previous)
         cancelDeliveredAlerts(context, obsolete)
         val failures = mutableListOf<String>()
@@ -293,7 +299,7 @@ object AppNotificationManager {
             }
         }
         val persisted = NotificationSnapshotRecovery.afterScheduleFailures(next, failedKeys)
-        if (failedKeys.isNotEmpty()) saveSnapshot(context, persisted)
+        if (persisted != next) saveSnapshot(context, persisted)
         runCatching { updateOngoingProgress(context, persisted) }.onFailure { failures += "ongoing" }
         return mapOf("scheduledExact" to exact, "scheduledInexact" to inexact, "failures" to failures)
     }

@@ -126,10 +126,12 @@ class NotificationSnapshotTest {
     }
 
     @Test
-    fun `failed alarm schedules are omitted from the persisted snapshot so they retry`() {
+    fun `failed alarm registration survives persistence and remains eligible for recovery`() {
         val successful = alarm("successful", 200L)
         val failed = alarm("failed", 300L)
         val desired = snapshot(successful, sound = true, vibration = true).copy(
+            memberId = 1001L,
+            sessionId = "account-session",
             alarms = listOf(successful, failed),
         )
 
@@ -137,10 +139,16 @@ class NotificationSnapshotTest {
             desired,
             setOf("failed"),
         )
-        val retry = NotificationSnapshotDiff.between(persisted, desired)
+        val restored = NotificationSnapshotCodec.fromJson(NotificationSnapshotCodec.toJson(persisted))
 
-        assertEquals(listOf(successful), persisted.alarms)
+        assertEquals(listOf("successful", "failed"), restored.alarms.map { it.key })
+        assertTrue(NotificationDelivery.shouldRestore(restored, restored.alarms.last(), 100L))
+
+        val retry = NotificationSnapshotDiff.between(restored, desired)
         assertEquals(listOf(failed), retry.upsert)
+
+        val recovered = NotificationSnapshotRecovery.afterScheduleFailures(restored, emptySet())
+        assertEquals(emptyList<NotificationAlarm>(), NotificationSnapshotDiff.between(recovered, desired).upsert)
     }
 
     @Test

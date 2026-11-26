@@ -167,6 +167,7 @@ class NotificationSnapshot {
     this.schemaVersion = 1,
     this.memberId,
     this.sessionId,
+    this.awaitingInitialGameState = false,
     required this.updatedAt,
     this.immediateAlerts = const [],
     required this.alarms,
@@ -177,6 +178,7 @@ class NotificationSnapshot {
   final int schemaVersion;
   final int? memberId;
   final String? sessionId;
+  final bool awaitingInitialGameState;
   final DateTime updatedAt;
   final List<ImmediateNotificationItem> immediateAlerts;
   final List<ScheduledNotificationItem> alarms;
@@ -187,6 +189,7 @@ class NotificationSnapshot {
     'schemaVersion': schemaVersion,
     if (memberId != null) 'memberId': memberId,
     if (sessionId != null) 'sessionId': sessionId,
+    if (awaitingInitialGameState) 'awaitingInitialGameState': true,
     'updatedAtEpochMs': updatedAt.millisecondsSinceEpoch,
     'immediateAlerts': immediateAlerts.map((item) => item.toMap()).toList(),
     'alarms': alarms.map((item) => item.toMap()).toList(),

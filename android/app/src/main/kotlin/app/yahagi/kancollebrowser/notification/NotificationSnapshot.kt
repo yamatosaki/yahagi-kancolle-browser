@@ -15,6 +15,7 @@ data class NotificationAlarm(
     val deliveryAttempts: Int = 0,
     val deadlineEpochMs: Long? = null,
     val bodyTemplate: String? = null,
+    val needsScheduleRetry: Boolean = false,
 )
 
 data class DeliveredNotificationAlert(
@@ -132,7 +133,10 @@ object NotificationSnapshotDiff {
         val nextByKey = next.associateBy(NotificationAlarm::key)
         return NotificationAlarmDiff(
             cancelKeys = previousByKey.keys - nextByKey.keys,
-            upsert = next.filter { previousByKey[it.key] != it },
+            upsert = next.filter { alarm ->
+                val previousAlarm = previousByKey[alarm.key]
+                previousAlarm?.needsScheduleRetry == true || previousAlarm != alarm
+            },
         )
     }
 }
@@ -142,15 +146,16 @@ object NotificationSnapshotRecovery {
         desired: NativeNotificationSnapshot,
         failedKeys: Set<String>,
     ): NativeNotificationSnapshot = desired.copy(
-        alarms = desired.alarms.filterNot { it.key in failedKeys },
+        alarms = desired.alarms.map { alarm ->
+            alarm.copy(needsScheduleRetry = alarm.key in failedKeys)
+        },
     )
 
     fun afterDeliveryResults(
         desired: NativeNotificationSnapshot,
         failedScheduleKeys: Set<String>,
         failedImmediateKeys: Set<String>,
-    ): NativeNotificationSnapshot = desired.copy(
-        alarms = desired.alarms.filterNot { it.key in failedScheduleKeys },
+    ): NativeNotificationSnapshot = afterScheduleFailures(desired, failedScheduleKeys).copy(
         immediateAlerts = desired.immediateAlerts
             .filter { it.key in failedImmediateKeys }
             .map { it.copy(deliveryAttempts = it.deliveryAttempts + 1) },
@@ -400,6 +405,7 @@ object NotificationSnapshotCodec {
                 deliveryAttempts = alarm.optionalNumber("deliveryAttempts")?.toInt() ?: 0,
                 deadlineEpochMs = alarm.optionalNumber("deadlineEpochMs")?.toLong(),
                 bodyTemplate = alarm.optionalString("bodyTemplate"),
+                needsScheduleRetry = alarm["needsScheduleRetry"] == true,
             )
         }
         val ongoingItems = raw.list("ongoingItems").map { itemRaw ->
@@ -489,6 +495,7 @@ object NotificationSnapshotCodec {
                     put("deliveryAttempts", alarm.deliveryAttempts)
                     alarm.deadlineEpochMs?.let { put("deadlineEpochMs", it) }
                     alarm.bodyTemplate?.takeIf { it.isNotEmpty() }?.let { put("bodyTemplate", it) }
+                    if (alarm.needsScheduleRetry) put("needsScheduleRetry", true)
                 })
             }
         })

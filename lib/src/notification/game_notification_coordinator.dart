@@ -66,6 +66,7 @@ class GameNotificationCoordinator {
   int _memberId = 0;
   int _generation = 0;
   bool _loadingAccount = false;
+  bool _awaitingInitialGameState = true;
   bool _needsAnchorRestore = false;
   Future<void> _accountReady = Future<void>.value();
   Future<void> get accountReady => _accountReady;
@@ -107,10 +108,12 @@ class GameNotificationCoordinator {
     if (_disposed) return;
     final scope = accountSession!.current;
     if (identical(_accountScope, scope)) return;
+    if (scope.explicitlyReset || _accountScope?.isKnown == true) {
+      _awaitingInitialGameState = false;
+    }
     _accountScope = scope;
     _clearAccountState(scope.memberId);
     _loadingAccount = true;
-    // Immediately replace native state while the game reducer still has the old account.
     _syncSnapshot();
     final store = _storeForMember(scope.memberId);
     _accountReady =
@@ -324,6 +327,7 @@ class GameNotificationCoordinator {
     final state = _gameStateProvider();
     final now = _now();
     final usable = _canUseGameState(state);
+    if (usable) _awaitingInitialGameState = false;
     if (!settings.master || !usable) {
       _pendingImmediateAlerts.clear();
     } else {
@@ -336,6 +340,9 @@ class GameNotificationCoordinator {
       sessionId: accountSession == null
           ? null
           : '$_instanceId:${accountSession!.current.generation}',
+      // A startup snapshot reports identity without replacing saved timers
+      // until game state is ready or the previous session is invalidated.
+      awaitingInitialGameState: settings.master && _awaitingInitialGameState,
       updatedAt: now,
       immediateAlerts: _pendingImmediateAlerts.values.toList(growable: false),
       alarms: settings.master && usable
@@ -554,6 +561,7 @@ class GameNotificationCoordinator {
               _pendingSnapshot = NotificationSnapshot(
                 memberId: pending.memberId,
                 sessionId: pending.sessionId,
+                awaitingInitialGameState: pending.awaitingInitialGameState,
                 schemaVersion: pending.schemaVersion,
                 updatedAt: pending.updatedAt,
                 immediateAlerts: pending.immediateAlerts

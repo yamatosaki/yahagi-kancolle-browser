@@ -1,5 +1,6 @@
 package app.yahagi.kancollebrowser.notification
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -20,5 +21,38 @@ class NotificationRecoveryActionTest {
         assertFalse(NotificationRecoveryReceiver.shouldRestore(""))
         assertFalse(NotificationRecoveryReceiver.shouldRestore("android.intent.action.TIME_TICK"))
         assertFalse(NotificationRecoveryReceiver.shouldRestore("app.yahagi.unrelated"))
+    }
+
+    @Test
+    fun `the recovery callback retries after a transient exception`() {
+        var attempts = 0
+        var retryWaits = 0
+
+        val result = NotificationRecoveryReceiver.attemptRecovery(
+            restore = {
+                if (++attempts == 1) error("alarm service is not ready")
+            },
+            waitBeforeRetry = { retryWaits++ },
+        )
+
+        assertEquals(2, attempts)
+        assertEquals(1, retryWaits)
+        assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun `the recovery callback stops retrying when the second attempt fails`() {
+        var attempts = 0
+
+        val result = NotificationRecoveryReceiver.attemptRecovery(
+            restore = {
+                attempts++
+                error("alarm service is unavailable")
+            },
+            waitBeforeRetry = {},
+        )
+
+        assertEquals(2, attempts)
+        assertTrue(result.isFailure)
     }
 }
